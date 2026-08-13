@@ -2,6 +2,7 @@
 
 This file tests standard Markdown and common Markdown extensions when they appear inside Markdown table cells. It is intended as a fixture for Obsidian, VSCode Markdown Preview, and custom live table renderers.
 
+
 Notes:
 
 - Literal pipe characters inside cells use `&#124;` so the table remains parseable.
