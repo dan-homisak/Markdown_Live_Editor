@@ -25170,7 +25170,7 @@
         color: "var(--vscode-editorLineNumber-foreground, #858585)",
         borderRight: "none",
         boxSizing: "border-box",
-        paddingLeft: "var(--mlrt-editor-gutter-left-padding, 18px)",
+        paddingLeft: "var(--mlrt-editor-gutter-left-padding, 2.5ch)",
         fontFamily: "var(--mlrt-editor-font-family, var(--vscode-editor-font-family, monospace))",
         fontSize: "var(--mlrt-editor-font-size, var(--vscode-editor-font-size, 13px))",
         fontWeight: "var(--mlrt-editor-font-weight, normal)",
@@ -25185,10 +25185,10 @@
       },
       ".cm-lineNumbers .cm-gutterElement": {
         boxSizing: "border-box",
-        width: "calc(var(--mlrt-editor-line-number-width, 22px) + var(--mlrt-editor-gutter-right-padding, 26px))",
+        width: "calc(var(--mlrt-editor-line-number-width, 3ch) + var(--mlrt-editor-gutter-right-padding, 26px))",
         minHeight: "var(--mlrt-editor-line-height, 1.5em)",
-        minWidth: "calc(var(--mlrt-editor-line-number-width, 22px) + var(--mlrt-editor-gutter-right-padding, 26px))",
-        maxWidth: "calc(var(--mlrt-editor-line-number-width, 22px) + var(--mlrt-editor-gutter-right-padding, 26px))",
+        minWidth: "calc(var(--mlrt-editor-line-number-width, 3ch) + var(--mlrt-editor-gutter-right-padding, 26px))",
+        maxWidth: "calc(var(--mlrt-editor-line-number-width, 3ch) + var(--mlrt-editor-gutter-right-padding, 26px))",
         padding: "0 var(--mlrt-editor-gutter-right-padding, 26px) 0 0"
       },
       '.cm-lineNumbers .cm-gutterElement[style*="visibility: hidden"]': {
@@ -25213,10 +25213,10 @@
       },
       // CodeMirror normally centers its border cursor with a negative margin.
       // At column zero that puts part of the cursor beneath the sticky gutter,
-      // whose layer is above the cursor layer. Keep the real primary cursor
-      // wholly inside the content area when an empty active line has no glyph
-      // box to move it away from that boundary.
-      "&.cm-focused:not(.mlrt-table-cell-focused):not(.mlrt-selection-active):has(.cm-line.cm-activeLine > br:only-child) .cm-cursor-primary": {
+      // whose layer is above the cursor layer. The state-sync plugin supplies
+      // this class directly from the selection/document model, avoiding a
+      // focus-sensitive :has() query over browser-generated line DOM.
+      "&.mlrt-empty-line-cursor:not(.mlrt-table-cell-focused):not(.mlrt-selection-active) .cm-cursor-primary": {
         marginLeft: "0"
       },
       "&.mlrt-table-cell-focused .cm-activeLine": {
@@ -37059,6 +37059,7 @@ ${replacement}
   // src/editor/tableCellFocus.ts
   var TABLE_CELL_FOCUSED_CLASS = "mlrt-table-cell-focused";
   var SELECTION_ACTIVE_CLASS = "mlrt-selection-active";
+  var EMPTY_LINE_CURSOR_CLASS = "mlrt-empty-line-cursor";
   function createTableCellFocusClassSync() {
     return ViewPlugin.fromClass(
       class {
@@ -37110,6 +37111,11 @@ ${replacement}
             this.view.dom.classList.toggle(
               SELECTION_ACTIVE_CLASS,
               !this.view.state.selection.main.empty || Boolean(getTableRangeSelection(ownerDocument))
+            );
+            const mainSelection = this.view.state.selection.main;
+            this.view.dom.classList.toggle(
+              EMPTY_LINE_CURSOR_CLASS,
+              mainSelection.empty && this.view.state.doc.lineAt(mainSelection.head).length === 0
             );
           });
         }

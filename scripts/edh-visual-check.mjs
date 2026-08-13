@@ -18,15 +18,15 @@ const standardMarkdownTableFixture = await readFile(
   path.join(repoRoot, "standard-markdown-in-table-fixture.md"),
   "utf8",
 );
-const codeBin = [
-  "/Applications/Visual Studio Code.app/Contents/MacOS/Code",
-  "/Applications/Visual Studio Code.app/Contents/MacOS/Electron",
-].find(existsSync);
+const codeBin = resolveCodeExecutable();
 if (!codeBin) {
-  throw new Error("Could not find the Visual Studio Code app executable.");
+  throw new Error(
+    `Could not find the Visual Studio Code app executable on ${process.platform}.`,
+  );
 }
 const port = 9400 + Math.floor(Math.random() * 400);
 const userDataDir = mkdtempSync(path.join(os.tmpdir(), "mlrt-edh-"));
+const extensionsDir = path.join(userDataDir, "extensions");
 const qaDir = path.join(repoRoot, "qa");
 const pixelTolerance = 0.5;
 const mixedInputOnlyComplete = Symbol("mixed-input-only-complete");
@@ -39,7 +39,9 @@ const arrowNavigationOnlyComplete = Symbol("arrow-navigation-only-complete");
 const keyboardNavigationOnlyComplete = Symbol(
   "keyboard-navigation-only-complete",
 );
+const cursorHighlightOnlyComplete = Symbol("cursor-highlight-only-complete");
 await mkdir(qaDir, { recursive: true });
+await mkdir(extensionsDir, { recursive: true });
 const fixturePath = path.join(userDataDir, "TestTable.md");
 await writeFile(
   fixturePath,
@@ -81,11 +83,38 @@ await writeFile(
 );
 console.log(`Using Electron DevTools port ${port}`);
 
+function resolveCodeExecutable() {
+  const localAppData = process.env.LOCALAPPDATA;
+  const programFiles = process.env.ProgramFiles;
+  const programFilesX86 = process.env["ProgramFiles(x86)"];
+  const candidates =
+    process.platform === "darwin"
+      ? [
+          "/Applications/Visual Studio Code.app/Contents/MacOS/Code",
+          "/Applications/Visual Studio Code.app/Contents/MacOS/Electron",
+        ]
+      : process.platform === "win32"
+        ? [
+            localAppData &&
+              path.join(localAppData, "Programs", "Microsoft VS Code", "Code.exe"),
+            programFiles && path.join(programFiles, "Microsoft VS Code", "Code.exe"),
+            programFilesX86 &&
+              path.join(programFilesX86, "Microsoft VS Code", "Code.exe"),
+          ]
+        : [
+            "/usr/share/code/code",
+            "/usr/bin/code",
+            "/snap/bin/code",
+          ];
+  return candidates.filter(Boolean).find(existsSync);
+}
+
 const child = spawn(
   codeBin,
   [
     `--extensionDevelopmentPath=${repoRoot}`,
     `--user-data-dir=${userDataDir}`,
+    `--extensions-dir=${extensionsDir}`,
     `--remote-debugging-port=${port}`,
     "--new-window",
     "--disable-workspace-trust",
@@ -198,20 +227,21 @@ try {
   const stockMetrics = await evaluateJson(wb, stockMetricsExpression());
   console.log("STOCK METRICS:", stockMetrics);
 
-  // Trigger the extension's registered macOS shortcut directly. This avoids
+  // Trigger the extension's registered platform shortcut directly. This avoids
   // first-run workbench contributions stealing Command Palette focus in the
   // otherwise isolated profile.
   const key = async (opts) => wb.send("Input.dispatchKeyEvent", opts);
+  const toggleModifiers = process.platform === "darwin" ? 4 | 2 : 2 | 1;
   await key({
     type: "keyDown",
-    modifiers: 4 | 2,
+    modifiers: toggleModifiers,
     key: "m",
     code: "KeyM",
     windowsVirtualKeyCode: 77,
   });
   await key({
     type: "keyUp",
-    modifiers: 4 | 2,
+    modifiers: toggleModifiers,
     key: "m",
     code: "KeyM",
     windowsVirtualKeyCode: 77,
@@ -258,14 +288,14 @@ try {
   if (!liveClient) {
     await key({
       type: "keyDown",
-      modifiers: 4 | 2,
+      modifiers: toggleModifiers,
       key: "m",
       code: "KeyM",
       windowsVirtualKeyCode: 77,
     });
     await key({
       type: "keyUp",
-      modifiers: 4 | 2,
+      modifiers: toggleModifiers,
       key: "m",
       code: "KeyM",
       windowsVirtualKeyCode: 77,
@@ -295,6 +325,43 @@ try {
   }
 
   assertPixelParity(stockMetrics, liveMetrics);
+
+  if (process.argv.includes("--cursor-highlight-only")) {
+    let emptyLineCursor = await evaluateJson(
+      liveClient,
+      emptyLineCursorSetupExpression(),
+    );
+    const clickX = emptyLineCursor.activeLine.left + 2;
+    const clickY =
+      emptyLineCursor.activeLine.top + emptyLineCursor.activeLine.height / 2;
+    await liveClient.send("Input.dispatchMouseEvent", {
+      type: "mousePressed",
+      x: clickX,
+      y: clickY,
+      button: "left",
+      clickCount: 1,
+    });
+    await liveClient.send("Input.dispatchMouseEvent", {
+      type: "mouseReleased",
+      x: clickX,
+      y: clickY,
+      button: "left",
+      clickCount: 1,
+    });
+    await sleep(150);
+    emptyLineCursor = await evaluateJson(
+      liveClient,
+      emptyLineCursorSetupExpression(),
+    );
+    console.log("EMPTY-LINE CURSOR/HIGHLIGHT CHECK:", emptyLineCursor);
+    await captureWorkbenchScreenshot(
+      wb,
+      path.join(qaDir, "edh-empty-line-cursor.png"),
+    );
+    assertEmptyLineCursor(emptyLineCursor);
+    throw cursorHighlightOnlyComplete;
+  }
+
   if (!liveClient) {
     throw new Error("Enter exit check failed: live webview client was not found.");
   }
@@ -2000,7 +2067,8 @@ try {
     error !== emptyDeleteOnlyComplete &&
     error !== wrappedSelectionOnlyComplete &&
     error !== arrowNavigationOnlyComplete &&
-    error !== keyboardNavigationOnlyComplete
+    error !== keyboardNavigationOnlyComplete &&
+    error !== cursorHighlightOnlyComplete
   ) {
     throw error;
   }
@@ -5334,7 +5402,12 @@ function adjacentProseSurfaceDragSetupExpression() {
       {
         name: 'prose-table-boundary',
         x: contentRect.left + 0.5,
-        y: tableRect.top - 0.5,
+        // Stay one CSS pixel inside the final prose line. Fractional Monaco
+        // line heights can otherwise round a half-pixel probe onto the table
+        // widget on Windows even though it is visually above the boundary.
+        y: blankCaret
+          ? Math.min(tableRect.top, blankCaret.bottom) - 1
+          : NaN,
       },
     ].map((surface) => ({
       ...surface,
@@ -9504,6 +9577,13 @@ function emptyLineCursorSetupExpression() {
     const pseudoStyle = activeLine
       ? root.defaultView.getComputedStyle(activeLine, '::before')
       : null;
+    const activeLineStyle = activeLine
+      ? root.defaultView.getComputedStyle(activeLine)
+      : null;
+    const configuredActiveLineBackground = root.defaultView
+      .getComputedStyle(root.documentElement)
+      .getPropertyValue('--vscode-editor-lineHighlightBackground')
+      .trim();
     return JSON.stringify({
       ok: true,
       blankLineNumber: blankLine.number,
@@ -9513,11 +9593,17 @@ function emptyLineCursorSetupExpression() {
         activeLine.firstElementChild?.tagName === 'BR'
       ),
       cursorMarginLeft: cursorStyle?.marginLeft ?? null,
+      cursorDisplay: cursorStyle?.display ?? null,
       cursorColor: cursorStyle?.borderLeftColor ?? null,
       cursorWidth: cursorBox?.width ?? 0,
       cursorHeight: cursorBox?.height ?? 0,
       cursorContentLeftDelta:
         cursorBox && activeLineBox ? cursorBox.left - activeLineBox.left : null,
+      activeLineBackground: activeLineStyle?.backgroundColor ?? null,
+      configuredActiveLineBackground,
+      editorClassName: view.dom.className,
+      editorHasEmptyLineCursorClass:
+        view.dom.classList.contains('mlrt-empty-line-cursor'),
       pseudoContent: pseudoStyle?.content ?? null,
       activeLine: activeLineBox ? {
         left: activeLineBox.left,
@@ -10982,9 +11068,13 @@ function assertMultilineProseSelection(setup, result) {
       detail.connectsTopLeft && detail.connectsBottomLeft
     ) ||
     details.some((detail) => selectionColorIsTransparent(detail.background)) ||
-    details.slice(0, -1).some((detail, index) =>
-      Math.abs(detail.paintedBottom - details[index + 1].paintedTop) > pixelTolerance
-    ) ||
+    details.slice(0, -1).some((detail, index) => {
+      const gap = details[index + 1].paintedTop - detail.paintedBottom;
+      // Fractional line boxes can overlap adjacent inline backgrounds by one
+      // device pixel. That prevents a seam; only a positive gap (or a much
+      // larger overlap) breaks the continuous selection shape.
+      return gap > pixelTolerance || gap < -1.5;
+    }) ||
     details.some((detail) =>
       detail.connectsTopLeft !== (detail.borderTopLeftRadius === "0px") ||
       detail.connectsTopRight !== (detail.borderTopRightRadius === "0px") ||
@@ -14558,12 +14648,18 @@ function assertEmptyLineCursor(result) {
   if (
     !result?.ok ||
     !result.activeLineOnlyHasBreak ||
+    !result.editorHasEmptyLineCursorClass ||
     !result.focused ||
     result.cursorMarginLeft !== "0px" ||
     result.cursorWidth <= 0 ||
     result.cursorHeight <= 0 ||
     result.cursorColor === "rgba(0, 0, 0, 0)" ||
     Math.abs(result.cursorContentLeftDelta) > 0.1 ||
+    (result.configuredActiveLineBackground !== "" &&
+      result.configuredActiveLineBackground !== "transparent" &&
+      result.configuredActiveLineBackground !== "rgba(0, 0, 0, 0)" &&
+      (result.activeLineBackground === "transparent" ||
+        result.activeLineBackground === "rgba(0, 0, 0, 0)")) ||
     result.pseudoContent !== "none"
   ) {
     throw new Error(
@@ -14619,7 +14715,11 @@ function assertPixelParity(stock, live) {
       parseFloat(stock.firstLineLineHeight),
       liveLineHeight,
     ),
-    compare("right padding", rightPadding, liveScroller?.right - liveLine?.right),
+    compare(
+      "right padding",
+      rightPadding,
+      live.scrollerClientWidth - live.line?.right,
+    ),
     compare("table top rhythm", expectedTableTop, live.table?.top),
   ];
   const failures = checks.filter((check) => !check.pass);

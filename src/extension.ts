@@ -820,8 +820,16 @@ function getEditorMetricsCss(documentUri: vscode.Uri): string {
   );
   const fontFeatureSettings = getFontFeatureSettings(editorConfig);
   const fontVariationSettings = getFontVariationSettings(editorConfig);
+  // Match Monaco's BareFontInfo calculation. VS Code intentionally uses a
+  // taller default on macOS and a denser default on Windows/Linux; values
+  // below its 8px minimum are interpreted as em multipliers.
+  const defaultLineHeightRatio = process.platform === "darwin" ? 1.5 : 1.35;
   const lineHeightRatio =
-    configuredLineHeight > 0 ? configuredLineHeight / fontSize : 1.5;
+    configuredLineHeight === 0
+      ? defaultLineHeightRatio
+      : configuredLineHeight < 8
+        ? configuredLineHeight
+        : configuredLineHeight / fontSize;
 
   return [
     `      --mlrt-editor-font-family: var(--vscode-editor-font-family, ${fontFamily});`,
@@ -834,8 +842,8 @@ function getEditorMetricsCss(documentUri: vscode.Uri): string {
     `      --mlrt-editor-cursor-width: ${cursorWidth}px;`,
     `      --mlrt-editor-top-padding: ${paddingTop}px;`,
     `      --mlrt-editor-bottom-padding: ${paddingBottom}px;`,
-    `      --mlrt-editor-gutter-left-padding: 18px;`,
-    `      --mlrt-editor-line-number-width: 22px;`,
+    `      --mlrt-editor-gutter-left-padding: 2.5ch;`,
+    `      --mlrt-editor-line-number-width: 3ch;`,
     `      --mlrt-editor-gutter-right-padding: 26px;`,
     `      --mlrt-editor-right-padding: var(--mlrt-editor-gutter-right-padding);`,
     `      --mlrt-editor-gutter-width: calc(var(--mlrt-editor-gutter-left-padding) + var(--mlrt-editor-line-number-width) + var(--mlrt-editor-gutter-right-padding));`,
