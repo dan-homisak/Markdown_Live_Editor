@@ -38615,7 +38615,10 @@ ${replacement}
       const tableHeight = tableElement.getBoundingClientRect().height;
       syncScrollbar();
       const scrollbarHeight = scrollbar.hidden ? 0 : scrollbar.getBoundingClientRect().height;
-      wrapper.style.height = `${Math.max(0, tableHeight + scrollbarHeight)}px`;
+      wrapper.style.height = `${Math.max(
+        0,
+        tableHeight + scrollbarHeight
+      )}px`;
       syncTableSelectionOverlay(wrapper);
     };
     const scheduleLayout = () => {
@@ -38645,6 +38648,23 @@ ${replacement}
     if (!scroller) {
       return void 0;
     }
+    return measureAvailableDataWidthChFromEditor(
+      scroller,
+      wrapper,
+      getTableWidgetTable(wrapper)?.columnCount ?? 1
+    );
+  }
+  function measureAvailableDataWidthChForView(view2, columnCount) {
+    return measureAvailableDataWidthChFromEditor(
+      view2.scrollDOM,
+      view2.contentDOM,
+      columnCount
+    );
+  }
+  function tableSizingOverflowsAvailableWidth(columnSizing, availableDataWidthCh) {
+    return availableDataWidthCh !== void 0 && columnSizing.dataWidthCh > availableDataWidthCh + 0.01;
+  }
+  function measureAvailableDataWidthChFromEditor(scroller, fontElement, columnCount) {
     const styles = getComputedStyle(scroller);
     const gutterWidth = resolveCssLengthPx(
       scroller,
@@ -38654,8 +38674,7 @@ ${replacement}
       scroller,
       styles.getPropertyValue("--mlrt-editor-right-padding")
     );
-    const chWidth = measureChWidth(wrapper);
-    const columnCount = getTableWidgetTable(wrapper)?.columnCount ?? 1;
+    const chWidth = measureChWidth(fontElement);
     const borderAllowancePx = columnCount + 2;
     const availablePx = Math.max(
       0,
@@ -40900,6 +40919,21 @@ ${replacement}
       this.table = table2;
     }
     table;
+    /**
+     * Gives CodeMirror's off-screen height map a source-derived table estimate.
+     *
+     * Without this, a replacement widget is initially estimated as roughly one
+     * text line. Mounting even a two-row table while scrolling then changes the
+     * height map underneath the viewport; a run of tables can briefly put the
+     * widget DOM ahead of the preceding native gutter line. Explicit `<br>`
+     * rows are especially disruptive. The real DOM is still measured after
+     * mounting, but this estimate keeps the virtual layout close enough that
+     * scroll anchoring never has to recover from a one-line-versus-many-lines
+     * discontinuity.
+     */
+    get estimatedHeight() {
+      return estimateRenderedTableHeight(this.table);
+    }
     eq(widget) {
       return widget instanceof _RenderedTableWidget && widget.table.from === this.table.from && isTablePreservedForLiveEdit(this.table.from);
     }
@@ -40917,7 +40951,14 @@ ${replacement}
       wrapper.dataset.srcTo = String(this.table.to);
       wrapper.contentEditable = "false";
       setTableWidgetTable(wrapper, this.table);
-      const columnSizing = measureTableColumnSizing(this.table);
+      const availableDataWidthCh = measureAvailableDataWidthChForView(
+        view2,
+        this.table.columnCount
+      );
+      const columnSizing = measureTableColumnSizing(
+        this.table,
+        availableDataWidthCh
+      );
       applyColumnSizing(wrapper, columnSizing);
       const tableElement = document.createElement("table");
       tableElement.className = "mlrt-table";
@@ -40953,6 +40994,10 @@ ${replacement}
       tableScroll.append(tableElement);
       const scrollbar = document.createElement("div");
       scrollbar.className = "mlrt-table-scrollbar";
+      scrollbar.hidden = !tableSizingOverflowsAvailableWidth(
+        columnSizing,
+        availableDataWidthCh
+      );
       const scrollbarThumb = document.createElement("div");
       scrollbarThumb.className = "mlrt-table-scrollbar-thumb";
       scrollbar.append(scrollbarThumb);
@@ -40995,6 +41040,19 @@ ${replacement}
       return true;
     }
   };
+  var ESTIMATED_EDITOR_LINE_HEIGHT_PX = 19;
+  var ESTIMATED_TABLE_ROW_CHROME_PX = 2;
+  function estimateRenderedTableHeight(table2) {
+    return [table2.header, ...table2.body].reduce((height, row) => {
+      const explicitLineCount = Math.max(
+        1,
+        ...rowToDisplayValues(row, table2.columnCount).map(
+          (value) => value.split("\n").length
+        )
+      );
+      return height + explicitLineCount * ESTIMATED_EDITOR_LINE_HEIGHT_PX + ESTIMATED_TABLE_ROW_CHROME_PX;
+    }, 0);
+  }
   function canPatchTableDOM(dom, table2) {
     if (!dom.classList.contains("mlrt-table-widget")) {
       return false;
@@ -41113,69 +41171,37 @@ ${replacement}
   function createTableDecorations() {
     const field = StateField.define({
       create(state) {
-        return buildTableDecorationSets(state.doc);
+        return buildTableDecorations(state.doc);
       },
       update(value, transaction) {
         if (!transaction.docChanged) {
           return value;
         }
         if (transaction.annotation(tableCellLiveEditAnnotation)) {
-          return {
-            decorations: value.decorations.map(transaction.changes),
-            gutterMarkers: value.gutterMarkers.map(transaction.changes)
-          };
+          return value.map(transaction.changes);
         }
-        return buildTableDecorationSets(transaction.state.doc);
+        return buildTableDecorations(transaction.state.doc);
       },
       provide(field2) {
         return [
-          EditorView.decorations.from(field2, (value) => value.decorations),
-          lineNumberMarkers.from(field2, (value) => value.gutterMarkers),
-          EditorView.atomicRanges.of(
-            (view2) => view2.state.field(field2).decorations
-          )
+          EditorView.decorations.from(field2),
+          EditorView.atomicRanges.of((view2) => view2.state.field(field2))
         ];
       }
     });
     return field;
   }
-  function buildTableDecorationSets(doc2) {
-    const tables2 = getParsedTables(doc2);
-    const gutterBuilder = new RangeSetBuilder();
-    const decorations2 = Decoration.set(
-      tables2.flatMap((table2) => [
-        Decoration.widget({
+  function buildTableDecorations(doc2) {
+    return Decoration.set(
+      getParsedTables(doc2).map(
+        (table2) => Decoration.replace({
           widget: new RenderedTableWidget(table2),
-          block: true,
-          side: -1
-        }).range(table2.from),
-        ...[table2.header, table2.delimiter, ...table2.body].map(
-          (row) => Decoration.line({
-            class: "mlrt-hidden-table-source-line"
-          }).range(row.from)
-        )
-      ]),
+          block: true
+        }).range(table2.from, table2.to)
+      ),
       true
     );
-    for (const table2 of tables2) {
-      for (const row of [table2.header, table2.delimiter, ...table2.body]) {
-        gutterBuilder.add(row.from, row.from, hiddenLineNumberMarker);
-      }
-    }
-    return {
-      decorations: decorations2,
-      gutterMarkers: gutterBuilder.finish()
-    };
   }
-  var hiddenLineNumberMarker = new class extends GutterMarker {
-    elementClass = "mlrt-hidden-table-source-gutter";
-    eq(other) {
-      return other === this;
-    }
-    toDOM(view2) {
-      return view2.dom.ownerDocument.createTextNode("");
-    }
-  }();
 
   // src/editor/liveEditorExtensions.ts
   var lineWrappingCompartment = new Compartment();

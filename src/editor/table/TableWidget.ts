@@ -13,6 +13,8 @@ import {
   applyColumnSizing,
   applyCurrentColumnSizing,
   bindTableLayout,
+  measureAvailableDataWidthChForView,
+  tableSizingOverflowsAvailableWidth,
 } from "./tableLayout";
 import { bindTableStructureControls } from "./tableStructureControls";
 import { bindTableRangeSelection } from "./tableRangeSelection";
@@ -42,6 +44,22 @@ export class RenderedTableWidget extends WidgetType {
     super();
   }
 
+  /**
+   * Gives CodeMirror's off-screen height map a source-derived table estimate.
+   *
+   * Without this, a replacement widget is initially estimated as roughly one
+   * text line. Mounting even a two-row table while scrolling then changes the
+   * height map underneath the viewport; a run of tables can briefly put the
+   * widget DOM ahead of the preceding native gutter line. Explicit `<br>`
+   * rows are especially disruptive. The real DOM is still measured after
+   * mounting, but this estimate keeps the virtual layout close enough that
+   * scroll anchoring never has to recover from a one-line-versus-many-lines
+   * discontinuity.
+   */
+  public override get estimatedHeight(): number {
+    return estimateRenderedTableHeight(this.table);
+  }
+
   public eq(widget: WidgetType): boolean {
     return (
       widget instanceof RenderedTableWidget &&
@@ -67,7 +85,14 @@ export class RenderedTableWidget extends WidgetType {
     wrapper.contentEditable = "false";
     setTableWidgetTable(wrapper, this.table);
 
-    const columnSizing = measureTableColumnSizing(this.table);
+    const availableDataWidthCh = measureAvailableDataWidthChForView(
+      view,
+      this.table.columnCount,
+    );
+    const columnSizing = measureTableColumnSizing(
+      this.table,
+      availableDataWidthCh,
+    );
     applyColumnSizing(wrapper, columnSizing);
 
     const tableElement = document.createElement("table");
@@ -108,6 +133,10 @@ export class RenderedTableWidget extends WidgetType {
 
     const scrollbar = document.createElement("div");
     scrollbar.className = "mlrt-table-scrollbar";
+    scrollbar.hidden = !tableSizingOverflowsAvailableWidth(
+      columnSizing,
+      availableDataWidthCh,
+    );
     const scrollbarThumb = document.createElement("div");
     scrollbarThumb.className = "mlrt-table-scrollbar-thumb";
     scrollbar.append(scrollbarThumb);
@@ -152,6 +181,26 @@ export class RenderedTableWidget extends WidgetType {
   public ignoreEvent(): boolean {
     return true;
   }
+}
+
+const ESTIMATED_EDITOR_LINE_HEIGHT_PX = 19;
+const ESTIMATED_TABLE_ROW_CHROME_PX = 2;
+
+/** Source-only height estimate used before an off-screen widget is mounted. */
+export function estimateRenderedTableHeight(table: ParsedTable): number {
+  return [table.header, ...table.body].reduce((height, row) => {
+    const explicitLineCount = Math.max(
+      1,
+      ...rowToDisplayValues(row, table.columnCount).map(
+        (value) => value.split("\n").length,
+      ),
+    );
+    return (
+      height +
+      explicitLineCount * ESTIMATED_EDITOR_LINE_HEIGHT_PX +
+      ESTIMATED_TABLE_ROW_CHROME_PX
+    );
+  }, 0);
 }
 
 interface AppendCellsOptions {

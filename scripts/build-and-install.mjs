@@ -119,7 +119,7 @@ async function verifyInstalledPayload(version) {
   const checks = [
     ["media/liveEditor.js", "formatTableCellSourceEdit"],
     ["media/liveEditor.js", "computeCellBeforeInputDecision"],
-    ["media/liveEditor.js", "hiddenLineNumberMarker"],
+    ["media/liveEditor.js", "buildTableDecorations"],
     ["media/liveEditor.js", "createEditorGeometrySync"],
     ["media/liveEditor.js", "appendColumnSizing"],
     ["media/liveEditor.js", "measureTableColumnSizing"],

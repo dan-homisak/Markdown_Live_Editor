@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { editorDragPosition } from "../editor/dragPosition";
 import { cellValueNeedsCaretSentinel } from "../editor/table/cellSelection";
+import { estimateRenderedTableHeight } from "../editor/table/TableWidget";
 import { planVisibleTableBoundary } from "../editor/tableBoundaryInput";
 import {
   mapNormalizedDocumentChangesToHost,
@@ -81,6 +82,23 @@ assert.deepEqual(rowToDisplayValues(standardTables[0].body[1], 3), [
   "contains | pipe",
   "2",
 ]);
+assert.equal(
+  estimateRenderedTableHeight(standardTables[0]),
+  3 * 21,
+  "ordinary table height estimates one rendered line per visible row",
+);
+const explicitBreakTable = parseMarkdownTables(
+  [
+    "| A | B |",
+    "| --- | --- |",
+    "| one | alpha<br>beta<br>gamma |",
+  ].join("\n"),
+)[0];
+assert.equal(
+  estimateRenderedTableHeight(explicitBreakTable),
+  21 + 59,
+  "explicit table-cell breaks contribute to the off-screen height estimate",
+);
 
 const noOuterPipes = [
   "Name | Empty | Notes",
@@ -786,8 +804,10 @@ assert.doesNotMatch(
   liveEditorSource,
   /toggleMode|toggleRenderedMode|renderedMode|renderModeCompartment/,
 );
-assert.match(tableDecorationsSource, /lineNumberMarkers/);
-assert.match(tableDecorationsSource, /hiddenLineNumberMarker/);
+assert.match(tableDecorationsSource, /Decoration\.replace/);
+assert.doesNotMatch(tableDecorationsSource, /lineNumberMarkers/);
+assert.doesNotMatch(tableDecorationsSource, /hiddenLineNumberMarker/);
+assert.doesNotMatch(liveEditorCss, /mlrt-hidden-table-source/);
 assert.match(geometrySyncSource, /ResizeObserver/);
 assert.match(tableWidgetSource, /dataset\.sourceLine/);
 assert.match(tableWidgetSource, /measureTableColumnSizing/);
