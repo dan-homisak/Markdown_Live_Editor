@@ -18,6 +18,10 @@ const standardMarkdownTableFixture = await readFile(
   path.join(repoRoot, "standard-markdown-in-table-fixture.md"),
   "utf8",
 );
+const gutterStressFixture = await readFile(
+  path.join(repoRoot, "GutterStressTest.md"),
+  "utf8",
+);
 const codeBin = resolveCodeExecutable();
 if (!codeBin) {
   throw new Error(
@@ -40,6 +44,7 @@ const keyboardNavigationOnlyComplete = Symbol(
   "keyboard-navigation-only-complete",
 );
 const cursorHighlightOnlyComplete = Symbol("cursor-highlight-only-complete");
+const gutterScrollOnlyComplete = Symbol("gutter-scroll-only-complete");
 await mkdir(qaDir, { recursive: true });
 await mkdir(extensionsDir, { recursive: true });
 const fixturePath = path.join(userDataDir, "TestTable.md");
@@ -374,6 +379,33 @@ try {
 
   if (!liveClient) {
     throw new Error("Enter exit check failed: live webview client was not found.");
+  }
+  if (process.argv.includes("--gutter-scroll-only")) {
+    const gutterFixtureBaseline = await evaluateJson(
+      liveClient,
+      captureSelectionFixtureExpression(),
+    );
+    if (!gutterFixtureBaseline?.ok || gutterFixtureBaseline.tableCount < 2) {
+      throw new Error(
+        `Gutter scroll baseline capture failed: ${JSON.stringify(gutterFixtureBaseline)}`,
+      );
+    }
+    const isolatedHost = await evaluateJson(
+      liveClient,
+      setTestHostIsolationExpression(true),
+    );
+    assertTestHostIsolation(isolatedHost, true);
+    const gutterScrollOrdering = await evaluateJson(
+      liveClient,
+      gutterScrollOrderingExpression(),
+    );
+    assertGutterScrollOrdering(gutterScrollOrdering);
+    console.log("LONG-DOCUMENT GUTTER SCROLL ORDERING CHECK:", gutterScrollOrdering);
+    await captureWorkbenchScreenshot(
+      wb,
+      path.join(qaDir, "edh-gutter-scroll-ordering.png"),
+    );
+    throw gutterScrollOnlyComplete;
   }
   const documentEndScroll = await evaluateJson(
     liveClient,
@@ -2078,7 +2110,8 @@ try {
     error !== wrappedSelectionOnlyComplete &&
     error !== arrowNavigationOnlyComplete &&
     error !== keyboardNavigationOnlyComplete &&
-    error !== cursorHighlightOnlyComplete
+    error !== cursorHighlightOnlyComplete &&
+    error !== gutterScrollOnlyComplete
   ) {
     throw error;
   }
@@ -2494,10 +2527,9 @@ function tableGutterAlignmentExpression() {
     const numericRows = visibleTextRows
       .map((row) => Number(row.text))
       .filter((value) => Number.isFinite(value));
-    const hiddenNativeRows = nativeRows.filter((row) =>
-      row.className.includes('mlrt-hidden-table-source-gutter')
+    const tableSourceLineTextSet = new Set(
+      tableSourceLines.map((line) => line.textContent.trim()),
     );
-    const hiddenContentLines = Array.from(root.querySelectorAll('.cm-line.mlrt-hidden-table-source-line')).map((element) => box(element));
     return JSON.stringify({
       ok: true,
       table: box(table),
@@ -2506,10 +2538,12 @@ function tableGutterAlignmentExpression() {
       nativeNumbersStrictlyIncrease: numericRows.every((value, index) =>
         index === 0 || value > numericRows[index - 1]
       ),
-      hiddenNativeRowCount: hiddenNativeRows.length,
-      hiddenNativeRowsHaveZeroHeight: hiddenNativeRows.every((row) => row.height <= 0.5),
-      hiddenContentLineCount: hiddenContentLines.length,
-      hiddenContentLinesHaveZeroHeight: hiddenContentLines.every((row) => !row || row.height <= 0.5),
+      nativeRowsForReplacedTableSource: nativeRows.filter(
+        (row) => row.visible && tableSourceLineTextSet.has(row.text),
+      ),
+      legacyHiddenSourceElementCount: root.querySelectorAll(
+        '.mlrt-hidden-table-source-line, .mlrt-hidden-table-source-gutter',
+      ).length,
       tableSourceLineCount: tableSourceLines.length,
       tableSourceLineTexts: tableSourceLines.map((line) => line.textContent.trim()),
     });
@@ -9653,6 +9687,155 @@ function emptyLineCursorRestoreExpression() {
   })()`;
 }
 
+function gutterScrollOrderingExpression() {
+  const fixtureJson = JSON.stringify(gutterStressFixture);
+  return `(async () => {
+    const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map((frame) => {
+      try { return frame.contentDocument; } catch { return null; }
+    }).filter(Boolean)];
+    const root = roots.find((candidate) => candidate.defaultView?.__MLRT_EDITOR_VIEW__);
+    const view = root?.defaultView.__MLRT_EDITOR_VIEW__;
+    if (!root || !view) {
+      return JSON.stringify({ ok: false, reason: 'missing CodeMirror view' });
+    }
+    const waitFrames = (count = 2) => new Promise((resolve) => {
+      const frame = () => count-- <= 0
+        ? resolve()
+        : view.dom.ownerDocument.defaultView.requestAnimationFrame(frame);
+      frame();
+    });
+    const fixture = ${fixtureJson};
+    root.defaultView.dispatchEvent(
+      new root.defaultView.MessageEvent('message', {
+        data: {
+          type: 'setDocument',
+          text: fixture,
+          revision: 999901,
+          debug: false,
+        },
+      }),
+    );
+    await waitFrames(4);
+    if (view.state.doc.toString() !== fixture) {
+      return JSON.stringify({ ok: false, reason: 'stress fixture did not load' });
+    }
+
+    const scroller = view.scrollDOM;
+    const audit = () => {
+      const viewport = scroller.getBoundingClientRect();
+      const items = [];
+      for (const element of view.dom.querySelectorAll(
+        '.cm-lineNumbers .cm-gutterElement',
+      )) {
+        const rect = element.getBoundingClientRect();
+        const number = Number(element.textContent?.trim());
+        if (
+          Number.isFinite(number) &&
+          rect.height > 0.5 &&
+          rect.bottom > viewport.top &&
+          rect.top < viewport.bottom
+        ) {
+          items.push({
+            number,
+            top: rect.top - viewport.top,
+            bottom: rect.bottom - viewport.top,
+            owner: 'native',
+          });
+        }
+      }
+      for (const element of view.dom.querySelectorAll(
+        '.mlrt-table-source-line',
+      )) {
+        const rect = element.getBoundingClientRect();
+        const number = Number(element.getAttribute('data-source-line'));
+        if (
+          Number.isFinite(number) &&
+          rect.height > 0.5 &&
+          rect.bottom > viewport.top &&
+          rect.top < viewport.bottom
+        ) {
+          items.push({
+            number,
+            top: rect.top - viewport.top,
+            bottom: rect.bottom - viewport.top,
+            owner: 'table',
+          });
+        }
+      }
+      items.sort((left, right) => left.top - right.top || left.number - right.number);
+      const inversions = [];
+      for (let index = 1; index < items.length; index++) {
+        if (items[index].number <= items[index - 1].number) {
+          inversions.push({ before: items[index - 1], after: items[index] });
+        }
+      }
+      return { items, inversions };
+    };
+
+    let sampleCount = 0;
+    let tableSampleCount = 0;
+    let nativeSampleCount = 0;
+    let firstFailure = null;
+    let maximumScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+    const inspectAt = async (scrollTop, direction) => {
+      scroller.scrollTop = scrollTop;
+      await waitFrames(2);
+      const sample = audit();
+      sampleCount++;
+      tableSampleCount += sample.items.filter((item) => item.owner === 'table').length;
+      nativeSampleCount += sample.items.filter((item) => item.owner === 'native').length;
+      if (!firstFailure && sample.inversions.length > 0) {
+        firstFailure = {
+          direction,
+          scrollTop: scroller.scrollTop,
+          items: sample.items,
+          inversions: sample.inversions,
+        };
+      }
+    };
+
+    for (let scrollTop = 0; scrollTop <= maximumScrollTop; scrollTop += 180) {
+      await inspectAt(scrollTop, 'down');
+      if (firstFailure) break;
+      maximumScrollTop = Math.max(
+        maximumScrollTop,
+        scroller.scrollHeight - scroller.clientHeight,
+      );
+    }
+    const reachedBottom = firstFailure === null;
+    if (!firstFailure) {
+      await inspectAt(maximumScrollTop, 'down');
+      for (let scrollTop = maximumScrollTop; scrollTop >= 0; scrollTop -= 360) {
+        await inspectAt(scrollTop, 'up');
+        if (firstFailure) break;
+      }
+    }
+    const returnedToTop = firstFailure === null;
+
+    const target = fixture.indexOf('| [GS013]');
+    view.dispatch({ selection: { anchor: target }, scrollIntoView: true });
+    await waitFrames(4);
+    const finalSample = audit();
+    const finalNumbers = finalSample.items.map((item) => item.number);
+    return JSON.stringify({
+      ok: true,
+      fixtureLineCount: view.state.doc.lines,
+      sampleCount,
+      tableSampleCount,
+      nativeSampleCount,
+      maximumScrollTop,
+      reachedBottom,
+      returnedToTop,
+      firstFailure,
+      finalNumbers,
+      finalInversions: finalSample.inversions,
+      legacyHiddenSourceElementCount: view.dom.querySelectorAll(
+        '.mlrt-hidden-table-source-line, .mlrt-hidden-table-source-gutter',
+      ).length,
+    });
+  })()`;
+}
+
 function textLineHighlightExpression() {
   return `(async () => {
     const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map((frame) => {
@@ -10729,10 +10912,8 @@ function assertTableGutterAlignment(result) {
     !result?.ok ||
     result.nativeRowsInTableBand?.length !== 0 ||
     !result.nativeNumbersStrictlyIncrease ||
-    result.hiddenNativeRowCount <= 0 ||
-    !result.hiddenNativeRowsHaveZeroHeight ||
-    result.hiddenContentLineCount <= 0 ||
-    !result.hiddenContentLinesHaveZeroHeight ||
+    result.nativeRowsForReplacedTableSource?.length !== 0 ||
+    result.legacyHiddenSourceElementCount !== 0 ||
     result.tableSourceLineCount <= 0
   ) {
     throw new Error(
@@ -14738,6 +14919,29 @@ function assertEmptyLineCursor(result) {
   ) {
     throw new Error(
       `Empty-line cursor check failed: ${JSON.stringify(result)}`,
+    );
+  }
+}
+
+function assertGutterScrollOrdering(result) {
+  if (
+    !result?.ok ||
+    result.fixtureLineCount < 2_000 ||
+    result.sampleCount < 100 ||
+    result.tableSampleCount <= 0 ||
+    result.nativeSampleCount <= 0 ||
+    result.maximumScrollTop <= 0 ||
+    !result.reachedBottom ||
+    !result.returnedToTop ||
+    result.firstFailure !== null ||
+    result.finalInversions?.length !== 0 ||
+    result.legacyHiddenSourceElementCount !== 0 ||
+    !result.finalNumbers?.includes(197) ||
+    !result.finalNumbers?.includes(199) ||
+    !result.finalNumbers?.includes(200)
+  ) {
+    throw new Error(
+      `Long-document gutter scroll ordering check failed: ${JSON.stringify(result)}`,
     );
   }
 }

@@ -2,6 +2,7 @@ import {
   measureTableColumnSizing,
   TableColumnSizing,
 } from "../../shared/tableColumnSizing";
+import { EditorView } from "@codemirror/view";
 import { ParsedTable } from "../../shared/tableModel";
 import {
   cancelElementAnimationFrame,
@@ -111,7 +112,10 @@ export function bindTableLayout(
     const scrollbarHeight = scrollbar.hidden
       ? 0
       : scrollbar.getBoundingClientRect().height;
-    wrapper.style.height = `${Math.max(0, tableHeight + scrollbarHeight)}px`;
+    wrapper.style.height = `${Math.max(
+      0,
+      tableHeight + scrollbarHeight,
+    )}px`;
     // Column sizing and wrapping are now committed. Synchronize selection
     // geometry here so the overlay can never measure the previous layout.
     syncTableSelectionOverlay(wrapper);
@@ -159,6 +163,44 @@ export function measureAvailableDataWidthCh(
     return undefined;
   }
 
+  return measureAvailableDataWidthChFromEditor(
+    scroller,
+    wrapper,
+    getTableWidgetTable(wrapper)?.columnCount ?? 1,
+  );
+}
+
+/**
+ * Resolves the same available width before a new widget is connected, so its
+ * first browser layout already uses the final viewport-aware column sizing.
+ */
+export function measureAvailableDataWidthChForView(
+  view: EditorView,
+  columnCount: number,
+): number | undefined {
+  return measureAvailableDataWidthChFromEditor(
+    view.scrollDOM,
+    view.contentDOM,
+    columnCount,
+  );
+}
+
+/** Whether the sized data columns require the custom horizontal scrollbar. */
+export function tableSizingOverflowsAvailableWidth(
+  columnSizing: TableColumnSizing,
+  availableDataWidthCh: number | undefined,
+): boolean {
+  return (
+    availableDataWidthCh !== undefined &&
+    columnSizing.dataWidthCh > availableDataWidthCh + 0.01
+  );
+}
+
+function measureAvailableDataWidthChFromEditor(
+  scroller: HTMLElement,
+  fontElement: HTMLElement,
+  columnCount: number,
+): number | undefined {
   const styles = getComputedStyle(scroller);
   const gutterWidth = resolveCssLengthPx(
     scroller,
@@ -168,8 +210,7 @@ export function measureAvailableDataWidthCh(
     scroller,
     styles.getPropertyValue("--mlrt-editor-right-padding"),
   );
-  const chWidth = measureChWidth(wrapper);
-  const columnCount = getTableWidgetTable(wrapper)?.columnCount ?? 1;
+  const chWidth = measureChWidth(fontElement);
   const borderAllowancePx = columnCount + 2;
   const availablePx = Math.max(
     0,

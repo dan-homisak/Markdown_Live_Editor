@@ -1,7 +1,5 @@
 import {
   Extension,
-  RangeSet,
-  RangeSetBuilder,
   StateField,
   Text,
 } from "@codemirror/state";
@@ -9,58 +7,45 @@ import {
   Decoration,
   DecorationSet,
   EditorView,
-  GutterMarker,
-  lineNumberMarkers,
 } from "@codemirror/view";
 import { getParsedTables } from "../shared/tableModel";
 import { tableCellLiveEditAnnotation } from "./tableEditAnnotations";
 import { RenderedTableWidget } from "./table/TableWidget";
 
-interface TableDecorationSets {
-  /** Rendered table widgets plus hidden-line decorations over table source. */
-  decorations: DecorationSet;
-  /** Markers that blank the native gutter numbers for table source lines. */
-  gutterMarkers: RangeSet<GutterMarker>;
-}
-
 /**
- * Single state field that derives everything table rendering needs from one
- * memoized parse per document version:
+ * Replaces each complete Markdown table source range with one rendered block.
  *
- * - a block widget replacing each table's source lines,
- * - line decorations hiding the raw source lines,
- * - gutter markers suppressing their native line numbers (each rendered row
- *   draws its own number inside the table),
- * - atomic ranges so cursor motion skips the replaced source.
+ * This must be a real block replacement rather than a zero-length widget plus
+ * CSS-hidden source lines. CodeMirror's height map and virtual gutter are
+ * driven by document blocks. Collapsing individual lines with `display:none`
+ * leaves those lines in that model and, after enough scrolling, can cause a
+ * later table widget to be mounted ahead of earlier prose gutter rows. A
+ * replacement range gives CodeMirror one source-ordered, height-aware block
+ * for the table and removes the replaced lines from the native gutter by
+ * construction.
  *
  * Live cell edits (annotated transactions) map the existing sets through the
  * change instead of rebuilding, which keeps the mounted widget DOM stable
  * while typing.
  */
 export function createTableDecorations(): Extension {
-  const field = StateField.define<TableDecorationSets>({
+  const field = StateField.define<DecorationSet>({
     create(state) {
-      return buildTableDecorationSets(state.doc);
+      return buildTableDecorations(state.doc);
     },
     update(value, transaction) {
       if (!transaction.docChanged) {
         return value;
       }
       if (transaction.annotation(tableCellLiveEditAnnotation)) {
-        return {
-          decorations: value.decorations.map(transaction.changes),
-          gutterMarkers: value.gutterMarkers.map(transaction.changes),
-        };
+        return value.map(transaction.changes);
       }
-      return buildTableDecorationSets(transaction.state.doc);
+      return buildTableDecorations(transaction.state.doc);
     },
     provide(field) {
       return [
-        EditorView.decorations.from(field, (value) => value.decorations),
-        lineNumberMarkers.from(field, (value) => value.gutterMarkers),
-        EditorView.atomicRanges.of(
-          (view) => view.state.field(field).decorations,
-        ),
+        EditorView.decorations.from(field),
+        EditorView.atomicRanges.of((view) => view.state.field(field)),
       ];
     },
   });
@@ -68,45 +53,14 @@ export function createTableDecorations(): Extension {
   return field;
 }
 
-function buildTableDecorationSets(doc: Text): TableDecorationSets {
-  const tables = getParsedTables(doc);
-  const gutterBuilder = new RangeSetBuilder<GutterMarker>();
-  const decorations = Decoration.set(
-    tables.flatMap((table) => [
-      Decoration.widget({
+function buildTableDecorations(doc: Text): DecorationSet {
+  return Decoration.set(
+    getParsedTables(doc).map((table) =>
+      Decoration.replace({
         widget: new RenderedTableWidget(table),
         block: true,
-        side: -1,
-      }).range(table.from),
-      ...[table.header, table.delimiter, ...table.body].map((row) =>
-        Decoration.line({
-          class: "mlrt-hidden-table-source-line",
-        }).range(row.from),
-      ),
-    ]),
+      }).range(table.from, table.to),
+    ),
     true,
   );
-
-  for (const table of tables) {
-    for (const row of [table.header, table.delimiter, ...table.body]) {
-      gutterBuilder.add(row.from, row.from, hiddenLineNumberMarker);
-    }
-  }
-
-  return {
-    decorations,
-    gutterMarkers: gutterBuilder.finish(),
-  };
 }
-
-const hiddenLineNumberMarker = new (class extends GutterMarker {
-  public override elementClass = "mlrt-hidden-table-source-gutter";
-
-  public eq(other: GutterMarker): boolean {
-    return other === this;
-  }
-
-  public toDOM(view: EditorView): Node {
-    return view.dom.ownerDocument.createTextNode("");
-  }
-})();
