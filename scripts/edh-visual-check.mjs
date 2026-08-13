@@ -359,6 +359,16 @@ try {
       path.join(qaDir, "edh-empty-line-cursor.png"),
     );
     assertEmptyLineCursor(emptyLineCursor);
+    const textLineHighlight = await evaluateJson(
+      liveClient,
+      textLineHighlightExpression(),
+    );
+    console.log("TEXT-LINE HIGHLIGHT CHECK:", textLineHighlight);
+    await captureWorkbenchScreenshot(
+      wb,
+      path.join(qaDir, "edh-text-line-highlight.png"),
+    );
+    assertTextLineHighlight(textLineHighlight);
     throw cursorHighlightOnlyComplete;
   }
 
@@ -9584,6 +9594,11 @@ function emptyLineCursorSetupExpression() {
       .getComputedStyle(root.documentElement)
       .getPropertyValue('--vscode-editor-lineHighlightBackground')
       .trim();
+    view.dom.classList.add('mlrt-table-cell-focused', 'mlrt-selection-active');
+    const activeLineBackgroundWithStaleSuppressors = activeLine
+      ? root.defaultView.getComputedStyle(activeLine).backgroundColor
+      : null;
+    view.dom.classList.remove('mlrt-table-cell-focused', 'mlrt-selection-active');
     return JSON.stringify({
       ok: true,
       blankLineNumber: blankLine.number,
@@ -9600,10 +9615,17 @@ function emptyLineCursorSetupExpression() {
       cursorContentLeftDelta:
         cursorBox && activeLineBox ? cursorBox.left - activeLineBox.left : null,
       activeLineBackground: activeLineStyle?.backgroundColor ?? null,
+      activeLineBackgroundWithStaleSuppressors,
       configuredActiveLineBackground,
       editorClassName: view.dom.className,
       editorHasEmptyLineCursorClass:
         view.dom.classList.contains('mlrt-empty-line-cursor'),
+      editorHasProseCursorFocusedClass:
+        view.dom.classList.contains('mlrt-prose-cursor-focused'),
+      activeLineHasOwnedDecoration:
+        activeLine?.classList.contains('mlrt-prose-active-line') ?? false,
+      activeLineBackgroundImage:
+        activeLineStyle?.backgroundImage ?? null,
       pseudoContent: pseudoStyle?.content ?? null,
       activeLine: activeLineBox ? {
         left: activeLineBox.left,
@@ -9628,6 +9650,53 @@ function emptyLineCursorRestoreExpression() {
     view.dispatch({ selection: { anchor: restore.anchor } });
     delete root.defaultView.__MLRT_EMPTY_LINE_CURSOR_TEST_RESTORE__;
     return JSON.stringify({ ok: true });
+  })()`;
+}
+
+function textLineHighlightExpression() {
+  return `(async () => {
+    const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map((frame) => {
+      try { return frame.contentDocument; } catch { return null; }
+    }).filter(Boolean)];
+    const root = roots.find((candidate) => candidate.defaultView?.__MLRT_EDITOR_VIEW__);
+    const view = root?.defaultView.__MLRT_EDITOR_VIEW__;
+    if (!root || !view) return JSON.stringify({ ok: false, reason: 'missing live editor' });
+    const textLine = Array.from({ length: view.state.doc.lines }, (_, index) =>
+      view.state.doc.line(index + 1)
+    ).find((line) => line.text.trim() !== '' && !line.text.trimStart().startsWith('|'));
+    if (!textLine) return JSON.stringify({ ok: false, reason: 'missing nonblank prose line' });
+    view.dispatch({
+      selection: { anchor: textLine.from + Math.min(2, textLine.length) },
+      scrollIntoView: true,
+    });
+    view.focus();
+    await new Promise((done) => root.defaultView.requestAnimationFrame(() =>
+      root.defaultView.requestAnimationFrame(done)
+    ));
+    const activeLine = root.querySelector('.cm-line.mlrt-prose-active-line');
+    const activeLineStyle = activeLine
+      ? root.defaultView.getComputedStyle(activeLine)
+      : null;
+    const activeLineBox = activeLine?.getBoundingClientRect();
+    return JSON.stringify({
+      ok: true,
+      lineNumber: textLine.number,
+      lineText: textLine.text,
+      selectionEmpty: view.state.selection.main.empty,
+      focused: root.activeElement === view.contentDOM,
+      editorHasProseCursorFocusedClass:
+        view.dom.classList.contains('mlrt-prose-cursor-focused'),
+      activeLineHasOwnedDecoration: Boolean(activeLine),
+      activeLineText: activeLine?.textContent ?? null,
+      activeLineBackground: activeLineStyle?.backgroundColor ?? null,
+      activeLineBackgroundImage: activeLineStyle?.backgroundImage ?? null,
+      activeLine: activeLineBox ? {
+        left: activeLineBox.left,
+        top: activeLineBox.top,
+        width: activeLineBox.width,
+        height: activeLineBox.height,
+      } : null,
+    });
   })()`;
 }
 
@@ -14649,6 +14718,8 @@ function assertEmptyLineCursor(result) {
     !result?.ok ||
     !result.activeLineOnlyHasBreak ||
     !result.editorHasEmptyLineCursorClass ||
+    !result.editorHasProseCursorFocusedClass ||
+    !result.activeLineHasOwnedDecoration ||
     !result.focused ||
     result.cursorMarginLeft !== "0px" ||
     result.cursorWidth <= 0 ||
@@ -14659,11 +14730,32 @@ function assertEmptyLineCursor(result) {
       result.configuredActiveLineBackground !== "transparent" &&
       result.configuredActiveLineBackground !== "rgba(0, 0, 0, 0)" &&
       (result.activeLineBackground === "transparent" ||
-        result.activeLineBackground === "rgba(0, 0, 0, 0)")) ||
+        result.activeLineBackground === "rgba(0, 0, 0, 0)" ||
+        result.activeLineBackgroundWithStaleSuppressors === "transparent" ||
+        result.activeLineBackgroundWithStaleSuppressors ===
+          "rgba(0, 0, 0, 0)")) ||
     result.pseudoContent !== "none"
   ) {
     throw new Error(
       `Empty-line cursor check failed: ${JSON.stringify(result)}`,
+    );
+  }
+}
+
+function assertTextLineHighlight(result) {
+  if (
+    !result?.ok ||
+    !result.selectionEmpty ||
+    !result.focused ||
+    !result.editorHasProseCursorFocusedClass ||
+    !result.activeLineHasOwnedDecoration ||
+    !result.activeLineText ||
+    !result.activeLine ||
+    result.activeLineBackground === "transparent" ||
+    result.activeLineBackground === "rgba(0, 0, 0, 0)"
+  ) {
+    throw new Error(
+      `Text-line highlight check failed: ${JSON.stringify(result)}`,
     );
   }
 }

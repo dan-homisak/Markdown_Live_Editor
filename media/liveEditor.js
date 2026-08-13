@@ -25204,8 +25204,13 @@
         color: "var(--vscode-editor-foreground, #d4d4d4)",
         padding: "0"
       },
-      ".cm-activeLine": {
-        backgroundColor: "var(--vscode-editor-lineHighlightBackground, transparent)"
+      ".cm-activeLine, .mlrt-prose-active-line": {
+        // The lower layer is a guaranteed, theme-derived contrast fallback.
+        // The VS Code token paints over it when supplied, preserving exact
+        // stock-editor color while remaining visible if a host injects an
+        // absent or transparent token.
+        backgroundColor: "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
+        backgroundImage: "linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent))"
       },
       ".cm-cursor, .cm-dropCursor": {
         borderLeftColor: "var(--vscode-editorCursor-foreground, #aeafad)",
@@ -25219,11 +25224,21 @@
       "&.mlrt-empty-line-cursor:not(.mlrt-table-cell-focused):not(.mlrt-selection-active) .cm-cursor-primary": {
         marginLeft: "0"
       },
-      "&.mlrt-table-cell-focused .cm-activeLine": {
-        backgroundColor: "transparent"
+      "&.mlrt-table-cell-focused :is(.cm-activeLine, .mlrt-prose-active-line)": {
+        backgroundColor: "transparent",
+        backgroundImage: "none"
       },
-      "&.mlrt-selection-active .cm-activeLine": {
-        backgroundColor: "transparent"
+      "&.mlrt-selection-active :is(.cm-activeLine, .mlrt-prose-active-line)": {
+        backgroundColor: "transparent",
+        backgroundImage: "none"
+      },
+      // A positive focus state wins over any stale negative class left behind
+      // by a long-lived webview focus transition. This is intentionally after
+      // the suppression rules: when the editable CodeMirror content itself
+      // owns an empty cursor, its line highlight is authoritative.
+      "&:is(.cm-focused, .mlrt-prose-cursor-focused) :is(.cm-activeLine, .mlrt-prose-active-line)": {
+        backgroundColor: "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
+        backgroundImage: "linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent))"
       },
       "&.mlrt-table-cell-focused .cm-cursor": {
         display: "none"
@@ -37060,11 +37075,13 @@ ${replacement}
   var TABLE_CELL_FOCUSED_CLASS = "mlrt-table-cell-focused";
   var SELECTION_ACTIVE_CLASS = "mlrt-selection-active";
   var EMPTY_LINE_CURSOR_CLASS = "mlrt-empty-line-cursor";
+  var PROSE_CURSOR_FOCUSED_CLASS = "mlrt-prose-cursor-focused";
   function createTableCellFocusClassSync() {
     return ViewPlugin.fromClass(
       class {
         constructor(view2) {
           this.view = view2;
+          this.decorations = createProseActiveLineDecoration(view2);
           this.syncFocusClass = () => this.sync();
           const doc2 = view2.dom.ownerDocument;
           doc2.addEventListener("focusin", this.syncFocusClass, true);
@@ -37077,9 +37094,13 @@ ${replacement}
           this.sync();
         }
         view;
+        decorations;
         syncFocusClass;
         recheckScheduled = false;
         update(update) {
+          if (update.selectionSet || update.docChanged) {
+            this.decorations = createProseActiveLineDecoration(update.view);
+          }
           if (update.focusChanged || update.selectionSet || update.docChanged) {
             this.sync();
           }
@@ -37113,9 +37134,14 @@ ${replacement}
               !this.view.state.selection.main.empty || Boolean(getTableRangeSelection(ownerDocument))
             );
             const mainSelection = this.view.state.selection.main;
+            const proseCursorFocused = ownerDocument.activeElement === this.view.contentDOM && mainSelection.empty;
             this.view.dom.classList.toggle(
               EMPTY_LINE_CURSOR_CLASS,
               mainSelection.empty && this.view.state.doc.lineAt(mainSelection.head).length === 0
+            );
+            this.view.dom.classList.toggle(
+              PROSE_CURSOR_FOCUSED_CLASS,
+              proseCursorFocused
             );
           });
         }
@@ -37133,8 +37159,21 @@ ${replacement}
             });
           });
         }
+      },
+      {
+        decorations: (plugin) => plugin.decorations
       }
     );
+  }
+  function createProseActiveLineDecoration(view2) {
+    const mainSelection = view2.state.selection.main;
+    if (!mainSelection.empty) {
+      return Decoration.none;
+    }
+    const line = view2.state.doc.lineAt(mainSelection.head);
+    return Decoration.set([
+      Decoration.line({ class: "mlrt-prose-active-line" }).range(line.from)
+    ]);
   }
 
   // src/shared/tableColumnSizing.ts

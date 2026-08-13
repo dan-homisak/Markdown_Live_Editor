@@ -79,9 +79,15 @@ export function createEditorTheme(): Extension {
       color: "var(--vscode-editor-foreground, #d4d4d4)",
       padding: "0",
     },
-    ".cm-activeLine": {
+    ".cm-activeLine, .mlrt-prose-active-line": {
+      // The lower layer is a guaranteed, theme-derived contrast fallback.
+      // The VS Code token paints over it when supplied, preserving exact
+      // stock-editor color while remaining visible if a host injects an
+      // absent or transparent token.
       backgroundColor:
-        "var(--vscode-editor-lineHighlightBackground, transparent)",
+        "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
+      backgroundImage:
+        "linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent))",
     },
     ".cm-cursor, .cm-dropCursor": {
       borderLeftColor: "var(--vscode-editorCursor-foreground, #aeafad)",
@@ -96,11 +102,23 @@ export function createEditorTheme(): Extension {
       {
         marginLeft: "0",
       },
-    "&.mlrt-table-cell-focused .cm-activeLine": {
+    "&.mlrt-table-cell-focused :is(.cm-activeLine, .mlrt-prose-active-line)": {
       backgroundColor: "transparent",
+      backgroundImage: "none",
     },
-    "&.mlrt-selection-active .cm-activeLine": {
+    "&.mlrt-selection-active :is(.cm-activeLine, .mlrt-prose-active-line)": {
       backgroundColor: "transparent",
+      backgroundImage: "none",
+    },
+    // A positive focus state wins over any stale negative class left behind
+    // by a long-lived webview focus transition. This is intentionally after
+    // the suppression rules: when the editable CodeMirror content itself
+    // owns an empty cursor, its line highlight is authoritative.
+    "&:is(.cm-focused, .mlrt-prose-cursor-focused) :is(.cm-activeLine, .mlrt-prose-active-line)": {
+      backgroundColor:
+        "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
+      backgroundImage:
+        "linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent))",
     },
     "&.mlrt-table-cell-focused .cm-cursor": {
       display: "none",
