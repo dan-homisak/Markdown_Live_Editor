@@ -3,7 +3,7 @@
 // capture stock Monaco geometry, toggle the Markdown Live Editor, then capture
 // live CodeMirror/table geometry in the same workbench window.
 import { spawn } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -18,7 +18,13 @@ const standardMarkdownTableFixture = await readFile(
   path.join(repoRoot, "standard-markdown-in-table-fixture.md"),
   "utf8",
 );
-const codeBin = "/Applications/Visual Studio Code.app/Contents/MacOS/Electron";
+const codeBin = [
+  "/Applications/Visual Studio Code.app/Contents/MacOS/Code",
+  "/Applications/Visual Studio Code.app/Contents/MacOS/Electron",
+].find(existsSync);
+if (!codeBin) {
+  throw new Error("Could not find the Visual Studio Code app executable.");
+}
 const port = 9400 + Math.floor(Math.random() * 400);
 const userDataDir = mkdtempSync(path.join(os.tmpdir(), "mlrt-edh-"));
 const qaDir = path.join(repoRoot, "qa");
@@ -1835,6 +1841,17 @@ try {
   );
   assertTableOnlyEnterExit(tableOnlyEnterExit);
   console.log("TABLE-ONLY ENTER EXIT CHECK:", tableOnlyEnterExit);
+  const emptyLineCursor = await evaluateJson(
+    liveClient,
+    emptyLineCursorSetupExpression(),
+  );
+  assertEmptyLineCursor(emptyLineCursor);
+  console.log("EMPTY-LINE CURSOR CHECK:", emptyLineCursor);
+  await captureWorkbenchScreenshot(
+    wb,
+    path.join(qaDir, "edh-empty-line-cursor.png"),
+  );
+  await evaluateJson(liveClient, emptyLineCursorRestoreExpression());
   const arrowNavigation = await evaluateJson(
     liveClient,
     tableArrowNavigationExpression(),
@@ -9420,6 +9437,8 @@ function tableOnlyEnterExitExpression() {
     const after = view.state.doc.toString();
     const selection = view.state.selection.main;
     const cursor = root.querySelector('.cm-cursor')?.getBoundingClientRect();
+    const activeBlankLine = root.querySelector('.cm-line.cm-activeLine');
+    const activeBlankLineBox = activeBlankLine?.getBoundingClientRect();
     const result = {
       ok: true,
       insertedSingleBoundaryNewline: after === tableOnly + '\\n',
@@ -9429,6 +9448,18 @@ function tableOnlyEnterExitExpression() {
         view.state.doc.lineAt(selection.head).text === '',
       editorFocused: root.activeElement === view.contentDOM,
       caretVisible: Boolean(cursor && cursor.height > 0 && cursor.width >= 0),
+      cursorInsideContent: Boolean(
+        cursor && activeBlankLineBox && cursor.left >= activeBlankLineBox.left
+      ),
+      cursorContentLeftDelta:
+        cursor && activeBlankLineBox
+          ? cursor.left - activeBlankLineBox.left
+          : null,
+      emptyLineOwnsOnlyBreak: Boolean(
+        activeBlankLine &&
+        activeBlankLine.children.length === 1 &&
+        activeBlankLine.firstElementChild?.tagName === 'BR'
+      ),
     };
     root.defaultView.dispatchEvent(new root.defaultView.MessageEvent('message', {
       data: { type: 'setDocument', text: beforeDoc, revision: 999702, debug: false },
@@ -9442,6 +9473,75 @@ function tableOnlyEnterExitExpression() {
       beforeSourceLines.some((line) => line.rowKind === 'body') &&
       JSON.stringify(result.restoredSourceLines) === JSON.stringify(beforeSourceLines);
     return JSON.stringify(result);
+  })()`;
+}
+
+function emptyLineCursorSetupExpression() {
+  return `(async () => {
+    const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map((frame) => {
+      try { return frame.contentDocument; } catch { return null; }
+    }).filter(Boolean)];
+    const root = roots.find((candidate) => candidate.defaultView?.__MLRT_EDITOR_VIEW__);
+    const view = root?.defaultView.__MLRT_EDITOR_VIEW__;
+    if (!root || !view) return JSON.stringify({ ok: false, reason: 'missing live editor' });
+    const blankLine = Array.from({ length: view.state.doc.lines }, (_, index) =>
+      view.state.doc.line(index + 1)
+    ).find((line) => line.text === '');
+    if (!blankLine) return JSON.stringify({ ok: false, reason: 'missing blank prose line' });
+    root.defaultView.__MLRT_EMPTY_LINE_CURSOR_TEST_RESTORE__ = {
+      anchor: view.state.selection.main.anchor,
+    };
+    view.dispatch({ selection: { anchor: blankLine.from }, scrollIntoView: true });
+    view.focus();
+    await new Promise((done) => root.defaultView.requestAnimationFrame(() =>
+      root.defaultView.requestAnimationFrame(done)
+    ));
+    const activeLine = root.querySelector('.cm-line.cm-activeLine');
+    const activeLineBox = activeLine?.getBoundingClientRect();
+    const cursor = root.querySelector('.cm-cursor-primary');
+    const cursorBox = cursor?.getBoundingClientRect();
+    const cursorStyle = cursor ? root.defaultView.getComputedStyle(cursor) : null;
+    const pseudoStyle = activeLine
+      ? root.defaultView.getComputedStyle(activeLine, '::before')
+      : null;
+    return JSON.stringify({
+      ok: true,
+      blankLineNumber: blankLine.number,
+      activeLineOnlyHasBreak: Boolean(
+        activeLine &&
+        activeLine.children.length === 1 &&
+        activeLine.firstElementChild?.tagName === 'BR'
+      ),
+      cursorMarginLeft: cursorStyle?.marginLeft ?? null,
+      cursorColor: cursorStyle?.borderLeftColor ?? null,
+      cursorWidth: cursorBox?.width ?? 0,
+      cursorHeight: cursorBox?.height ?? 0,
+      cursorContentLeftDelta:
+        cursorBox && activeLineBox ? cursorBox.left - activeLineBox.left : null,
+      pseudoContent: pseudoStyle?.content ?? null,
+      activeLine: activeLineBox ? {
+        left: activeLineBox.left,
+        top: activeLineBox.top,
+        width: activeLineBox.width,
+        height: activeLineBox.height,
+      } : null,
+      focused: root.activeElement === view.contentDOM,
+    });
+  })()`;
+}
+
+function emptyLineCursorRestoreExpression() {
+  return `(() => {
+    const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map((frame) => {
+      try { return frame.contentDocument; } catch { return null; }
+    }).filter(Boolean)];
+    const root = roots.find((candidate) => candidate.defaultView?.__MLRT_EDITOR_VIEW__);
+    const view = root?.defaultView.__MLRT_EDITOR_VIEW__;
+    const restore = root?.defaultView.__MLRT_EMPTY_LINE_CURSOR_TEST_RESTORE__;
+    if (!root || !view || !restore) return JSON.stringify({ ok: false });
+    view.dispatch({ selection: { anchor: restore.anchor } });
+    delete root.defaultView.__MLRT_EMPTY_LINE_CURSOR_TEST_RESTORE__;
+    return JSON.stringify({ ok: true });
   })()`;
 }
 
@@ -14442,11 +14542,32 @@ function assertTableOnlyEnterExit(result) {
     !result.selectionOnBlankLine ||
     !result.editorFocused ||
     !result.caretVisible ||
+    !result.cursorInsideContent ||
+    Math.abs(result.cursorContentLeftDelta) > 0.1 ||
+    !result.emptyLineOwnsOnlyBreak ||
     !result.restoredDoc ||
     !result.restoredSourceLinesMatch
   ) {
     throw new Error(
       `Table-only Enter exit check failed: ${JSON.stringify(result)}`,
+    );
+  }
+}
+
+function assertEmptyLineCursor(result) {
+  if (
+    !result?.ok ||
+    !result.activeLineOnlyHasBreak ||
+    !result.focused ||
+    result.cursorMarginLeft !== "0px" ||
+    result.cursorWidth <= 0 ||
+    result.cursorHeight <= 0 ||
+    result.cursorColor === "rgba(0, 0, 0, 0)" ||
+    Math.abs(result.cursorContentLeftDelta) > 0.1 ||
+    result.pseudoContent !== "none"
+  ) {
+    throw new Error(
+      `Empty-line cursor check failed: ${JSON.stringify(result)}`,
     );
   }
 }
