@@ -145,8 +145,8 @@ function renderHarnessHtml({
       --mlrt-editor-letter-spacing: 0px;
       --mlrt-editor-cursor-width: 1px;
       --mlrt-editor-top-padding: 4px;
-      --mlrt-editor-gutter-left-padding: 18px;
-      --mlrt-editor-line-number-width: 22px;
+      --mlrt-editor-gutter-left-padding: 2.5ch;
+      --mlrt-editor-line-number-width: 3ch;
       --mlrt-editor-gutter-right-padding: 26px;
       --mlrt-editor-right-padding: var(--mlrt-editor-gutter-right-padding);
       --mlrt-editor-gutter-width: calc(var(--mlrt-editor-gutter-left-padding) + var(--mlrt-editor-line-number-width) + var(--mlrt-editor-gutter-right-padding));

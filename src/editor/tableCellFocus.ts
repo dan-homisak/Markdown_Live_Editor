@@ -8,11 +8,13 @@ import {
 
 export const TABLE_CELL_FOCUSED_CLASS = "mlrt-table-cell-focused";
 export const SELECTION_ACTIVE_CLASS = "mlrt-selection-active";
+export const EMPTY_LINE_CURSOR_CLASS = "mlrt-empty-line-cursor";
 
 /**
- * Single owner of the `mlrt-table-cell-focused` class on the editor root.
- * While a rendered table cell has focus, the theme hides the CodeMirror
- * cursor and active-line highlight so only the cell shows editing chrome.
+ * Single owner of the editor-root classes derived from focus and selection
+ * state. Keeping those visual states in CodeMirror state avoids CSS selectors
+ * that infer cursor state from browser-generated DOM, which can vary between
+ * Electron/Chromium versions and operating systems.
  *
  * Syncing is deferred to a microtask so focus changes settle before the
  * class is read/written (focusout fires before the next element focuses).
@@ -79,6 +81,12 @@ export function createTableCellFocusClassSync(): Extension {
             SELECTION_ACTIVE_CLASS,
             !this.view.state.selection.main.empty ||
               Boolean(getTableRangeSelection(ownerDocument)),
+          );
+          const mainSelection = this.view.state.selection.main;
+          this.view.dom.classList.toggle(
+            EMPTY_LINE_CURSOR_CLASS,
+            mainSelection.empty &&
+              this.view.state.doc.lineAt(mainSelection.head).length === 0,
           );
         });
       }
