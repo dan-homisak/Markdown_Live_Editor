@@ -25211,6 +25211,14 @@
         borderLeftColor: "var(--vscode-editorCursor-foreground, #aeafad)",
         borderLeftWidth: "var(--mlrt-editor-cursor-width, 1px)"
       },
+      // CodeMirror normally centers its border cursor with a negative margin.
+      // At column zero that puts part of the cursor beneath the sticky gutter,
+      // whose layer is above the cursor layer. Keep the real primary cursor
+      // wholly inside the content area when an empty active line has no glyph
+      // box to move it away from that boundary.
+      "&.cm-focused:not(.mlrt-table-cell-focused):not(.mlrt-selection-active):has(.cm-line.cm-activeLine > br:only-child) .cm-cursor-primary": {
+        marginLeft: "0"
+      },
       "&.mlrt-table-cell-focused .cm-activeLine": {
         backgroundColor: "transparent"
       },
