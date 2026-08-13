@@ -1,5 +1,11 @@
 import { Extension } from "@codemirror/state";
-import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import {
+  Decoration,
+  DecorationSet,
+  EditorView,
+  ViewPlugin,
+  ViewUpdate,
+} from "@codemirror/view";
 import { findCell } from "./table/cellSelection";
 import {
   getTableRangeSelection,
@@ -9,6 +15,7 @@ import {
 export const TABLE_CELL_FOCUSED_CLASS = "mlrt-table-cell-focused";
 export const SELECTION_ACTIVE_CLASS = "mlrt-selection-active";
 export const EMPTY_LINE_CURSOR_CLASS = "mlrt-empty-line-cursor";
+export const PROSE_CURSOR_FOCUSED_CLASS = "mlrt-prose-cursor-focused";
 
 /**
  * Single owner of the editor-root classes derived from focus and selection
@@ -22,10 +29,12 @@ export const EMPTY_LINE_CURSOR_CLASS = "mlrt-empty-line-cursor";
 export function createTableCellFocusClassSync(): Extension {
   return ViewPlugin.fromClass(
     class {
+      public decorations: DecorationSet;
       private readonly syncFocusClass: () => void;
       private recheckScheduled = false;
 
       public constructor(private readonly view: EditorView) {
+        this.decorations = createProseActiveLineDecoration(view);
         this.syncFocusClass = () => this.sync();
         const doc = view.dom.ownerDocument;
         doc.addEventListener("focusin", this.syncFocusClass, true);
@@ -39,6 +48,9 @@ export function createTableCellFocusClassSync(): Extension {
       }
 
       public update(update: ViewUpdate): void {
+        if (update.selectionSet || update.docChanged) {
+          this.decorations = createProseActiveLineDecoration(update.view);
+        }
         if (update.focusChanged || update.selectionSet || update.docChanged) {
           this.sync();
         }
@@ -83,10 +95,17 @@ export function createTableCellFocusClassSync(): Extension {
               Boolean(getTableRangeSelection(ownerDocument)),
           );
           const mainSelection = this.view.state.selection.main;
+          const proseCursorFocused =
+            ownerDocument.activeElement === this.view.contentDOM &&
+            mainSelection.empty;
           this.view.dom.classList.toggle(
             EMPTY_LINE_CURSOR_CLASS,
             mainSelection.empty &&
               this.view.state.doc.lineAt(mainSelection.head).length === 0,
+          );
+          this.view.dom.classList.toggle(
+            PROSE_CURSOR_FOCUSED_CLASS,
+            proseCursorFocused,
           );
         });
       }
@@ -108,5 +127,24 @@ export function createTableCellFocusClassSync(): Extension {
         });
       }
     },
+    {
+      decorations: (plugin) => plugin.decorations,
+    },
   );
+}
+
+/**
+ * Own active-line marker derived directly from the editor state. CodeMirror's
+ * built-in marker remains enabled, but prose highlighting no longer depends
+ * on that separate plugin producing `.cm-activeLine` in a particular host.
+ */
+function createProseActiveLineDecoration(view: EditorView): DecorationSet {
+  const mainSelection = view.state.selection.main;
+  if (!mainSelection.empty) {
+    return Decoration.none;
+  }
+  const line = view.state.doc.lineAt(mainSelection.head);
+  return Decoration.set([
+    Decoration.line({ class: "mlrt-prose-active-line" }).range(line.from),
+  ]);
 }
