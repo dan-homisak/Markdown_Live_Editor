@@ -331,10 +331,14 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
 vscode.postMessage({ type: "ready" });
 
 function setEditorDocument(
-  text: string,
+  hostText: string,
   source: string,
   restorePendingUndoFocus = true,
 ): void {
+  // CodeMirror and every source-range model in the webview use LF offsets.
+  // Normalize at the host boundary; documentChangeMapping converts edits
+  // back to the host document's actual LF/CRLF convention.
+  const text = normalizeDocumentText(hostText);
   const currentText = view.state.doc.toString();
   updateStatus(text, source);
   if (text === currentText) {
@@ -703,7 +707,7 @@ function updateStatus(text: string, source: string): void {
 
 function readInitialDocument(): string {
   return typeof window.__MLRT_INITIAL_DOCUMENT__ === "string"
-    ? window.__MLRT_INITIAL_DOCUMENT__
+    ? normalizeDocumentText(window.__MLRT_INITIAL_DOCUMENT__)
     : "";
 }
 

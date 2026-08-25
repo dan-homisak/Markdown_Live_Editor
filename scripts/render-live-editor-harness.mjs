@@ -15,6 +15,8 @@ const wantsDebug = args.includes("--debug");
 const lineWrapping = !args.includes("--no-wrap");
 const windowSizeArg = args.find((arg) => arg.startsWith("--window-size="));
 const windowSize = windowSizeArg?.slice("--window-size=".length) ?? "1800,1200";
+const scrollMarkerArg = args.find((arg) => arg.startsWith("--scroll-marker="));
+const scrollMarker = scrollMarkerArg?.slice("--scroll-marker=".length);
 const fixtureArg =
   args.find((arg) => !arg.startsWith("--")) ??
   "standard-markdown-in-table-fixture.md";
@@ -47,6 +49,7 @@ await writeFile(
     sharedCss,
     debug: wantsDebug,
     lineWrapping,
+    scrollMarker,
     scriptUrl: pathToFileURL(bundlePath).href,
   }),
 );
@@ -88,8 +91,16 @@ if (wantsScreenshot) {
 }
 
 function findChrome() {
+  const programFiles = process.env.ProgramFiles;
+  const programFilesX86 = process.env["ProgramFiles(x86)"];
+  const localAppData = process.env.LOCALAPPDATA;
   const candidates = [
     process.env.CHROME_BIN,
+    programFiles && path.join(programFiles, "Google", "Chrome", "Application", "chrome.exe"),
+    programFilesX86 && path.join(programFilesX86, "Google", "Chrome", "Application", "chrome.exe"),
+    localAppData && path.join(localAppData, "Google", "Chrome", "Application", "chrome.exe"),
+    programFiles && path.join(programFiles, "Microsoft", "Edge", "Application", "msedge.exe"),
+    programFilesX86 && path.join(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"),
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
@@ -119,9 +130,14 @@ function renderHarnessHtml({
   sharedCss,
   debug,
   lineWrapping,
+  scrollMarker,
   scriptUrl,
 }) {
   const serializedText = JSON.stringify(fixtureText).replace(
+    /<\/script/gi,
+    "<\\/script",
+  );
+  const serializedScrollMarker = JSON.stringify(scrollMarker ?? "").replace(
     /<\/script/gi,
     "<\\/script",
   );
@@ -188,6 +204,23 @@ ${sharedCss}
     window.__MLRT_EDITOR_OPTIONS__ = ${JSON.stringify({ lineWrapping, scrollBeyondLastLine: true, tableNavigationModifierKey: "F2" })};
   </script>
   <script src="${scriptUrl}"></script>
+  <script>
+    (() => {
+      const marker = ${serializedScrollMarker};
+      if (!marker) return;
+      const scrollToMarker = () => {
+        const view = window.__MLRT_EDITOR_VIEW__;
+        if (!view) return;
+        const position = view.state.doc.toString().indexOf(marker);
+        if (position < 0) return;
+        const block = view.lineBlockAt(position);
+        view.scrollDOM.scrollTop = Math.max(0, block.top - 120);
+        view.requestMeasure();
+      };
+      requestAnimationFrame(() => requestAnimationFrame(scrollToMarker));
+      setTimeout(scrollToMarker, 1000);
+    })();
+  </script>
 </body>
 </html>
 `;

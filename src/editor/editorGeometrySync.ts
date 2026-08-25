@@ -3,6 +3,12 @@ import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { tableCellLiveEditAnnotation } from "./tableEditAnnotations";
 import { syncTableSelectionOverlay } from "./table/tableSelectionOverlay";
 import { TABLE_WIDGET_SELECTOR } from "./table/tableWidgetState";
+import {
+  createTableHeightEstimateMetrics,
+  TableHeightEstimateMetrics,
+  updateTableHeightEstimateMetrics,
+} from "./table/tableHeightEstimate";
+import { measureTableEstimateViewportForView } from "./table/tableLayout";
 
 /**
  * Publishes the real editor geometry as CSS custom properties on the
@@ -19,7 +25,10 @@ import { TABLE_WIDGET_SELECTOR } from "./table/tableWidgetState";
  * forces CodeMirror to re-measure replaced block heights when width changes
  * re-wrap table cell text (e.g. sidebar drag).
  */
-export function createEditorGeometrySync(): Extension {
+export function createEditorGeometrySync(
+  tableHeightEstimateMetrics: TableHeightEstimateMetrics =
+    createTableHeightEstimateMetrics(),
+): Extension {
   return ViewPlugin.fromClass(
     class {
       private readonly measureKey = {};
@@ -116,6 +125,8 @@ export function createEditorGeometrySync(): Extension {
               measuredView.dom.querySelector<HTMLElement>(".cm-gutters")
                 ?.offsetWidth ?? 0,
             contentWidth: measuredView.scrollDOM.clientWidth,
+            lineHeightPx: readEditorLineHeight(measuredView),
+            tableViewport: measureTableEstimateViewportForView(measuredView),
           }),
           write: (metrics, measuredView) => {
             this.syncObservedTableWidgets(measuredView);
@@ -139,6 +150,21 @@ export function createEditorGeometrySync(): Extension {
                 "--mlrt-live-content-width",
                 `calc(${metrics.contentWidth}px - var(--mlrt-editor-right-padding, 26px))`,
               );
+            }
+            const estimateMetricsChanged =
+              updateTableHeightEstimateMetrics(tableHeightEstimateMetrics, {
+                lineHeightPx: metrics.lineHeightPx,
+                chWidthPx: metrics.tableViewport.chWidthPx,
+                availableDataWidthPx:
+                  metrics.tableViewport.availableDataWidthPx,
+              });
+            if (estimateMetricsChanged) {
+              // Rebuild off-screen block estimates with the newly measured
+              // font/zoom/viewport metrics. Visible widget DOM stays mounted;
+              // the following measure pass reconciles the refreshed height
+              // map with its already-authoritative browser rectangles.
+              forceCodeMirrorContentRemeasure(measuredView);
+              measuredView.requestMeasure();
             }
             this.scheduleSelectionOutlineSync(measuredView);
           },
@@ -194,6 +220,15 @@ export function createEditorGeometrySync(): Extension {
 
 function viewWindow(view: EditorView): Window | null {
   return view.dom.ownerDocument.defaultView;
+}
+
+function readEditorLineHeight(view: EditorView): number {
+  const line = view.dom.querySelector<HTMLElement>(".cm-line");
+  const styles = getComputedStyle(line ?? view.contentDOM);
+  const lineHeight = Number.parseFloat(styles.lineHeight);
+  return Number.isFinite(lineHeight) && lineHeight > 0
+    ? lineHeight
+    : view.defaultLineHeight;
 }
 
 /**

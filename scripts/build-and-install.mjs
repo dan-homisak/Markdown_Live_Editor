@@ -124,6 +124,8 @@ async function verifyInstalledPayload(version) {
     ["media/liveEditor.js", "appendColumnSizing"],
     ["media/liveEditor.js", "measureTableColumnSizing"],
     ["media/liveEditor.js", "measureAvailableDataWidthCh"],
+    ["media/liveEditor.js", "primeTableLayoutForMount"],
+    ["media/liveEditor.js", "normalizeDocumentText"],
     ["media/liveEditor.css", "table-layout: fixed"],
     ["media/liveEditor.css", "mlrt-table-source-line"],
     ["media/liveEditor.css", "mlrt-live-content-width"],

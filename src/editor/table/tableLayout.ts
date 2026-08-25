@@ -4,6 +4,7 @@ import {
 } from "../../shared/tableColumnSizing";
 import { EditorView } from "@codemirror/view";
 import { ParsedTable } from "../../shared/tableModel";
+import { screenPixelsToCssPixels } from "./tableHeightEstimate";
 import {
   cancelElementAnimationFrame,
   requestElementAnimationFrame,
@@ -100,43 +101,47 @@ export function bindTableLayout(
   scrollbar: HTMLElement,
   scrollbarThumb: HTMLElement,
   table: ParsedTable,
+  view: EditorView,
 ): () => void {
   const syncScrollbar = () =>
     syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb);
   let pendingAnimationFrame = 0;
   const syncLayout = () => {
     pendingAnimationFrame = 0;
-    applyCurrentColumnSizing(wrapper, getTableWidgetTable(wrapper) ?? table);
-    const tableHeight = tableElement.getBoundingClientRect().height;
-    syncScrollbar();
-    const scrollbarHeight = scrollbar.hidden
-      ? 0
-      : scrollbar.getBoundingClientRect().height;
-    wrapper.style.height = `${Math.max(
-      0,
-      tableHeight + scrollbarHeight,
-    )}px`;
-    // Column sizing and wrapping are now committed. Synchronize selection
-    // geometry here so the overlay can never measure the previous layout.
-    syncTableSelectionOverlay(wrapper);
+    synchronizeTableLayoutElements(
+      wrapper,
+      tableScroll,
+      tableElement,
+      scrollbar,
+      scrollbarThumb,
+      getTableWidgetTable(wrapper) ?? table,
+      view,
+    );
   };
-  const scheduleLayout = () => {
+  const scheduleDeferredLayout = () => {
     if (pendingAnimationFrame !== 0) {
       return;
     }
 
     pendingAnimationFrame = requestElementAnimationFrame(wrapper, syncLayout);
   };
+  const synchronizeNow = () => {
+    if (pendingAnimationFrame !== 0) {
+      cancelElementAnimationFrame(wrapper, pendingAnimationFrame);
+      pendingAnimationFrame = 0;
+    }
+    syncLayout();
+  };
 
   const ResizeObserverCtor = wrapper.ownerDocument.defaultView?.ResizeObserver;
   const resizeObserver = ResizeObserverCtor
-    ? new ResizeObserverCtor(scheduleLayout)
+    ? new ResizeObserverCtor(scheduleDeferredLayout)
     : undefined;
   resizeObserver?.observe(tableElement);
   resizeObserver?.observe(tableScroll);
   tableScroll.addEventListener("scroll", syncScrollbar);
 
-  scheduleLayout();
+  scheduleDeferredLayout();
   setTableWidgetCleanup(wrapper, () => {
     if (pendingAnimationFrame !== 0) {
       cancelElementAnimationFrame(wrapper, pendingAnimationFrame);
@@ -145,7 +150,39 @@ export function bindTableLayout(
     resizeObserver?.disconnect();
     tableScroll.removeEventListener("scroll", syncScrollbar);
   });
-  return scheduleLayout;
+  // Direct table edits call this returned function after mutating cell text.
+  // Resolve their wrapping height in the same event turn so native prose
+  // below the widget and the table-owned gutter can never diverge for a
+  // frame. External width/font changes remain coalesced by ResizeObserver.
+  return synchronizeNow;
+}
+
+/** Immediately reconciles a connected widget after CodeMirror reuses its DOM. */
+export function synchronizeTableLayoutNow(
+  wrapper: HTMLElement,
+  table: ParsedTable,
+  view: EditorView,
+): boolean {
+  const tableScroll = wrapper.querySelector<HTMLElement>(".mlrt-table-scroll");
+  const tableElement = wrapper.querySelector<HTMLTableElement>(".mlrt-table");
+  const scrollbar = wrapper.querySelector<HTMLElement>(".mlrt-table-scrollbar");
+  const scrollbarThumb = wrapper.querySelector<HTMLElement>(
+    ".mlrt-table-scrollbar-thumb",
+  );
+  if (!tableScroll || !tableElement || !scrollbar || !scrollbarThumb) {
+    return false;
+  }
+
+  synchronizeTableLayoutElements(
+    wrapper,
+    tableScroll,
+    tableElement,
+    scrollbar,
+    scrollbarThumb,
+    table,
+    view,
+  );
+  return true;
 }
 
 /**
@@ -171,6 +208,84 @@ export function measureAvailableDataWidthCh(
 }
 
 /**
+ * Gives a new widget its final browser-measured height before CodeMirror puts
+ * it into visible document flow.
+ *
+ * The widget is briefly connected as an invisible absolutely positioned
+ * child of the real scroller. That supplies the exact inherited font, zoom,
+ * gutter, and viewport custom properties without affecting scroll layout.
+ * Consequently the later animation-frame layout pass is a no-op instead of
+ * moving table content one frame ahead of CodeMirror's virtual gutter.
+ */
+export function primeTableLayoutForMount(
+  wrapper: HTMLElement,
+  tableScroll: HTMLElement,
+  tableElement: HTMLTableElement,
+  scrollbar: HTMLElement,
+  scrollbarThumb: HTMLElement,
+  table: ParsedTable,
+  view: EditorView,
+): void {
+  const previousInlineStyle = {
+    position: wrapper.style.position,
+    left: wrapper.style.left,
+    top: wrapper.style.top,
+    visibility: wrapper.style.visibility,
+    pointerEvents: wrapper.style.pointerEvents,
+  };
+  wrapper.style.position = "absolute";
+  wrapper.style.left = "0";
+  wrapper.style.top = "0";
+  wrapper.style.visibility = "hidden";
+  wrapper.style.pointerEvents = "none";
+  view.scrollDOM.append(wrapper);
+  try {
+    synchronizeTableLayoutElements(
+      wrapper,
+      tableScroll,
+      tableElement,
+      scrollbar,
+      scrollbarThumb,
+      table,
+      view,
+    );
+  } finally {
+    wrapper.remove();
+    wrapper.style.position = previousInlineStyle.position;
+    wrapper.style.left = previousInlineStyle.left;
+    wrapper.style.top = previousInlineStyle.top;
+    wrapper.style.visibility = previousInlineStyle.visibility;
+    wrapper.style.pointerEvents = previousInlineStyle.pointerEvents;
+  }
+}
+
+function synchronizeTableLayoutElements(
+  wrapper: HTMLElement,
+  tableScroll: HTMLElement,
+  tableElement: HTMLTableElement,
+  scrollbar: HTMLElement,
+  scrollbarThumb: HTMLElement,
+  table: ParsedTable,
+  view: EditorView,
+): void {
+  applyCurrentColumnSizing(wrapper, table);
+  syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb);
+  const tableHeight = tableElement.getBoundingClientRect().height;
+  const scrollbarHeight = scrollbar.hidden
+    ? 0
+    : scrollbar.getBoundingClientRect().height;
+  const synchronizedHeightPx = screenPixelsToCssPixels(
+    tableHeight + scrollbarHeight,
+    view.scaleY,
+  );
+  wrapper.style.height = `${synchronizedHeightPx}px`;
+  wrapper.dataset.primedHeightPx = String(synchronizedHeightPx);
+  // Column sizing and wrapping are now committed. Synchronize selection
+  // geometry here so the overlay can never measure the previous layout.
+  syncTableSelectionOverlay(wrapper);
+}
+
+/**
  * Resolves the same available width before a new widget is connected, so its
  * first browser layout already uses the final viewport-aware column sizing.
  */
@@ -178,11 +293,47 @@ export function measureAvailableDataWidthChForView(
   view: EditorView,
   columnCount: number,
 ): number | undefined {
-  return measureAvailableDataWidthChFromEditor(
-    view.scrollDOM,
-    view.contentDOM,
-    columnCount,
+  const viewport = measureTableEstimateViewportForView(view);
+  const borderAllowancePx = columnCount + 2;
+  const availablePx = Math.max(
+    0,
+    viewport.availableDataWidthPx - borderAllowancePx,
   );
+  return viewport.chWidthPx > 0
+    ? availablePx / viewport.chWidthPx
+    : undefined;
+}
+
+export interface TableEstimateViewport {
+  /** Width after the actual native gutter and editor right padding. */
+  availableDataWidthPx: number;
+  chWidthPx: number;
+}
+
+/** Browser measurements shared by first DOM layout and off-screen estimates. */
+export function measureTableEstimateViewportForView(
+  view: EditorView,
+): TableEstimateViewport {
+  const scroller = view.scrollDOM;
+  const styles = getComputedStyle(scroller);
+  const gutterWidth =
+    view.dom.querySelector<HTMLElement>(".cm-gutters")?.getBoundingClientRect()
+      .width ??
+    resolveCssLengthPx(
+      scroller,
+      styles.getPropertyValue("--mlrt-live-gutter-width"),
+    );
+  const rightPadding = resolveCssLengthPx(
+    scroller,
+    styles.getPropertyValue("--mlrt-editor-right-padding"),
+  );
+  return {
+    availableDataWidthPx: Math.max(
+      0,
+      scroller.clientWidth - gutterWidth - rightPadding,
+    ),
+    chWidthPx: measureChWidth(view.contentDOM),
+  };
 }
 
 /** Whether the sized data columns require the custom horizontal scrollbar. */

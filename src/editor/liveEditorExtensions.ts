@@ -24,6 +24,7 @@ import { createTableBoundaryArrowNavigation } from "./tableBoundaryNavigation";
 import { createTableBoundaryInputHandler } from "./tableBoundaryInput";
 import { createTableCellFocusClassSync } from "./tableCellFocus";
 import { createTableDecorations } from "./tableDecorations";
+import { createTableHeightEstimateMetrics } from "./table/tableHeightEstimate";
 import {
   createTableNavigationKeyTracker,
   tableNavigationModifierCompartment,
@@ -51,6 +52,7 @@ export const lineWrappingCompartment = new Compartment();
 export function createLiveEditorExtensions(
   options: LiveEditorOptions,
 ): Extension[] {
+  const tableHeightEstimateMetrics = createTableHeightEstimateMetrics();
   return [
     // CodeMirror owns the undo history so ⌘Z coalesces typing into
     // word/whitespace groups and stops at the initially loaded document,
@@ -66,7 +68,7 @@ export function createLiveEditorExtensions(
     highlightActiveLine(),
     highlightActiveLineGutter(),
     lineNumbers(),
-    createEditorGeometrySync(),
+    createEditorGeometrySync(tableHeightEstimateMetrics),
     createTableCellFocusClassSync(),
     createTableNavigationKeyTracker(),
     createTableSourceChangeFilter(),
@@ -80,6 +82,6 @@ export function createLiveEditorExtensions(
     tableNavigationModifierCompartment.of(
       tableNavigationModifierFacet.of(options.tableNavigationModifierKey),
     ),
-    createTableDecorations(),
+    createTableDecorations(tableHeightEstimateMetrics),
   ];
 }

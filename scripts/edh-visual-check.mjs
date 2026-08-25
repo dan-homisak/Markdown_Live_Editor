@@ -89,6 +89,10 @@ await writeFile(
 console.log(`Using Electron DevTools port ${port}`);
 
 function resolveCodeExecutable() {
+  const explicitCodeBin = process.env.MLRT_CODE_BIN;
+  if (explicitCodeBin && existsSync(explicitCodeBin)) {
+    return explicitCodeBin;
+  }
   const localAppData = process.env.LOCALAPPDATA;
   const programFiles = process.env.ProgramFiles;
   const programFilesX86 = process.env["ProgramFiles(x86)"];
@@ -395,12 +399,167 @@ try {
       setTestHostIsolationExpression(true),
     );
     assertTestHostIsolation(isolatedHost, true);
-    const gutterScrollOrdering = await evaluateJson(
-      liveClient,
-      gutterScrollOrderingExpression(),
+    const gutterMatrixCases = [
+      {
+        name: "narrow-zoom-minus2-lf",
+        widthPx: 320,
+        zoomLevel: -2,
+        fontFamily: "Consolas, monospace",
+        fontSizePx: 12,
+        lineHeightPx: 16,
+        lineEnding: "lf",
+        sequentialSweep: true,
+      },
+      {
+        name: "compact-zoom0-crlf",
+        widthPx: 480,
+        zoomLevel: 0,
+        fontFamily: "Courier New, monospace",
+        fontSizePx: 14,
+        lineHeightPx: 19,
+        lineEnding: "crlf",
+      },
+      {
+        name: "medium-zoom1-lf",
+        widthPx: 640,
+        zoomLevel: 1,
+        fontFamily: "Cascadia Mono, Consolas, monospace",
+        fontSizePx: 16,
+        lineHeightPx: 23,
+        lineEnding: "lf",
+      },
+      {
+        name: "wide-zoom2-crlf",
+        widthPx: 900,
+        zoomLevel: 2,
+        fontFamily: "Lucida Console, monospace",
+        fontSizePx: 20,
+        lineHeightPx: 30,
+        lineEnding: "crlf",
+      },
+      {
+        name: "ultrawide-zoom4-lf",
+        widthPx: 1_400,
+        zoomLevel: 4,
+        fontFamily: "Consolas, monospace",
+        fontSizePx: 28,
+        lineHeightPx: 42,
+        lineEnding: "lf",
+      },
+    ];
+    const gutterCaseFilter = process.argv
+      .find((argument) => argument.startsWith("--gutter-case="))
+      ?.slice("--gutter-case=".length);
+    const selectedGutterMatrixCases = gutterCaseFilter
+      ? gutterMatrixCases.filter((matrixCase) => matrixCase.name === gutterCaseFilter)
+      : gutterMatrixCases;
+    if (selectedGutterMatrixCases.length === 0) {
+      throw new Error(`Unknown gutter matrix case: ${gutterCaseFilter}`);
+    }
+    const primaryModifier = process.platform === "darwin" ? 4 : 2;
+    const pressZoomKey = async (
+      keyValue,
+      code,
+      windowsVirtualKeyCode,
+      location = 0,
+    ) => {
+      await key({
+        type: "keyDown",
+        modifiers: primaryModifier,
+        key: keyValue,
+        code,
+        windowsVirtualKeyCode,
+        location,
+      });
+      await key({
+        type: "keyUp",
+        modifiers: primaryModifier,
+        key: keyValue,
+        code,
+        windowsVirtualKeyCode,
+        location,
+      });
+    };
+    const setWorkbenchZoomLevel = async (level) => {
+      // VS Code binds zoom reset to Ctrl/Cmd+Numpad0, not the digit-row 0.
+      // Reset before every case so one failed shortcut cannot make later
+      // cases cumulative and invalidate their advertised scale.
+      await pressZoomKey("0", "Numpad0", 96, 3);
+      const direction = level < 0 ? -1 : 1;
+      for (let index = 0; index < Math.abs(level); index++) {
+        if (direction < 0) {
+          await pressZoomKey("-", "Minus", 189);
+        } else {
+          await pressZoomKey("=", "Equal", 187);
+        }
+      }
+      await sleep(500);
+    };
+    const gutterMatrixResults = [];
+    for (const matrixCase of selectedGutterMatrixCases) {
+      await setWorkbenchZoomLevel(matrixCase.zoomLevel);
+      const result = await evaluateJson(
+        liveClient,
+        gutterScrollOrderingExpression(matrixCase),
+      );
+      assertGutterScrollOrdering(result, matrixCase);
+      gutterMatrixResults.push(result);
+      console.log(`GUTTER MATRIX ${matrixCase.name}:`, result);
+      await captureWorkbenchScreenshot(
+        wb,
+        path.join(qaDir, `edh-gutter-${matrixCase.name}.png`),
+      );
+    }
+    for (let index = 1; index < gutterMatrixResults.length; index++) {
+      const previous = gutterMatrixResults[index - 1];
+      const current = gutterMatrixResults[index];
+      if (current.devicePixelRatio <= previous.devicePixelRatio + 0.01) {
+        throw new Error(
+          `Workbench zoom matrix did not increase device scale: ${JSON.stringify({
+            previous: {
+              name: previous.caseName,
+              devicePixelRatio: previous.devicePixelRatio,
+            },
+            current: {
+              name: current.caseName,
+              devicePixelRatio: current.devicePixelRatio,
+            },
+          })}`,
+        );
+      }
+    }
+    const zoomBaseline = gutterMatrixResults.find(
+      (result) => result.requestedZoomLevel === 0,
     );
-    assertGutterScrollOrdering(gutterScrollOrdering);
-    console.log("LONG-DOCUMENT GUTTER SCROLL ORDERING CHECK:", gutterScrollOrdering);
+    if (zoomBaseline) {
+      for (const result of gutterMatrixResults) {
+        const expectedRatio = 1.2 ** result.requestedZoomLevel;
+        const actualRatio =
+          result.devicePixelRatio / zoomBaseline.devicePixelRatio;
+        if (Math.abs(actualRatio - expectedRatio) > 0.03) {
+          throw new Error(
+            `Workbench zoom level was not applied: ${JSON.stringify({
+              name: result.caseName,
+              requestedZoomLevel: result.requestedZoomLevel,
+              expectedRatio,
+              actualRatio,
+              baselineDevicePixelRatio: zoomBaseline.devicePixelRatio,
+              devicePixelRatio: result.devicePixelRatio,
+            })}`,
+          );
+        }
+      }
+    }
+    await setWorkbenchZoomLevel(0);
+    console.log("LONG-DOCUMENT GUTTER MATRIX PASSED:", {
+      cases: gutterMatrixResults.map((result) => ({
+        name: result.caseName,
+        auditCount: result.auditCount,
+        maximumScrollTop: result.maximumScrollTop,
+        gutterWidth: result.finalGutterWidth,
+        estimateErrorPx: result.finalEstimateErrorPx,
+      })),
+    });
     await captureWorkbenchScreenshot(
       wb,
       path.join(qaDir, "edh-gutter-scroll-ordering.png"),
@@ -9687,8 +9846,15 @@ function emptyLineCursorRestoreExpression() {
   })()`;
 }
 
-function gutterScrollOrderingExpression() {
-  const fixtureJson = JSON.stringify(gutterStressFixture);
+function gutterScrollOrderingExpression(matrixCase) {
+  const fixture = gutterStressFixture.replace(/\r\n?/g, "\n");
+  const inputFixture =
+    matrixCase.lineEnding === "crlf"
+      ? fixture.replace(/\n/g, "\r\n")
+      : fixture;
+  const fixtureJson = JSON.stringify(fixture);
+  const inputFixtureJson = JSON.stringify(inputFixture);
+  const caseJson = JSON.stringify(matrixCase);
   return `(async () => {
     const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map((frame) => {
       try { return frame.contentDocument; } catch { return null; }
@@ -9698,31 +9864,60 @@ function gutterScrollOrderingExpression() {
     if (!root || !view) {
       return JSON.stringify({ ok: false, reason: 'missing CodeMirror view' });
     }
-    const waitFrames = (count = 2) => new Promise((resolve) => {
-      const frame = () => count-- <= 0
-        ? resolve()
-        : view.dom.ownerDocument.defaultView.requestAnimationFrame(frame);
-      frame();
-    });
+    const win = view.dom.ownerDocument.defaultView;
+    const waitFrame = () => new Promise((resolve) => win.requestAnimationFrame(resolve));
+    const waitFrames = async (count) => {
+      for (let index = 0; index < count; index++) await waitFrame();
+    };
+    const matrixCase = ${caseJson};
     const fixture = ${fixtureJson};
+    const inputFixture = ${inputFixtureJson};
+    const rootElement = root.documentElement;
+    rootElement.style.setProperty('--mlrt-editor-font-family', matrixCase.fontFamily);
+    rootElement.style.setProperty('--mlrt-editor-font-size', matrixCase.fontSizePx + 'px');
+    rootElement.style.setProperty('--mlrt-editor-line-height', matrixCase.lineHeightPx + 'px');
+    view.dom.style.width = matrixCase.widthPx + 'px';
+    view.dom.style.maxWidth = 'none';
     root.defaultView.dispatchEvent(
       new root.defaultView.MessageEvent('message', {
         data: {
           type: 'setDocument',
-          text: fixture,
+          text: inputFixture,
           revision: 999901,
           debug: false,
         },
       }),
     );
-    await waitFrames(4);
+    await waitFrames(8);
     if (view.state.doc.toString() !== fixture) {
-      return JSON.stringify({ ok: false, reason: 'stress fixture did not load' });
+      return JSON.stringify({
+        ok: false,
+        reason: 'stress fixture did not normalize and load',
+        caseName: matrixCase.name,
+      });
     }
 
     const scroller = view.scrollDOM;
+    const textBox = (element) => {
+      const node = Array.from(element.childNodes).find(
+        (child) => child.nodeType === Node.TEXT_NODE && child.textContent?.length,
+      );
+      if (!node) return null;
+      const range = root.createRange();
+      range.selectNodeContents(node);
+      const rect = range.getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+      };
+    };
     const audit = () => {
       const viewport = scroller.getBoundingClientRect();
+      const gutter = view.dom.querySelector('.cm-gutters')?.getBoundingClientRect();
       const items = [];
       for (const element of view.dom.querySelectorAll(
         '.cm-lineNumbers .cm-gutterElement',
@@ -9739,6 +9934,9 @@ function gutterScrollOrderingExpression() {
             number,
             top: rect.top - viewport.top,
             bottom: rect.bottom - viewport.top,
+            left: rect.left,
+            right: rect.right,
+            glyph: textBox(element),
             owner: 'native',
           });
         }
@@ -9758,6 +9956,9 @@ function gutterScrollOrderingExpression() {
             number,
             top: rect.top - viewport.top,
             bottom: rect.bottom - viewport.top,
+            left: rect.left,
+            right: rect.right,
+            glyph: textBox(element),
             owner: 'table',
           });
         }
@@ -9769,66 +9970,312 @@ function gutterScrollOrderingExpression() {
           inversions.push({ before: items[index - 1], after: items[index] });
         }
       }
-      return { items, inversions };
+      const nativeGlyphRightsByDigits = new Map();
+      for (const item of items) {
+        if (item.owner !== 'native' || !item.glyph) continue;
+        const digits = String(item.number).length;
+        const rights = nativeGlyphRightsByDigits.get(digits) ?? [];
+        rights.push(item.glyph.right);
+        nativeGlyphRightsByDigits.set(digits, rights);
+      }
+      for (const rights of nativeGlyphRightsByDigits.values()) {
+        rights.sort((left, right) => left - right);
+      }
+      const clippingFailures = items.filter((item) =>
+        !item.glyph ||
+        item.left < viewport.left - 1.25 ||
+        item.right > viewport.right + 1.25 ||
+        item.glyph.left < item.left - 1.25 ||
+        item.glyph.right > item.right + 1.25
+      );
+      const alignmentFailures = items.filter((item) => {
+        if (item.owner !== 'table' || !gutter) return false;
+        const matchingRights = nativeGlyphRightsByDigits.get(
+          String(item.number).length,
+        );
+        const matchingNativeRight = matchingRights?.length
+          ? matchingRights[Math.floor(matchingRights.length / 2)]
+          : null;
+        return (
+          Math.abs(item.left - gutter.left) > 1.25 ||
+          Math.abs(item.right - gutter.right) > 1.25 ||
+          (matchingNativeRight !== null && item.glyph &&
+            Math.abs(item.glyph.right - matchingNativeRight) > 1.25)
+        );
+      });
+      const heightFailures = Array.from(
+        view.dom.querySelectorAll('.mlrt-table-widget'),
+      ).flatMap((widget) => {
+        const rect = widget.getBoundingClientRect();
+        if (rect.bottom <= viewport.top || rect.top >= viewport.bottom) return [];
+        const primedHeightPx = Number(widget.dataset.primedHeightPx);
+        const scaleY = Number.isFinite(view.scaleY) && view.scaleY > 0
+          ? view.scaleY
+          : 1;
+        const actualHeightPx = rect.height / scaleY;
+        const errorPx = Math.abs(primedHeightPx - actualHeightPx);
+        return Number.isFinite(primedHeightPx) && errorPx <= 1.25
+          ? []
+          : [{
+              sourceFrom: Number(widget.dataset.srcFrom),
+              primedHeightPx,
+              actualHeightPx,
+              errorPx,
+            }];
+      });
+      const comparedDigitWidths = Array.from(
+        new Set(
+          items
+            .filter(
+              (item) =>
+                item.owner === 'table' &&
+                nativeGlyphRightsByDigits.has(String(item.number).length),
+            )
+            .map((item) => String(item.number).length),
+        ),
+      );
+      return {
+        items,
+        inversions,
+        clippingFailures,
+        alignmentFailures,
+        heightFailures,
+        comparedDigitWidths,
+        gutterWidth: gutter?.width ?? 0,
+      };
     };
 
-    let sampleCount = 0;
+    let scrollPositionCount = 0;
+    let auditCount = 0;
     let tableSampleCount = 0;
     let nativeSampleCount = 0;
     let firstFailure = null;
+    const fiveDigitNumbersSeen = new Set();
+    const comparedDigitWidthsSeen = new Set();
+    let sequentialReachedBottom = !matrixCase.sequentialSweep;
+    let sequentialReturnedToTop = !matrixCase.sequentialSweep;
     let maximumScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
-    const inspectAt = async (scrollTop, direction) => {
-      scroller.scrollTop = scrollTop;
-      await waitFrames(2);
-      const sample = audit();
-      sampleCount++;
+    const recordAudit = (sample, direction, requestedScrollTop, phase, label) => {
+      auditCount++;
       tableSampleCount += sample.items.filter((item) => item.owner === 'table').length;
       nativeSampleCount += sample.items.filter((item) => item.owner === 'native').length;
-      if (!firstFailure && sample.inversions.length > 0) {
+      for (const item of sample.items) {
+        if (item.number >= 9_995 && item.number <= 10_001) {
+          fiveDigitNumbersSeen.add(item.number);
+        }
+      }
+      for (const digits of sample.comparedDigitWidths) {
+        comparedDigitWidthsSeen.add(digits);
+      }
+      if (
+        !firstFailure &&
+        (sample.inversions.length > 0 ||
+          sample.clippingFailures.length > 0 ||
+          sample.alignmentFailures.length > 0 ||
+          sample.heightFailures.length > 0)
+      ) {
         firstFailure = {
           direction,
-          scrollTop: scroller.scrollTop,
+          requestedScrollTop,
+          actualScrollTop: scroller.scrollTop,
+          phase,
+          label,
           items: sample.items,
           inversions: sample.inversions,
+          clippingFailures: sample.clippingFailures,
+          alignmentFailures: sample.alignmentFailures,
+          heightFailures: sample.heightFailures,
         };
       }
     };
+    const inspectAt = async (scrollTop, direction, label) => {
+      const requestedScrollTop = Math.max(0, Math.min(
+        scrollTop,
+        Math.max(0, scroller.scrollHeight - scroller.clientHeight),
+      ));
+      scroller.scrollTop = requestedScrollTop;
+      scrollPositionCount++;
+      recordAudit(audit(), direction, requestedScrollTop, 'sync', label);
+      for (let frame = 1; frame <= 3; frame++) {
+        await waitFrame();
+        recordAudit(audit(), direction, requestedScrollTop, 'frame-' + frame, label);
+      }
+    };
 
-    for (let scrollTop = 0; scrollTop <= maximumScrollTop; scrollTop += 180) {
-      await inspectAt(scrollTop, 'down');
-      if (firstFailure) break;
-      maximumScrollTop = Math.max(
-        maximumScrollTop,
-        scroller.scrollHeight - scroller.clientHeight,
+    const tableAnchors = Array.from(
+      fixture.matchAll(/^[ \\t]*\\|?[ \\t]*\\[(G[A-Z]\\d{3,4})\\]/gm),
+      (match) => ({ id: match[1], position: match.index }),
+    );
+    for (const anchor of tableAnchors) {
+      const block = view.lineBlockAt(anchor.position);
+      await inspectAt(
+        block.top - scroller.clientHeight * 0.25,
+        'table-jump-down',
+        anchor.id,
       );
+      if (firstFailure) break;
     }
-    const reachedBottom = firstFailure === null;
     if (!firstFailure) {
-      await inspectAt(maximumScrollTop, 'down');
-      for (let scrollTop = maximumScrollTop; scrollTop >= 0; scrollTop -= 360) {
-        await inspectAt(scrollTop, 'up');
+      for (const anchor of [...tableAnchors].reverse()) {
+        const block = view.lineBlockAt(anchor.position);
+        await inspectAt(
+          block.top - scroller.clientHeight * 0.25,
+          'table-jump-up',
+          anchor.id,
+        );
         if (firstFailure) break;
       }
     }
-    const returnedToTop = firstFailure === null;
 
-    const target = fixture.indexOf('| [GS013]');
-    view.dispatch({ selection: { anchor: target }, scrollIntoView: true });
-    await waitFrames(4);
+    if (!firstFailure && matrixCase.sequentialSweep) {
+      const stride = Math.max(900, scroller.clientHeight * 0.9);
+      maximumScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+      for (let scrollTop = 0; scrollTop <= maximumScrollTop; scrollTop += stride) {
+        await inspectAt(scrollTop, 'sequential-down', 'full-sweep');
+        if (firstFailure) break;
+        maximumScrollTop = Math.max(
+          maximumScrollTop,
+          scroller.scrollHeight - scroller.clientHeight,
+        );
+      }
+      if (!firstFailure) {
+        await inspectAt(maximumScrollTop, 'sequential-down', 'bottom');
+        sequentialReachedBottom = true;
+        for (let scrollTop = maximumScrollTop; scrollTop >= 0; scrollTop -= stride) {
+          await inspectAt(scrollTop, 'sequential-up', 'full-sweep');
+          if (firstFailure) break;
+        }
+        if (!firstFailure) {
+          await inspectAt(0, 'sequential-up', 'top');
+          sequentialReturnedToTop = true;
+        }
+      }
+    }
+
+    let digitTransition = null;
+    if (!firstFailure && matrixCase.sequentialSweep) {
+      const trimmedLines = fixture.split('\n');
+      const fillerIndex = trimmedLines.findIndex((line) =>
+        line.includes('FIVE-DIGIT-RAMP-'),
+      );
+      if (fillerIndex < 0) {
+        return JSON.stringify({ ok: false, reason: 'missing generated filler lines' });
+      }
+      trimmedLines.splice(fillerIndex, 30);
+      const trimmedFixture = trimmedLines.join('\n');
+      root.defaultView.dispatchEvent(
+        new root.defaultView.MessageEvent('message', {
+          data: {
+            type: 'setDocument',
+            text: trimmedFixture,
+            revision: 999902,
+            debug: false,
+          },
+        }),
+      );
+      await waitFrames(8);
+      const trimmedTarget = trimmedFixture.indexOf('| [GB9995]');
+      const trimmedBlock = view.lineBlockAt(trimmedTarget);
+      await inspectAt(trimmedBlock.top, 'digit-transition', 'four-digit');
+      const fourDigitSample = audit();
+      const fourDigitLineCount = view.state.doc.lines;
+
+      root.defaultView.dispatchEvent(
+        new root.defaultView.MessageEvent('message', {
+          data: {
+            type: 'setDocument',
+            text: inputFixture,
+            revision: 999903,
+            debug: false,
+          },
+        }),
+      );
+      await waitFrames(8);
+      const restoredTarget = fixture.indexOf('| [GB9995]');
+      const restoredBlock = view.lineBlockAt(restoredTarget);
+      await inspectAt(restoredBlock.top, 'digit-transition', 'five-digit');
+      const fiveDigitSample = audit();
+      digitTransition = {
+        fourDigitLineCount,
+        restoredLineCount: view.state.doc.lines,
+        fourDigitGutterWidth: fourDigitSample.gutterWidth,
+        restoredGutterWidth: fiveDigitSample.gutterWidth,
+        fourDigitInversions: fourDigitSample.inversions,
+        restoredInversions: fiveDigitSample.inversions,
+        fourDigitClippingFailures: fourDigitSample.clippingFailures,
+        restoredClippingFailures: fiveDigitSample.clippingFailures,
+        fourDigitAlignmentFailures: fourDigitSample.alignmentFailures,
+        restoredAlignmentFailures: fiveDigitSample.alignmentFailures,
+        fourDigitHeightFailures: fourDigitSample.heightFailures,
+        restoredHeightFailures: fiveDigitSample.heightFailures,
+      };
+    }
+
+    maximumScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+    const target = fixture.indexOf('| [GB9995]');
+    const targetBlock = view.lineBlockAt(target);
+    await inspectAt(targetBlock.top, 'final', 'GB9995');
+    await waitFrames(2);
     const finalSample = audit();
     const finalNumbers = finalSample.items.map((item) => item.number);
+    const finalWidget = Array.from(
+      view.dom.querySelectorAll('.mlrt-table-widget'),
+    ).find((widget) =>
+      widget.querySelector('.mlrt-table-source-line[data-source-line="9995"]'),
+    );
+    const finalEstimatedHeightPx = Number(finalWidget?.dataset.estimatedHeightPx);
+    const finalWidgetScreenHeightPx =
+      finalWidget?.getBoundingClientRect().height ?? null;
+    const finalViewScaleY = Number.isFinite(view.scaleY) && view.scaleY > 0
+      ? view.scaleY
+      : 1;
+    const finalActualHeightPx = finalWidgetScreenHeightPx === null
+      ? null
+      : finalWidgetScreenHeightPx / finalViewScaleY;
+    const finalEstimateErrorPx =
+      Number.isFinite(finalEstimatedHeightPx) && finalActualHeightPx !== null
+        ? Math.abs(finalEstimatedHeightPx - finalActualHeightPx)
+        : null;
     return JSON.stringify({
       ok: true,
+      caseName: matrixCase.name,
+      requestedWidthPx: matrixCase.widthPx,
+      clientWidth: scroller.clientWidth,
+      requestedZoomLevel: matrixCase.zoomLevel,
+      devicePixelRatio: win.devicePixelRatio,
+      requestedFontFamily: matrixCase.fontFamily,
+      requestedFontSizePx: matrixCase.fontSizePx,
+      requestedLineHeightPx: matrixCase.lineHeightPx,
+      actualFontFamily: getComputedStyle(view.contentDOM).fontFamily,
+      actualFontSizePx: Number.parseFloat(getComputedStyle(view.contentDOM).fontSize),
+      actualLineHeightPx: Number.parseFloat(getComputedStyle(view.contentDOM).lineHeight),
+      inputLineEnding: matrixCase.lineEnding,
+      inputContainedCrLf: inputFixture.includes('\\r\\n'),
+      normalizedDocument: view.state.doc.toString() === fixture,
       fixtureLineCount: view.state.doc.lines,
-      sampleCount,
+      visitedTableCount: tableAnchors.length,
+      scrollPositionCount,
+      auditCount,
       tableSampleCount,
       nativeSampleCount,
       maximumScrollTop,
-      reachedBottom,
-      returnedToTop,
+      reachedBottom: sequentialReachedBottom,
+      returnedToTop: sequentialReturnedToTop,
       firstFailure,
+      fiveDigitNumbersSeen: Array.from(fiveDigitNumbersSeen).sort((a, b) => a - b),
+      comparedDigitWidthsSeen: Array.from(comparedDigitWidthsSeen).sort((a, b) => a - b),
+      digitTransition,
       finalNumbers,
       finalInversions: finalSample.inversions,
+      finalClippingFailures: finalSample.clippingFailures,
+      finalAlignmentFailures: finalSample.alignmentFailures,
+      finalHeightFailures: finalSample.heightFailures,
+      finalGutterWidth: finalSample.gutterWidth,
+      finalHeightEstimateRevision: Number(finalWidget?.dataset.heightEstimateRevision),
+      finalEstimatedHeightPx,
+      finalActualHeightPx,
+      finalViewScaleY,
+      finalEstimateErrorPx,
       legacyHiddenSourceElementCount: view.dom.querySelectorAll(
         '.mlrt-hidden-table-source-line, .mlrt-hidden-table-source-gutter',
       ).length,
@@ -14923,25 +15370,89 @@ function assertEmptyLineCursor(result) {
   }
 }
 
-function assertGutterScrollOrdering(result) {
+function assertGutterScrollOrdering(result, matrixCase) {
+  const requiredFiveDigitNumbers = [9_995, 9_997, 9_998, 9_999, 10_000, 10_001];
+  const widthWithinScrollbarAllowance =
+    result?.clientWidth <= matrixCase.widthPx + 1 &&
+    result?.clientWidth >= matrixCase.widthPx - 30;
+  // The estimator works in monospace ch units while browser word wrapping
+  // uses shaped glyph boxes. Staying within one visual line is sufficiently
+  // close to prevent a viewport-sized correction when a widget mounts.
+  const estimateTolerance = Math.max(2, matrixCase.lineHeightPx + 2);
   if (
     !result?.ok ||
-    result.fixtureLineCount < 2_000 ||
-    result.sampleCount < 100 ||
+    result.caseName !== matrixCase.name ||
+    result.fixtureLineCount < 10_000 ||
+    result.visitedTableCount < 100 ||
+    result.scrollPositionCount < 200 ||
+    result.auditCount < result.scrollPositionCount * 4 ||
     result.tableSampleCount <= 0 ||
     result.nativeSampleCount <= 0 ||
     result.maximumScrollTop <= 0 ||
     !result.reachedBottom ||
     !result.returnedToTop ||
+    !result.normalizedDocument ||
+    result.inputLineEnding !== matrixCase.lineEnding ||
+    result.inputContainedCrLf !== (matrixCase.lineEnding === "crlf") ||
+    !widthWithinScrollbarAllowance ||
+    Math.abs(result.actualFontSizePx - matrixCase.fontSizePx) > 0.25 ||
+    Math.abs(result.actualLineHeightPx - matrixCase.lineHeightPx) > 0.25 ||
     result.firstFailure !== null ||
     result.finalInversions?.length !== 0 ||
+    result.finalClippingFailures?.length !== 0 ||
+    result.finalAlignmentFailures?.length !== 0 ||
+    result.finalHeightFailures?.length !== 0 ||
+    result.finalGutterWidth <= 0 ||
+    result.finalHeightEstimateRevision <= 0 ||
+    result.finalEstimateErrorPx === null ||
+    result.finalEstimateErrorPx > estimateTolerance ||
     result.legacyHiddenSourceElementCount !== 0 ||
-    !result.finalNumbers?.includes(197) ||
-    !result.finalNumbers?.includes(199) ||
-    !result.finalNumbers?.includes(200)
+    requiredFiveDigitNumbers.some(
+      (number) => !result.fiveDigitNumbersSeen?.includes(number),
+    ) ||
+    [3, 4, 5].some(
+      (digits) => !result.comparedDigitWidthsSeen?.includes(digits),
+    ) ||
+    (matrixCase.sequentialSweep &&
+      (!result.digitTransition ||
+        result.digitTransition.fourDigitLineCount >= 10_000 ||
+        result.digitTransition.restoredLineCount < 10_000 ||
+        result.digitTransition.fourDigitGutterWidth >=
+          result.digitTransition.restoredGutterWidth ||
+        result.digitTransition.fourDigitInversions?.length !== 0 ||
+        result.digitTransition.restoredInversions?.length !== 0 ||
+        result.digitTransition.fourDigitClippingFailures?.length !== 0 ||
+        result.digitTransition.restoredClippingFailures?.length !== 0 ||
+        result.digitTransition.fourDigitAlignmentFailures?.length !== 0 ||
+        result.digitTransition.restoredAlignmentFailures?.length !== 0 ||
+        result.digitTransition.fourDigitHeightFailures?.length !== 0 ||
+        result.digitTransition.restoredHeightFailures?.length !== 0))
   ) {
+    const summarizeEntries = (entries) => ({
+      count: entries?.length ?? 0,
+      first: entries?.slice(0, 4) ?? [],
+    });
+    const firstFailure = result?.firstFailure
+      ? {
+          ...result.firstFailure,
+          items: summarizeEntries(result.firstFailure.items),
+          inversions: summarizeEntries(result.firstFailure.inversions),
+          clippingFailures: summarizeEntries(result.firstFailure.clippingFailures),
+          alignmentFailures: summarizeEntries(result.firstFailure.alignmentFailures),
+          heightFailures: summarizeEntries(result.firstFailure.heightFailures),
+        }
+      : null;
+    const summary = {
+      ...result,
+      firstFailure,
+      finalNumbers: summarizeEntries(result?.finalNumbers),
+      finalInversions: summarizeEntries(result?.finalInversions),
+      finalClippingFailures: summarizeEntries(result?.finalClippingFailures),
+      finalAlignmentFailures: summarizeEntries(result?.finalAlignmentFailures),
+      finalHeightFailures: summarizeEntries(result?.finalHeightFailures),
+    };
     throw new Error(
-      `Long-document gutter scroll ordering check failed: ${JSON.stringify(result)}`,
+      `Long-document gutter matrix check failed for ${matrixCase.name}: ${JSON.stringify(summary)}`,
     );
   }
 }
