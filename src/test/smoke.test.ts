@@ -3,7 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { editorDragPosition } from "../editor/dragPosition";
 import { cellValueNeedsCaretSentinel } from "../editor/table/cellSelection";
-import { estimateRenderedTableHeight } from "../editor/table/TableWidget";
+import {
+  createTableHeightEstimateMetrics,
+  estimateRenderedTableHeight,
+  screenPixelsToCssPixels,
+  updateTableHeightEstimateMetrics,
+} from "../editor/table/tableHeightEstimate";
 import { planVisibleTableBoundary } from "../editor/tableBoundaryInput";
 import {
   mapNormalizedDocumentChangesToHost,
@@ -82,8 +87,9 @@ assert.deepEqual(rowToDisplayValues(standardTables[0].body[1], 3), [
   "contains | pipe",
   "2",
 ]);
+const tableHeightMetrics = createTableHeightEstimateMetrics();
 assert.equal(
-  estimateRenderedTableHeight(standardTables[0]),
+  estimateRenderedTableHeight(standardTables[0], tableHeightMetrics),
   3 * 21,
   "ordinary table height estimates one rendered line per visible row",
 );
@@ -95,10 +101,56 @@ const explicitBreakTable = parseMarkdownTables(
   ].join("\n"),
 )[0];
 assert.equal(
-  estimateRenderedTableHeight(explicitBreakTable),
+  estimateRenderedTableHeight(explicitBreakTable, tableHeightMetrics),
   21 + 59,
   "explicit table-cell breaks contribute to the off-screen height estimate",
 );
+assert.equal(
+  updateTableHeightEstimateMetrics(tableHeightMetrics, {
+    lineHeightPx: 30,
+    chWidthPx: 10,
+    availableDataWidthPx: 1_000,
+  }),
+  true,
+  "measured font and viewport geometry updates off-screen estimates",
+);
+assert.equal(tableHeightMetrics.revision, 1);
+assert.equal(
+  estimateRenderedTableHeight(standardTables[0], tableHeightMetrics),
+  3 * 32,
+  "table height follows the measured editor line height instead of 19px",
+);
+const wrappingEstimateTable = parseMarkdownTables(
+  [
+    "| A | B |",
+    "| --- | --- |",
+    "| short | a deliberately long value that must wrap in a narrow viewport |",
+  ].join("\n"),
+)[0];
+const wideEstimate = estimateRenderedTableHeight(
+  wrappingEstimateTable,
+  tableHeightMetrics,
+);
+updateTableHeightEstimateMetrics(tableHeightMetrics, {
+  lineHeightPx: 30,
+  chWidthPx: 10,
+  availableDataWidthPx: 180,
+});
+const narrowEstimate = estimateRenderedTableHeight(
+  wrappingEstimateTable,
+  tableHeightMetrics,
+);
+assert.ok(
+  narrowEstimate > wideEstimate,
+  "narrow viewport estimates include table-cell wrapping and scrollbar height",
+);
+assert.equal(
+  screenPixelsToCssPixels(160, 2),
+  80,
+  "browser rectangles are converted back from a 200% render scale",
+);
+assert.equal(screenPixelsToCssPixels(80, 0), 80);
+assert.equal(screenPixelsToCssPixels(-10, 1.25), 0);
 
 const noOuterPipes = [
   "Name | Empty | Notes",
@@ -703,6 +755,10 @@ const tableWidgetSource = fs.readFileSync(
   path.join(process.cwd(), "src", "editor", "table", "TableWidget.ts"),
   "utf8",
 );
+const tableLayoutSource = fs.readFileSync(
+  path.join(process.cwd(), "src", "editor", "table", "tableLayout.ts"),
+  "utf8",
+);
 
 assert.equal(
   packageJson.contributes?.customEditors?.[0]?.viewType,
@@ -804,6 +860,11 @@ assert.doesNotMatch(
   liveEditorSource,
   /toggleMode|toggleRenderedMode|renderedMode|renderModeCompartment/,
 );
+assert.match(
+  liveEditorSource,
+  /const text = normalizeDocumentText\(hostText\)/,
+  "host LF/CRLF snapshots must share one internal source-offset model",
+);
 assert.match(tableDecorationsSource, /Decoration\.replace/);
 assert.doesNotMatch(tableDecorationsSource, /lineNumberMarkers/);
 assert.doesNotMatch(tableDecorationsSource, /hiddenLineNumberMarker/);
@@ -811,6 +872,12 @@ assert.doesNotMatch(liveEditorCss, /mlrt-hidden-table-source/);
 assert.match(geometrySyncSource, /ResizeObserver/);
 assert.match(tableWidgetSource, /dataset\.sourceLine/);
 assert.match(tableWidgetSource, /measureTableColumnSizing/);
+assert.match(tableWidgetSource, /primeTableLayoutForMount\([\s\S]*bindTableLayout\(/);
+assert.match(tableWidgetSource, /updateDOM[\s\S]*synchronizeTableLayoutNow/);
+assert.match(tableLayoutSource, /view\.scrollDOM\.append\(wrapper\)/);
+assert.match(tableLayoutSource, /screenPixelsToCssPixels/);
+assert.match(tableLayoutSource, /return synchronizeNow/);
+assert.match(geometrySyncSource, /updateTableHeightEstimateMetrics/);
 assert.doesNotMatch(tableWidgetSource, /appendLineNumberCell/);
 assert.doesNotMatch(geometrySyncSource, /class TableRowLineNumberMarker/);
 assert.doesNotMatch(geometrySyncSource, /lineNumberWidgetMarker/);

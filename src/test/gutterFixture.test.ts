@@ -15,7 +15,10 @@ const fixture = fs
 const sourceLines = fixture.split("\n");
 const tables = parseMarkdownTables(fixture);
 
-assert.ok(sourceLines.length >= 2_000, "gutter fixture must remain a deep-scroll document");
+assert.ok(
+  sourceLines.length >= 10_000,
+  "gutter fixture must remain a five-digit deep-scroll document",
+);
 assert.ok(tables.length >= 100, "gutter fixture must retain broad table coverage");
 
 // A bracketed case ID at the start of a source row is the fixture's explicit
@@ -109,6 +112,19 @@ assert.ok(
 const secondBoundary = tableById("GB1995");
 assert.equal(secondBoundary.startLine + 1, 1_995);
 assert.equal(secondBoundary.body[3].lineIndex + 1, 2_000);
+
+const fiveDigitBoundary = tableById("GB9995");
+assert.equal(fiveDigitBoundary.startLine + 1, 9_995);
+assert.equal(fiveDigitBoundary.delimiter.lineIndex + 1, 9_996);
+assert.deepEqual(
+  fiveDigitBoundary.body.map((row) => row.lineIndex + 1),
+  [9_997, 9_998, 9_999, 10_000],
+  "the rendered table must own both sides of the 9,999/10,000 boundary",
+);
+assert.equal(
+  sourceLines[fiveDigitBoundary.endLine + 1],
+  "GB9995-AFTER: the first prose gutter number after the table must be 10001.",
+);
 
 assert.equal(tableById("GS006").columnCount, 1, "single-column coverage disappeared");
 assert.equal(tableById("GS007").body.length, 0, "header-only coverage disappeared");

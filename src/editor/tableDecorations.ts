@@ -11,6 +11,10 @@ import {
 import { getParsedTables } from "../shared/tableModel";
 import { tableCellLiveEditAnnotation } from "./tableEditAnnotations";
 import { RenderedTableWidget } from "./table/TableWidget";
+import {
+  createTableHeightEstimateMetrics,
+  TableHeightEstimateMetrics,
+} from "./table/tableHeightEstimate";
 
 /**
  * Replaces each complete Markdown table source range with one rendered block.
@@ -28,10 +32,13 @@ import { RenderedTableWidget } from "./table/TableWidget";
  * change instead of rebuilding, which keeps the mounted widget DOM stable
  * while typing.
  */
-export function createTableDecorations(): Extension {
+export function createTableDecorations(
+  heightEstimateMetrics: TableHeightEstimateMetrics =
+    createTableHeightEstimateMetrics(),
+): Extension {
   const field = StateField.define<DecorationSet>({
     create(state) {
-      return buildTableDecorations(state.doc);
+      return buildTableDecorations(state.doc, heightEstimateMetrics);
     },
     update(value, transaction) {
       if (!transaction.docChanged) {
@@ -40,7 +47,10 @@ export function createTableDecorations(): Extension {
       if (transaction.annotation(tableCellLiveEditAnnotation)) {
         return value.map(transaction.changes);
       }
-      return buildTableDecorations(transaction.state.doc);
+      return buildTableDecorations(
+        transaction.state.doc,
+        heightEstimateMetrics,
+      );
     },
     provide(field) {
       return [
@@ -53,11 +63,14 @@ export function createTableDecorations(): Extension {
   return field;
 }
 
-function buildTableDecorations(doc: Text): DecorationSet {
+function buildTableDecorations(
+  doc: Text,
+  heightEstimateMetrics: TableHeightEstimateMetrics,
+): DecorationSet {
   return Decoration.set(
     getParsedTables(doc).map((table) =>
       Decoration.replace({
-        widget: new RenderedTableWidget(table),
+        widget: new RenderedTableWidget(table, heightEstimateMetrics),
         block: true,
       }).range(table.from, table.to),
     ),

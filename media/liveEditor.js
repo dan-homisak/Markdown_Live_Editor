@@ -24996,8 +24996,594 @@
     };
   }
 
+  // src/shared/tableColumnSizing.ts
+  var CELL_HORIZONTAL_PADDING_CH = 2;
+  var CELL_COMFORT_CH = 1;
+  var TOKEN_COMFORT_CH = 0.5;
+  var MIN_COLUMN_WIDTH_CH = 3;
+  var READABLE_COLUMN_WIDTH_CH = 12;
+  var READABLE_LINE_LENGTH_THRESHOLD_CH = 32;
+  var MAX_UNBROKEN_TOKEN_WIDTH_CH = 36;
+  var MAX_PREFERRED_COLUMN_WIDTH_CH = 96;
+  var HEADER_PREFERRED_WIDTH_CAP_CH = 24;
+  var HEADER_TOKEN_WIDTH_CAP_CH = 24;
+  var WIDTH_STEP_CH = 0.5;
+  function measureTableColumnSizing(table2, availableDataWidthCh, cellOverride) {
+    const rows = [
+      { row: table2.header, rowKind: "header", rowIndex: 0 },
+      ...table2.body.map((row, rowIndex) => ({
+        row,
+        rowKind: "body",
+        rowIndex
+      }))
+    ];
+    const columns = Array.from(
+      { length: table2.columnCount },
+      (_value, column) => measureColumn(rows, table2.columnCount, column, cellOverride)
+    );
+    const totalPreferredWidth = columns.reduce(
+      (total, column) => total + column.preferredWidthCh,
+      0
+    );
+    const totalMinWidth = columns.reduce(
+      (total, column) => total + column.minWidthCh,
+      0
+    );
+    const safeTotalWidth = totalPreferredWidth > 0 ? totalPreferredWidth : table2.columnCount;
+    const targetWidth = availableDataWidthCh === void 0 || availableDataWidthCh <= 0 ? safeTotalWidth : Math.min(safeTotalWidth, availableDataWidthCh);
+    const allocatedColumns = targetWidth >= totalMinWidth ? allocateColumnWidths(columns, targetWidth) : columns.map((column) => ({ ...column, widthCh: column.minWidthCh }));
+    if (availableDataWidthCh !== void 0 && availableDataWidthCh > 0) {
+      distributeWidthSteps(
+        allocatedColumns,
+        availableDataWidthCh,
+        (column) => column.fullPreferredWidthCh
+      );
+    }
+    const dataWidthCh = allocatedColumns.reduce(
+      (total, column) => total + column.widthCh,
+      0
+    );
+    const safeDataWidth = dataWidthCh > 0 ? dataWidthCh : table2.columnCount;
+    return {
+      columns: allocatedColumns,
+      dataWidthCh: safeDataWidth,
+      widthPercentages: allocatedColumns.map(
+        (column) => column.widthCh / safeDataWidth * 100
+      )
+    };
+  }
+  function measureColumn(rows, columnCount, column, cellOverride) {
+    let longestLine = 0;
+    let longestToken = 0;
+    let longestBodyLine = 0;
+    let longestBodyToken = 0;
+    let longestHeaderLine = 0;
+    let longestHeaderToken = 0;
+    let hasBodyRow = false;
+    const cellLineLengths = [];
+    for (const source of rows) {
+      const value = getCellDisplayValue(
+        source,
+        columnCount,
+        column,
+        cellOverride
+      );
+      for (const line of splitDisplayLines(value)) {
+        const lineLength = line.length;
+        const tokenLength = measureLongestToken(line);
+        cellLineLengths.push(lineLength);
+        longestLine = Math.max(longestLine, lineLength);
+        longestToken = Math.max(longestToken, tokenLength);
+        if (source.rowKind === "body") {
+          hasBodyRow = true;
+          longestBodyLine = Math.max(longestBodyLine, lineLength);
+          longestBodyToken = Math.max(longestBodyToken, tokenLength);
+        } else {
+          longestHeaderLine = Math.max(longestHeaderLine, lineLength);
+          longestHeaderToken = Math.max(longestHeaderToken, tokenLength);
+        }
+      }
+    }
+    const sizingLine = hasBodyRow ? Math.max(
+      longestBodyLine,
+      Math.min(longestHeaderLine, HEADER_PREFERRED_WIDTH_CAP_CH)
+    ) : longestLine;
+    const sizingToken = hasBodyRow ? Math.max(
+      longestBodyToken,
+      Math.min(longestHeaderToken, HEADER_TOKEN_WIDTH_CAP_CH)
+    ) : longestToken;
+    const hasProseLikeContent = cellLineLengths.some(
+      (lineLength) => lineLength >= READABLE_LINE_LENGTH_THRESHOLD_CH
+    );
+    const readableMinWidthCh = hasProseLikeContent ? READABLE_COLUMN_WIDTH_CH : 0;
+    const minWidthCh = clamp(
+      Math.max(
+        sizingToken + CELL_HORIZONTAL_PADDING_CH + TOKEN_COMFORT_CH,
+        readableMinWidthCh
+      ),
+      MIN_COLUMN_WIDTH_CH,
+      MAX_UNBROKEN_TOKEN_WIDTH_CH
+    );
+    const preferredWidthCh = clamp(
+      sizingLine + CELL_HORIZONTAL_PADDING_CH + CELL_COMFORT_CH,
+      minWidthCh,
+      MAX_PREFERRED_COLUMN_WIDTH_CH
+    );
+    const fullPreferredWidthCh = clamp(
+      longestLine + CELL_HORIZONTAL_PADDING_CH + CELL_COMFORT_CH,
+      preferredWidthCh,
+      MAX_PREFERRED_COLUMN_WIDTH_CH
+    );
+    return {
+      cellLineLengths,
+      minWidthCh,
+      preferredWidthCh,
+      fullPreferredWidthCh,
+      widthCh: preferredWidthCh
+    };
+  }
+  function getCellDisplayValue(source, columnCount, column, cellOverride) {
+    if (cellOverride && cellOverride.rowKind === source.rowKind && cellOverride.rowIndex === source.rowIndex && cellOverride.column === column) {
+      return cellOverride.value;
+    }
+    return rowToDisplayValues(source.row, columnCount)[column] ?? "";
+  }
+  function allocateColumnWidths(columns, targetWidthCh) {
+    const allocated = columns.map((column) => ({
+      ...column,
+      widthCh: column.minWidthCh
+    }));
+    distributeWidthSteps(
+      allocated,
+      targetWidthCh,
+      (column) => column.preferredWidthCh
+    );
+    return allocated;
+  }
+  function distributeWidthSteps(columns, targetWidthCh, limitOf) {
+    let remainingSteps = Math.round(
+      (targetWidthCh - columns.reduce((total, column) => total + column.widthCh, 0)) / WIDTH_STEP_CH
+    );
+    while (remainingSteps > 0) {
+      let bestColumnIndex = -1;
+      let bestScore = Number.NEGATIVE_INFINITY;
+      for (let index = 0; index < columns.length; index++) {
+        const column2 = columns[index];
+        const limit = limitOf(column2);
+        if (column2.widthCh >= limit) {
+          continue;
+        }
+        const nextWidth = Math.min(limit, column2.widthCh + WIDTH_STEP_CH);
+        const wrapReduction = measureWrapCost(column2, column2.widthCh) - measureWrapCost(column2, nextWidth);
+        const remainingNeed = limit - column2.widthCh;
+        const score = wrapReduction * 1e3 + remainingNeed;
+        if (score > bestScore) {
+          bestScore = score;
+          bestColumnIndex = index;
+        }
+      }
+      if (bestColumnIndex === -1) {
+        break;
+      }
+      const column = columns[bestColumnIndex];
+      column.widthCh = Math.min(limitOf(column), column.widthCh + WIDTH_STEP_CH);
+      remainingSteps--;
+    }
+  }
+  function measureWrapCost(column, widthCh) {
+    const contentWidthCh = Math.max(1, widthCh - CELL_HORIZONTAL_PADDING_CH);
+    return column.cellLineLengths.reduce(
+      (total, lineLength) => total + Math.max(1, Math.ceil(lineLength / contentWidthCh)),
+      0
+    );
+  }
+  function splitDisplayLines(value) {
+    const lines = value.split(/\r\n?|\n/);
+    return lines.length > 0 ? lines : [""];
+  }
+  function measureLongestToken(value) {
+    return value.trim().split(/\s+/).reduce((longest, token) => Math.max(longest, token.length), 0);
+  }
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(value, max));
+  }
+
+  // src/editor/table/tableHeightEstimate.ts
+  var DEFAULT_EDITOR_LINE_HEIGHT_PX = 19;
+  var DEFAULT_CH_WIDTH_PX = 8;
+  var TABLE_ROW_VERTICAL_CHROME_PX = 2;
+  var TABLE_SCROLLBAR_HEIGHT_PX = 8;
+  var CELL_HORIZONTAL_PADDING_CH2 = 2;
+  var METRIC_EPSILON_PX = 0.01;
+  function createTableHeightEstimateMetrics() {
+    return {
+      lineHeightPx: DEFAULT_EDITOR_LINE_HEIGHT_PX,
+      chWidthPx: DEFAULT_CH_WIDTH_PX,
+      availableDataWidthPx: void 0,
+      revision: 0
+    };
+  }
+  function updateTableHeightEstimateMetrics(metrics, measured) {
+    const lineHeightPx = positiveOrFallback(
+      measured.lineHeightPx,
+      metrics.lineHeightPx
+    );
+    const chWidthPx = positiveOrFallback(measured.chWidthPx, metrics.chWidthPx);
+    const availableDataWidthPx = measured.availableDataWidthPx === void 0 ? void 0 : Math.max(0, measured.availableDataWidthPx);
+    const changed = Math.abs(metrics.lineHeightPx - lineHeightPx) > METRIC_EPSILON_PX || Math.abs(metrics.chWidthPx - chWidthPx) > METRIC_EPSILON_PX || optionalNumberChanged(
+      metrics.availableDataWidthPx,
+      availableDataWidthPx
+    );
+    if (!changed) {
+      return false;
+    }
+    metrics.lineHeightPx = lineHeightPx;
+    metrics.chWidthPx = chWidthPx;
+    metrics.availableDataWidthPx = availableDataWidthPx;
+    metrics.revision++;
+    return true;
+  }
+  function estimateRenderedTableHeight(table2, metrics) {
+    const availableDataWidthCh = estimateAvailableDataWidthCh(
+      metrics,
+      table2.columnCount
+    );
+    const columnSizing = measureTableColumnSizing(
+      table2,
+      availableDataWidthCh
+    );
+    const rows = [table2.header, ...table2.body];
+    const rowsHeight = rows.reduce((height, row) => {
+      const values2 = rowToDisplayValues(row, table2.columnCount);
+      const visualLineCount = Math.max(
+        1,
+        ...values2.map(
+          (value, column) => estimateCellVisualLineCount(
+            value,
+            columnSizing.columns[column]?.widthCh ?? 1
+          )
+        )
+      );
+      return height + visualLineCount * metrics.lineHeightPx + TABLE_ROW_VERTICAL_CHROME_PX;
+    }, 0);
+    const scrollbarHeight = availableDataWidthCh !== void 0 && columnSizing.dataWidthCh > availableDataWidthCh + METRIC_EPSILON_PX ? TABLE_SCROLLBAR_HEIGHT_PX : 0;
+    return rowsHeight + scrollbarHeight;
+  }
+  function estimateAvailableDataWidthCh(metrics, columnCount) {
+    if (metrics.availableDataWidthPx === void 0 || metrics.chWidthPx <= 0) {
+      return void 0;
+    }
+    const borderAllowancePx = columnCount + 2;
+    return Math.max(0, metrics.availableDataWidthPx - borderAllowancePx) / metrics.chWidthPx;
+  }
+  function screenPixelsToCssPixels(value, scaleY) {
+    const safeScale = Number.isFinite(scaleY) && scaleY > 0 ? scaleY : 1;
+    return Math.max(0, value / safeScale);
+  }
+  function estimateCellVisualLineCount(value, columnWidthCh) {
+    const contentWidthCh = Math.max(
+      1,
+      columnWidthCh - CELL_HORIZONTAL_PADDING_CH2
+    );
+    return value.split("\n").reduce(
+      (count2, line) => count2 + Math.max(1, Math.ceil(estimateTextWidthCh(line) / contentWidthCh)),
+      0
+    );
+  }
+  function estimateTextWidthCh(value) {
+    return Array.from(value).reduce(
+      (width, character) => width + (character === "	" ? 4 : 1),
+      0
+    );
+  }
+  function optionalNumberChanged(previous, next2) {
+    return previous === void 0 || next2 === void 0 ? previous !== next2 : Math.abs(previous - next2) > METRIC_EPSILON_PX;
+  }
+  function positiveOrFallback(value, fallback) {
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  // src/editor/table/tableLayout.ts
+  var chWidthCache = /* @__PURE__ */ new WeakMap();
+  var cssLengthCache = /* @__PURE__ */ new WeakMap();
+  function appendColumnSizing(tableElement, table2, columnSizing) {
+    const colgroup = document.createElement("colgroup");
+    const lineNumberCol = document.createElement("col");
+    lineNumberCol.className = "mlrt-table-source-line-col";
+    colgroup.append(lineNumberCol);
+    for (let column = 0; column < table2.columnCount; column++) {
+      const col = document.createElement("col");
+      col.className = "mlrt-table-sized-col";
+      col.style.width = `${columnSizing.columns[column].widthCh.toFixed(4)}ch`;
+      colgroup.append(col);
+    }
+    tableElement.append(colgroup);
+  }
+  function applyColumnSizing(wrapper, columnSizing) {
+    wrapper.style.setProperty(
+      "--mlrt-table-data-width",
+      `${columnSizing.dataWidthCh.toFixed(4)}ch`
+    );
+    wrapper.querySelectorAll(".mlrt-table-sized-col").forEach((col, column) => {
+      col.style.width = `${(columnSizing.columns[column]?.widthCh ?? 1).toFixed(
+        4
+      )}ch`;
+    });
+  }
+  function applyCurrentColumnSizing(wrapper, table2) {
+    applyColumnSizing(
+      wrapper,
+      measureTableColumnSizing(
+        table2,
+        measureAvailableDataWidthCh(wrapper),
+        readActiveCellSizingOverride(wrapper)
+      )
+    );
+  }
+  function bindTableLayout(wrapper, tableScroll, tableElement, scrollbar, scrollbarThumb, table2, view2) {
+    const syncScrollbar = () => syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb);
+    let pendingAnimationFrame = 0;
+    const syncLayout = () => {
+      pendingAnimationFrame = 0;
+      synchronizeTableLayoutElements(
+        wrapper,
+        tableScroll,
+        tableElement,
+        scrollbar,
+        scrollbarThumb,
+        getTableWidgetTable(wrapper) ?? table2,
+        view2
+      );
+    };
+    const scheduleDeferredLayout = () => {
+      if (pendingAnimationFrame !== 0) {
+        return;
+      }
+      pendingAnimationFrame = requestElementAnimationFrame(wrapper, syncLayout);
+    };
+    const synchronizeNow = () => {
+      if (pendingAnimationFrame !== 0) {
+        cancelElementAnimationFrame(wrapper, pendingAnimationFrame);
+        pendingAnimationFrame = 0;
+      }
+      syncLayout();
+    };
+    const ResizeObserverCtor = wrapper.ownerDocument.defaultView?.ResizeObserver;
+    const resizeObserver = ResizeObserverCtor ? new ResizeObserverCtor(scheduleDeferredLayout) : void 0;
+    resizeObserver?.observe(tableElement);
+    resizeObserver?.observe(tableScroll);
+    tableScroll.addEventListener("scroll", syncScrollbar);
+    scheduleDeferredLayout();
+    setTableWidgetCleanup(wrapper, () => {
+      if (pendingAnimationFrame !== 0) {
+        cancelElementAnimationFrame(wrapper, pendingAnimationFrame);
+        pendingAnimationFrame = 0;
+      }
+      resizeObserver?.disconnect();
+      tableScroll.removeEventListener("scroll", syncScrollbar);
+    });
+    return synchronizeNow;
+  }
+  function synchronizeTableLayoutNow(wrapper, table2, view2) {
+    const tableScroll = wrapper.querySelector(".mlrt-table-scroll");
+    const tableElement = wrapper.querySelector(".mlrt-table");
+    const scrollbar = wrapper.querySelector(".mlrt-table-scrollbar");
+    const scrollbarThumb = wrapper.querySelector(
+      ".mlrt-table-scrollbar-thumb"
+    );
+    if (!tableScroll || !tableElement || !scrollbar || !scrollbarThumb) {
+      return false;
+    }
+    synchronizeTableLayoutElements(
+      wrapper,
+      tableScroll,
+      tableElement,
+      scrollbar,
+      scrollbarThumb,
+      table2,
+      view2
+    );
+    return true;
+  }
+  function measureAvailableDataWidthCh(wrapper) {
+    const scroller = wrapper.closest(".cm-scroller");
+    if (!scroller) {
+      return void 0;
+    }
+    return measureAvailableDataWidthChFromEditor(
+      scroller,
+      wrapper,
+      getTableWidgetTable(wrapper)?.columnCount ?? 1
+    );
+  }
+  function primeTableLayoutForMount(wrapper, tableScroll, tableElement, scrollbar, scrollbarThumb, table2, view2) {
+    const previousInlineStyle = {
+      position: wrapper.style.position,
+      left: wrapper.style.left,
+      top: wrapper.style.top,
+      visibility: wrapper.style.visibility,
+      pointerEvents: wrapper.style.pointerEvents
+    };
+    wrapper.style.position = "absolute";
+    wrapper.style.left = "0";
+    wrapper.style.top = "0";
+    wrapper.style.visibility = "hidden";
+    wrapper.style.pointerEvents = "none";
+    view2.scrollDOM.append(wrapper);
+    try {
+      synchronizeTableLayoutElements(
+        wrapper,
+        tableScroll,
+        tableElement,
+        scrollbar,
+        scrollbarThumb,
+        table2,
+        view2
+      );
+    } finally {
+      wrapper.remove();
+      wrapper.style.position = previousInlineStyle.position;
+      wrapper.style.left = previousInlineStyle.left;
+      wrapper.style.top = previousInlineStyle.top;
+      wrapper.style.visibility = previousInlineStyle.visibility;
+      wrapper.style.pointerEvents = previousInlineStyle.pointerEvents;
+    }
+  }
+  function synchronizeTableLayoutElements(wrapper, tableScroll, tableElement, scrollbar, scrollbarThumb, table2, view2) {
+    applyCurrentColumnSizing(wrapper, table2);
+    syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb);
+    const tableHeight = tableElement.getBoundingClientRect().height;
+    const scrollbarHeight = scrollbar.hidden ? 0 : scrollbar.getBoundingClientRect().height;
+    const synchronizedHeightPx = screenPixelsToCssPixels(
+      tableHeight + scrollbarHeight,
+      view2.scaleY
+    );
+    wrapper.style.height = `${synchronizedHeightPx}px`;
+    wrapper.dataset.primedHeightPx = String(synchronizedHeightPx);
+    syncTableSelectionOverlay(wrapper);
+  }
+  function measureAvailableDataWidthChForView(view2, columnCount) {
+    const viewport = measureTableEstimateViewportForView(view2);
+    const borderAllowancePx = columnCount + 2;
+    const availablePx = Math.max(
+      0,
+      viewport.availableDataWidthPx - borderAllowancePx
+    );
+    return viewport.chWidthPx > 0 ? availablePx / viewport.chWidthPx : void 0;
+  }
+  function measureTableEstimateViewportForView(view2) {
+    const scroller = view2.scrollDOM;
+    const styles = getComputedStyle(scroller);
+    const gutterWidth = view2.dom.querySelector(".cm-gutters")?.getBoundingClientRect().width ?? resolveCssLengthPx(
+      scroller,
+      styles.getPropertyValue("--mlrt-live-gutter-width")
+    );
+    const rightPadding = resolveCssLengthPx(
+      scroller,
+      styles.getPropertyValue("--mlrt-editor-right-padding")
+    );
+    return {
+      availableDataWidthPx: Math.max(
+        0,
+        scroller.clientWidth - gutterWidth - rightPadding
+      ),
+      chWidthPx: measureChWidth(view2.contentDOM)
+    };
+  }
+  function tableSizingOverflowsAvailableWidth(columnSizing, availableDataWidthCh) {
+    return availableDataWidthCh !== void 0 && columnSizing.dataWidthCh > availableDataWidthCh + 0.01;
+  }
+  function measureAvailableDataWidthChFromEditor(scroller, fontElement, columnCount) {
+    const styles = getComputedStyle(scroller);
+    const gutterWidth = resolveCssLengthPx(
+      scroller,
+      styles.getPropertyValue("--mlrt-live-gutter-width")
+    );
+    const rightPadding = resolveCssLengthPx(
+      scroller,
+      styles.getPropertyValue("--mlrt-editor-right-padding")
+    );
+    const chWidth = measureChWidth(fontElement);
+    const borderAllowancePx = columnCount + 2;
+    const availablePx = Math.max(
+      0,
+      scroller.clientWidth - gutterWidth - rightPadding - borderAllowancePx
+    );
+    return chWidth > 0 ? availablePx / chWidth : void 0;
+  }
+  function syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb) {
+    const maxScrollLeft = Math.max(
+      0,
+      tableScroll.scrollWidth - tableScroll.clientWidth
+    );
+    const hasOverflow = maxScrollLeft > 1;
+    scrollbar.hidden = !hasOverflow;
+    if (!hasOverflow) {
+      if (tableScroll.scrollLeft !== 0) {
+        tableScroll.scrollLeft = 0;
+      }
+      scrollbarThumb.style.width = "0px";
+      scrollbarThumb.style.transform = "translateX(0px)";
+      return;
+    }
+    const trackWidth = Math.max(0, scrollbar.clientWidth);
+    const thumbWidth = Math.max(
+      24,
+      tableScroll.clientWidth / tableScroll.scrollWidth * trackWidth
+    );
+    const maxThumbLeft = Math.max(0, trackWidth - thumbWidth);
+    const thumbLeft = maxScrollLeft > 0 ? tableScroll.scrollLeft / maxScrollLeft * maxThumbLeft : 0;
+    scrollbarThumb.style.width = `${thumbWidth}px`;
+    scrollbarThumb.style.transform = `translateX(${thumbLeft}px)`;
+  }
+  function measureChWidth(element) {
+    const styles = getComputedStyle(element);
+    const cacheKey = [
+      styles.fontFamily,
+      styles.fontSize,
+      styles.fontWeight,
+      styles.fontStretch,
+      styles.fontStyle,
+      styles.letterSpacing,
+      styles.fontFeatureSettings,
+      styles.fontVariationSettings
+    ].join("|");
+    const cached = chWidthCache.get(element);
+    if (cached?.key === cacheKey) {
+      return cached.width;
+    }
+    const probe = element.ownerDocument.createElement("span");
+    probe.textContent = "0";
+    probe.style.position = "absolute";
+    probe.style.left = "-10000px";
+    probe.style.top = "0";
+    probe.style.visibility = "hidden";
+    probe.style.pointerEvents = "none";
+    probe.style.whiteSpace = "pre";
+    probe.style.fontFamily = styles.fontFamily;
+    probe.style.fontSize = styles.fontSize;
+    probe.style.fontWeight = styles.fontWeight;
+    probe.style.fontStretch = styles.fontStretch;
+    probe.style.fontStyle = styles.fontStyle;
+    probe.style.letterSpacing = styles.letterSpacing;
+    probe.style.fontFeatureSettings = styles.fontFeatureSettings;
+    probe.style.fontVariationSettings = styles.fontVariationSettings;
+    const host = element.ownerDocument.body ?? element.ownerDocument.documentElement;
+    host.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    chWidthCache.set(element, { key: cacheKey, width });
+    return width;
+  }
+  function resolveCssLengthPx(element, value) {
+    const direct = Number.parseFloat(value);
+    if (Number.isFinite(direct) && value.trim().endsWith("px")) {
+      return direct;
+    }
+    const cachedLengths = cssLengthCache.get(element);
+    const cached = cachedLengths?.get(value);
+    if (cached !== void 0) {
+      return cached;
+    }
+    const probe = element.ownerDocument.createElement("span");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.pointerEvents = "none";
+    probe.style.width = value.trim() || "0px";
+    element.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    const resolved = Number.isFinite(width) ? width : 0;
+    if (cachedLengths) {
+      cachedLengths.set(value, resolved);
+    } else {
+      cssLengthCache.set(element, /* @__PURE__ */ new Map([[value, resolved]]));
+    }
+    return resolved;
+  }
+
   // src/editor/editorGeometrySync.ts
-  function createEditorGeometrySync() {
+  function createEditorGeometrySync(tableHeightEstimateMetrics = createTableHeightEstimateMetrics()) {
     return ViewPlugin.fromClass(
       class {
         constructor(view2) {
@@ -25068,7 +25654,9 @@
             key: this.measureKey,
             read: (measuredView) => ({
               gutterWidth: measuredView.dom.querySelector(".cm-gutters")?.offsetWidth ?? 0,
-              contentWidth: measuredView.scrollDOM.clientWidth
+              contentWidth: measuredView.scrollDOM.clientWidth,
+              lineHeightPx: readEditorLineHeight(measuredView),
+              tableViewport: measureTableEstimateViewportForView(measuredView)
             }),
             write: (metrics, measuredView) => {
               this.syncObservedTableWidgets(measuredView);
@@ -25086,6 +25674,15 @@
                   "--mlrt-live-content-width",
                   `calc(${metrics.contentWidth}px - var(--mlrt-editor-right-padding, 26px))`
                 );
+              }
+              const estimateMetricsChanged = updateTableHeightEstimateMetrics(tableHeightEstimateMetrics, {
+                lineHeightPx: metrics.lineHeightPx,
+                chWidthPx: metrics.tableViewport.chWidthPx,
+                availableDataWidthPx: metrics.tableViewport.availableDataWidthPx
+              });
+              if (estimateMetricsChanged) {
+                forceCodeMirrorContentRemeasure(measuredView);
+                measuredView.requestMeasure();
               }
               this.scheduleSelectionOutlineSync(measuredView);
             }
@@ -25137,6 +25734,12 @@
   }
   function viewWindow(view2) {
     return view2.dom.ownerDocument.defaultView;
+  }
+  function readEditorLineHeight(view2) {
+    const line = view2.dom.querySelector(".cm-line");
+    const styles = getComputedStyle(line ?? view2.contentDOM);
+    const lineHeight = Number.parseFloat(styles.lineHeight);
+    return Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight : view2.defaultLineHeight;
   }
   function forceCodeMirrorContentRemeasure(view2) {
     const viewState = view2.viewState;
@@ -37176,198 +37779,6 @@ ${replacement}
     ]);
   }
 
-  // src/shared/tableColumnSizing.ts
-  var CELL_HORIZONTAL_PADDING_CH = 2;
-  var CELL_COMFORT_CH = 1;
-  var TOKEN_COMFORT_CH = 0.5;
-  var MIN_COLUMN_WIDTH_CH = 3;
-  var READABLE_COLUMN_WIDTH_CH = 12;
-  var READABLE_LINE_LENGTH_THRESHOLD_CH = 32;
-  var MAX_UNBROKEN_TOKEN_WIDTH_CH = 36;
-  var MAX_PREFERRED_COLUMN_WIDTH_CH = 96;
-  var HEADER_PREFERRED_WIDTH_CAP_CH = 24;
-  var HEADER_TOKEN_WIDTH_CAP_CH = 24;
-  var WIDTH_STEP_CH = 0.5;
-  function measureTableColumnSizing(table2, availableDataWidthCh, cellOverride) {
-    const rows = [
-      { row: table2.header, rowKind: "header", rowIndex: 0 },
-      ...table2.body.map((row, rowIndex) => ({
-        row,
-        rowKind: "body",
-        rowIndex
-      }))
-    ];
-    const columns = Array.from(
-      { length: table2.columnCount },
-      (_value, column) => measureColumn(rows, table2.columnCount, column, cellOverride)
-    );
-    const totalPreferredWidth = columns.reduce(
-      (total, column) => total + column.preferredWidthCh,
-      0
-    );
-    const totalMinWidth = columns.reduce(
-      (total, column) => total + column.minWidthCh,
-      0
-    );
-    const safeTotalWidth = totalPreferredWidth > 0 ? totalPreferredWidth : table2.columnCount;
-    const targetWidth = availableDataWidthCh === void 0 || availableDataWidthCh <= 0 ? safeTotalWidth : Math.min(safeTotalWidth, availableDataWidthCh);
-    const allocatedColumns = targetWidth >= totalMinWidth ? allocateColumnWidths(columns, targetWidth) : columns.map((column) => ({ ...column, widthCh: column.minWidthCh }));
-    if (availableDataWidthCh !== void 0 && availableDataWidthCh > 0) {
-      distributeWidthSteps(
-        allocatedColumns,
-        availableDataWidthCh,
-        (column) => column.fullPreferredWidthCh
-      );
-    }
-    const dataWidthCh = allocatedColumns.reduce(
-      (total, column) => total + column.widthCh,
-      0
-    );
-    const safeDataWidth = dataWidthCh > 0 ? dataWidthCh : table2.columnCount;
-    return {
-      columns: allocatedColumns,
-      dataWidthCh: safeDataWidth,
-      widthPercentages: allocatedColumns.map(
-        (column) => column.widthCh / safeDataWidth * 100
-      )
-    };
-  }
-  function measureColumn(rows, columnCount, column, cellOverride) {
-    let longestLine = 0;
-    let longestToken = 0;
-    let longestBodyLine = 0;
-    let longestBodyToken = 0;
-    let longestHeaderLine = 0;
-    let longestHeaderToken = 0;
-    let hasBodyRow = false;
-    const cellLineLengths = [];
-    for (const source of rows) {
-      const value = getCellDisplayValue(
-        source,
-        columnCount,
-        column,
-        cellOverride
-      );
-      for (const line of splitDisplayLines(value)) {
-        const lineLength = line.length;
-        const tokenLength = measureLongestToken(line);
-        cellLineLengths.push(lineLength);
-        longestLine = Math.max(longestLine, lineLength);
-        longestToken = Math.max(longestToken, tokenLength);
-        if (source.rowKind === "body") {
-          hasBodyRow = true;
-          longestBodyLine = Math.max(longestBodyLine, lineLength);
-          longestBodyToken = Math.max(longestBodyToken, tokenLength);
-        } else {
-          longestHeaderLine = Math.max(longestHeaderLine, lineLength);
-          longestHeaderToken = Math.max(longestHeaderToken, tokenLength);
-        }
-      }
-    }
-    const sizingLine = hasBodyRow ? Math.max(
-      longestBodyLine,
-      Math.min(longestHeaderLine, HEADER_PREFERRED_WIDTH_CAP_CH)
-    ) : longestLine;
-    const sizingToken = hasBodyRow ? Math.max(
-      longestBodyToken,
-      Math.min(longestHeaderToken, HEADER_TOKEN_WIDTH_CAP_CH)
-    ) : longestToken;
-    const hasProseLikeContent = cellLineLengths.some(
-      (lineLength) => lineLength >= READABLE_LINE_LENGTH_THRESHOLD_CH
-    );
-    const readableMinWidthCh = hasProseLikeContent ? READABLE_COLUMN_WIDTH_CH : 0;
-    const minWidthCh = clamp(
-      Math.max(
-        sizingToken + CELL_HORIZONTAL_PADDING_CH + TOKEN_COMFORT_CH,
-        readableMinWidthCh
-      ),
-      MIN_COLUMN_WIDTH_CH,
-      MAX_UNBROKEN_TOKEN_WIDTH_CH
-    );
-    const preferredWidthCh = clamp(
-      sizingLine + CELL_HORIZONTAL_PADDING_CH + CELL_COMFORT_CH,
-      minWidthCh,
-      MAX_PREFERRED_COLUMN_WIDTH_CH
-    );
-    const fullPreferredWidthCh = clamp(
-      longestLine + CELL_HORIZONTAL_PADDING_CH + CELL_COMFORT_CH,
-      preferredWidthCh,
-      MAX_PREFERRED_COLUMN_WIDTH_CH
-    );
-    return {
-      cellLineLengths,
-      minWidthCh,
-      preferredWidthCh,
-      fullPreferredWidthCh,
-      widthCh: preferredWidthCh
-    };
-  }
-  function getCellDisplayValue(source, columnCount, column, cellOverride) {
-    if (cellOverride && cellOverride.rowKind === source.rowKind && cellOverride.rowIndex === source.rowIndex && cellOverride.column === column) {
-      return cellOverride.value;
-    }
-    return rowToDisplayValues(source.row, columnCount)[column] ?? "";
-  }
-  function allocateColumnWidths(columns, targetWidthCh) {
-    const allocated = columns.map((column) => ({
-      ...column,
-      widthCh: column.minWidthCh
-    }));
-    distributeWidthSteps(
-      allocated,
-      targetWidthCh,
-      (column) => column.preferredWidthCh
-    );
-    return allocated;
-  }
-  function distributeWidthSteps(columns, targetWidthCh, limitOf) {
-    let remainingSteps = Math.round(
-      (targetWidthCh - columns.reduce((total, column) => total + column.widthCh, 0)) / WIDTH_STEP_CH
-    );
-    while (remainingSteps > 0) {
-      let bestColumnIndex = -1;
-      let bestScore = Number.NEGATIVE_INFINITY;
-      for (let index = 0; index < columns.length; index++) {
-        const column2 = columns[index];
-        const limit = limitOf(column2);
-        if (column2.widthCh >= limit) {
-          continue;
-        }
-        const nextWidth = Math.min(limit, column2.widthCh + WIDTH_STEP_CH);
-        const wrapReduction = measureWrapCost(column2, column2.widthCh) - measureWrapCost(column2, nextWidth);
-        const remainingNeed = limit - column2.widthCh;
-        const score = wrapReduction * 1e3 + remainingNeed;
-        if (score > bestScore) {
-          bestScore = score;
-          bestColumnIndex = index;
-        }
-      }
-      if (bestColumnIndex === -1) {
-        break;
-      }
-      const column = columns[bestColumnIndex];
-      column.widthCh = Math.min(limitOf(column), column.widthCh + WIDTH_STEP_CH);
-      remainingSteps--;
-    }
-  }
-  function measureWrapCost(column, widthCh) {
-    const contentWidthCh = Math.max(1, widthCh - CELL_HORIZONTAL_PADDING_CH);
-    return column.cellLineLengths.reduce(
-      (total, lineLength) => total + Math.max(1, Math.ceil(lineLength / contentWidthCh)),
-      0
-    );
-  }
-  function splitDisplayLines(value) {
-    const lines = value.split(/\r\n?|\n/);
-    return lines.length > 0 ? lines : [""];
-  }
-  function measureLongestToken(value) {
-    return value.trim().split(/\s+/).reduce((longest, token) => Math.max(longest, token.length), 0);
-  }
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(value, max));
-  }
-
   // src/shared/tableCellInput.ts
   var graphemeSegmenter = new Intl.Segmenter(void 0, {
     granularity: "grapheme"
@@ -38567,210 +38978,6 @@ ${replacement}
   }
   function isCellSelectionHorizontalArrow(event) {
     return (event.key === "ArrowLeft" || event.key === "ArrowRight") && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
-  }
-
-  // src/editor/table/tableLayout.ts
-  var chWidthCache = /* @__PURE__ */ new WeakMap();
-  var cssLengthCache = /* @__PURE__ */ new WeakMap();
-  function appendColumnSizing(tableElement, table2, columnSizing) {
-    const colgroup = document.createElement("colgroup");
-    const lineNumberCol = document.createElement("col");
-    lineNumberCol.className = "mlrt-table-source-line-col";
-    colgroup.append(lineNumberCol);
-    for (let column = 0; column < table2.columnCount; column++) {
-      const col = document.createElement("col");
-      col.className = "mlrt-table-sized-col";
-      col.style.width = `${columnSizing.columns[column].widthCh.toFixed(4)}ch`;
-      colgroup.append(col);
-    }
-    tableElement.append(colgroup);
-  }
-  function applyColumnSizing(wrapper, columnSizing) {
-    wrapper.style.setProperty(
-      "--mlrt-table-data-width",
-      `${columnSizing.dataWidthCh.toFixed(4)}ch`
-    );
-    wrapper.querySelectorAll(".mlrt-table-sized-col").forEach((col, column) => {
-      col.style.width = `${(columnSizing.columns[column]?.widthCh ?? 1).toFixed(
-        4
-      )}ch`;
-    });
-  }
-  function applyCurrentColumnSizing(wrapper, table2) {
-    applyColumnSizing(
-      wrapper,
-      measureTableColumnSizing(
-        table2,
-        measureAvailableDataWidthCh(wrapper),
-        readActiveCellSizingOverride(wrapper)
-      )
-    );
-  }
-  function bindTableLayout(wrapper, tableScroll, tableElement, scrollbar, scrollbarThumb, table2) {
-    const syncScrollbar = () => syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb);
-    let pendingAnimationFrame = 0;
-    const syncLayout = () => {
-      pendingAnimationFrame = 0;
-      applyCurrentColumnSizing(wrapper, getTableWidgetTable(wrapper) ?? table2);
-      const tableHeight = tableElement.getBoundingClientRect().height;
-      syncScrollbar();
-      const scrollbarHeight = scrollbar.hidden ? 0 : scrollbar.getBoundingClientRect().height;
-      wrapper.style.height = `${Math.max(
-        0,
-        tableHeight + scrollbarHeight
-      )}px`;
-      syncTableSelectionOverlay(wrapper);
-    };
-    const scheduleLayout = () => {
-      if (pendingAnimationFrame !== 0) {
-        return;
-      }
-      pendingAnimationFrame = requestElementAnimationFrame(wrapper, syncLayout);
-    };
-    const ResizeObserverCtor = wrapper.ownerDocument.defaultView?.ResizeObserver;
-    const resizeObserver = ResizeObserverCtor ? new ResizeObserverCtor(scheduleLayout) : void 0;
-    resizeObserver?.observe(tableElement);
-    resizeObserver?.observe(tableScroll);
-    tableScroll.addEventListener("scroll", syncScrollbar);
-    scheduleLayout();
-    setTableWidgetCleanup(wrapper, () => {
-      if (pendingAnimationFrame !== 0) {
-        cancelElementAnimationFrame(wrapper, pendingAnimationFrame);
-        pendingAnimationFrame = 0;
-      }
-      resizeObserver?.disconnect();
-      tableScroll.removeEventListener("scroll", syncScrollbar);
-    });
-    return scheduleLayout;
-  }
-  function measureAvailableDataWidthCh(wrapper) {
-    const scroller = wrapper.closest(".cm-scroller");
-    if (!scroller) {
-      return void 0;
-    }
-    return measureAvailableDataWidthChFromEditor(
-      scroller,
-      wrapper,
-      getTableWidgetTable(wrapper)?.columnCount ?? 1
-    );
-  }
-  function measureAvailableDataWidthChForView(view2, columnCount) {
-    return measureAvailableDataWidthChFromEditor(
-      view2.scrollDOM,
-      view2.contentDOM,
-      columnCount
-    );
-  }
-  function tableSizingOverflowsAvailableWidth(columnSizing, availableDataWidthCh) {
-    return availableDataWidthCh !== void 0 && columnSizing.dataWidthCh > availableDataWidthCh + 0.01;
-  }
-  function measureAvailableDataWidthChFromEditor(scroller, fontElement, columnCount) {
-    const styles = getComputedStyle(scroller);
-    const gutterWidth = resolveCssLengthPx(
-      scroller,
-      styles.getPropertyValue("--mlrt-live-gutter-width")
-    );
-    const rightPadding = resolveCssLengthPx(
-      scroller,
-      styles.getPropertyValue("--mlrt-editor-right-padding")
-    );
-    const chWidth = measureChWidth(fontElement);
-    const borderAllowancePx = columnCount + 2;
-    const availablePx = Math.max(
-      0,
-      scroller.clientWidth - gutterWidth - rightPadding - borderAllowancePx
-    );
-    return chWidth > 0 ? availablePx / chWidth : void 0;
-  }
-  function syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb) {
-    const maxScrollLeft = Math.max(
-      0,
-      tableScroll.scrollWidth - tableScroll.clientWidth
-    );
-    const hasOverflow = maxScrollLeft > 1;
-    scrollbar.hidden = !hasOverflow;
-    if (!hasOverflow) {
-      if (tableScroll.scrollLeft !== 0) {
-        tableScroll.scrollLeft = 0;
-      }
-      scrollbarThumb.style.width = "0px";
-      scrollbarThumb.style.transform = "translateX(0px)";
-      return;
-    }
-    const trackWidth = Math.max(0, scrollbar.clientWidth);
-    const thumbWidth = Math.max(
-      24,
-      tableScroll.clientWidth / tableScroll.scrollWidth * trackWidth
-    );
-    const maxThumbLeft = Math.max(0, trackWidth - thumbWidth);
-    const thumbLeft = maxScrollLeft > 0 ? tableScroll.scrollLeft / maxScrollLeft * maxThumbLeft : 0;
-    scrollbarThumb.style.width = `${thumbWidth}px`;
-    scrollbarThumb.style.transform = `translateX(${thumbLeft}px)`;
-  }
-  function measureChWidth(element) {
-    const styles = getComputedStyle(element);
-    const cacheKey = [
-      styles.fontFamily,
-      styles.fontSize,
-      styles.fontWeight,
-      styles.fontStretch,
-      styles.fontStyle,
-      styles.letterSpacing,
-      styles.fontFeatureSettings,
-      styles.fontVariationSettings
-    ].join("|");
-    const cached = chWidthCache.get(element);
-    if (cached?.key === cacheKey) {
-      return cached.width;
-    }
-    const probe = element.ownerDocument.createElement("span");
-    probe.textContent = "0";
-    probe.style.position = "absolute";
-    probe.style.left = "-10000px";
-    probe.style.top = "0";
-    probe.style.visibility = "hidden";
-    probe.style.pointerEvents = "none";
-    probe.style.whiteSpace = "pre";
-    probe.style.fontFamily = styles.fontFamily;
-    probe.style.fontSize = styles.fontSize;
-    probe.style.fontWeight = styles.fontWeight;
-    probe.style.fontStretch = styles.fontStretch;
-    probe.style.fontStyle = styles.fontStyle;
-    probe.style.letterSpacing = styles.letterSpacing;
-    probe.style.fontFeatureSettings = styles.fontFeatureSettings;
-    probe.style.fontVariationSettings = styles.fontVariationSettings;
-    const host = element.ownerDocument.body ?? element.ownerDocument.documentElement;
-    host.append(probe);
-    const width = probe.getBoundingClientRect().width;
-    probe.remove();
-    chWidthCache.set(element, { key: cacheKey, width });
-    return width;
-  }
-  function resolveCssLengthPx(element, value) {
-    const direct = Number.parseFloat(value);
-    if (Number.isFinite(direct) && value.trim().endsWith("px")) {
-      return direct;
-    }
-    const cachedLengths = cssLengthCache.get(element);
-    const cached = cachedLengths?.get(value);
-    if (cached !== void 0) {
-      return cached;
-    }
-    const probe = element.ownerDocument.createElement("span");
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    probe.style.pointerEvents = "none";
-    probe.style.width = value.trim() || "0px";
-    element.append(probe);
-    const width = probe.getBoundingClientRect().width;
-    probe.remove();
-    const resolved = Number.isFinite(width) ? width : 0;
-    if (cachedLengths) {
-      cachedLengths.set(value, resolved);
-    } else {
-      cssLengthCache.set(element, /* @__PURE__ */ new Map([[value, resolved]]));
-    }
-    return resolved;
   }
 
   // src/shared/tableStructureEdits.ts
@@ -40914,11 +41121,13 @@ ${replacement}
 
   // src/editor/table/TableWidget.ts
   var RenderedTableWidget = class _RenderedTableWidget extends WidgetType {
-    constructor(table2) {
+    constructor(table2, heightEstimateMetrics) {
       super();
       this.table = table2;
+      this.heightEstimateMetrics = heightEstimateMetrics;
     }
     table;
+    heightEstimateMetrics;
     /**
      * Gives CodeMirror's off-screen height map a source-derived table estimate.
      *
@@ -40932,23 +41141,34 @@ ${replacement}
      * discontinuity.
      */
     get estimatedHeight() {
-      return estimateRenderedTableHeight(this.table);
+      return estimateRenderedTableHeight(
+        this.table,
+        this.heightEstimateMetrics
+      );
     }
     eq(widget) {
       return widget instanceof _RenderedTableWidget && widget.table.from === this.table.from && isTablePreservedForLiveEdit(this.table.from);
     }
-    updateDOM(dom, _view) {
+    updateDOM(dom, view2) {
       if (!canPatchTableDOM(dom, this.table)) {
         return false;
       }
       patchTableDOM(dom, this.table);
-      return true;
+      dom.dataset.heightEstimateRevision = String(
+        this.heightEstimateMetrics.revision
+      );
+      dom.dataset.estimatedHeightPx = String(this.estimatedHeight);
+      return synchronizeTableLayoutNow(dom, this.table, view2);
     }
     toDOM(view2) {
       const wrapper = document.createElement("section");
       wrapper.className = "mlrt-table-widget";
       wrapper.dataset.srcFrom = String(this.table.from);
       wrapper.dataset.srcTo = String(this.table.to);
+      wrapper.dataset.heightEstimateRevision = String(
+        this.heightEstimateMetrics.revision
+      );
+      wrapper.dataset.estimatedHeightPx = String(this.estimatedHeight);
       wrapper.contentEditable = "false";
       setTableWidgetTable(wrapper, this.table);
       const availableDataWidthCh = measureAvailableDataWidthChForView(
@@ -41002,13 +41222,23 @@ ${replacement}
       scrollbarThumb.className = "mlrt-table-scrollbar-thumb";
       scrollbar.append(scrollbarThumb);
       wrapper.append(tableScroll, scrollbar);
+      primeTableLayoutForMount(
+        wrapper,
+        tableScroll,
+        tableElement,
+        scrollbar,
+        scrollbarThumb,
+        this.table,
+        view2
+      );
       const scheduleTableLayout = bindTableLayout(
         wrapper,
         tableScroll,
         tableElement,
         scrollbar,
         scrollbarThumb,
-        this.table
+        this.table,
+        view2
       );
       bindTableEditing(wrapper, view2, this.table, scheduleTableLayout);
       const rangeSelectionCleanup = bindTableRangeSelection(
@@ -41040,19 +41270,6 @@ ${replacement}
       return true;
     }
   };
-  var ESTIMATED_EDITOR_LINE_HEIGHT_PX = 19;
-  var ESTIMATED_TABLE_ROW_CHROME_PX = 2;
-  function estimateRenderedTableHeight(table2) {
-    return [table2.header, ...table2.body].reduce((height, row) => {
-      const explicitLineCount = Math.max(
-        1,
-        ...rowToDisplayValues(row, table2.columnCount).map(
-          (value) => value.split("\n").length
-        )
-      );
-      return height + explicitLineCount * ESTIMATED_EDITOR_LINE_HEIGHT_PX + ESTIMATED_TABLE_ROW_CHROME_PX;
-    }, 0);
-  }
   function canPatchTableDOM(dom, table2) {
     if (!dom.classList.contains("mlrt-table-widget")) {
       return false;
@@ -41100,8 +41317,6 @@ ${replacement}
     table2.body.forEach((row, rowIndex) => {
       patchTableRowDOM(dom, table2, row, "body", rowIndex);
     });
-    applyCurrentColumnSizing(dom, table2);
-    syncTableSelectionOverlay(dom);
   }
   function patchTableRowDOM(dom, table2, sourceRow, rowKind, rowIndex) {
     const tableRow = rowKind === "header" ? dom.querySelector("thead tr") : dom.querySelectorAll("tbody tr")[rowIndex];
@@ -41168,10 +41383,10 @@ ${replacement}
   }
 
   // src/editor/tableDecorations.ts
-  function createTableDecorations() {
+  function createTableDecorations(heightEstimateMetrics = createTableHeightEstimateMetrics()) {
     const field = StateField.define({
       create(state) {
-        return buildTableDecorations(state.doc);
+        return buildTableDecorations(state.doc, heightEstimateMetrics);
       },
       update(value, transaction) {
         if (!transaction.docChanged) {
@@ -41180,7 +41395,10 @@ ${replacement}
         if (transaction.annotation(tableCellLiveEditAnnotation)) {
           return value.map(transaction.changes);
         }
-        return buildTableDecorations(transaction.state.doc);
+        return buildTableDecorations(
+          transaction.state.doc,
+          heightEstimateMetrics
+        );
       },
       provide(field2) {
         return [
@@ -41191,11 +41409,11 @@ ${replacement}
     });
     return field;
   }
-  function buildTableDecorations(doc2) {
+  function buildTableDecorations(doc2, heightEstimateMetrics) {
     return Decoration.set(
       getParsedTables(doc2).map(
         (table2) => Decoration.replace({
-          widget: new RenderedTableWidget(table2),
+          widget: new RenderedTableWidget(table2, heightEstimateMetrics),
           block: true
         }).range(table2.from, table2.to)
       ),
@@ -41206,6 +41424,7 @@ ${replacement}
   // src/editor/liveEditorExtensions.ts
   var lineWrappingCompartment = new Compartment();
   function createLiveEditorExtensions(options) {
+    const tableHeightEstimateMetrics = createTableHeightEstimateMetrics();
     return [
       // CodeMirror owns the undo history so ⌘Z coalesces typing into
       // word/whitespace groups and stops at the initially loaded document,
@@ -41221,7 +41440,7 @@ ${replacement}
       highlightActiveLine(),
       highlightActiveLineGutter(),
       lineNumbers(),
-      createEditorGeometrySync(),
+      createEditorGeometrySync(tableHeightEstimateMetrics),
       createTableCellFocusClassSync(),
       createTableNavigationKeyTracker(),
       createTableSourceChangeFilter(),
@@ -41235,7 +41454,7 @@ ${replacement}
       tableNavigationModifierCompartment.of(
         tableNavigationModifierFacet.of(options.tableNavigationModifierKey)
       ),
-      createTableDecorations()
+      createTableDecorations(tableHeightEstimateMetrics)
     ];
   }
 
@@ -41400,7 +41619,8 @@ ${replacement}
     setEditorDocument(message.text, source);
   });
   vscode.postMessage({ type: "ready" });
-  function setEditorDocument(text3, source, restorePendingUndoFocus = true) {
+  function setEditorDocument(hostText, source, restorePendingUndoFocus = true) {
+    const text3 = normalizeDocumentText(hostText);
     const currentText = view.state.doc.toString();
     updateStatus(text3, source);
     if (text3 === currentText) {
@@ -41667,7 +41887,7 @@ ${replacement}
     document.documentElement.dataset.mlrtDocumentStatus = `${text3.length} characters loaded from ${source}`;
   }
   function readInitialDocument() {
-    return typeof window.__MLRT_INITIAL_DOCUMENT__ === "string" ? window.__MLRT_INITIAL_DOCUMENT__ : "";
+    return typeof window.__MLRT_INITIAL_DOCUMENT__ === "string" ? normalizeDocumentText(window.__MLRT_INITIAL_DOCUMENT__) : "";
   }
   function readEditorOptions() {
     const options = window.__MLRT_EDITOR_OPTIONS__;

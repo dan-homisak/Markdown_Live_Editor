@@ -11,15 +11,19 @@ import { queryCell, syncCellSourceMetadata } from "./tableCellMetadata";
 import {
   appendColumnSizing,
   applyColumnSizing,
-  applyCurrentColumnSizing,
   bindTableLayout,
   measureAvailableDataWidthChForView,
+  primeTableLayoutForMount,
+  synchronizeTableLayoutNow,
   tableSizingOverflowsAvailableWidth,
 } from "./tableLayout";
 import { bindTableStructureControls } from "./tableStructureControls";
 import { bindTableRangeSelection } from "./tableRangeSelection";
+import {
+  estimateRenderedTableHeight,
+  TableHeightEstimateMetrics,
+} from "./tableHeightEstimate";
 import { bindTableClipboard } from "./tableClipboard";
-import { syncTableSelectionOverlay } from "./tableSelectionOverlay";
 import {
   getTableWidgetCleanup,
   isTablePreservedForLiveEdit,
@@ -40,7 +44,10 @@ import {
  *   rebuilt when the table's structure actually changed.
  */
 export class RenderedTableWidget extends WidgetType {
-  public constructor(private readonly table: ParsedTable) {
+  public constructor(
+    private readonly table: ParsedTable,
+    private readonly heightEstimateMetrics: TableHeightEstimateMetrics,
+  ) {
     super();
   }
 
@@ -57,7 +64,10 @@ export class RenderedTableWidget extends WidgetType {
    * discontinuity.
    */
   public override get estimatedHeight(): number {
-    return estimateRenderedTableHeight(this.table);
+    return estimateRenderedTableHeight(
+      this.table,
+      this.heightEstimateMetrics,
+    );
   }
 
   public eq(widget: WidgetType): boolean {
@@ -68,13 +78,17 @@ export class RenderedTableWidget extends WidgetType {
     );
   }
 
-  public updateDOM(dom: HTMLElement, _view: EditorView): boolean {
+  public updateDOM(dom: HTMLElement, view: EditorView): boolean {
     if (!canPatchTableDOM(dom, this.table)) {
       return false;
     }
 
     patchTableDOM(dom, this.table);
-    return true;
+    dom.dataset.heightEstimateRevision = String(
+      this.heightEstimateMetrics.revision,
+    );
+    dom.dataset.estimatedHeightPx = String(this.estimatedHeight);
+    return synchronizeTableLayoutNow(dom, this.table, view);
   }
 
   public toDOM(view: EditorView): HTMLElement {
@@ -82,6 +96,10 @@ export class RenderedTableWidget extends WidgetType {
     wrapper.className = "mlrt-table-widget";
     wrapper.dataset.srcFrom = String(this.table.from);
     wrapper.dataset.srcTo = String(this.table.to);
+    wrapper.dataset.heightEstimateRevision = String(
+      this.heightEstimateMetrics.revision,
+    );
+    wrapper.dataset.estimatedHeightPx = String(this.estimatedHeight);
     wrapper.contentEditable = "false";
     setTableWidgetTable(wrapper, this.table);
 
@@ -142,6 +160,15 @@ export class RenderedTableWidget extends WidgetType {
     scrollbar.append(scrollbarThumb);
 
     wrapper.append(tableScroll, scrollbar);
+    primeTableLayoutForMount(
+      wrapper,
+      tableScroll,
+      tableElement,
+      scrollbar,
+      scrollbarThumb,
+      this.table,
+      view,
+    );
     const scheduleTableLayout = bindTableLayout(
       wrapper,
       tableScroll,
@@ -149,6 +176,7 @@ export class RenderedTableWidget extends WidgetType {
       scrollbar,
       scrollbarThumb,
       this.table,
+      view,
     );
     bindTableEditing(wrapper, view, this.table, scheduleTableLayout);
     const rangeSelectionCleanup = bindTableRangeSelection(
@@ -181,26 +209,6 @@ export class RenderedTableWidget extends WidgetType {
   public ignoreEvent(): boolean {
     return true;
   }
-}
-
-const ESTIMATED_EDITOR_LINE_HEIGHT_PX = 19;
-const ESTIMATED_TABLE_ROW_CHROME_PX = 2;
-
-/** Source-only height estimate used before an off-screen widget is mounted. */
-export function estimateRenderedTableHeight(table: ParsedTable): number {
-  return [table.header, ...table.body].reduce((height, row) => {
-    const explicitLineCount = Math.max(
-      1,
-      ...rowToDisplayValues(row, table.columnCount).map(
-        (value) => value.split("\n").length,
-      ),
-    );
-    return (
-      height +
-      explicitLineCount * ESTIMATED_EDITOR_LINE_HEIGHT_PX +
-      ESTIMATED_TABLE_ROW_CHROME_PX
-    );
-  }, 0);
 }
 
 interface AppendCellsOptions {
@@ -297,8 +305,6 @@ function patchTableDOM(dom: HTMLElement, table: ParsedTable): void {
     patchTableRowDOM(dom, table, row, "body", rowIndex);
   });
 
-  applyCurrentColumnSizing(dom, table);
-  syncTableSelectionOverlay(dom);
 }
 
 function patchTableRowDOM(
