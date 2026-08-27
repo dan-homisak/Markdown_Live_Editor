@@ -39,6 +39,7 @@ const editingReliabilityOnlyComplete = Symbol(
 );
 const emptyDeleteOnlyComplete = Symbol("empty-delete-only-complete");
 const wrappedSelectionOnlyComplete = Symbol("wrapped-selection-only-complete");
+const proseSelectionOnlyComplete = Symbol("prose-selection-only-complete");
 const arrowNavigationOnlyComplete = Symbol("arrow-navigation-only-complete");
 const keyboardNavigationOnlyComplete = Symbol(
   "keyboard-navigation-only-complete",
@@ -743,6 +744,44 @@ try {
     assertTestHostIsolation(isolatedHost, true);
     await runWrappedDownwardSelectionCheck(liveClient, wb);
     throw wrappedSelectionOnlyComplete;
+  }
+  if (process.argv.includes("--prose-selection-only")) {
+    const isolatedHost = await evaluateJson(
+      liveClient,
+      setTestHostIsolationExpression(true),
+    );
+    assertTestHostIsolation(isolatedHost, true);
+    const setup = await evaluateJson(
+      liveClient,
+      proseMultilineSelectionExpression(),
+    );
+    await sleep(80);
+    const result = await evaluateJson(
+      liveClient,
+      proseMultilineSelectionResultExpression(),
+    );
+    assertMultilineProseSelection(setup, result);
+    console.log("PROSE SELECTION SEAM CHECK:", result);
+    await captureWorkbenchScreenshot(
+      wb,
+      path.join(qaDir, "edh-prose-multiline-selection.png"),
+    );
+    const blankSetup = await evaluateJson(
+      liveClient,
+      proseBlankLineSelectionExpression(),
+    );
+    await sleep(80);
+    const blankResult = await evaluateJson(
+      liveClient,
+      proseBlankLineSelectionResultExpression(),
+    );
+    assertBlankLineProseSelection(blankSetup, blankResult);
+    console.log("PROSE BLANK-LINE SELECTION CHECK:", blankResult);
+    await captureWorkbenchScreenshot(
+      wb,
+      path.join(qaDir, "edh-prose-blank-line-selection.png"),
+    );
+    throw proseSelectionOnlyComplete;
   }
   const gutterAlignment = await evaluateJson(
     liveClient,
@@ -2297,6 +2336,7 @@ try {
     error !== editingReliabilityOnlyComplete &&
     error !== emptyDeleteOnlyComplete &&
     error !== wrappedSelectionOnlyComplete &&
+    error !== proseSelectionOnlyComplete &&
     error !== arrowNavigationOnlyComplete &&
     error !== keyboardNavigationOnlyComplete &&
     error !== cursorHighlightOnlyComplete &&
@@ -4914,6 +4954,7 @@ function proseMultilineSelectionResultExpression() {
     const details = marks.map((mark) => {
       const style = root.defaultView.getComputedStyle(mark);
       const rect = mark.getBoundingClientRect();
+      const lineRect = mark.closest('.cm-line')?.getBoundingClientRect();
       return {
         text: mark.textContent,
         continuesFromPrevious: mark.classList.contains('mlrt-prose-selection-continues-from-previous'),
@@ -4929,6 +4970,8 @@ function proseMultilineSelectionResultExpression() {
         background: style.backgroundColor,
         paintedTop: rect.top,
         paintedBottom: rect.bottom,
+        lineTop: lineRect?.top ?? null,
+        lineBottom: lineRect?.bottom ?? null,
       };
     });
     return JSON.stringify({
@@ -11881,12 +11924,15 @@ function assertMultilineProseSelection(setup, result) {
       detail.connectsTopLeft && detail.connectsBottomLeft
     ) ||
     details.some((detail) => selectionColorIsTransparent(detail.background)) ||
+    details.some((detail) =>
+      !Number.isFinite(detail.lineTop) ||
+      !Number.isFinite(detail.lineBottom) ||
+      Math.abs(detail.paintedTop - detail.lineTop) > pixelTolerance ||
+      Math.abs(detail.paintedBottom - detail.lineBottom) > pixelTolerance
+    ) ||
     details.slice(0, -1).some((detail, index) => {
       const gap = details[index + 1].paintedTop - detail.paintedBottom;
-      // Fractional line boxes can overlap adjacent inline backgrounds by one
-      // device pixel. That prevents a seam; only a positive gap (or a much
-      // larger overlap) breaks the continuous selection shape.
-      return gap > pixelTolerance || gap < -1.5;
+      return Math.abs(gap) > pixelTolerance;
     }) ||
     details.some((detail) =>
       detail.connectsTopLeft !== (detail.borderTopLeftRadius === "0px") ||

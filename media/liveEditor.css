@@ -99,15 +99,21 @@ body,
   /* Paint the inline box itself so CSS creates one background fragment for
      every visual wrap row. A single absolutely positioned pseudo-element is
      anchored to only one fragment of a wrapped inline and leaves the other
-     selected rows looking unselected. Vertical padding expands the inline
-     paint to the editor line height without changing layout. */
-  padding-block: max(
-    0px,
-    calc(
-      (
-          var(--mlrt-editor-line-height, 1lh) -
-            var(--mlrt-editor-font-size, 1em) - 2px
-        ) / 2
+     selected rows looking unselected. The geometry-sync plugin measures the
+     real, asymmetric text-to-line insets: deriving equal padding from the
+     font size shifts the paint upward and creates both gaps and overlaps. */
+  padding-block-start: var(
+    --mlrt-prose-selection-padding-block-start,
+    0px
+  );
+  padding-block-end: var(
+    --mlrt-prose-selection-padding-block-end,
+    max(
+      0px,
+      calc(
+        var(--mlrt-editor-line-height, 1lh) -
+          var(--mlrt-editor-font-size, 1em) - 3px
+      )
     )
   );
   background-color: var(--mlrt-text-selection-fill) !important;

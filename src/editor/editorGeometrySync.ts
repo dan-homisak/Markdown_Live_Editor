@@ -20,6 +20,9 @@ import { measureTableEstimateViewportForView } from "./table/tableLayout";
  * - `--mlrt-live-content-width`: the scroller's client width (minus editor
  *   right padding), giving the rendered table a definite wrapping width that
  *   works regardless of the word-wrap setting.
+ * - `--mlrt-prose-selection-padding-block-*`: the measured space between a
+ *   prose text box and its CodeMirror line box. Selection paint uses these
+ *   asymmetric insets so neighboring rows meet without gaps or overlap.
  *
  * Also observes the editor and every table widget with a ResizeObserver and
  * forces CodeMirror to re-measure replaced block heights when width changes
@@ -34,6 +37,8 @@ export function createEditorGeometrySync(
       private readonly measureKey = {};
       private lastGutterWidth = -1;
       private lastContentWidth = -1;
+      private lastSelectionPaddingBlockStart = -1;
+      private lastSelectionPaddingBlockEnd = -1;
       private lastObservedScrollerWidth = -1;
       private resizeObserver: ResizeObserver | undefined;
       private selectionOutlineFrame: number | undefined;
@@ -126,6 +131,7 @@ export function createEditorGeometrySync(
                 ?.offsetWidth ?? 0,
             contentWidth: measuredView.scrollDOM.clientWidth,
             lineHeightPx: readEditorLineHeight(measuredView),
+            proseSelectionPadding: readProseSelectionPadding(measuredView),
             tableViewport: measureTableEstimateViewportForView(measuredView),
           }),
           write: (metrics, measuredView) => {
@@ -150,6 +156,23 @@ export function createEditorGeometrySync(
                 "--mlrt-live-content-width",
                 `calc(${metrics.contentWidth}px - var(--mlrt-editor-right-padding, 26px))`,
               );
+            }
+            if (metrics.proseSelectionPadding) {
+              const { blockStart, blockEnd } = metrics.proseSelectionPadding;
+              if (blockStart !== this.lastSelectionPaddingBlockStart) {
+                this.lastSelectionPaddingBlockStart = blockStart;
+                scrollerStyle.setProperty(
+                  "--mlrt-prose-selection-padding-block-start",
+                  `${blockStart}px`,
+                );
+              }
+              if (blockEnd !== this.lastSelectionPaddingBlockEnd) {
+                this.lastSelectionPaddingBlockEnd = blockEnd;
+                scrollerStyle.setProperty(
+                  "--mlrt-prose-selection-padding-block-end",
+                  `${blockEnd}px`,
+                );
+              }
             }
             const estimateMetricsChanged =
               updateTableHeightEstimateMetrics(tableHeightEstimateMetrics, {
@@ -229,6 +252,84 @@ function readEditorLineHeight(view: EditorView): number {
   return Number.isFinite(lineHeight) && lineHeight > 0
     ? lineHeight
     : view.defaultLineHeight;
+}
+
+/**
+ * Measures the actual inline text box instead of deriving it from font-size.
+ * Browser font metrics are not vertically symmetric: for example, a 14px
+ * Consolas glyph box in a 19px CodeMirror row starts at the row top and leaves
+ * nearly 2px below it. Symmetric padding therefore shifts the selection paint
+ * upward, creating a gap beside exact-height blank-row markers and an overlap
+ * between adjacent non-empty rows.
+ */
+function readProseSelectionPadding(
+  view: EditorView,
+): { blockStart: number; blockEnd: number } | null {
+  const lineHeight = readEditorLineHeight(view);
+  const scaleY = Number.isFinite(view.scaleY) && view.scaleY > 0
+    ? view.scaleY
+    : 1;
+
+  for (const line of Array.from(
+    view.dom.querySelectorAll<HTMLElement>(".cm-line"),
+  )) {
+    const lineRect = line.getBoundingClientRect();
+    const localLineHeight = lineRect.height / scaleY;
+    // A wrapped source line spans several visual rows. An ordinary one-row
+    // sample gives us exact first-row edges without having to infer wrap count.
+    if (
+      localLineHeight <= 0 ||
+      Math.abs(localLineHeight - lineHeight) > 0.5
+    ) {
+      continue;
+    }
+
+    const textNode = firstNonEmptyTextNode(line);
+    if (!textNode) {
+      continue;
+    }
+    const range = line.ownerDocument.createRange();
+    range.selectNodeContents(textNode);
+    const textRect = range.getBoundingClientRect();
+    if (textRect.height <= 0) {
+      continue;
+    }
+
+    return {
+      blockStart: normalizeSelectionInset(
+        (textRect.top - lineRect.top) / scaleY,
+        lineHeight,
+      ),
+      blockEnd: normalizeSelectionInset(
+        (lineRect.bottom - textRect.bottom) / scaleY,
+        lineHeight,
+      ),
+    };
+  }
+  return null;
+}
+
+function firstNonEmptyTextNode(root: Node): Text | null {
+  for (const child of Array.from(root.childNodes)) {
+    if (child.nodeType === child.TEXT_NODE && child.textContent) {
+      return child as Text;
+    }
+    const nested = firstNonEmptyTextNode(child);
+    if (nested) {
+      return nested;
+    }
+  }
+  return null;
+}
+
+function normalizeSelectionInset(value: number, lineHeight: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  // Discard sub-layout noise while retaining 1/64px browser precision. The
+  // upper clamp prevents a malformed/offscreen rectangle from painting far
+  // outside the line if a browser returns transient geometry.
+  return Math.round(Math.min(lineHeight, Math.max(0, value)) * 64) / 64;
 }
 
 /**

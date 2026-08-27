@@ -25622,6 +25622,8 @@
         measureKey = {};
         lastGutterWidth = -1;
         lastContentWidth = -1;
+        lastSelectionPaddingBlockStart = -1;
+        lastSelectionPaddingBlockEnd = -1;
         lastObservedScrollerWidth = -1;
         resizeObserver;
         selectionOutlineFrame;
@@ -25656,6 +25658,7 @@
               gutterWidth: measuredView.dom.querySelector(".cm-gutters")?.offsetWidth ?? 0,
               contentWidth: measuredView.scrollDOM.clientWidth,
               lineHeightPx: readEditorLineHeight(measuredView),
+              proseSelectionPadding: readProseSelectionPadding(measuredView),
               tableViewport: measureTableEstimateViewportForView(measuredView)
             }),
             write: (metrics, measuredView) => {
@@ -25674,6 +25677,23 @@
                   "--mlrt-live-content-width",
                   `calc(${metrics.contentWidth}px - var(--mlrt-editor-right-padding, 26px))`
                 );
+              }
+              if (metrics.proseSelectionPadding) {
+                const { blockStart, blockEnd } = metrics.proseSelectionPadding;
+                if (blockStart !== this.lastSelectionPaddingBlockStart) {
+                  this.lastSelectionPaddingBlockStart = blockStart;
+                  scrollerStyle.setProperty(
+                    "--mlrt-prose-selection-padding-block-start",
+                    `${blockStart}px`
+                  );
+                }
+                if (blockEnd !== this.lastSelectionPaddingBlockEnd) {
+                  this.lastSelectionPaddingBlockEnd = blockEnd;
+                  scrollerStyle.setProperty(
+                    "--mlrt-prose-selection-padding-block-end",
+                    `${blockEnd}px`
+                  );
+                }
               }
               const estimateMetricsChanged = updateTableHeightEstimateMetrics(tableHeightEstimateMetrics, {
                 lineHeightPx: metrics.lineHeightPx,
@@ -25740,6 +25760,58 @@
     const styles = getComputedStyle(line ?? view2.contentDOM);
     const lineHeight = Number.parseFloat(styles.lineHeight);
     return Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight : view2.defaultLineHeight;
+  }
+  function readProseSelectionPadding(view2) {
+    const lineHeight = readEditorLineHeight(view2);
+    const scaleY = Number.isFinite(view2.scaleY) && view2.scaleY > 0 ? view2.scaleY : 1;
+    for (const line of Array.from(
+      view2.dom.querySelectorAll(".cm-line")
+    )) {
+      const lineRect = line.getBoundingClientRect();
+      const localLineHeight = lineRect.height / scaleY;
+      if (localLineHeight <= 0 || Math.abs(localLineHeight - lineHeight) > 0.5) {
+        continue;
+      }
+      const textNode = firstNonEmptyTextNode(line);
+      if (!textNode) {
+        continue;
+      }
+      const range = line.ownerDocument.createRange();
+      range.selectNodeContents(textNode);
+      const textRect = range.getBoundingClientRect();
+      if (textRect.height <= 0) {
+        continue;
+      }
+      return {
+        blockStart: normalizeSelectionInset(
+          (textRect.top - lineRect.top) / scaleY,
+          lineHeight
+        ),
+        blockEnd: normalizeSelectionInset(
+          (lineRect.bottom - textRect.bottom) / scaleY,
+          lineHeight
+        )
+      };
+    }
+    return null;
+  }
+  function firstNonEmptyTextNode(root2) {
+    for (const child of Array.from(root2.childNodes)) {
+      if (child.nodeType === child.TEXT_NODE && child.textContent) {
+        return child;
+      }
+      const nested = firstNonEmptyTextNode(child);
+      if (nested) {
+        return nested;
+      }
+    }
+    return null;
+  }
+  function normalizeSelectionInset(value, lineHeight) {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.round(Math.min(lineHeight, Math.max(0, value)) * 64) / 64;
   }
   function forceCodeMirrorContentRemeasure(view2) {
     const viewState = view2.viewState;

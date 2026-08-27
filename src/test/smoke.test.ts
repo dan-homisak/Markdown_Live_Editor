@@ -865,6 +865,14 @@ assert.match(
 );
 assert.match(
   liveEditorCss,
+  /padding-block-start:\s*var\(\s*--mlrt-prose-selection-padding-block-start/,
+);
+assert.match(
+  liveEditorCss,
+  /padding-block-end:\s*var\(\s*--mlrt-prose-selection-padding-block-end/,
+);
+assert.match(
+  liveEditorCss,
   /\.mlrt-prose-selection::before\s*\{\s*content:\s*none;\s*\}/,
 );
 assert.doesNotMatch(extensionSource, /Loading Markdown live editor/);
