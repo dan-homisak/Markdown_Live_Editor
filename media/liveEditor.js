@@ -24881,7 +24881,7 @@
     ];
     const gridPath = gridCommands.join(" ");
     const frameWidth = formatCoordinate(Math.max(0, width - 1));
-    const frameHeight = formatCoordinate(Math.max(0, height - 1));
+    const frameHeight = formatCoordinate(Math.max(0, height - 1.5));
     const geometrySignature = [
       formattedWidth,
       formattedHeight,

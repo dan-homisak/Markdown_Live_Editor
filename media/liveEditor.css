@@ -287,7 +287,6 @@ body,
   max-width: 100%;
   padding: 0 1ch;
   border: 0 solid var(--vscode-editorWidget-border, #6a6a6a);
-  border-top-width: 1px;
   border-right-width: 1px;
   border-bottom-width: 1px;
   vertical-align: top;
@@ -295,6 +294,13 @@ body,
   overflow-wrap: anywhere;
   word-break: break-word;
   user-select: text;
+}
+
+/* Paint every shared edge once. Giving each cell both a top and bottom border
+   makes row seams two physical pixels thick on Windows, while column seams
+   remain one pixel because only the cell on their left paints them. */
+.mlrt-table thead > tr:first-child > .mlrt-table-cell {
+  border-top-width: 1px;
 }
 
 /* A prose-origin drag must never fall through to Chromium's DOM-order

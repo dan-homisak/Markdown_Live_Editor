@@ -114,7 +114,10 @@ export function syncTableSelectionOverlay(wrapper: HTMLElement): void {
   ];
   const gridPath = gridCommands.join(" ");
   const frameWidth = formatCoordinate(Math.max(0, width - 1));
-  const frameHeight = formatCoordinate(Math.max(0, height - 1));
+  // Horizontal scrolling also clips vertical overflow in Chromium. Keep the
+  // bottom stroke's outer half-pixel inside that boundary so Windows always
+  // rasterizes it, including at fractional device scales.
+  const frameHeight = formatCoordinate(Math.max(0, height - 1.5));
   const geometrySignature = [
     formattedWidth,
     formattedHeight,
@@ -137,7 +140,8 @@ export function syncTableSelectionOverlay(wrapper: HTMLElement): void {
     grid.setAttribute("d", gridPath);
 
     // Paint the frame last. Its stroke therefore wins at every rail endpoint,
-    // and the half-pixel inset keeps the stroke inside the selected cell union.
+    // The top/sides use the normal half-pixel inset. The bottom has the extra
+    // half-pixel clip clearance encoded in frameHeight above.
     const frame = wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "rect");
     frame.classList.add("mlrt-table-selection-frame");
     frame.setAttribute("x", "0.5");

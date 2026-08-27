@@ -841,6 +841,18 @@ assert.match(
 );
 assert.match(
   liveEditorCss,
+  /\.mlrt-table-cell\s*\{[^}]*border:\s*0 solid[^}]*border-right-width:\s*1px;[^}]*border-bottom-width:\s*1px;[^}]*\}/,
+);
+assert.match(
+  liveEditorCss,
+  /\.mlrt-table thead\s*>\s*tr:first-child\s*>\s*\.mlrt-table-cell\s*\{\s*border-top-width:\s*1px;/,
+);
+assert.doesNotMatch(
+  liveEditorCss,
+  /(?:^|\r?\n)\.mlrt-table-cell\s*\{[^}]*border-top-width:\s*1px;[^}]*\}/,
+);
+assert.match(
+  liveEditorCss,
   /var\(--mlrt-selection-accent\) 13%,\s*transparent/,
 );
 assert.doesNotMatch(
