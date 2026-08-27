@@ -45,6 +45,9 @@ const keyboardNavigationOnlyComplete = Symbol(
 );
 const cursorHighlightOnlyComplete = Symbol("cursor-highlight-only-complete");
 const gutterScrollOnlyComplete = Symbol("gutter-scroll-only-complete");
+const tableSelectionOutlineOnlyComplete = Symbol(
+  "table-selection-outline-only-complete",
+);
 await mkdir(qaDir, { recursive: true });
 await mkdir(extensionsDir, { recursive: true });
 const fixturePath = path.join(userDataDir, "TestTable.md");
@@ -334,6 +337,33 @@ try {
   }
 
   assertPixelParity(stockMetrics, liveMetrics);
+
+  if (process.argv.includes("--table-selection-outline-only")) {
+    const outline = await evaluateJson(
+      liveClient,
+      tableSelectionBottomOutlineExpression(),
+    );
+    if (
+      !outline?.ok ||
+      outline.selectedCount !== 4 ||
+      outline.bottomStrokeInset < 0.49 ||
+      outline.bottomStrokeInset > 0.75 ||
+      outline.scrollportBottomClearance < 0.49 ||
+      outline.frameStroke === "none" ||
+      outline.frameStroke === "rgba(0, 0, 0, 0)" ||
+      Number.parseFloat(outline.frameStrokeWidth) !== 1
+    ) {
+      throw new Error(
+        `Table selection bottom-outline check failed: ${JSON.stringify(outline)}`,
+      );
+    }
+    console.log("TABLE SELECTION BOTTOM-OUTLINE CHECK:", outline);
+    await captureWorkbenchScreenshot(
+      wb,
+      path.join(qaDir, "edh-table-selection-bottom-outline.png"),
+    );
+    throw tableSelectionOutlineOnlyComplete;
+  }
 
   if (process.argv.includes("--cursor-highlight-only")) {
     let emptyLineCursor = await evaluateJson(
@@ -2270,7 +2300,8 @@ try {
     error !== arrowNavigationOnlyComplete &&
     error !== keyboardNavigationOnlyComplete &&
     error !== cursorHighlightOnlyComplete &&
-    error !== gutterScrollOnlyComplete
+    error !== gutterScrollOnlyComplete &&
+    error !== tableSelectionOutlineOnlyComplete
   ) {
     throw error;
   }
@@ -2531,7 +2562,19 @@ function liveMetricsExpression() {
       const tableScrollbar = root.querySelector('.mlrt-table-scrollbar');
       const sourceLine = root.querySelector('.mlrt-table-source-line');
       const tableCell = root.querySelector('.mlrt-table-cell');
+      const headerCell = root.querySelector('.mlrt-table-cell[data-row-kind="header"][data-column="0"]');
+      const bodyCell = root.querySelector('.mlrt-table-cell[data-row-kind="body"][data-column="0"]');
       const lineStyle = line ? getComputedStyle(line) : null;
+      const borders = (element) => {
+        if (!element) return null;
+        const style = getComputedStyle(element);
+        return {
+          top: style.borderTopWidth,
+          right: style.borderRightWidth,
+          bottom: style.borderBottomWidth,
+          left: style.borderLeftWidth,
+        };
+      };
       return JSON.stringify({
         url: location.href.slice(0, 80),
         scrollerClientWidth: scroller.clientWidth,
@@ -2558,6 +2601,8 @@ function liveMetricsExpression() {
         sourceLineText: textBox(root, sourceLine),
         tableCell: box(tableCell),
         tableCellText: textBox(root, tableCell),
+        headerCellBorders: borders(headerCell),
+        bodyCellBorders: borders(bodyCell),
         tableSourceLineNumber: Number(sourceLine?.getAttribute('data-source-line') ?? 0),
         lineFontFamily: lineStyle?.fontFamily ?? null,
         lineFontSize: lineStyle?.fontSize ?? null,
@@ -4475,7 +4520,12 @@ function tableSelectionGeometryExpression() {
           nearlyEqual(Number(frame.getAttribute('x')), 0.5) &&
           nearlyEqual(Number(frame.getAttribute('y')), 0.5) &&
           nearlyEqual(Number(frame.getAttribute('width')), bounds.width - 1) &&
-          nearlyEqual(Number(frame.getAttribute('height')), bounds.height - 1),
+          nearlyEqual(Number(frame.getAttribute('height')), bounds.height - 1.5),
+        bottomFrameClipClearance:
+          bounds.height -
+          (Number(frame.getAttribute('y')) +
+            Number(frame.getAttribute('height')) +
+            Number.parseFloat(frameStyle.strokeWidth) / 2),
         verticalRails,
         horizontalRails,
         expectedVerticalRails,
@@ -4620,6 +4670,71 @@ function tableSelectionGeometryExpression() {
       resizeCausedRealReflow: observedHeights.length > 1,
       rightNeighborAligned: Boolean(rightNeighbor) && nearlyEqual(rect(rightNeighbor).left, baseline.bounds.right),
       bottomNeighborAligned: Boolean(bottomNeighbor) && nearlyEqual(rect(bottomNeighbor).top, baseline.bounds.bottom),
+    });
+  })()`;
+}
+
+function tableSelectionBottomOutlineExpression() {
+  return `(async () => {
+    const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map((frame) => {
+      try { return frame.contentDocument; } catch { return null; }
+    }).filter(Boolean)];
+    const root = roots.find((candidate) => candidate.querySelector('.mlrt-table-widget'));
+    const wrapper = root?.querySelector('.mlrt-table-widget');
+    const firstCell = wrapper?.querySelector(
+      '.mlrt-table-cell[data-row-kind="header"][data-column="0"]'
+    );
+    if (!root || !wrapper || !firstCell) {
+      return JSON.stringify({ ok: false, reason: 'missing selection table' });
+    }
+    const key = (target, keyValue, options = {}) => target.dispatchEvent(
+      new root.defaultView.KeyboardEvent('keydown', {
+        key: keyValue,
+        bubbles: true,
+        cancelable: true,
+        ...options,
+      })
+    );
+    firstCell.focus();
+    key(firstCell, 'Escape');
+    key(wrapper, 'ArrowRight', { shiftKey: true });
+    key(wrapper, 'ArrowDown', { shiftKey: true });
+    await new Promise((done) => root.defaultView.requestAnimationFrame(() =>
+      root.defaultView.requestAnimationFrame(done)
+    ));
+    const selected = Array.from(
+      wrapper.querySelectorAll('.mlrt-table-cell-selected')
+    );
+    const overlay = wrapper.querySelector('.mlrt-table-selection-overlay');
+    const frame = overlay?.querySelector('.mlrt-table-selection-frame');
+    const scroll = wrapper.querySelector('.mlrt-table-scroll');
+    if (!overlay || !frame || !scroll || selected.length === 0) {
+      return JSON.stringify({
+        ok: false,
+        reason: 'missing selection outline',
+        selectedCount: selected.length,
+      });
+    }
+    const selectedRects = selected.map((cell) => cell.getBoundingClientRect());
+    const selectedBottom = Math.max(...selectedRects.map((rect) => rect.bottom));
+    const overlayRect = overlay.getBoundingClientRect();
+    const frameStyle = root.defaultView.getComputedStyle(frame);
+    const strokeWidth = Number.parseFloat(frameStyle.strokeWidth);
+    const paintedBottom =
+      overlayRect.top +
+      Number(frame.getAttribute('y')) +
+      Number(frame.getAttribute('height')) +
+      strokeWidth / 2;
+    const scrollRect = scroll.getBoundingClientRect();
+    return JSON.stringify({
+      ok: true,
+      selectedCount: selected.length,
+      selectedBottom,
+      paintedBottom,
+      bottomStrokeInset: selectedBottom - paintedBottom,
+      scrollportBottomClearance: scrollRect.bottom - paintedBottom,
+      frameStroke: frameStyle.stroke,
+      frameStrokeWidth: frameStyle.strokeWidth,
     });
   })()`;
 }
@@ -11581,6 +11696,7 @@ function assertTableSelectionGeometry(result) {
     geometry.frameStroke !== "rgba(0, 0, 0, 0)" &&
     Number.parseFloat(geometry.frameStrokeWidth) === 1 &&
     geometry.frameCoordinatesAligned &&
+    geometry.bottomFrameClipClearance >= 0.49 &&
     geometry.railsAligned &&
     geometry.railCount === 3 &&
     geometry.railsTrimmedInsideFrame &&
@@ -15559,6 +15675,33 @@ function assertPixelParity(stock, live) {
       delta: Number.NaN,
       pass: false,
     });
+  }
+
+  const expectedHeaderBorders = {
+    top: "1px",
+    right: "1px",
+    bottom: "1px",
+    left: "1px",
+  };
+  const expectedBodyBorders = {
+    top: "0px",
+    right: "1px",
+    bottom: "1px",
+    left: "1px",
+  };
+  for (const [name, expected, actual] of [
+    ["header cell border model", expectedHeaderBorders, live.headerCellBorders],
+    ["body cell border model", expectedBodyBorders, live.bodyCellBorders],
+  ]) {
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      failures.push({
+        name,
+        expected: JSON.stringify(expected),
+        actual: JSON.stringify(actual),
+        delta: Number.NaN,
+        pass: false,
+      });
+    }
   }
 
   console.log(
