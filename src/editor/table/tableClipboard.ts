@@ -40,7 +40,12 @@ import {
   PendingTableCut,
   setPendingClipboardCut,
 } from "../clipboardCutState";
-import { findCell, TABLE_CELL_SELECTOR } from "./cellSelection";
+import {
+  findCell,
+  getCellSelectionOffsets,
+  readCellDisplayValue,
+  TABLE_CELL_SELECTOR,
+} from "./cellSelection";
 import {
   addressFromCell,
   cellFromAddress,
@@ -146,6 +151,7 @@ export function bindTableClipboard(
         doc,
         currentTable(),
         requestedMode ?? readDefaultCopyMode(doc),
+        nativeCell,
       );
     if (!representations || !event.clipboardData) {
       return;
@@ -433,6 +439,7 @@ function representationsForCurrentSelection(
   doc: Document,
   table: ParsedTable,
   mode: ClipboardCopyMode,
+  nativeCell?: HTMLElement | null,
 ): ClipboardRepresentations | null {
   const selection = getTableRangeSelection(doc);
   if (selection?.tableFrom === table.from) {
@@ -449,7 +456,21 @@ function representationsForCurrentSelection(
   if (!nativeSelection || nativeSelection.isCollapsed) {
     return null;
   }
-  const plain = nativeSelection.toString().replace(/\u00a0/g, " ");
+  // Selection.toString() reflects Chromium's rendered table layout, not just
+  // the selected editing host. A character selection that visually contains
+  // only one cell's text can therefore acquire row-separator newlines when it
+  // is serialized. Slice the cell's source-of-truth display value by its DOM
+  // offsets so copy publishes exactly the characters the user highlighted.
+  const selectedCell = nativeCell ?? findCell(doc.activeElement);
+  const offsets = selectedCell
+    ? getCellSelectionOffsets(selectedCell)
+    : null;
+  const plain = offsets && selectedCell
+    ? readCellDisplayValue(selectedCell).slice(
+        Math.min(offsets.anchor, offsets.head),
+        Math.max(offsets.anchor, offsets.head),
+      )
+    : nativeSelection.toString().replace(/\u00a0/g, " ");
   if (mode === "markdown") {
     return { plain, markdown: plain };
   }

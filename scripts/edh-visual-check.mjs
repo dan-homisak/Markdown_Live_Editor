@@ -1044,6 +1044,12 @@ try {
   );
   assertTableClipboardSelection(clipboardSelection);
   console.log("TABLE CLIPBOARD SELECTION CHECK:", clipboardSelection);
+  const nativeCellCopy = await evaluateJson(
+    liveClient,
+    tableNativeCellCopyExpression(),
+  );
+  assertTableNativeCellCopy(nativeCellCopy);
+  console.log("TABLE NATIVE CELL COPY CHECK:", nativeCellCopy);
   await captureWorkbenchScreenshot(
     wb,
     path.join(qaDir, "edh-table-selection.png"),
@@ -4710,6 +4716,83 @@ function tableSelectionGeometryExpression() {
       resizeCausedRealReflow: observedHeights.length > 1,
       rightNeighborAligned: Boolean(rightNeighbor) && nearlyEqual(rect(rightNeighbor).left, baseline.bounds.right),
       bottomNeighborAligned: Boolean(bottomNeighbor) && nearlyEqual(rect(bottomNeighbor).top, baseline.bounds.bottom),
+    });
+  })()`;
+}
+
+function tableNativeCellCopyExpression() {
+  return `(async () => {
+    const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map((frame) => {
+      try { return frame.contentDocument; } catch { return null; }
+    }).filter(Boolean)];
+    const root = roots.find((candidate) => candidate.querySelector('.mlrt-table-widget'));
+    const view = root?.defaultView.__MLRT_EDITOR_VIEW__;
+    if (!root || !view) return JSON.stringify({ ok: false, reason: 'missing live root' });
+    const wait = () => new Promise((done) => root.defaultView.requestAnimationFrame(() => root.defaultView.requestAnimationFrame(done)));
+    const beforeDoc = view.state.doc.toString();
+    const fixture = [
+      '| Source | Destination |',
+      '| --- | --- |',
+      '| N/A | untouched |',
+      '| N/A | replace me |',
+    ].join('\\n');
+    root.defaultView.dispatchEvent(new root.defaultView.MessageEvent('message', {
+      data: { type: 'setDocument', text: fixture, revision: 9990391, debug: false },
+    }));
+    await wait();
+    const wrapper = root.querySelector('.mlrt-table-widget');
+    const source = wrapper?.querySelector('.mlrt-table-cell[data-row-kind="body"][data-row-index="0"][data-column="0"]');
+    const destination = wrapper?.querySelector('.mlrt-table-cell[data-row-kind="body"][data-row-index="1"][data-column="1"]');
+    if (!wrapper || !source || !destination) {
+      return JSON.stringify({ ok: false, reason: 'missing native-copy cells' });
+    }
+    source.focus();
+    const sourceRange = root.createRange();
+    sourceRange.selectNodeContents(source);
+    const selection = root.defaultView.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(sourceRange);
+    const browserSelectionText = selection.toString();
+    const transfer = new root.defaultView.DataTransfer();
+    const copy = new root.defaultView.ClipboardEvent('copy', {
+      clipboardData: transfer, bubbles: true, cancelable: true,
+    });
+    source.dispatchEvent(copy);
+    const copiedPlain = transfer.getData('text/plain');
+    const copiedHtml = transfer.getData('text/html');
+
+    destination.focus();
+    const destinationRange = root.createRange();
+    destinationRange.selectNodeContents(destination);
+    selection.removeAllRanges();
+    selection.addRange(destinationRange);
+    const paste = new root.defaultView.ClipboardEvent('paste', {
+      clipboardData: transfer, bubbles: true, cancelable: true,
+    });
+    destination.dispatchEvent(paste);
+    await wait();
+    const pastedSource = root.querySelector('.mlrt-table-cell[data-row-kind="body"][data-row-index="0"][data-column="0"]');
+    const pastedDestination = root.querySelector('.mlrt-table-cell[data-row-kind="body"][data-row-index="1"][data-column="1"]');
+    const sourceHeight = pastedSource?.getBoundingClientRect().height ?? 0;
+    const destinationHeight = pastedDestination?.getBoundingClientRect().height ?? 0;
+    const pastedText = pastedDestination?.textContent ?? null;
+    const pastedDoc = view.state.doc.toString();
+
+    root.defaultView.dispatchEvent(new root.defaultView.MessageEvent('message', {
+      data: { type: 'setDocument', text: beforeDoc, revision: 9990392, debug: false },
+    }));
+    await wait();
+    return JSON.stringify({
+      ok: true,
+      browserSelectionText,
+      copyPrevented: copy.defaultPrevented,
+      pastePrevented: paste.defaultPrevented,
+      copiedPlain,
+      copiedHtml,
+      pastedText,
+      pastedDoc,
+      matchingHeight: Math.abs(sourceHeight - destinationHeight) < 0.5,
+      restoredDoc: view.state.doc.toString() === beforeDoc,
     });
   })()`;
 }
@@ -11723,6 +11806,24 @@ function assertTableClipboardSelection(result) {
   ) {
     throw new Error(
       `Table clipboard selection check failed: ${JSON.stringify(result)}`,
+    );
+  }
+}
+
+function assertTableNativeCellCopy(result) {
+  if (
+    !result?.ok ||
+    !result.copyPrevented ||
+    !result.pastePrevented ||
+    result.copiedPlain !== "N/A" ||
+    result.copiedHtml !== "<span>N/A</span>" ||
+    result.pastedText !== "N/A" ||
+    !result.pastedDoc.includes("| N/A | N/A |") ||
+    !result.matchingHeight ||
+    !result.restoredDoc
+  ) {
+    throw new Error(
+      `Table native-cell copy check failed: ${JSON.stringify(result)}`,
     );
   }
 }
