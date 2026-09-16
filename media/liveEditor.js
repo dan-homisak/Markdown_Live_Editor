@@ -39798,7 +39798,8 @@ ${replacement}
       const representations = requestedForWrapper?.representations ?? representationsForCurrentSelection(
         doc2,
         currentTable(),
-        requestedMode ?? readDefaultCopyMode(doc2)
+        requestedMode ?? readDefaultCopyMode(doc2),
+        nativeCell
       );
       if (!representations || !event.clipboardData) {
         return;
@@ -40040,7 +40041,7 @@ ${replacement}
       wrapper.removeEventListener("contextmenu", onContextMenu);
     };
   }
-  function representationsForCurrentSelection(doc2, table2, mode) {
+  function representationsForCurrentSelection(doc2, table2, mode, nativeCell) {
     const selection = getTableRangeSelection(doc2);
     if (selection?.tableFrom === table2.from) {
       return representationsForGrid(
@@ -40056,7 +40057,12 @@ ${replacement}
     if (!nativeSelection || nativeSelection.isCollapsed) {
       return null;
     }
-    const plain = nativeSelection.toString().replace(/\u00a0/g, " ");
+    const selectedCell = nativeCell ?? findCell(doc2.activeElement);
+    const offsets = selectedCell ? getCellSelectionOffsets(selectedCell) : null;
+    const plain = offsets && selectedCell ? readCellDisplayValue(selectedCell).slice(
+      Math.min(offsets.anchor, offsets.head),
+      Math.max(offsets.anchor, offsets.head)
+    ) : nativeSelection.toString().replace(/\u00a0/g, " ");
     if (mode === "markdown") {
       return { plain, markdown: plain };
     }
