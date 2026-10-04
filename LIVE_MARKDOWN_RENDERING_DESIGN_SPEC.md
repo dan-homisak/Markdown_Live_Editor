@@ -1,660 +1,368 @@
 # Live Markdown Rendering Design Specification
 
-Status: proposed  
-Audience: implementation agents and maintainers  
-Scope: the next phase of Markdown Live Editor, extending live rendering around the existing table editor; tables themselves are explicitly out of scope
+- Status: proposed implementation reference; features below are not yet shipped
+- Reviewed baseline: commit `f9524ce`, extension `0.1.168`
+- Audience: maintainers and implementation agents
+- Scope: add live rendering around the existing table editor while preserving its behavior
+- Review evidence: [2026-10-04 baseline review](qa/design-spec-review-2026-10-04.md)
 
-## 1. Product direction
+## 1. Product vision and authority
 
-Markdown Live Editor shall feel like editing Markdown source on GitHub, enhanced with restrained live-rendered affordances.
+Markdown Live Editor should feel like a VS Code source editor in which Markdown becomes easier to read and useful to interact with as you write. Preserve the precise, compact editing experience users already have, and build on the rendered table editor that makes this project distinctive.
 
-The editor is not a conventional preview and shall not try to make the document look like a published page. It is a source-first editor. Markdown punctuation, source order, line numbers, cursor movement, selection, and editing behavior remain understandable at all times. Friendly rendering is added only where it makes the source easier to scan or interact with.
+The experience has three layers:
 
-The intended visual hierarchy is:
+1. **VS Code familiarity:** the user's font, line rhythm, theme, gutter, caret, selection, and established editing behavior.
+2. **Readable Markdown:** visible heading markers, meaningful emphasis, clear links, and compact code and quote treatments.
+3. **Local live interactions:** bullets, task checkboxes, and rules tied to editable source positions. Tables retain their existing rendered editing surface.
 
-1. VS Code supplies the editor geometry, configured typography, selection mechanics, and host integration.
-2. The pinned GitHub Primer/Prettylights palette supplies the source-highlighting character: monospace source, blue structural syntax, yellow list markers, muted punctuation, and restrained emphasis. The GitHub Dark Default VS Code theme supplies the reference workbench and canvas; its syntax rules are not the Markdown color authority.
-3. Live rendering supplies compact semantic affordances such as checkboxes, bullets, rules, callout accents, and code-block chrome.
+A heading stays on its source line at normal editor size. A task can be checked without rewriting its item. Moving into a transformed marker reveals its characters without shifting nearby text. Switching themes preserves the same features. The existing toggle to the stock editor remains available.
 
-The result should feel like “raw GitHub Markdown, made friendlier,” not like a rendered document with an editing mode.
+GitHub Dark Default is the visual reference for restrained color and contrast, not a prerequisite. Light, dark, high-contrast, and customized VS Code themes are supported.
 
-## 2. Non-negotiable design contract
+This document defines the target, protected behavior, and release evidence. Requirements use **must**; suggestions use **should**. Examples do not add scope. Implementation details may change when contracts and tests remain satisfied. Changes to product scope or a protected contract require an explicit revision here. Test results and environment-specific investigations belong in dated QA records, not permanent product requirements.
 
-### 2.1 Tables are always rendered and are not part of this design phase
+When requirements compete, prioritize source correctness and recoverability, existing table/clipboard behavior, editing and accessibility, stable geometry, then visual polish. Leave a non-table construct as editable styled source when a safe enhancement is unavailable. That fallback is not completion of a required feature that has never passed its release gate.
 
-Tables are the foundational exception to the source-first presentation described elsewhere in this document.
+## 2. Current system and integration boundaries
 
-- As soon as the existing table parser recognizes valid table Markdown, the source range must be replaced by the existing rendered table editor.
-- A recognized table never reveals raw table Markdown because of focus, cursor movement, selection, editing, an active-row state, or any general “show source” behavior.
-- Users edit recognized tables only through the existing rendered table UI.
-- All existing table editing, selection, clipboard, structure controls, source protection, line-number ownership, wrapping, layout, colors, borders, spacing, hover states, focus states, and styling remain exactly as they are.
-- This phase must not add a new table feature, remove a table feature, restyle a table selector, or reinterpret table source.
-- The current `getParsedTables` detector remains the sole authority for recognized table ranges, including cases where a new GFM parser would classify the source differently. New decorations, commands, and CSS must treat those ranges and every `.mlrt-table-*` element as a protected exclusion zone. Shared syntax parsing may inspect them for context; rendering and interaction ownership may not change.
-- A future table-only design document will own all table decisions. This document has no authority to change them.
+Extend the existing `CustomTextEditorProvider` and CodeMirror editor. Do not replace the editor engine. The following is established from the reviewed implementation; runtime guarantees still need Section 10's baseline checks.
 
-“Source-engaged state,” “reveal syntax,” and similar rules in this document apply only to non-table Markdown. They never apply to a recognized table.
-
-### 2.2 One canonical line rhythm
-
-All editor text uses the same canonical font size and line height, derived from the current VS Code editor settings and injected `--mlrt-editor-*` variables.
-
-- Headings do not become larger and do not increase line height.
-- Lists, quotes, callouts, code blocks, rules, and inline formatting do not add vertical margins.
-- Decorative borders and backgrounds must be inset, overlaid, or drawn inside the existing visual rows. They must not add vertical padding or border width to layout.
-- Every text row, including code and callout rows, uses `--mlrt-editor-line-height`.
-- Wrapped text may occupy additional visual rows under the current wrapping setting. Every wrapped row uses the canonical line height, and continuation rows do not receive a new source line number. Exact stock-editor wrap points are a separate validation target defined in Section 2.3.
-- A multiline source construct occupies the visual rows implied by its source lines and wrapping. Rendering must not collapse several source lines into one tall replacement block.
-- The gutter must remain continuous. A line number must never shift vertically merely because the source line is a heading, list item, fence, quote, or callout.
-
-The fixed rhythm requirements govern all new non-table renderers. Existing rendered tables retain their current geometry without modification.
-
-### 2.3 Stable geometry while editing
-
-Moving the caret into an element must not cause surrounding content to jump.
-
-- Resting and source-engaged states must have the same height, marker advance width, following-text position, wrap points, and scroll position when source and viewport are unchanged. Caret scrolling required by ordinary navigation is permitted; scrolling caused solely by a decoration swap is not.
-- Replacing a source token with a friendly control is allowed only when its advance width matches the literal token under the actual font, weight, letter spacing, zoom, and surrounding indentation. Do not assume a fixed pixel width or that `ch` exactly matches the configured font. Recalculate measurements when editor metrics change.
-- Ordinary prose must retain the existing stock-editor geometry baseline. Semantic bold/italic styling can change glyph widths relative to unstyled source; any resulting wrap difference must be recorded and covered by a fixture. State transitions may never introduce an additional wrap difference.
-- Hanging indentation for wrapped lists is the only intentional new continuation-alignment difference. Its width must be source-derived and identical in both rendering states; it must not modify the underlying whitespace.
-- Incomplete or malformed Markdown must fail open to ordinary editable source rather than producing a broken widget.
-
-### 2.4 The Markdown source is authoritative outside recognized tables
-
-- The underlying document remains standard Markdown at every point in an edit.
-- Decorations and widgets must not own canonical content.
-- Selection positions, document edits, undo/redo, and host synchronization operate on source text. Clipboard commands continue to derive their existing representations from the source and existing selection models; source authority does not require every copy mode to emit literal Markdown.
-- All current clipboard behavior is a protected invariant: defaults, commands, MIME representations, Smart/Rich/Plain Text/Markdown conversion, paste precedence, internal lossless payloads, cut/move semantics, and prose/table/mixed-selection routing remain unchanged. Section 6.2 records the regression matrix. This phase has no authority to redesign clipboard behavior.
-- Find, diagnostics, and multi-cursor capabilities must be inventoried in Phase 0 rather than assumed to exist in the custom editor. Existing capabilities must not regress; missing host integrations are deferred as specified in Section 3.
-- Interactive controls, such as task checkboxes, edit the smallest corresponding source range in one undoable transaction.
-- No live rendering may make valid source unreachable by keyboard.
-
-Recognized tables are the deliberate exception: their Markdown remains the persisted backing data, but it is never exposed as direct editor source. Existing table controls are the only editing surface.
-
-### 2.5 Non-table source remains visually legible
-
-Source syntax should remain visible by default when it is useful to understanding the document. The heading marker is the clearest example: `#` characters remain visible.
-
-Syntax may be visually transformed only when the transformed form is substantially friendlier and unambiguous:
-
-- unordered list marker to bullet glyph;
-- task marker to checkbox;
-- thematic-break marker to horizontal rule;
-- no other marker replacements in this phase; image/link chips remain deferred under Section 3.3.
-
-When syntax is transformed, keyboard movement must be able to reach every literal character. Reveal the token before a motion or edit would enter it, following Section 4. Do not require a separate edit/preview mode.
-
-### 2.6 Exact GitHub Dark Default color system
-
-The supported appearance uses literal colors from Appendix A, with the explicit accessible heading mapping in Section 5.1. Do not substitute nearby VS Code theme variables, the older `#58a6ff` accent palette, hand-tuned alternatives, or `color-mix()` approximations.
-
-- Keep the user’s configured VS Code editor font family, font size, letter spacing, and canonical line height. Color fidelity does not override editor-metric fidelity.
-- The reference review environment must use the GitHub Dark Default host theme so the surrounding editor canvas matches the target palette without changing existing table styling.
-- New Markdown color tokens must be scoped to non-table prose and generated non-table controls. Do not redefine existing `--mlrt-*` table tokens and do not place a global color rule on a selector inherited by `.mlrt-table-widget`.
-- Enable the new non-table appearance when the active host theme is GitHub Dark Default and its injected editor canvas matches `#0d1117`. If a light theme, another dark theme, VS Code high-contrast theme, or customized incompatible canvas is active, retain the existing source presentation without the new non-table decorations or controls. Table and clipboard behavior remain governed by their protected contracts.
-- React to theme/canvas changes without rewriting source, rebuilding table controls, or moving focus. Theme fallback is required behavior, not a light-theme design or an approximation of the pinned palette.
-- Operating-system forced-colors mode overrides palette values with system colors and visible outlines when the new appearance is active. VS Code high-contrast themes are distinct from operating-system forced-colors mode and use the source fallback above.
-- Heading text uses the official `fgColor.accent` value `#4493f8`; `#1f6feb` remains the frozen Prettylights heading reference and a strong non-text accent. This deliberate mapping resolves the contrast issue without inventing a color. Appendix A records both roles.
-- Meaning must not rely on color alone.
-
-## 3. Feature scope and capability baseline
-
-### 3.1 Existing capabilities and new deliverables
-
-This specification adds non-table Markdown decoration and the narrowly defined task/link interactions. It does not assume that every stock VS Code editing service already exists in a custom webview.
-
-| Capability | Current evidence / required Phase 0 audit | Treatment in this phase |
+| Area | Current implementation | Design consequence |
 | --- | --- | --- |
-| Rendered tables and protected backing source | Existing table widget, detector, selection guards, and table editing tests | Preserve the Section 2.1 contract exactly. |
-| Clipboard modes, conversion, and mixed selections | Existing document/table clipboard serializers and regression tests | Freeze and preserve the full Section 6.2 matrix; no redesign. |
-| Source editing, IME, undo/redo, host revisions | Existing CodeMirror editor and extension-host synchronization/composition handling | Preserve current behavior and validate with new decorations active. |
-| Markdown Enter/Backspace and Tab/Shift+Tab | Current `markdown()` support and source/table key handling; record exact behavior in Phase 0 | Preserve existing bindings; add only the scoped task command. |
-| Find/replace, diagnostics, and general multi-cursor editing | Not established as full custom-editor integrations; inspect and record what actually works in Phase 0 | Preserve verified capability. Missing general integrations are deferred, not silently added as decoration prerequisites. |
-| Non-table semantic decorations and marker controls | New work defined by Sections 4 and 5 | Required within the supported Section 2.6 appearance profile. |
-| Link opening/resolution and task toggle command | New scoped interactions; not supplied automatically by styling | Required with source mapping, host routing, accessibility, and undo validation. |
-| Fenced-code language grammars | Current `markdown()` call does not supply the required code-language registry | Bundle the explicit Section 7.2 language set and palette mapping. |
+| Document ownership | `src/extension.ts`: VS Code `TextDocument`, serialized edit queue, revision acknowledgements, snapshot validation, `WorkspaceEdit` | Reuse this mutation path. Never create a second document or persistence path. |
+| Undo and composition | `src/webview/liveEditor.ts`: host-routed undo/redo and batched source IME composition; host updates bypass local history | Verify host history and dirty state. CodeMirror `history()` and an older local-history comment do not make local undo authoritative. |
+| Source coordinates | `src/shared/documentChangeMapping.ts`: LF-normalized offsets mapped to host positions and host line endings | New offsets use the same normalized document and UTF-16 convention. |
+| Markdown support | `src/editor/liveEditorExtensions.ts`: default CommonMark `markdown()` and input support; no explicit code-language registry | Extend one parser configuration. Preserve existing Enter/Backspace, paste, and completion behavior unless a scoped change is documented. |
+| Tables | `getParsedTables` in `src/shared/tableModel.ts`, table decoration state, and source-protection extensions | Keep the detector, block replacement, atomic ranges, and annotated table-edit path. |
+| Clipboard and selection | `documentClipboard.ts`, `table/tableClipboard.ts`, `documentSelectionState.ts`, `src/shared/clipboardModel.ts` | Decorations consume the existing model and never become clipboard input. |
+| Geometry and colors | `editorTheme.ts`, `editorGeometrySync.ts`, `media/liveEditor.css`, host-injected metrics | Reuse measured geometry and VS Code variables; scope new styling away from tables. |
+| Lifecycle | One live editor per document; `supportsMultipleEditorsPerDocument: false`; hidden webviews retain context | Preserve this lifecycle and retention policy. |
 
-Phase 0 must record actual results and known gaps rather than relabeling an unverified capability as already supported. A capability that exists today must not regress; an absent general host feature requires a separate future design.
+Inventory find/replace, multi-selection, accessibility, read-only handling, wrapping modes, and host selection transfer as **verified**, **limited**, or **absent**. A webview does not automatically inherit Monaco services. Missing general integrations are future work; a capability directly needed by a new action, such as rejecting a read-only task edit, belongs to that action's implementation.
 
-### 3.2 Required rendering and interaction matrix
+## 3. Protected contracts
 
-| Construct | Source visibility | Required enhancement | Delivery |
-| --- | --- | --- | --- |
-| ATX/Setext headings | All markers and source rows visible | Normal-size blue bold styling with nested-style precedence | Phase 1 |
-| Emphasis, strong, strike, inline code | Delimiters visible | Semantic font styles, exact foreground/background roles | Phase 1 |
-| Inline links and autolinks | Labels, delimiters, destinations, titles visible | Source styling and platform modifier-open through host | Phase 1 |
-| Escapes, entities, HTML, comments | Literal source visible | Context-aware styling; no document HTML mounted as live DOM | Phase 1 |
-| Unordered/ordered lists | Ordered markers visible; unordered marker transformed only at rest | Width-preserving bullet and source-derived continuation indent | Phase 2 |
-| Tasks | Task marker revealed on source engagement | Accessible checkbox and one-character toggle command/transaction | Phase 2 |
-| Quotes/thematic breaks | Quote markers visible; rule marker revealed on engagement | Inset guides and a line-preserving rule | Phase 2 |
-| Fenced/indented code | Every source row/fence visible | Continuous row band and the named language grammars | Phase 3 |
-| Alerts and YAML frontmatter | Markers and every source row visible | Scoped recognition, row tint/edges, compact source styling | Phase 3 |
-| Images, reference definitions, footnotes | Literal source visible | Source styling and reference-link resolution, without new preview/jump controls | Phase 4 |
-| Existing tables | Existing rendered editing surface | Existing implementation only, under Section 2.1 | Every milestone regression |
-| Unsupported/ambiguous extensions | Editable source visible | Safe fallback without altering nearby supported constructs | Every milestone |
+### 3.1 Source, persistence, and tables
 
-### 3.3 Deferred enhancements
+The VS Code `TextDocument` is authoritative for the entire document, including tables. The webview is a synchronized editing projection. Incomplete or invalid Markdown is a normal intermediate editing state and must remain editable.
 
-Image chips/hover previews, additional alert icons, code-copy overlays, footnote jump controls, optional extra indentation guides, block collapse, diagrams/math/media, and additional code-language grammars are deferred. Decorative quote/alert edges explicitly required in Section 5 are included. General find/replace, diagnostics, multi-cursor integration, new clipboard modes, and unrelated indentation/keybinding changes are outside this phase. Do not implement deferred features as incidental polish.
+Rendering, opening, scrolling, selection, theme changes, and parser progress must not change source, dirty state, or undo history. Preserve whitespace, delimiters, escaping, BOM, and line-ending behavior. Never serialize decorated DOM or normalize unrelated text as a rendering side effect.
 
-The palette and visual composition are maintained in Appendix A. Implementation rules refer to that appendix; the main body owns behavior, scope, and validation.
+Recognized tables remain rendered **within the live editor**. Caret movement, selection, focus, accessibility fallback, and non-table source reveal must never expose backing pipe source. The existing stock-editor toggle continues to expose the complete Markdown document normally.
 
-## 4. Rendering states
+Table recognition, editing, navigation, structure controls, selection, clipboard, source protection, row-owned line numbers, wrapping, and styling are protected. New parsing may read table source for context, but `getParsedTables` retains rendering/interaction ownership when parsers disagree. New work must not add table features or modify `.mlrt-table-*` styling. Keep table line numbers in the table DOM; do not add a separately synchronized gutter.
 
-The implementation should use two visual states without becoming a two-mode editor.
+Preserve verified behavior, not accidental code structure. Necessary shared integration changes must be narrowly scoped and prove no change to protected behavior. A discovered table defect gets its own documented fix and evidence; it is not silently bundled into this feature.
 
-### 4.1 Resting state
+### 3.2 Editor geometry
 
-The element is recognizable and compact while its source remains legible. Semantic controls may replace narrow marker ranges, and inline content may receive visual styling.
+New non-table content uses the effective editor font family, size, line height, letter spacing, ligatures, and variation settings. Reuse `--mlrt-editor-*` metrics, including their dependency on injected `--vscode-editor-font-size`; do not calculate another unzoomed size from host settings.
 
-### 4.2 Source-engaged state
+Every source line remains represented in order. Wrapped continuations use the canonical line height and receive no extra source number. Headings remain normal size. No semantic block adds vertical margin, padding, or layout-affecting borders. Draw guides/edges inside existing rows. Tables retain their current independent layout.
 
-For each transformed non-table token with source range `[from, to)`, reveal the exact token when any non-empty editor selection overlaps that range, or when a source-editor caret is at or inside either boundary (`from <= head <= to`). Apply the rule to all supported selection ranges, not just the primary range. A non-empty selection reveals overlapping tokens even when the editor is unfocused; a collapsed caret engages syntax while the source editor has focus. A focused generated control keeps its control presentation and a source bookmark until focus returns to source.
+Literal/transformed marker transitions must preserve marker advance width, following-text position, wrap points, document height, and viewport position when source and viewport are unchanged. Ordinary navigation may scroll to reveal the caret; a decoration swap must not.
 
-This is a local token-level state. The rest of the line may remain styled; paragraphs and blocks do not wholesale alternate between HTML and raw source. Returning to resting state is decoration-only and must not edit the document, create an undo entry, reset a preferred column, or cause a geometry change.
+Measure advances with actual font, shaping context, tabs, letter spacing, and zoom. A `ch` unit or assumed character width is insufficient. A token that wraps, has unsupported bidirectional geometry, or cannot be measured safely stays literal. Never replace a multiline range to force it into one row.
 
-| Trigger | Required result |
+Semantic bold/italic may differ from unstyled source glyph widths. Apply those styles consistently in both presentations and test wrapping. Preserve current wrapping and indentation; new hanging indents and parity for currently unsupported Monaco wrap modes are separate work.
+
+### 3.3 Clipboard and established input
+
+Preserve configured defaults, Smart/Rich/Plain Text/Markdown copy, Auto/Rich/Plain Text/Markdown paste, internal payloads, metadata carriers, MIME versions, sanitization, cut/move semantics, Office imports, and prose/table/mixed-selection routing. **Ordinary copy does not become source-only copy.** Explicit Copy Markdown remains the Markdown serialization route.
+
+Use source and existing selection/clipboard models. Generated bullets, checkbox DOM, rule chrome, and backgrounds contribute no new payload. Existing serializer-generated list markers remain intentional output.
+
+Do not add global keyboard handlers that compete with table navigation, Markdown input, clipboard, or host undo. Outside a narrowly handled new control, events continue through the established editor path.
+
+## 4. Appearance and theme policy
+
+### 4.1 Visual language
+
+Use a flat editor canvas, normal-size monospace text, visible source markers, restrained semantic color, and quiet inset surfaces. Headings gain weight, not size. Code is a compact band of source rows. Quotes and alerts use guides and labels. Controls fit inside the line box. No cards, shadows, pill-shaped labels, animated reflow, or preview-page spacing.
+
+Only unordered bullets, task markers, and thematic-break markers may transform in this phase. Heading, emphasis, link, image, quote, fence, and frontmatter syntax stays visible.
+
+### 4.2 Theme ownership
+
+VS Code owns canvas, ordinary foreground, gutter, cursor, selection, active line, and focus colors. Preserve their existing implementation and user overrides. The new layer owns non-table semantic roles: heading, punctuation, list marker, link, code surface/tokens, quote guide, alert accent, and task control states.
+
+Centralize roles under `--mlrt-markdown-*`. Prefer documented [webview theme variables](https://code.visualstudio.com/api/extension-guides/webview#theming-webview-content). Appendix A defines mappings and the GitHub reference. Webview variables do not expose arbitrary TextMate/semantic-token rules; bundled code highlighting is an explicitly mapped subset, not Monaco syntax-theme parity.
+
+All themes receive the same parsing and interactions. Do not gate functionality on a theme name or canvas hex value. Theme changes refresh colors without reparsing source, replacing the editor, remounting tables, or moving focus. A focused generated control stays focused.
+
+For colors this feature introduces, validate contrast against the actual composited surface. Remove unsuitable optional tints or use host foreground while preserving meaning through markers, weight, labels, and outlines. Do not override the global editor palette. Validate accessible defaults without claiming arbitrary user-authored themes are accessible.
+
+High-contrast themes retain functionality with outlines and reduced fills. Operating-system forced-colors is separate: use system colors and visible boundaries without globally disabling forced-color adjustment. Normal-size headings and source punctuation need ordinary-text contrast; small bold headings do not qualify as large text under [WCAG contrast guidance](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html).
+
+### 4.3 Styling composition
+
+Resolve each property deliberately, not by incidental CSS order:
+
+| Property | Precedence |
 | --- | --- |
-| Left/right movement toward a token | Reveal at its boundary before movement would enter it; each subsequent key reaches the next literal source position. Do not skip the token. |
-| Shift-arrow, drag, or existing Select All behavior | Reveal every overlapping transformed token; preserve the exact source endpoints and existing mixed-table selection projection. |
-| Click a bullet or rule | Reveal the token and place the caret at the nearest literal character boundary using measured source geometry. Do not snap every click to the block start/end. |
-| Click a task checkbox | Toggle the task as specified in Section 5.6; preserve the current selection/bookmark and focus owner. This action is distinct from clicking editable item text. |
-| Backspace/Delete at a token boundary | Reveal before the ordinary source edit and remove the same source character/range the undecorated editor would remove. |
-| Host-originated or existing programmatic selection | Map selection through changes and reveal the intersected token before painting. Missing find/diagnostic integrations are not introduced here. |
-| Caret/selection leaves the token | Restore its resting decoration only when composition and focus rules permit, preserving width and wrapping. |
-| IME composition touches a token | Keep literal source and stable editable DOM for the affected span until composition is committed/cancelled. Defer replacement-widget changes in that span, then revalidate source ranges. |
+| Foreground | Code/HTML tokens and specific link/image roles override heading foreground. Heading content overrides generic emphasis/quote foreground. Delimiters use punctuation roles except heading markers/Setext underlines. |
+| Weight/style | Heading bold, strong, emphasis italic, and strike compose. Code returns to configured base weight/style, including inside headings. Line height never changes. |
+| Background | Code row fill overrides alert tint; inline-code fill covers its span only. Keep the active line visible and selection above semantic fills. |
+| Interaction | Existing table/selection ownership wins. Decorative marks add no actions beyond source hit mapping; task controls handle only explicit activation. |
 
-Do not add new non-table atomic ranges as the default marker implementation. CodeMirror atomic ranges make normal cursor motion skip their interiors ([API behavior](https://raw.githubusercontent.com/codemirror/view/main/src/editorview.ts)). Any exception needs explicit movement/deletion handling and direct tests proving every source position remains reachable; existing table atomic ranges are unaffected.
+For example, in ``## **Important** [deployment](./deploy.md) `settings` ``, heading content is bold in the heading role, the link retains its role, and code retains its foreground, punctuation, and base font treatment.
 
-### 4.3 Tables have no source-engaged state
+## 5. Supported Markdown
 
-Section 2.1 governs tables in every rendering state. None of the token transitions above changes the existing rendered table interaction model or reveals backing pipe source.
+Use CommonMark structure with explicitly enabled GFM strikethrough, tasks, and extended autolinks. Alerts, YAML frontmatter, and footnotes follow the bounded rules below. Tables remain independently parsed. [CommonMark 0.31.2](https://spec.commonmark.org/0.31.2/) and the [GFM specification](https://github.github.com/gfm/) are reference semantics, not a claim that the installed parser passes every conformance example. Pin dependencies and record intentional dialect differences with fixtures.
 
-## 5. Element behavior
-
-The following requirements define the required first complete pass, subject to the scope matrix in Section 3. “Marker” means Markdown punctuation; “content” means the human-readable text governed by it. Nested styling follows Section 7.2 rather than whichever CSS rule is loaded last.
-
-### 5.1 Headings
-
-Example source: `## Deployment notes`
-
-- Keep all `#` markers visible at all times.
-- Color heading markers, required following spaces, ordinary heading text, and optional closing ATX markers `#4493f8`. This is the explicit accessible mapping from the pinned palette; do not silently revert to the `#1f6feb` Prettylights reference.
-- Apply `font-weight: 700` to the heading source span. Inline emphasis/strike add their font treatment; links, inline code, escapes, and delimiter punctuation retain their more specific foreground treatment under Section 7.2.
-- Keep the normal editor font size and canonical line height for every heading level.
-- Distinguish levels only through marker count. H1 through H6 use the same heading foreground, weight, font size, and line height.
-- Do not add top or bottom margin, underline rules, or preview-style spacing.
-- Setext heading text and its underline source use the same heading foreground and `font-weight: 700`; the underline remains in its ordinary source row and is never transformed into a thematic break.
-
-Visually, `## Deployment notes` is visible blue source on the flat editor canvas, at normal editor size and rhythm. Nested syntax retains its specific treatment; no preview-style `<h2>` geometry is introduced.
-
-### 5.2 Emphasis, strong text, and strikethrough
-
-- Style ordinary prose content semantically: italic for emphasis, bold for strong text, and line-through for strikethrough, normally in `#f0f6fc`. Inside headings or links, inherit the more specific content foreground while composing font styles.
-- Keep delimiter characters visible in `#9198a1` so they remain readable but quieter than their content.
-- Nested combinations must compose without changing line height.
-- Unmatched delimiters remain plain source.
-
-### 5.3 Inline code
-
-- Keep backticks visible in `#9198a1`.
-- Render code content in `#a5d6ff` over `rgba(101, 108, 118, 0.20)`.
-- Use no vertical padding. Horizontal inset may be simulated with an inline background or at most a very small width-preserving treatment.
-- Inline code must not change the configured editor font metrics.
-- The background may use a `3px` radius, but it must remain inside the existing line box and must not grow the source span.
-
-### 5.4 Links and autolinks
-
-- Keep Markdown brackets, parentheses, angle brackets, destinations, and titles visible.
-- Render link labels in `#4493f8`, destinations and autolinks in `#a5d6ff`, and brackets/parentheses in `#9198a1`.
-- Use an underline in the same foreground color for destinations and for link labels on modifier-hover. Do not use a second invented hover color.
-- A normal click positions the caret. Modifier-click follows the link, matching VS Code conventions.
-- Keyboard editing and selection use literal source positions. All copy/cut/paste behavior follows the unchanged Section 6.2 clipboard contract.
-- Reference links and definitions receive the same source-first treatment.
-- Use the platform's normal VS Code link modifier (Ctrl on Windows/Linux, Cmd on macOS) without treating AltGr text input as activation. Route opening through an extension-host message; do not navigate the webview.
-- Resolve relative paths against the document URI, decode fragments, and navigate local heading fragments through source positions without rewriting source or exposing table source. Permit `http`, `https`, and `mailto` external destinations through the host; open local/remote workspace files through VS Code. Reject executable/command/data schemes. Unresolved references or destinations leave editing and selection intact.
-
-### 5.5 Unordered and ordered lists
-
-- Render `-`, `*`, or `+` as a compact `#f2cc60` bullet in resting state. Reveal the literal marker, also in `#f2cc60`, when the caret intersects its source range.
-- Keep ordered-list numbers visible in `#f2cc60`. Do not renumber them visually in a way that disagrees with source.
-- Preserve indentation as source-backed horizontal geometry.
-- Additional list indentation guides are deferred; preserve any guides already provided by the existing editor.
-- Wrapped continuation text aligns with list content through the state-stable, source-derived hanging indent defined in Section 2.3. Verify nested markers, multi-digit ordered markers, tabs, and quoted lists.
-- Preserve the current Markdown Enter/Backspace behavior. Inventory Tab/Shift+Tab in Phase 0 and preserve it rather than introducing an unrelated indentation/keybinding redesign. Task widget navigation must not intercept source-editing bindings.
-- Marker transformations must reserve enough width to prevent the item text from shifting when raw syntax is revealed.
-
-### 5.6 Task lists
-
-- Transform `[ ]`, `[x]`, and `[X]` into a compact accessible checkbox in resting state.
-- The checkbox fits entirely within the canonical line box and is aligned to the text baseline.
-- Use the exact state colors in Appendix A.5. The control is square with a `3px` corner radius; it is not a round switch or a pill.
-- Use a one-pixel `#3d444d` border for the unchecked control. The checked control uses no additional outer border beyond its `#1f6feb` fill.
-- Clicking it changes only the middle character: space becomes lowercase `x`, and `x` or `X` becomes space. Preserve brackets, list marker, whitespace, item content, selection/bookmark, and the current focus owner. Use the existing source transaction/host synchronization path and isolate the action as one undo step before and after adjacent typing.
-- Keep item text `#f0f6fc` whether checked or unchecked. Do not force strikethrough, opacity, or a muted text color.
-- Expose a checkbox role, checked state, accessible name from the item text, visible focus, and normal control focusability. Space toggles a focused checkbox; Escape returns to the bookmarked source position. Do not create a focus trap or repurpose source Tab/Shift+Tab bindings.
-- Provide a `Markdown Live Editor: Toggle Task Checkbox at Caret` command for the containing task item, including when its marker is revealed. No new default shortcut is required. The command uses the same one-character transaction as the checkbox and does nothing outside a task or in read-only source.
-- While source composition is active, defer control actions that would interrupt it; after composition ends, revalidate that the intended task marker still exists before applying the action.
-- When the caret intersects the task marker, reveal the literal task syntax without moving the item text.
-
-### 5.7 Blockquotes
-
-- Keep `>` markers visible in `#9198a1`; ordinary quoted content uses `#f0f6fc`, with nested inline/block treatments applied according to Section 7.2.
-- Draw a one-pixel `#3d444d` vertical guide inside the line’s existing horizontal space, aligned consistently through consecutive quote lines.
-- Do not add vertical margin or padding.
-- Every quoted source line remains an ordinary independently numbered editor line.
-- Nested quote depth is represented by repeated source markers. Additional per-depth guides are deferred; retain the required one-pixel blockquote guide without changing indentation.
-
-### 5.8 GitHub-style alerts and callouts
-
-Recognize alert markers such as `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, and `> [!CAUTION]`.
-
-- Keep the `>` and `[!TYPE]` source visible. The `>` remains `#9198a1`; the alert marker and title use the corresponding foreground from Appendix A.4.
-- Render the alert marker/title at `font-weight: 600`. Additional semantic icons are deferred; the visible `[!TYPE]` text identifies the alert without adding width or relying only on hue.
-- Draw a three-pixel inset left edge using the “Strong edge” color from Appendix A.4 and apply the exact “Muted row tint” across every source line in the alert.
-- Do not add the padding or margins used by GitHub’s fully rendered alert component. This editor borrows the exact colors and semantic iconography while compressing them into source-height rows.
-- Subsequent callout lines retain their `>` source markers and line numbers.
-- Use color plus text/iconography so the type remains understandable without color.
-- Unknown alert types fall back to an ordinary blockquote.
-- Collapsing callouts is outside the initial phase because it would hide source lines and violate continuous gutter behavior.
-
-### 5.9 Thematic breaks
-
-- In resting state, `---`, `***`, and `___` become a one-pixel `#3d444d` horizontal rule drawn through the vertical center of the existing source row.
-- When the caret intersects the marker, reveal the exact source characters.
-- The rule must not add margins, padding, or an extra row.
-- The active/source-engaged appearance should combine visible punctuation with a subtle remaining rule when that can be done without obscuring text.
-
-### 5.10 Fenced code blocks
-
-Fenced code blocks must feel like code without turning into a large preview card.
-
-- Preserve one editor row per source line, plus ordinary wrapping behavior.
-- Apply one continuous `#151b23` background band to the fence and content lines.
-- Draw `#3d444d` one-pixel inset top and bottom edges on the opening and closing fence rows. Borders must not affect layout.
-- Add no vertical margin or vertical padding.
-- Keep opening and closing fences visible in `#9198a1`; do not hide or replace them.
-- Style the optional language identifier in `#79c0ff`.
-- Code content uses the editor’s configured monospace font and canonical line height.
-- Apply language-aware highlighting for the required languages and aliases in Section 7.2, using Appendix A.3 values without replacing source or changing metrics.
-- A new code-copy overlay/action is deferred. Existing selection copy/cut behavior remains governed by Section 6.2.
-- Empty, incomplete, or unclosed fences remain editable. A valid unclosed fence extends to the end of its Markdown container/document under CommonMark rules; it suppresses inline/list transforms within that code content. Do not classify a valid unclosed fence as malformed prose or invent a closing fence.
-- Indented code blocks receive the code background treatment but do not invent fence controls.
-
-### 5.11 Images
-
-Full inline image previews are incompatible with the fixed line rhythm and are not part of the default editor surface.
-
-- Keep image Markdown source visible. Use `#4493f8` for alt text, `#a5d6ff` for destination, and `#9198a1` for punctuation.
-- New image chips/icons and hover previews are deferred. This phase styles image source without adding resource loading or another interaction surface.
-- Missing files, remote loading, and unsafe URLs must not disturb editing or line geometry.
-
-### 5.12 HTML, escaped syntax, entities, and comments
-
-- Raw HTML remains source. Tags use `#7ee787`, attribute/type-like entities use `#d2a8ff`, strings use `#a5d6ff`, and punctuation uses `#9198a1`; it is not mounted as live DOM.
-- Escaped Markdown punctuation must not be transformed.
-- Entities may be syntax-highlighted, but source remains visible.
-- HTML comments remain source in `#9198a1`.
-- Never execute scripts, event attributes, embedded web content, or arbitrary HTML from the document.
-
-### 5.13 Frontmatter, footnotes, and unsupported extensions
-
-- YAML frontmatter remains compact source: delimiters and punctuation `#9198a1`, keys `#ffa657`, strings `#a5d6ff`, and numeric/boolean/null constants `#79c0ff`. Quoted literals remain strings; there is no competing keyword color for the same YAML scalar. It is not replaced by a metadata panel.
-- Footnote markers and definitions use `#d2a8ff` for identifiers and `#9198a1` for punctuation while remaining fully visible. New footnote jump controls are deferred; do not style a decorative label as an actionable control.
-- Unsupported Markdown extensions remain editable source and must not break nearby decorations.
-- Mermaid and other fenced extensions use the normal fenced-code treatment in this phase; diagram rendering would violate the default fixed-line editor surface.
-
-### 5.14 Tables
-
-Section 2.1 is the sole table design authority for this phase. This includes inline Markdown inside cells, source protection, line-number ownership, and every current editing/clipboard interaction. Section 7.4 supplies the CSS exclusion rules; no separate table rendering implementation is added here.
-
-## 6. Interaction and editing requirements
-
-### 6.1 Cursor and pointer mapping
-
-- Outside recognized tables, left/right movement traverses literal source positions in a predictable order.
-- Up/down movement preserves the preferred horizontal column across ordinary and decorated lines.
-- Clicking rendered text places the caret at the corresponding source character, not merely at the start or end of the block.
-- Clicking decorative marker chrome follows Section 4.2. Checkbox activation follows Section 5.6 and does not masquerade as a source click.
-- Movement into a recognized table transfers control to the existing table navigation behavior without revealing table source.
-- Drag selection can cross any combination of plain lines, decorated lines, code blocks, callouts, and existing table widgets without becoming trapped and without changing table behavior.
-
-### 6.2 Selection and clipboard
-
-- Selected non-table text represents the underlying Markdown source. Table selections continue to use the existing table selection and clipboard model.
-- Selection painting remains visually continuous across styled spans.
-- Preserve all existing clipboard behavior for prose, tables, and mixed selections. In particular, ordinary Smart copy must not be changed into source-only copy merely because the new rendering is source-backed. Explicit Copy Markdown remains the existing route for Markdown serialization.
-- Continue to obtain clipboard inputs from the source and the existing document/table selection models, never by scraping newly decorated editor DOM. Generated controls must not add payload content or alter existing conversion. Bullets/list markers already generated by the current clipboard serializer are intentional and must not be removed.
-- Preserve context-menu routing, configured default copy/paste modes, internal MIME version and metadata carriers, HTML sanitization, Office/spreadsheet interoperability, cut tokens, deferred cut clearing, move detection, and undo/focus behavior. Do not introduce a special clipboard mode for new Markdown widgets.
-
-The following matrix documents the existing routes, not a new serialization specification. Capture their actual MIME types and payloads in Phase 0 and compare before/after each rendering milestone. When this summary omits a detail, the current serializer and regression baseline are authoritative; do not normalize or "correct" existing output to satisfy the summary.
-
-| Copy mode | Prose-only selection | Rendered-table selection | Mixed prose/table selection |
-| --- | --- | --- | --- |
-| Smart (current default) | Current display-text `text/plain`, Smart HTML, and existing internal source payload | Current table/grid serialization and worksheet-friendly list handling | Current document/composite routing, including its existing conditional Markdown `text/plain` handling |
-| Rich | Current display-text plain representation and semantic rich HTML | Current table/grid representations with semantic lists in rich HTML | Current rich document/composite representations |
-| Plain Text | Current display-text plain representation | Current plain tab-delimited/grid representation | Current plain document/composite representation |
-| Markdown | Current literal selected Markdown source | Current Markdown serialization of the selected table/cells | Current source/projection-based Markdown serialization |
-
-Cut uses the same existing mode-specific representations and current delete/move semantics. Existing metadata carriers and private payload exceptions remain unchanged in every mode.
-
-| Paste mode | Protected behavior |
+| Construct | Required presentation and behavior |
 | --- | --- |
-| Auto (current default) | Current supported internal lossless payload handling, then existing HTML/Markdown/plain fallback precedence for the destination and selection; pending cut/move routing is unchanged. |
-| Rich | Current HTML conversion, table/list import, and fallback behavior. |
-| Plain Text | Current plain-text interpretation and destination-specific insertion behavior. |
-| Markdown | Current Markdown MIME/plain fallback and Markdown interpretation. |
+| ATX/Setext headings | All markers, optional closing markers, and underline rows remain. Heading color and weight 700 at normal size/line height. Levels differ by source markers, not size. A Setext underline never becomes a rule. |
+| Emphasis/strong/strike | Visible punctuation-role delimiters; italic/bold/strike content with property-specific nesting. Unmatched delimiters remain source. |
+| Inline code | Preserve backticks and exact source spacing. Code foreground and inset background add no width/padding; optional radius <= 3px. Do not substitute an HTML renderer's normalized display text. |
+| Links/autolinks | Labels, brackets, destinations, and titles stay visible. Distinct link roles; underline on actionable modifier-hover. Normal clicks edit; Section 6.3 governs opening. |
+| Images | Preserve alt text, punctuation, and destination with related link roles. No loading/previews or link action on a bare image. An enclosing link remains actionable. |
+| Lists | Preserve ordered numbers exactly. Resting unordered markers may become bullets within measured source advance. Preserve indentation, tabs, wrapping, and current input behavior. |
+| Tasks | `[ ]`, `[x]`, `[X]` in task position become compact square checkboxes within measured marker advance. Checked text retains ordinary styling; no forced strike/opacity. Section 6.2 governs activation. |
+| Blockquotes | Preserve all `>` markers/rows; one quiet 1px inset guide in marker space. Source conveys nesting; no added indentation or extra depth guides. |
+| Alerts | Preserve `>` and `[!TYPE]`; type-colored label at weight 600, 3px inset edge, optional contrast-safe row tint. All rows/numbers remain; no icons/collapse. |
+| Thematic breaks | Resting 1px centered rule is an overlay with no added advance. Preserve literal marker advance/wrapping. Engagement reveals exact source; any remaining line must not obscure it. |
+| Fenced code | Preserve fences, info string, blank lines, and code. Continuous row band with inset 1px edges at existing opening/closing fences. Highlight supported languages. Valid unclosed fences continue to container/document end; never invent a closer. |
+| Indented code | Preserve indentation/rows; code band without invented fence controls or guessed language. |
+| HTML/comments | Literal source; style parser-identified tags, attributes, strings, punctuation, comments. Never mount document HTML as DOM. |
+| Escapes/entities | Preserve literal spelling. No escaped-marker controls or entity decoding in the editing surface. |
+| YAML frontmatter | All delimiters/rows remain. Style keys, strings, numeric/boolean/null scalars, comments. Quoted values remain strings; no metadata panel. |
+| Reference definitions/footnotes | Visible identifiers/continuations. Resolve ordinary reference links; footnotes remain non-interactive and unrenumbered. |
+| Unsupported syntax | Editable source, including math, wiki links, TOC, diagrams, unknown extensions. Style nested syntax only when the parser recognizes it. |
 
-Regression coverage must include all copy modes for prose-only, table-only, and partial/full mixed selections, plus all paste modes into prose, table cells/ranges, and mixed selections. Include internal copy/cut/move, external Markdown, spreadsheet and rich-text data, nested lists, blank lines, Unicode, and undo/redo. The sources of truth are `src/editor/documentClipboard.ts`, `src/editor/table/tableClipboard.ts`, `src/shared/clipboardModel.ts`, and their existing tests.
+### 5.1 Recognition boundaries
 
-### 6.3 Editing and source synchronization
+- **Tables:** first rendering/interaction ownership. Blocks spanning tables decorate non-table portions only; no wrapper/background paints through a table.
+- **Literal regions:** code, comments, and raw HTML blocks suppress marker transformations according to parser boundaries. An inline HTML tag does not make all following prose literal.
+- **Tasks:** marker starts a parsed list item's content and is followed by whitespace/end-of-line. Elsewhere brackets are ordinary source. The innermost containing task owns a caret in its content; nested child tasks are separate.
+- **Alerts:** exactly uppercase NOTE, TIP, IMPORTANT, WARNING, CAUTION. `[!TYPE]` is the sole content of the first quote paragraph's first source line after quote markers/whitespace. The parsed blockquote supplies extent, including lazy continuations. Unknown types are ordinary quotes. Innermost nested alerts own each row's tint/edge; no stacked controls.
+- **Frontmatter:** opening `---` is the first line after an optional preserved BOM; a later standalone `---` closes it. Allow trailing horizontal whitespace on delimiters. No closer means ordinary Markdown interpretation. TOML/JSON/other frontmatter variants are not implied. Table ownership still wins.
+- **Footnotes:** `[^id]` references and `[^id]:` definitions with parser-owned indented continuations, outside literal/protected regions. Use a scoped parser extension, not a document-wide regex. Unresolved labels remain source.
+- **Incomplete parsing:** decorate trustworthy ranges only. Incomplete-but-valid constructs follow parser rules. Background parse completion updates visible output without another keystroke.
 
-- Every source edit continues through the current CodeMirror-to-extension-host synchronization path.
-- Preserve existing IME composition, dead keys, Unicode, undo/redo, paste, and host-originated changes. Preserve existing multi-cursor capabilities if established by the Phase 0 inventory; this phase does not add general multi-cursor support.
-- Decoration updates must not move focus or reset a composition.
-- A decoration-only selection, focus, viewport, background-parse, theme, or metric update must not create a source transaction or host edit. Map ranges through host edits and current revision validation rather than adding a second synchronization path.
-- Parsing and decoration performance must meet the fixtures and budgets in Section 8. Avoid synchronous forced layout during ordinary updates; use CodeMirror's measurement scheduling for geometry reads.
+### 5.2 Fenced-code language boundary
 
-### 6.4 Accessibility
+Bundle JavaScript (`javascript`, `js`, `nodejs`), TypeScript (`typescript`, `ts`), JSON (`json`), shell (`bash`, `sh`, `shell`), Python (`python`, `py`), and YAML (`yaml`, `yml`). Match the first info-string word case-insensitively. JSX/TSX and further aliases are not implied.
 
-- Generated controls are keyboard reachable only when they perform an action; purely decorative elements are ignored by assistive technology.
-- Interactive widgets expose an accessible role, label, state, focus appearance, and sufficiently large pointer target without enlarging the line box.
-- Forced-colors mode uses system colors and visible outlines.
-- Verify contrast of the actual foreground/background combinations, including code and alert tints. Heading text uses the accessible mapping in Section 5.1; keep normal editor metrics. Preserve selection legibility without overwriting the existing clipboard/selection model.
-- Syntax remains understandable without relying only on hue.
-- Reduced-motion users should encounter no transition-driven movement; the initial design should use little or no motion.
+Map parser tags to Appendix A's roles. Unknown tags use ordinary code foreground. Unknown/empty languages, including `mermaid`, retain code/source styling without guessed highlighting. No grammar downloads, execution, or language services. Declare newly imported parser/highlight packages directly and review bundle size/licenses.
 
-## 7. Recommended implementation architecture
+## 6. Interaction contracts
 
-### 7.1 Decoration-first, line-preserving rendering
+### 6.1 Literal and transformed markers
 
-Use CodeMirror 6 syntax-aware decorations for all new non-table Markdown rendering:
+These are local presentations, not editor modes. Styling remains while marker presentation changes. For a transformable token `[from, to)`, apply these rules in priority order:
 
-- mark decorations for color, weight, emphasis, inline backgrounds, and delimiter treatment;
-- line decorations for code, quote, callout, and frontmatter backgrounds or inset edges;
-- small replace/widget decorations only for width-controlled markers such as bullets, checkboxes, and thematic breaks;
-- literal source positions and the explicit token transition rules in Section 4.2; do not reuse the table's atomic-navigation policy for non-table controls.
-
-Do not use multiline HTML replacement widgets for ordinary Markdown blocks. They obscure source, complicate cursor mapping, and make fixed gutter rhythm difficult to guarantee.
-
-The existing multiline `TableWidget` remains governed by Section 2.1. No external prototype is an implementation dependency; any future prototype reference must include a concrete repository/path and identify the exact pattern being reused.
-
-### 7.2 Parsing
-
-- Use the syntax tree produced by `@codemirror/lang-markdown` as the non-table structural source of truth. The current `markdown()` configuration uses CommonMark; explicitly enable only the required GFM/custom extensions rather than silently adopting unrelated subscript, superscript, or emoji syntax.
-- Give the current table detector first rendering/interaction ownership of its recognized ranges. Shared syntax parsing may inspect the full source for container context. Subtract protected ranges from new decorations and prevent line backgrounds, wrappers, and generated controls from painting or handling table-owned DOM. Parser traversal is not a table behavior change.
-- Required dialect: CommonMark headings, emphasis, code, lists, quotes, links/images, escapes, entities, and HTML source; GFM task markers, strikethrough, and extended autolinks; and the explicitly scoped alert, YAML-frontmatter, and footnote recognition below. Existing table recognition remains independent.
-- Avoid parsing the entire document with a second renderer on every keystroke.
-- Derive decorations from source ranges, never from rendered HTML offsets.
-- Fail open for unsupported or ambiguous syntax. Incomplete-but-valid constructs, including unclosed code fences, follow their parser/container rules without making source unreachable.
-
-Recognition precedence and extension boundaries:
-
-| Case | Required interpretation |
+| Condition or action | Result |
 | --- | --- |
-| Any range claimed by `getParsedTables` | Existing table rendering and interaction win over every new renderer. Do not change the detector to make the new dialect agree with it. |
-| YAML frontmatter | Recognize an opening `---` line only at document start (after an optional preserved BOM), with a matching closing `---` line. Keep every source row. Without a closer, do not claim the rest of the document as frontmatter; use the ordinary Markdown parser. Protected table ranges still win. |
-| Fenced/indented code, inline code, HTML comments and raw HTML | Suppress Markdown marker transforms inside literal regions. Highlight code/HTML source with its appropriate parser. `- [ ]`, `***`, `#`, and escaped delimiters inside these regions remain literal. |
-| Setext underline versus thematic break | Honor the structural parser: `Title` followed by `---` is a heading, while a parsed standalone thematic break is a rule. Frontmatter takes precedence only under the start/closer rule above. |
-| Task marker | Recognize `[ ]`, `[x]`, or `[X]` only at the start of a parsed list item's content and followed by whitespace/end-of-line. Do not transform bracket text elsewhere. |
-| Alert | Recognize the five uppercase `[!TYPE]` forms when they alone begin the first paragraph of a parsed blockquote, after quote markers/whitespace. The blockquote container determines the extent, including blank/lazy continuation rows. Unknown types are ordinary quotes. Nested quotes/lists retain their container geometry; do not create overlapping nested alert controls. |
-| Footnote | Recognize visible `[^id]` references and `[^id]:` definitions with their indented continuations outside literal/protected ranges. Unresolved references remain visible; no automatic renumbering or jump control is added. |
-| Escaped syntax | Follow the parser's escape ranges. Escaped markers never become bullets, tasks, rules, or emphasis delimiters. |
+| Table-owned range | Existing table behavior only. |
+| Composition affects token, or measurement unavailable | Literal source and stable editable DOM. |
+| Generated checkbox owns focus | Keep control mounted with a mapped source bookmark until focus leaves or the task is removed. |
+| Any non-empty source selection overlaps token | Reveal literal source, even unfocused; consider every supported selection range. |
+| Source editor is focused and a caret touches either boundary/interior | Reveal literal source (`from <= head <= to`). |
+| Otherwise | Resting transformation, when validated geometry is available. |
 
-Styling precedence is property-specific; it is not decided by incidental CSS order:
+Arrow navigation and deletion reveal markers before entering/deleting their characters. Preserve undecorated character/grapheme and word-motion behavior; never skip a marker or split a surrogate pair. Do not add non-table atomic ranges. Existing table atomic ranges remain unchanged.
 
-| Layer/property | Required precedence |
+Bullet/rule clicks map to the nearest valid literal caret boundary using source geometry. Item-text clicks edit normally. Checkbox activation is distinct. Drag, Shift-selection, Select All, and host/programmatic selection preserve exact endpoints and mixed-table projection. Up/down retains the editor's preferred horizontal position.
+
+While IME owns a composing span, do not remount it or swap markers. Revalidate after composition. Presentation updates create no host edits/history entries. If a token is deleted or becomes a table, discard its control state and use existing source/table focus recovery; never restore a stale bookmark inside protected source.
+
+### 6.2 Task controls and commands
+
+Activation changes exactly one character: space to lowercase `x`, or `x`/`X` to space. Preserve brackets, list marker, whitespace, item text, and unrelated source. Read current source at activation; cached DOM checked state is not authoritative.
+
+Pointer activation preserves the existing source selection and focus owner. A focused checkbox toggles with Space, retains focus, exposes checked state and an item-derived accessible name, and has a visible outline. Escape returns to the mapped source bookmark. Do not rewrite source Tab/Shift+Tab or add a tab stop for every task in a long document.
+
+Provide these Command Palette actions, scoped to the active live editor, with no new default shortcuts:
+
+- **Toggle Task Checkbox at Caret:** the innermost containing task for a single collapsed source caret, including a revealed marker; a focused checkbox explicitly identifies its task. Other selections/no task produce no edit.
+- **Focus Task Checkbox at Caret:** bookmark the single caret, reveal/scroll its task control if needed, and focus it programmatically (`tabindex="-1"`). This is the keyboard route into the control. Tab/Shift+Tab from the control exit through normal focus order without a trap.
+
+Source toggling remains available when accessibility/geometry fallback keeps markers literal. If a safe control cannot be displayed, the focus command leaves the caret unchanged and explains that the toggle command is available.
+
+Composition temporarily disables both task commands and pointer activation; do not queue a delayed toggle or focus change. Known read-only state disables mutation; the host still validates edit acceptance. Rejection restores authoritative state without retrying stale coordinates.
+
+Each activation is one host undo step, separate from adjacent typing. Two deliberate rapid activations are two ordered actions; an acknowledgement is not another activation. Verify toggle/undo/redo, dirty-state restoration, focus, and ordering with table edits through the existing host path. Local CodeMirror history isolation alone is insufficient.
+
+### 6.3 Links
+
+Normal clicks place the caret. Opening requires the VS Code link modifier or **Open Markdown Link at Caret**, scoped to one caret/actionable source range. Default modifier: Ctrl on Windows/Linux, Cmd on macOS; use Alt when `editor.multiCursorModifier` is `ctrlCmd`. Honor that setting and reject AltGr/composition/drag gestures, following [VS Code's modifier convention](https://code.visualstudio.com/docs/editing/codebasics#_multiple-selections-multicursor).
+
+Flush pending ordinary source edits and order the typed host request behind them, including document identity, source range, destination, and revision context. The host verifies that it still represents the current link and validates the URI. A document destination or arbitrary webview message must never become a command.
+
+| Destination | Resolution |
 | --- | --- |
-| Foreground | Literal code/HTML tokens and specific link/image destinations or labels win over heading foreground; heading ordinary text wins over generic emphasis/strong/quote foreground. Each delimiter retains its own specified punctuation color, except heading markers/Setext underlines, which retain heading color. |
-| Font style | Heading bold, emphasis italic, strong bold, and strike compose on their content. Inline/fenced code uses the configured normal editor weight/style so a surrounding heading/emphasis does not change code metrics. |
-| Background | Inline-code fill applies to its exact span. Fenced/indented-code row fill wins over enclosing alert/frontmatter row tint. Alert guides may remain inset outside the code text; no layer reaches table-owned DOM. |
-| Selection/cursor | Existing selection and cursor painting remain visible above semantic fills. New fills must not obscure selection, find markers already provided by the baseline, or table selection overlays. |
+| `http`, `https`, `mailto` | Host external-URI API, only on explicit activation. |
+| Relative/absolute document path | Resolve as a URI relative to document directory, preserving local/remote scheme and authority; open with VS Code. Do not build remote paths using local OS rules. |
+| Same-document heading fragment | Source heading index and existing selection guards; no webview reload or edit. |
+| Cross-document heading fragment | Resolve target Markdown and heading, then open/reveal; use stock navigation where no live target exists. |
+| Reference link | CommonMark label normalization/definition precedence, then destination rules. |
+| Missing/unresolved target, or relative path in untitled document without a base URI | Leave editing intact; concise non-modal explanation for explicit open action. Do not guess a workspace root. |
+| Executable, `command`, `javascript`, `data`, or unapproved URI scheme | Reject; no webview navigation or generic command dispatch. |
 
-Required composition fixtures include ``## **Important** [deployment](./deploy.md) `settings` ``, a code fence inside an alert/list, an escaped task marker, frontmatter followed by a rule, and syntax immediately before/after tables. In the heading example, the heading/strong text is blue and bold, the link retains link styling, and the code/backticks retain their code/punctuation styling.
+Use a pinned GitHub-compatible heading slug implementation, with fixtures for inline markup, duplicate headings, Unicode, and percent encoding. Share its policy across host/view; do not invent a second algorithm. Cache indexes by revision; heading/reference edits invalidate dependent links. Decode URI escapes once at the appropriate boundary. HTML anchors and arbitrary custom URI handlers are outside this phase.
 
-Required fenced-code language support:
+## 7. Implementation architecture
 
-| Language | Accepted identifiers |
+### 7.1 One incremental projection
+
+Pipeline: normalized document/current table ranges -> Markdown syntax/semantic ranges -> selection/focus policy -> non-table decorations/actions. Presentation state is disposable; source is not.
+
+| Responsibility | Contract |
 | --- | --- |
-| JavaScript | `javascript`, `js`, `nodejs` |
-| TypeScript | `typescript`, `ts` |
-| JSON | `json` |
-| Bash/shell | `bash`, `sh`, `shell` |
-| Python | `python`, `py` |
-| YAML | `yaml`, `yml` |
+| Parser and classifier | One configured tree with scoped extensions and bundled code parsers; source ranges carry kind/revision identity. |
+| Protected-range filter | Reuse cached `getParsedTables(doc)`. Clip passive styles outside tables; drop interactive tokens entirely on table overlap. Recheck at action time. |
+| Decoration state | Map unaffected ranges through changes, invalidate affected constructs/dependencies, and compose output deterministically. |
+| Measurement/focus | CodeMirror-scheduled measurement; context-keyed caches; safe focused/composing DOM retention. |
+| Source actions | Pure range-to-edit task logic; typed link requests. No mutation from DOM text. |
+| Theme adapter | Semantic roles/accessibility fallback without changing parser or table state. |
 
-Match identifiers case-insensitively using the first info-string word. Bundle the required language parsers with the extension; do not download grammars into the webview. Explicitly map their available highlighting tags to Appendix A.3: comments, constants, declarations/types, keywords, strings, variables, regex, and punctuation. Unknown tags fall back to ordinary code foreground. Unknown/empty language identifiers, diagrams, and unavailable parsers retain source and code-row styling without guessed tokenization. Exact colors are required for mapped roles; GitHub/TextMate token-boundary parity is not claimed.
+A `src/editor/markdown/` module group is appropriate; filenames follow implementation needs. Do not create a framework or require a file per construct. Integrate with `createLiveEditorExtensions` without recreating the editor on theme/feature changes. Keep recognition/action logic testable without a browser.
 
-Recompute decorations when relevant source changes, selection/focus transitions, visible ranges change, background parsing advances, or theme/editor metrics change. Extend visible-range work to the enclosing construct so fences/alerts remain continuous when their opener is offscreen. Parser incompleteness uses temporary editable source and must converge after parsing advances without another keystroke.
+Use mark decorations for source styles, line decorations for bands/edges, and narrow inline replacements for validated markers. No multiline prose widgets, wrappers spanning tables, or hidden source rows. Respect CodeMirror's direct versus viewport-derived decoration paths: layout-changing decorations need the appropriate direct state path. See the [decoration API/example](https://codemirror.net/examples/decoration/). A viewport optimization must not create a height/viewport feedback loop.
 
-### 7.3 Suggested module boundaries
+### 7.2 Invalidation and measurement
 
-The exact filenames may change, but responsibilities should remain separated:
+Invalidate enclosing structural context, not just the edited line. A changed fence, indentation, reference, or frontmatter delimiter can affect distant source. Incremental parsing determines scope. Selection-only updates must not parse/scan the document. Visible-range work consults enclosing blocks when openers are offscreen.
 
-- `src/editor/markdown/markdownDecorations.ts`: composition root and CodeMirror extension.
-- `src/editor/markdown/markdownDecorationState.ts`: incremental parse/decorate state.
-- `src/editor/markdown/inlineDecorations.ts`: headings, emphasis, links, inline code, and delimiters.
-- `src/editor/markdown/blockDecorations.ts`: quotes, alerts, rules, code fences, and frontmatter.
-- `src/editor/markdown/listDecorations.ts`: lists, tasks, indentation, and marker widgets.
-- `src/editor/markdown/markdownInteraction.ts`: checkbox toggles, modifier-link open, and marker hit mapping.
-- `src/editor/markdown/markdownTheme.ts`: semantic class names and token mapping, or corresponding additions to `editorTheme.ts`.
-- `src/editor/markdown/markdownRanges.ts`: shared range classification and hard table-exclusion logic.
+Track source revision, parser progress, selection/focus, viewport, and metric generations separately. Map or reject stale asynchronous results. Update on background parser progress without typing. Color-only changes do not reclassify source; font/zoom/wrap changes invalidate measurements.
 
-Keep document mutation logic independent from DOM widgets so it can be unit tested without a browser.
+Preserve the source-relative scroll anchor when late parsing applies semantic styles or metrics change. Those updates may legitimately change wrapping, but must not reset the viewport to the document start or steal focus. Marker presentation changes still obey the stricter no-reflow contract in Section 3.2.
 
-### 7.4 Styling rules
+Use CodeMirror's measurement scheduling for DOM reads/writes. No synchronous per-marker layout loop on every keystroke. Dispose observers, handlers, scheduled work, and detached widget references with the view. Bound hidden-view work and resume from current source/settings.
 
-- Centralize Appendix A values under a non-table scope with an `--mlrt-github-dark-*` prefix. Apply the Section 5.1 heading role deliberately. Values are literal colors, not VS Code variable aliases.
-- Keep static styles in `media/liveEditor.css` and geometry-dependent values in injected `--mlrt-editor-*` properties.
-- Do not modify an existing `.mlrt-table-*` rule. Do not use element selectors or inherited global custom-property changes that can restyle the existing table widget.
-- Never use a bare `table`, `thead`, `tbody`, `tr`, `th`, or `td` selector for this phase.
-- Prefer inset `box-shadow`, layered `background-image`, and pseudo-elements over layout-affecting borders or padding.
-- Every Markdown line class must retain canonical font size, line height, letter spacing, and font family. Specific font weight/style follows Section 7.2; a blanket `font: inherit` reset must not erase semantic styling.
-- Generated widgets must use `box-sizing: border-box`, fit inside one line box, and avoid changing CodeMirror’s block height measurement.
+### 7.3 CSS isolation
 
-## 8. Delivery sequence
+Use namespaced non-table classes. Do not recolor shared ancestors, redefine table tokens, use broad Markdown descendant rules, or introduce bare `table`, `tr`, `th`, or `td` selectors. Code-language highlights also exclude protected source; a global highlighter alone is insufficient isolation.
 
-### Phase 0: fixtures and invariants
+Inset edges/backgrounds add no height/advance. Widgets use `box-sizing: border-box`, introduce no line breaks, and keep hit areas clear of adjacent text/gutter. Preserve selection/caret z-order. Never fix a new decoration by changing table overflow, clipping, stacking, or line-number ownership.
 
-- Begin with `standard-markdown-fixture.md` and existing table fixtures, including `standard-markdown-in-table-fixture.md` and `html-in-markdown-table-fixture.md`. Add focused cases for precedence, malformed/incomplete syntax, tabs, nesting, wrapping, Unicode, and source adjacent to tables; unsupported extensions in existing fixtures are fallback cases, not implied new scope.
-- Produce the capability inventory in Section 3.1, record current source keybindings, and capture the full Section 6.2 clipboard matrix before implementation. Freeze current payload semantics and editing/selection behavior as the regression authority.
-- Capture rendered-table screenshots and computed styles before implementing new Markdown decoration. Compare the same source, selected/focused state, width, theme, and host settings before/after; no intentional table visual/behavioral changes are allowed. Mask only documented transient caret/blink regions in pixel comparisons, never table geometry or content.
-- Record VS Code/Electron and extension versions, GitHub theme package/version, OS, editor font/weight/ligatures, font size, letter spacing, effective line height, wrapping configuration, zoom, device pixel ratio/display scaling, viewport CSS dimensions, and sidebar/chat/minimap layout with each visual run. Wait for fonts and layout to settle.
-- Use the same isolated Extension Development Host window to capture stock and live screenshots. Confirm Monaco `.view-lines` for stock and a live webview `iframe` for the custom editor. Inspect the images directly; the standalone HTML harness is not proof of workbench parity.
-- Measure actual text-node/glyph boxes as well as line/content/gutter boxes. Convert webview coordinates into workbench coordinates before comparisons. Verify line rhythm, first-line x/y, line-number ink, selection geometry, active gutter background, and state-stable marker width/wrap points.
-- Reproduce the pre-implementation visual-check discrepancy observed during the design review: `scripts/edh-visual-check.mjs` measured `0.8px` table borders where it asserts exactly `1px`, while its core font/gutter geometry checks passed. Record zoom/DPI and establish whether the assertion or baseline is incorrect before making it a release gate. Do not restyle tables or weaken tests to accommodate new Markdown rendering. Any justified harness correction must be isolated from product changes and documented against the original baseline.
+## 8. Reliability, recovery, and accessibility
 
-Required geometry matrix: wrapping on/off; viewport widths of 360px and 800px where feasible; default editor metrics and 20px font/30px line height; default and 1px letter spacing; zoom levels 0 and 1; the local display scale plus a fractional device-pixel-ratio case on a capable test machine. Stock/live comparisons use identical workbench layouts at each setting. Unsupported themes verify fallback; forced-colors verifies system-color rendering separately. Record unavailable cross-platform/display environments as incomplete validation rather than claiming coverage.
+### 8.1 Host synchronization
 
-Performance fixtures and budgets:
+[VS Code custom text editors](https://code.visualstudio.com/api/extension-guides/custom-editors#custom-text-editor) share their backing `TextDocument` with host edits. Retain the current queue, `changeId`, `baseRevision`, before/final text validation, acknowledgements, and conflict invalidation floor. Task activation is a normal validated source edit, not a second checkbox model.
 
-| Fixture | Content and measurement | Required budget |
+Before dispatch, check current marker text, selection policy, composition, protected ranges, and known read-only state. Preserve host EOL mapping. Map bookmarks through accepted changes. Rejection/authoritative replacement invalidates pending actions and cached results; never replay against a new snapshot automatically.
+
+New async actions settle on success, rejection, exception, or disposal. Do not strand the edit queue or leave a control pending. Reuse existing conflict reporting and opt-in debug logging. New logs should record timing/ranges/failure categories without dumping document contents by default.
+
+Test external source edits, undo/redo, save/revert, hidden/reopened views, and stock/live switching. Do not add save handlers, file watchers, a second undo stack, or persisted generated DOM.
+
+### 8.2 Failure containment and rollout
+
+Add one reversible setting, `markdownLiveRenderTables.markdownRendering.enabled`. It defaults to false during development; enable by default only after release gates pass. Disabling it removes new non-table appearance/actions while preserving current tables/clipboard. This is a recovery control, not a paragraph editing mode or replacement for the stock-editor toggle.
+
+Contain parser/measurement/renderer failures to affected non-table ranges where possible. Show literal source, cancel unsafe actions, and emit bounded diagnostics instead of an update-loop exception. If necessary, disable the new layer for that session while keeping the base editor. Never recover by clearing source, bypassing host validation, or exposing table backing source.
+
+Distinguish parse-not-ready, unsupported syntax, unavailable geometry, and internal failure. Routine incomplete Markdown produces no warning. An explicit failed action may explain itself; ordinary typing must not produce repeated notifications.
+
+### 8.3 Accessibility and security
+
+Source remains the text-editing surface. Decorative bullets/guides are hidden from assistive technology. Tasks expose role/name/checked/disabled state and focus. Avoid duplicate generated/source announcements. Test reading, selection, task commands, source reveal, and table boundaries with a screen reader in an actual Extension Development Host.
+
+If replacements impair reading/selection, use literal non-table markers with source commands under host accessibility mode. Retain semantic styling where readable and task functionality. Do not add ARIA heading elements that disrupt source editing merely to imitate a rendered page.
+
+Pointer targets must not overlap adjacent source. Use allocated marker width/row height and retain keyboard/command alternatives at small fonts. Verify focus, control-boundary contrast, and selection in light, dark, high-contrast, and forced-colors environments. No motion is needed.
+
+Treat source, URIs, and host messages as untrusted. Use text nodes for labels, retain CSP/resource restrictions, and validate host requests by type/document/range/operation. New rendering never executes source HTML/scripts, fetches images, loads remote grammars, or bypasses clipboard sanitization. Existing cell HTML remains table-owned.
+
+## 9. Performance and scale
+
+Measure added rendering cost separately from total latency. Existing table parsing/synchronization may scale with document length; record those limitations and before/after results without hiding costs or rewriting those systems here.
+
+| Fixture | Target on the recorded reference machine |
+| --- | --- |
+| Comprehensive syntax | Stable geometry and correct editing through every presentation transition. |
+| 10,000 mixed source lines, tables, and 2,000-character lines | Added rendering p95 <= 8ms per ordinary update after warm-up. |
+| 100,000 lines with long lines/offscreen block openers | Added rendering p95 <= 16ms; bounded memory; no document-wide caret-only work. |
+| Both large fixtures | Added p95 input-to-next-paint <= 16ms versus the same build with the new layer disabled. |
+
+Use at least 200 edits, 100 selection/focus changes, and 100 scroll updates per large fixture. Measure classes separately so cheap cursor updates cannot mask typing. Include added parser work, widgets, scheduled measurement, style/layout, and deferred work; timing only a synchronous callback is insufficient.
+
+Record p50/p95/max, total latency, initial open/parse convergence, memory after repeated scroll/theme cycles, hardware, versions, and viewport. Separately measure long-range invalidation and metric/theme changes. Milestone 0 establishes reproducible reference hardware/baselines. Missed targets need optimization or an explicit scope/target decision, not silent threshold changes or relabeling deferred work.
+
+Prefer incremental parsing and bounded visible rendering. A worker, second renderer, whole-document DOM, or new protocol needs evidence that the current architecture cannot meet requirements. Temporary literal fallback must converge when its dependency becomes available, without another keystroke.
+
+## 10. Delivery and verification
+
+### 10.1 Milestones and exit gates
+
+| Milestone | Deliverable | Exit evidence |
 | --- | --- | --- |
-| Comprehensive Markdown fixture | Supported syntax, ambiguity/nesting, malformed source, and adjacent existing tables | No rendering-state transition changes wrap points, source positions, scroll position, or source text. |
-| Generated 10,000-source-line fixture | Repeated mixed prose, lists/tasks, headings, code, alerts, and existing tables; include lines at least 2,000 characters long | New decoration work has p95 main-thread cost at most 8ms per update. |
-| Generated 100,000-source-line fixture | Same content mix with code/alert openers outside the visible viewport | New decoration work has p95 main-thread cost at most 16ms per update; work must not grow in proportion to all document lines for a caret-only update. |
+| 0. Baseline and feasibility | Capability inventory, table/clipboard/geometry baselines, reference environment, feature switch, minimal bullet/task/rule prototypes | Prove marker width/reveal, focus route, composition, read-only rejection, and one host undo step before expanding rendering. Record parser/highlighter isolation and bundle choices. |
+| 1. Readable source | Theme adapter; headings, emphasis/strike, inline code, links/references/images, escapes, HTML/comments | Cross-theme/nested styling, host link routing, unchanged source/clipboard, same-window visual review. |
+| 2. Local live controls | Lists, tasks/commands, quotes, thematic breaks | Section 6 transition matrix, pointer/keyboard/screen-reader checks, host history/conflicts, preserved table boundaries. |
+| 3. Multiline semantics | Code bands/languages, alerts, bounded frontmatter/footnotes | Offscreen opener/parse-progress correctness, wrapping/metrics, scale/lifecycle checks. |
+| 4. Release | Enable by default after gates; document dialect, commands, recovery setting | Full regression suite, visual/accessibility/performance evidence, no unresolved new correctness defects. |
 
-Measure at least 200 source edits, 100 selection/focus transitions, and 100 scroll updates after warm-up on each large fixture, at both viewport widths. Compare the same extension and machine with only the new non-table decorations enabled/disabled; existing table parsing/synchronization costs remain part of both baselines. Record p50/p95/max decoration cost and input-to-next-paint latency. Added p95 input-to-next-paint latency must be at most 16ms. Measure parsing advancement and metric/theme changes separately. If a required feature misses a budget, optimize it before release; deferral requires an explicit scope revision. Do not rewrite table/clipboard behavior to meet a decoration budget.
+Deliver small working slices with source fallback. Do not postpone mixed selection, IME, table regression, or theme support to final hardening. A prototype proves a decision; it is not a shipped alternative architecture. Baseline gaps directly blocking new actions may become scoped prerequisites; broader repairs need their own plan.
 
-### Phase 1: source styling and inline semantics
+### 10.2 Verification matrix
 
-- Headings with visible markers, blue accent, bold content, and unchanged metrics.
-- Emphasis, strong text, strikethrough, inline code, links, escapes, and comments.
-- Nested-style precedence, explicit GFM parser setup, host link resolution, and the accessible heading mapping.
-- Exact pinned colors, unsupported-theme fallback, forced-colors, selection, cursor, and IME verification.
+| Contract | Required evidence |
+| --- | --- |
+| Source integrity | No edit on render/scroll/theme/selection. Exact task-character edit; LF/CRLF, BOM, trailing whitespace, Unicode/graphemes, undo/redo, save/revert. |
+| Parser boundaries | Setext/rule/frontmatter ambiguity, escaped markers, unclosed fences, literal HTML, nested lists/quotes/alerts, changed references, unknown syntax, table adjacency. |
+| Marker interaction | Both arrow directions, word motion, Home/End, Backspace/Delete, pointer mapping, drag/Shift-selection, supported selection ranges, unfocused selection, composition, focus restoration. |
+| Host actions | Tasks with adjacent typing/table edits, rapid toggles, stale/rejected acknowledgements, external changes, read-only rejection, link modifier settings, invalid/remote/relative/fragment/reference destinations. |
+| Clipboard | Every existing copy mode across prose, tables, partial/full mixed selections; every paste mode into prose, cells/ranges, mixed selections. Include internal copy/cut/move, external Markdown, spreadsheets/Office HTML, nested lists, blank lines, Unicode, undo. Compare MIME payloads to baseline. |
+| Table preservation | Existing parser/edit/navigation/clipboard tests; identical styles/layout in matched states; no new decoration, source exposure, remount-induced focus loss, or gutter clipping. |
+| Geometry | Same-window stock/live ordinary-source measurements; before/after live semantic states, wrapping, tables, selection. Glyph/text boxes as well as element boxes. |
+| Themes/accessibility | GitHub Dark Default reference, built-in dark/light/high-contrast, customized canvas, forced-colors separately; keyboard and actual screen-reader use. |
+| Lifecycle/scale | Large fixtures, background parsing, offscreen openers, metric/theme changes, hidden/reopened/disposed views, repeated scrolling without retained DOM/work accumulation. |
 
-### Phase 2: line-level controls
+Start with `standard-markdown-fixture.md`, `standard-markdown-in-table-fixture.md`, `html-in-markdown-table-fixture.md`, `TestTable.md`, and existing stress fixtures. Add focused cases; a fixture's unsupported extensions do not imply new scope. Pure tests prove ranges/edits; browser/host tests prove focus, clipboard routing, composition, undo, and layout. Synthetic IME events alone do not establish real input-method compatibility.
 
-- Unordered and ordered lists.
-- Interactive task checkboxes.
-- Blockquotes and thematic breaks.
-- Complete the Section 4.2 transition matrix and task toggle command, including boundary deletion, selection reveal, composition, focus return, and undo isolation.
+For visual review, compile, then run `node scripts/edh-visual-check.mjs` directly. Capture stock Monaco/live webview in the same isolated VS Code/Electron window and layout. Confirm `.view-lines` for stock and a live webview `iframe` for live. Inspect saved screenshots directly; a standalone Chrome harness cannot prove workbench parity.
 
-### Phase 3: multiline visual continuity
+Measure font family/size, line height, first-line text x/y, content-left, gutter width, line-number ink, active gutter background, and table-cell left. Convert webview-local to workbench coordinates. Geometry tolerance is at most 0.5 CSS px. Compare computed colors, not antialiased pixels. Table comparisons use identical environment/state; mask only documented transient caret regions.
 
-- Fenced and indented code blocks.
-- Bundled support for the named code languages and explicit unknown-language fallback.
-- GitHub-style alerts/callouts.
-- Frontmatter styling.
-- Wrapped-line, viewport, and large-file performance checks.
+Cover wrapping on/off; narrow/wide editor viewports (target 360px/800px where feasible); default metrics and 20px font/30px line height; default/1px letter spacing; zoom 0/1; fractional scaling on an available machine. Record actual editor width, VS Code/Electron/extension/theme versions, font settings, DPI/device-pixel ratio, and sidebar/chat/minimap layout. Exact stock wrap parity applies to verified baseline settings, not every Monaco mode.
 
-### Phase 4: secondary syntax and hardening
+Keep baseline failures in dated QA records with reproduction and affected assertions. Determine product versus harness versus environment failure before changing a gate. Never weaken table/clipboard expectations to accommodate rendering. Unavailable OS, display, screen-reader, or IME coverage is incomplete validation, not a pass.
 
-- Images, reference definitions, footnotes, and safe unsupported-syntax fallback.
-- Mixed selections across prose, decorated blocks, and tables.
-- Regression, accessibility, cross-platform, and GitHub Dark Default fidelity coverage.
+### 10.3 Definition of done
 
-At each milestone, run `npm run compile`, the relevant existing automated tests, and the same-window visual checks; inspect saved screenshots directly. Verify the table/clipboard regression baselines before proceeding. Run `./Build_and_Install` after repository changes as required by `AGENTS.md` (use `Build_and_Install.cmd` on Windows); inspect and resolve any red Problems diagnostics in touched implementation files. This document defines future implementation work; editing the spec does not claim those features or gates have already passed.
+A milestone is complete when required features work, protected behavior passes regression checks, edits stay exact and host-undoable, and rendered content has been inspected in the workbench. Release also requires the theme/accessibility matrix, lifecycle/scale evidence, and working disable/recovery path.
 
-## 9. Acceptance criteria
+Run `npm run compile`, `npm test`, and relevant direct Extension Development Host checks. On Windows with PowerShell script restrictions, use `npm.cmd`. Resolve red Problems diagnostics in touched implementation files, including editor-only diagnostics. Follow `AGENTS.md`: after repository changes run `./Build_and_Install` (`Build_and_Install.cmd` on Windows) and verify installation. Editing this spec alone does not establish that future feature gates have passed.
 
-The phase is complete only when all of the following are true:
+## 11. Explicit non-goals
 
-1. Headings, including H1 and H6, have the same computed font size and line height as ordinary editor text.
-2. Computed non-table colors match Appendix A and the explicit Section 5.1 heading mapping. No specified role uses a legacy `#58a6ff` substitution or host-theme approximation. Nested heading/link/code examples follow the precedence table.
-3. The vertical distance between equivalent unwrapped source lines is constant across plain text, headings, lists, tasks, quotes, alerts, rules, and code lines.
-4. Gutter line numbers remain aligned before, inside, and after every decorated multiline construct.
-5. Resting/source-engaged transitions preserve marker advance width, following-text x/y, wrap points, document height, and scroll position within the geometry tolerance. Only the documented static semantic-font and list-continuation differences from stock wrapping are allowed.
-6. Every Section 4.2 transition passes, including navigation in both directions, Shift-selection, pointer mapping, Backspace/Delete, host selection, unfocused selections, and IME. Every transformed token remains character-accurately editable.
-7. Task checkbox and task-at-caret command change only the middle marker character, preserve source selection/bookmark and focus behavior, and form exactly one undo step separate from adjacent typing. Read-only, composition, rapid toggles, host acknowledgements, and undo/redo are verified.
-8. Normal link clicks position the caret; platform modifier-click resolves external, relative-file, reference, and heading-fragment destinations through the host. Invalid/unresolved destinations do not navigate the webview or disrupt editing.
-9. The complete Section 6.2 copy/cut/paste regression matrix matches the baseline for prose, table, and mixed selections, including current defaults, representations, internal payloads, Office imports, and cut/move semantics. New decorations add no clipboard content. Ordinary copy is not redefined as source-only copy.
-10. Incomplete headings, lists, links, task markers, fences, alerts, and emphasis delimiters remain editable and do not throw.
-11. Selection and cursor painting work across styled lines and table boundaries.
-12. Every table identified by the current detector retains the Section 2.1 always-rendered behavior through existing focus, editing, selection, clipboard, undo/redo, and navigation operations.
-13. Protected table ranges receive no new non-table decorations/interactions; no command or caret position exposes backing pipe source.
-14. Before/after rendered-table screenshots and computed table styles show zero intentional visual differences.
-15. Existing table/clipboard test expectations and direct visual checks pass. Any pre-existing harness correction has a separate recorded baseline justification; new rendering never supplies a reason to weaken those expectations.
-16. The Section 8 geometry/appearance matrix is verified and recorded, including unsupported-theme fallback and the distinction between VS Code high-contrast themes and operating-system forced-colors. Normal-size heading contrast meets the accessible mapping rationale in Appendix A.1.
-17. The 10,000/100,000-line fixtures meet the Section 8 budgets. Offscreen construct starts, background parse completion, scrolling, and metric/theme changes do not leave stale decoration or require another keystroke to converge.
-18. `npm run compile`, the automated test suite, and the same-window Extension Development Host visual checks pass with no red Problems diagnostics in touched files.
-19. Every required feature in Section 3 is implemented and validated; deferred features remain deferred. Existing host integration capabilities match the Phase 0 inventory without silently introducing a new general editor feature.
+- Table behavior, styling, recognition, cell rendering, or clipboard redesign.
+- A replacement editor, second persisted document, or new undo/synchronization system.
+- Preview-page typography, hidden source blocks, folding, large images, diagrams, math/media, or executable HTML.
+- New clipboard modes, code-copy overlays, image chips/previews, alert icons, footnote navigation, or extra indentation guides.
+- General find/replace, diagnostics, multi-cursor integration, split live editors, or unrelated indentation/wrapping/keybinding changes.
+- Exact GitHub website layout/tokenization or full Monaco syntax-theme/service parity.
 
-For geometry checks, use a tolerance of at most 0.5 CSS px after coordinate conversion. Record computed colors in normalized browser form and compare token values, not antialiased screenshot pixels. Before/after table checks use the frozen same-environment baseline; fractional border measurement must not be mistaken for permission to alter table styling.
+These boundaries apply to this phase, not permanently to the product. Future work must preserve the contracts or explicitly revise them with migration and regression evidence.
 
-## 10. Explicit non-goals for this phase
+## Appendix A. Semantic roles and GitHub reference
 
-- Making the editor look like GitHub’s rendered README view.
-- Enlarged preview-style headings.
-- Vertical document spacing based on semantic block type.
-- Full-size inline image, Mermaid, math, media, or arbitrary HTML rendering in the editing flow.
-- Collapsing source lines inside callouts, code blocks, or frontmatter.
-- A separate edit/preview mode.
-- Any table behavior, styling, rendering, or interaction change.
-- Showing recognized table source, even temporarily.
-- Any clipboard redesign, changed defaults, source-only default copy, new code-copy action, or change to existing conversion, MIME, paste, cut/move, or mixed-selection behavior.
-- New general find/replace, diagnostics, multi-cursor integration, or unrelated indentation/keybinding changes. Preserve any capability verified in Phase 0; absent capabilities need their own future design.
-- Image previews/chips, additional callout icons, footnote jump controls, arbitrary code-language downloads, and the other deferred enhancements in Section 3.
-- Adapting the specified colors to arbitrary VS Code themes. Unsupported themes retain the existing source presentation; the explicit heading mapping and forced-colors behavior are defined above.
+The previous design's GitHub values remain the visual reference, originally pinned to [Primer Primitives commit f48bc063f7bc0fb3e447386a8c259650ce46dea8](https://github.com/primer/primitives/tree/f48bc063f7bc0fb3e447386a8c259650ce46dea8). They do not authorize recoloring the workbench, tables, or user theme. Record/verify the installed GitHub theme version; a historical Primer pin need not exactly match every theme release.
 
-## 11. Design decision rule
-
-When requirements conflict, use this order:
-
-1. Keep recognized tables always rendered and preserve the existing table and clipboard implementations without visual or behavioral changes.
-2. Preserve non-table source correctness and editability.
-3. Preserve canonical line rhythm and gutter continuity.
-4. Preserve cursor, selection, clipboard, undo, and accessibility behavior.
-5. Match the pinned GitHub palette and source character within the explicit accessible heading mapping and supported appearance profile.
-6. Add friendly semantic rendering.
-
-If an enhancement cannot satisfy the first four priorities, leave that non-table syntax as styled source until a line-preserving interaction is designed. Do not resolve a conflict by exposing/restyling tables, changing clipboard behavior, or weakening the recorded baseline. Missing capabilities and optional enhancements require an explicit scope revision before implementation.
-
-## Appendix A. Pinned GitHub Dark Default palette and composition
-
-### A.1 Research baseline and fidelity rule
-
-The palette below is pinned to GitHub’s official Primer Primitives repository at commit [`f48bc063f7bc0fb3e447386a8c259650ce46dea8`](https://github.com/primer/primitives/tree/f48bc063f7bc0fb3e447386a8c259650ce46dea8). The relevant sources are the [default dark base palette](https://github.com/primer/primitives/blob/f48bc063f7bc0fb3e447386a8c259650ce46dea8/src/tokens/base/color/dark/dark.json5), [functional foreground/background/border tokens](https://github.com/primer/primitives/tree/f48bc063f7bc0fb3e447386a8c259650ce46dea8/src/tokens/functional/color), [Prettylights syntax tokens](https://github.com/primer/primitives/blob/f48bc063f7bc0fb3e447386a8c259650ce46dea8/src/tokens/functional/color/syntax.json5), and [CodeMirror component tokens](https://github.com/primer/primitives/blob/f48bc063f7bc0fb3e447386a8c259650ce46dea8/src/tokens/component/codeMirror.json5).
-
-The [GitHub VS Code Theme](https://github.com/primer/github-vscode-theme) is the host reference only. Its Markdown heading/list token assignments differ from Prettylights, so it must not be used to override these mappings. Record the installed theme version during visual QA. Exact palette fidelity does not imply identical tokenization to GitHub's website or its TextMate grammars.
-
-The pinned Prettylights heading color `#1f6feb` on `#0d1117` has approximately 4.08:1 contrast. This editor retains normal-size headings, so Section 5.1 deliberately uses `#4493f8` for heading foreground. The [W3C contrast guidance](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html) uses a 4.5:1 minimum for ordinary-size text; this spec does not treat bold 14px editor text as large text.
-
-These values are frozen implementation inputs for this phase. Hex-letter casing has no visual meaning; lowercase is used consistently below. Alpha colors are written as `rgba()` so their intended compositing is explicit.
-
-No new non-table Markdown color may be invented during implementation. If a missing visual role is discovered, it must be mapped to an existing color in these tables or added to this document from an official GitHub Primer token before use.
-
-### A.2 Foundation and editor colors
-
-| GitHub token or role | Exact value | Required use |
+| Role | Theme mapping / fallback | GitHub Dark reference |
 | --- | --- | --- |
-| `bgColor.default` | `#0d1117` | Reference editor canvas and ordinary source background |
-| `bgColor.muted` | `#151b23` | Fenced code background and recessed non-table rows |
-| `bgColor.inset` | `#010409` | Deep inset surface only when a true inset is required |
-| `control.bgColor.rest` | `#212830` | Unchecked task-control fill |
-| `control.bgColor.hover` | `#262c36` | Unchecked task-control hover fill |
-| `fgColor.default` | `#f0f6fc` | Plain prose, strong/emphasis content, primary source text |
-| `fgColor.muted` | `#9198a1` | Comments, secondary punctuation, quote markers, fence markers |
-| `fgColor.disabled` | `#656c76` | Disabled or unavailable control content only |
-| `fgColor.accent` / `fgColor.link` | `#4493f8` | Accessible heading foreground, link labels, interactive links, NOTE title/icon |
-| `bgColor.accent.emphasis` | `#1f6feb` | Checked-control fill and strong non-text blue edge |
-| `borderColor.default` | `#3d444d` | Code edges, rules, quote guides, unchecked controls |
-| `borderColor.muted` | `rgba(61, 68, 77, 0.70)` | Quiet indentation guides and secondary separators |
-| `codeMirror.selection.bgColor` | `rgba(56, 139, 253, 0.40)` | Non-table prose selection background |
-| `codeMirror.activeline.bgColor` | `rgba(101, 108, 118, 0.20)` | Active non-table source line background |
-| `codeMirror.cursor.fgColor` | `#f0f6fc` | Non-table text cursor |
-| `codeMirror.lineNumber.fgColor` | `#9198a1` | Reference gutter line-number color |
-| neutral muted fill | `rgba(101, 108, 118, 0.20)` | Inline-code fill and quiet generated-chip fill |
+| Canvas, ordinary text, gutter, cursor, selection, active line | Existing VS Code-derived implementation remains authoritative | Canvas `#0d1117`, text `#f0f6fc`; other roles follow host theme |
+| Heading/link label | `textLink.foreground`, then editor foreground | `#4493f8` |
+| Punctuation/comments | `descriptionForeground`, then editor foreground if contrast insufficient | `#9198a1` |
+| List marker | `editorWarning.foreground`, then link/ordinary foreground | `#f2cc60` |
+| Inline-code foreground / link destination | `textPreformat.foreground` / `textLink.foreground`, then editor foreground | `#a5d6ff` |
+| Inline-code surface | `textPreformat.background`, then transparent | `rgba(101, 108, 118, 0.20)` |
+| Code band | `textCodeBlock.background`, then editor background | `#151b23` |
+| Quote/rule/code edge | `textBlockQuote.border`, then `contrastBorder`, then host foreground outline as needed | `#3d444d` for decorative edges |
+| Task fill/mark/border | `checkbox.background`, `checkbox.foreground`, `checkbox.border`; distinct check mark and visible boundary | Dark unchecked fill; blue checked fill/white mark, subject to contrast |
+| Control focus | `focusBorder`, then `contrastActiveBorder`, then host foreground | `#4493f8`, no geometry change |
+| Alert NOTE/TIP/IMPORTANT/WARNING/CAUTION | `editorInfo.foreground` / `testing.iconPassed` / link foreground / `editorWarning.foreground` / `editorError.foreground`; fallback to foreground plus type label | `#4493f8` / `#3fb950` / `#ab7df8` / `#d29922` / `#f85149` |
 
-The existing editor and table implementation already own shared canvas, gutter, selection, and active-line styling. The values above define the target and may be applied to new non-table layers, but this phase must not recolor table-owned DOM or rewrite existing table tokens to achieve them.
+Token names become webview CSS variables by replacing dots with hyphens under `--vscode-`. Missing/transparent values need explicit fallbacks. Alert tints are optional low-opacity derivatives of the resolved accent, removed when contrast/selection suffers. Use one resolver, not isolated hardcoded rules.
 
-### A.3 GitHub Prettylights source colors
+For GitHub Dark reference code highlighting: comments `#9198a1`, constants/numbers `#79c0ff`, declarations/types `#d2a8ff`, keywords `#ff7b72`, strings/destinations `#a5d6ff`, variables/parameters `#ffa657`, tags/regex `#7ee787`. Unknown tags use ordinary foreground. YAML keys use variable; quoted values string; numeric/boolean/null scalars constant.
 
-| GitHub Prettylights token | Exact value | Markdown use in this editor |
-| --- | --- | --- |
-| `syntax.comment` | `#9198a1` | HTML comments and secondary comment-like text |
-| `syntax.constant` | `#79c0ff` | Constants, numbers, booleans, code language identifier |
-| `syntax.constantOtherReferenceLink` | `#a5d6ff` | URL destinations, reference destinations, autolinks |
-| `syntax.entityTag` | `#7ee787` | HTML tag names and regular-expression-like code tokens |
-| `syntax.entity` | `#d2a8ff` | Types, declarations, footnote identifiers where semantic distinction helps |
-| `syntax.storageModifierImport` | `#f0f6fc` | Ordinary code/source foreground |
-| `syntax.keyword` | `#ff7b72` | Code keywords; YAML numeric/boolean/null scalars use the explicit constant mapping in Section 5.13 |
-| `syntax.string` | `#a5d6ff` | Strings, link destinations, frontmatter string values |
-| `syntax.variable` | `#ffa657` | Variables, parameters, frontmatter keys |
-| `syntax.stringRegexp` | `#7ee787` | Regular expressions and comparable special string content |
-| `syntax.markup.list` | `#f2cc60` | Unordered markers, ordered markers, and list syntax |
-| `syntax.markup.heading` | `#1f6feb` | Frozen Prettylights reference only; editor heading foreground uses `fgColor.accent` as specified in Section 5.1 |
-| `syntax.markup.italic` | `#f0f6fc` | Emphasized content plus italic font style |
-| `syntax.markup.bold` | `#f0f6fc` | Strong content plus bold font weight |
-| `syntax.bracketHighlighterUnmatched` | `#f85149` | Clearly invalid or unmatched syntax when diagnostics are shown |
-| `syntax.bracketHighlighterAngle` | `#9198a1` | Angle brackets and quiet structural punctuation |
-| `syntax.sublimeLinterGutterMark` | `#3d444d` | Quiet structural marks and guide lines |
+Other themes use semantic UI roles for headings/links/controls and contrast-checked bundled light/dark code palettes. Centralize and record exact non-reference code palettes with Milestone 1 visual evidence; they are inputs to verify, not a reason to disable rendering. High-contrast uses host foreground/non-color distinctions where needed. Do not scrape theme files or rely on private workbench APIs to imitate TextMate colors.
 
-For the supported fenced-code languages in Section 7.2, use the Prettylights values above rather than the user's current VS Code syntax colors. Exact token colors are required; cross-grammar 1:1 token boundaries are not claimed. Missing or unknown grammars use ordinary editable code source.
-
-### A.4 Semantic and callout colors
-
-| Semantic role | Foreground/title | Strong edge | Muted row tint |
-| --- | --- | --- | --- |
-| NOTE / accent | `#4493f8` | `#1f6feb` | `rgba(56, 139, 253, 0.10)` |
-| TIP / success | `#3fb950` | `#238636` | `rgba(46, 160, 67, 0.15)` |
-| IMPORTANT / done | `#ab7df8` | `#8957e5` | `rgba(171, 125, 248, 0.15)` |
-| WARNING / attention | `#d29922` | `#9e6a03` | `rgba(187, 128, 9, 0.15)` |
-| CAUTION / danger | `#f85149` | `#da3633` | `rgba(248, 81, 73, 0.10)` |
-| Severe/urgent auxiliary state | `#db6d28` | `#bd561d` | `rgba(219, 109, 40, 0.10)` |
-
-The foreground, edge, and tint values are different official roles and must not be collapsed into a single approximate color.
-
-### A.5 Task-control colors
-
-| State | Fill | Border or mark |
-| --- | --- | --- |
-| Unchecked, resting | `#212830` | `#3d444d` border |
-| Unchecked, hover | `#262c36` | `#3d444d` border |
-| Checked, resting | `#1f6feb` | `#ffffff` check mark |
-| Checked, hover | `#2a7aef` | `#ffffff` check mark |
-| Checked, active | `#3685f3` | `#ffffff` check mark |
-| Keyboard focus | existing visible focus geometry with `#4493f8` color | no size change |
-
-### A.6 Overall visual composition
-
-Under the GitHub Dark Default reference theme, the page reads as a flat `#0d1117` source canvas with `#f0f6fc` monospace text. There are no preview-page cards and no large typographic jumps. Semantic structure appears through precise source color, font style, thin inset edges, and quiet row backgrounds.
-
-- Blue `#4493f8` headings are the strongest recurring structural signal; `#1f6feb` is reserved for strong non-text accents and checked-control fills.
-- Yellow `#f2cc60` list markers make list structure immediately scannable without turning the list into preview HTML.
-- Muted `#9198a1` punctuation remains present but recedes behind content.
-- Code areas form a compact `#151b23` band with `#3d444d` inset top and bottom edges.
-- Links use bright `#4493f8` labels and pale `#a5d6ff` destinations.
-- Callouts use one exact semantic color family while preserving every source row.
-- All corners are restrained. Where a one-line control needs rounding, use a maximum radius of `6px`; do not introduce pill-shaped content except for an explicitly icon-sized control.
-- Shadows are not part of the content design. Use only inset one-pixel edges needed to define code or control boundaries.
-- No non-table element receives vertical margin or block padding.
+The reference heading is `#4493f8`. Prettylights `#1f6feb` has approximately 4.08:1 contrast on `#0d1117`, insufficient for these normal-size headings. Quiet decorative borders alone may not identify a checkbox adequately: validate actual boundary/mark contrast and use a stronger host-derived outline where needed. Accessibility and theme ownership take precedence over literal reference colors.
