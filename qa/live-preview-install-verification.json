@@ -1,0 +1,47 @@
+{
+  "recordedAt": "2026-10-05T04:06:59.128Z",
+  "version": "0.1.176",
+  "installedDirectory": "C:\\Users\\thema\\.vscode\\extensions\\dan-homisak.markdown-live-render-tables-0.1.176",
+  "buildAndInstallExitCode": 0,
+  "livePreviewEnabledByDefault": true,
+  "payload": [
+    {
+      "file": "media/liveEditor.js",
+      "workspace": "6765ff3e86b530d0af68ae727efe85c8d3b32849458d83e83e4b658cdf34121a",
+      "installed": "6765ff3e86b530d0af68ae727efe85c8d3b32849458d83e83e4b658cdf34121a",
+      "matches": true
+    },
+    {
+      "file": "media/liveEditor.css",
+      "workspace": "d723462303a63558639efaf1d6b618f91b29b9cce06d1de8a2566bca1a100a66",
+      "installed": "d723462303a63558639efaf1d6b618f91b29b9cce06d1de8a2566bca1a100a66",
+      "matches": true
+    },
+    {
+      "file": "media/markdownPresentation.css",
+      "workspace": "c6e1e13555dff1ea1e7252eef5e18326485e1808201098c5ce3819aa67e43264",
+      "installed": "c6e1e13555dff1ea1e7252eef5e18326485e1808201098c5ce3819aa67e43264",
+      "matches": true
+    },
+    {
+      "file": "media/markdownBlocks.css",
+      "workspace": "9146e09562c67d373e26494a1fdba8c4344834d453bc648160622d2b231b714e",
+      "installed": "9146e09562c67d373e26494a1fdba8c4344834d453bc648160622d2b231b714e",
+      "matches": true
+    },
+    {
+      "file": "dist/extension.js",
+      "workspace": "db7e7a47d0c47feab1cbd6659c97b16d488bf1f901d2e6fcb7fa881950dfb7bb",
+      "installed": "db7e7a47d0c47feab1cbd6659c97b16d488bf1f901d2e6fcb7fa881950dfb7bb",
+      "matches": true
+    },
+    {
+      "file": "THIRD_PARTY_NOTICES.md",
+      "workspace": "3671aa1781bda0a211c7f9a981437212e1870b126d1f21d0d448af7e8301702c",
+      "installed": "3671aa1781bda0a211c7f9a981437212e1870b126d1f21d0d448af7e8301702c",
+      "matches": true
+    }
+  ],
+  "manifestMatchesExcludingVSCodeMetadata": true,
+  "allMatch": true
+}

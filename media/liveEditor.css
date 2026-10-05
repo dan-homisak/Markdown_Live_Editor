@@ -759,3 +759,86 @@ body,
   opacity: 0.4;
   cursor: default;
 }
+/* Non-table markers. Source text retains its exact advance. */
+:root {
+  --mlrt-markdown-marker: var(--vscode-editor-foreground, #d4d4d4);
+  --mlrt-markdown-edge: var(--vscode-textBlockQuote-border, var(--vscode-editor-foreground, #d4d4d4));
+  --mlrt-markdown-task-fill: var(--vscode-checkbox-background, var(--vscode-editor-background, #1e1e1e));
+  --mlrt-markdown-task-mark: var(--vscode-checkbox-foreground, var(--vscode-editor-foreground, #d4d4d4));
+  --mlrt-markdown-task-border: var(--vscode-checkbox-border, var(--vscode-editor-foreground, #d4d4d4));
+  --mlrt-markdown-focus: var(--vscode-focusBorder, var(--vscode-editor-foreground, #d4d4d4));
+}
+.cm-content .mlrt-markdown-marker {
+  position: relative;
+  color: transparent;
+  text-shadow: none;
+}
+.cm-content .mlrt-markdown-bullet::after {
+  content: "•";
+  position: absolute;
+  inset: 0;
+  color: var(--mlrt-markdown-marker);
+  text-align: center;
+  pointer-events: none;
+}
+.cm-content .mlrt-markdown-rule-row { position: relative; }
+.cm-content .mlrt-markdown-rule-row::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--mlrt-markdown-edge);
+  pointer-events: none;
+}
+.cm-content .mlrt-markdown-task-anchor {
+  position: absolute;
+  z-index: 1;
+  width: 0;
+  height: 0;
+}
+.cm-content .mlrt-markdown-task-control {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--mlrt-markdown-task-mark);
+  cursor: pointer;
+  font: inherit;
+  outline-offset: -1px;
+}
+.cm-content .mlrt-markdown-task-control::after {
+  content: "";
+  display: block;
+  width: 1em;
+  height: 1em;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--mlrt-markdown-task-border);
+  border-radius: 3px;
+  background: var(--mlrt-markdown-task-fill);
+  line-height: 0.85em;
+  text-align: center;
+}
+.cm-content .mlrt-markdown-task-control[aria-checked="true"]::after {
+  content: "✓";
+  color: #fff;
+  border-color: var(--vscode-button-background, #7852ee);
+  background: var(--vscode-button-background, #7852ee);
+  font-weight: 700;
+}
+.cm-content .mlrt-markdown-task-complete { text-decoration: line-through; color: var(--vscode-descriptionForeground, inherit); }
+.cm-content .mlrt-markdown-task-complete .mlrt-markdown-task-control { text-decoration: none; }
+.cm-content .mlrt-markdown-task-control:focus-visible { outline: 1px solid var(--mlrt-markdown-focus); }
+.cm-content .mlrt-markdown-task-control[aria-disabled="true"] { cursor: default; }
+@media (forced-colors: active) {
+  .cm-content .mlrt-markdown-task-control::after { color: ButtonText; background: Canvas; border-color: ButtonText; }
+  .cm-content .mlrt-markdown-task-control:focus-visible { outline-color: Highlight; }
+}

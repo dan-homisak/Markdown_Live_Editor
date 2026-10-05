@@ -1,0 +1,448 @@
+Using Electron DevTools port 9554
+Saved qa\edh-stock.png
+STOCK METRICS: {
+  hasMonaco: true,
+  editor: {
+    left: 52.79999923706055,
+    right: 902.7999992370605,
+    top: 90.80000305175781,
+    bottom: 770.8000030517578,
+    width: 850,
+    height: 680
+  },
+  margin: {
+    left: 52.79999923706055,
+    right: 120.79999923706055,
+    top: 90.80000305175781,
+    bottom: 1416.8000030517578,
+    width: 68,
+    height: 1326
+  },
+  content: {
+    left: 120.80000305175781,
+    right: 902.8000030517578,
+    top: 90.80000305175781,
+    bottom: 770.8000030517578,
+    width: 782,
+    height: 680
+  },
+  firstLine: {
+    left: 120.80000305175781,
+    right: 822.8000030517578,
+    top: 90.80000305175781,
+    bottom: 109.80000305175781,
+    width: 702,
+    height: 19
+  },
+  firstLineText: {
+    left: 120.80000305175781,
+    right: 251.66250610351562,
+    top: 91.5999984741211,
+    bottom: 107.5999984741211,
+    width: 130.8625030517578,
+    height: 16
+  },
+  firstLineNumber: {
+    left: 71.80000305175781,
+    right: 94.80000305175781,
+    top: 90.80000305175781,
+    bottom: 109.80000305175781,
+    width: 23,
+    height: 19
+  },
+  firstLineNumberText: {
+    left: 87.0999984741211,
+    right: 94.80000305175781,
+    top: 91.5999984741211,
+    bottom: 107.5999984741211,
+    width: 7.700004577636719,
+    height: 16
+  },
+  activeLine: {
+    left: 120.80000305175781,
+    right: 822.8000030517578,
+    top: 90.80000305175781,
+    bottom: 109.80000305175781,
+    width: 702,
+    height: 19
+  },
+  activeLineMargin: null,
+  activeLineMarginBackground: null,
+  firstLineFontFamily: 'Consolas, "Courier New", monospace',
+  firstLineFontSize: '14px',
+  firstLineLineHeight: '19px'
+}
+Saved qa\edh-live.png
+Webview-ish targets: [
+  'vscode-webview://0eqhaelqi5nfjqcsomp4a3110h3lndla62o0ehak8sdrsu1jnarq/index.html?id=e4a5a5a8-f746-4d2f-88e3-0132f2433b99&parentId=1&origin=51c493cf-c6de-44b5-97fd-ff2aa03cd907&swVersion=6&extensionId=dan-homisak.markdown-live-render-tables&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app',
+  'vscode-webview://0eqhaelqi5nfjqcsomp4a3110h3lndla62o0ehak8sdrsu1jnarq/service-worker.js?v=6&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&remoteAuthority=&platform=electron'
+]
+LIVE METRICS: {
+  url: 'vscode-webview://0eqhaelqi5nfjqcsomp4a3110h3lndla62o0ehak8sdrsu1jnarq/index.html',
+  devicePixelRatio: 1.25,
+  visualViewportScale: 1,
+  tableZoom: '1',
+  editorZoom: '1',
+  tableBorderCollapse: 'separate',
+  tableBorderSpacing: '0px',
+  borderReferences: {
+    '0': { authoredWidth: '0px', borders: [Object], box: [Object] },
+    '1': { authoredWidth: '1px', borders: [Object], box: [Object] },
+    '2': { authoredWidth: '2px', borders: [Object], box: [Object] }
+  },
+  tableBorderCells: [
+    {
+      rowKind: 'header',
+      rowIndex: '0',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'header',
+      rowIndex: '0',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '0',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '0',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'header',
+      rowIndex: '0',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'header',
+      rowIndex: '0',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'header',
+      rowIndex: '0',
+      column: 2,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '0',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '0',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '0',
+      column: 2,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '1',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '1',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '1',
+      column: 2,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '2',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '2',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '2',
+      column: 2,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '3',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '3',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '3',
+      column: 2,
+      borders: [Object],
+      styles: [Object]
+    }
+  ],
+  tableGutterBorders: [
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' }
+  ],
+  scrollerClientWidth: 835,
+  scrollerScrollWidth: 835,
+  overflow: false,
+  scroller: {
+    left: 0,
+    right: 850.4000244140625,
+    top: 0,
+    bottom: 681.6000366210938,
+    width: 850.4000244140625,
+    height: 681.6000366210938
+  },
+  gutter: {
+    left: 0,
+    right: 68.32500457763672,
+    top: 0,
+    bottom: 1292.9000244140625,
+    width: 68.32500457763672,
+    height: 1292.9000244140625
+  },
+  lineNumber: {
+    left: 19.23750114440918,
+    right: 68.32500267028809,
+    top: 0,
+    bottom: 18.899999618530273,
+    width: 49.087501525878906,
+    height: 18.899999618530273
+  },
+  lineNumberText: {
+    left: 34.625,
+    right: 42.32500076293945,
+    top: 0.800000011920929,
+    bottom: 16.80000191926956,
+    width: 7.700000762939453,
+    height: 16.000001907348633
+  },
+  line: {
+    left: 68.32500457763672,
+    right: 809.3250045776367,
+    top: 0,
+    bottom: 18.899999618530273,
+    width: 741,
+    height: 18.899999618530273
+  },
+  lineText: {
+    left: 68.32500457763672,
+    right: 199.18749237060547,
+    top: 0.800000011920929,
+    bottom: 16.80000191926956,
+    width: 130.86248779296875,
+    height: 16.000001907348633
+  },
+  activeLine: {
+    left: 68.32500457763672,
+    right: 809.3250045776367,
+    top: 0,
+    bottom: 18.899999618530273,
+    width: 741,
+    height: 18.899999618530273
+  },
+  activeLineGutter: {
+    left: 19.23750114440918,
+    right: 68.32500267028809,
+    top: 0,
+    bottom: 18.899999618530273,
+    width: 49.087501525878906,
+    height: 18.899999618530273
+  },
+  activeLineGutterBackground: 'rgba(0, 0, 0, 0)',
+  tableScroll: {
+    left: 0.32500001788139343,
+    right: 809.3250000178814,
+    top: 226.8000030517578,
+    bottom: 323.7000045776367,
+    width: 809,
+    height: 96.9000015258789
+  },
+  tableScrollClientWidth: 809,
+  tableScrollScrollWidth: 809,
+  tableScrollOverflow: false,
+  tableScrollLeft: 0,
+  tableScrollbar: { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 },
+  tableScrollbarHidden: true,
+  table: {
+    left: 0.32500001788139343,
+    right: 803.4125244319439,
+    top: 226.8000030517578,
+    bottom: 323.7000045776367,
+    width: 803.0875244140625,
+    height: 96.9000015258789
+  },
+  sourceLine: {
+    left: 0.32500001788139343,
+    right: 68.3250000178814,
+    top: 226.8000030517578,
+    bottom: 247.3000030517578,
+    width: 68,
+    height: 20.5
+  },
+  sourceLineText: {
+    left: 26.92500114440918,
+    right: 42.32500076293945,
+    top: 227.60000610351562,
+    bottom: 243.60000610351562,
+    width: 15.399999618530273,
+    height: 16
+  },
+  tableCell: {
+    left: 68.32500457763672,
+    right: 118.35000610351562,
+    top: 226.8000030517578,
+    bottom: 247.3000030517578,
+    width: 50.025001525878906,
+    height: 20.5
+  },
+  tableCellText: {
+    left: 76.8125,
+    right: 99.9124984741211,
+    top: 228.40000915527344,
+    bottom: 244.40000915527344,
+    width: 23.099998474121094,
+    height: 16
+  },
+  headerCellBorders: { top: '0.8px', right: '0.8px', bottom: '0.8px', left: '0.8px' },
+  bodyCellBorders: { top: '0px', right: '0.8px', bottom: '0.8px', left: '0.8px' },
+  tableSourceLineNumber: 13,
+  lineFontFamily: 'Consolas, "Courier New", monospace',
+  lineFontSize: '14px',
+  lineLineHeight: '18.9px',
+  cssLiveGutterWidth: '68px'
+}
+BORDER REFERENCES: {"devicePixelRatio":1.25,"visualViewportScale":1,"references":{"0":{"authoredWidth":"0px","borders":{"top":"0px","right":"0px","bottom":"0px","left":"0px"},"box":{"left":-10000,"right":-9900,"top":0,"bottom":100,"width":100,"height":100}},"1":{"authoredWidth":"1px","borders":{"top":"0.8px","right":"0.8px","bottom":"0.8px","left":"0.8px"},"box":{"left":-10000,"right":-9898.400001525879,"top":0,"bottom":101.5999984741211,"width":101.5999984741211,"height":101.5999984741211}},"2":{"authoredWidth":"2px","borders":{"top":"1.6px","right":"1.6px","bottom":"1.6px","left":"1.6px"},"box":{"left":-10000,"right":-9896.799995422363,"top":0,"bottom":103.20000457763672,"width":103.20000457763672,"height":103.20000457763672}}}}
+TABLE BORDER CHECKS: { cells: 19, gutters: 7, failures: [] }
+PIXEL CHECKS: [
+  {
+    name: 'gutter width',
+    expected: 68,
+    actual: 68.32500457763672,
+    delta: 0.32500457763671875,
+    pass: true
+  },
+  {
+    name: 'content left',
+    expected: 120.80000305175781,
+    actual: 121.12500381469727,
+    delta: 0.3250007629394531,
+    pass: true
+  },
+  {
+    name: 'first glyph left',
+    expected: 120.80000305175781,
+    actual: 121.12500381469727,
+    delta: 0.3250007629394531,
+    pass: true
+  },
+  {
+    name: 'line-number glyph right',
+    expected: 94.80000305175781,
+    actual: 95.125,
+    delta: 0.3249969482421875,
+    pass: true
+  },
+  {
+    name: 'table content left',
+    expected: 120.80000305175781,
+    actual: 121.12500381469727,
+    delta: 0.3250007629394531,
+    pass: true
+  },
+  { name: 'font size', expected: 14, actual: 14, delta: 0, pass: true },
+  {
+    name: 'line height',
+    expected: 19,
+    actual: 18.9,
+    delta: 0.10000000000000142,
+    pass: true
+  },
+  {
+    name: 'right padding',
+    expected: 26,
+    actual: 25.67499542236328,
+    delta: 0.32500457763671875,
+    pass: true
+  },
+  {
+    name: 'table top rhythm',
+    expected: 226.79999999999998,
+    actual: 226.8000030517578,
+    delta: 0.0000030517578295530257,
+    pass: true
+  }
+]
+TABLE GLOBAL UNDO BRIDGE CHECK: {
+  ok: true,
+  keyChanged: true,
+  valueChanged: true,
+  outsideExecResult: true,
+  outsideChanged: true,
+  undoOutsideMatched: true,
+  undoValueMatched: true,
+  undoKeyMatched: true,
+  afterUndoOutsideDocMatches: true,
+  afterUndoValueDocMatches: true,
+  afterUndoKeyDocMatches: true,
+  afterUndoOutsideStillHasOutside: false,
+  afterUndoOutsideEqualsBefore: false,
+  afterUndoValueStillHasKey: false,
+  afterUndoValueStillHasOutside: false,
+  afterUndoValueEqualsBefore: false,
+  afterUndoKeyStillHasKey: false,
+  afterUndoKeyStillHasOutside: false,
+  finalRestored: true
+}

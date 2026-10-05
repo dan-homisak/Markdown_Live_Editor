@@ -126,6 +126,17 @@ async function verifyInstalledPayload(version) {
     ["media/liveEditor.js", "measureAvailableDataWidthCh"],
     ["media/liveEditor.js", "primeTableLayoutForMount"],
     ["media/liveEditor.js", "normalizeDocumentText"],
+    ["media/liveEditor.js", "createMarkdownPresentationExtensions"],
+    ["media/liveEditor.js", "createMarkdownBlockExtensions"],
+    ["media/liveEditor.js", "createMarkdownLivePreviewExtensions"],
+    ["media/liveEditor.js", "createMarkdownListEditing"],
+    ["media/liveEditor.js", "markdownWikiExtension"],
+    ["media/liveEditor.js", "mlrt-preview-code-copy"],
+    ["media/liveEditor.js", "openMarkdownLinkAtCaret"],
+    ["media/markdownPresentation.css", "mlrt-markdown-inline-code"],
+    ["media/markdownBlocks.css", "mlrt-markdown-block-code"],
+    ["media/markdownBlocks.css", "mlrt-preview-code-header"],
+    ["media/markdownBlocks.css", "mlrt-preview-properties"],
     ["media/liveEditor.css", "table-layout: fixed"],
     ["media/liveEditor.css", "mlrt-table-source-line"],
     ["media/liveEditor.css", "mlrt-live-content-width"],
@@ -139,6 +150,10 @@ async function verifyInstalledPayload(version) {
     if (!content.includes(marker)) {
       throw new Error(`Installed ${relativePath} does not contain expected marker: ${marker}`);
     }
+  }
+  const installedManifest = JSON.parse(await readFile(path.join(installedDir, "package.json"), "utf8"));
+  if (installedManifest.contributes.configuration.properties["markdownLiveRenderTables.markdownRendering.enabled"].default !== true) {
+    throw new Error("Installed extension must enable the completed Markdown rendering by default.");
   }
 }
 

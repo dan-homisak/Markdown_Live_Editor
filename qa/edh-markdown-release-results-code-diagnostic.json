@@ -1,0 +1,28 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-Mde1R7",
+  "port": 62070,
+  "checks": [
+    {
+      "name": "all bundled code languages, blank rows and unknown fallback",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: shell: {\"position\":996,\"text\":\"e\",\"classes\":\"mlrt-markdown-block-token-variable\",\"line\":\"echo \\\"$HOME\\\"\",\"lineClasses\":\"cm-line\",\"fontSize\":\"14px\",\"fontFamily\":\"Consolas, \\\"Courier New\\\", monospace\",\"lineHeight\":\"18.9px\",\"fontWeight\":\"400\",\"fontStyle\":\"normal\",\"color\":\"rgb(255, 166, 87)\",\"background\":\"rgba(0, 0, 0, 0)\",\"decoration\":\"none\",\"x\":68.32500457763672,\"y\":661.2999877929688,\"height\":16,\"diagnostic\":{\"lineFrom\":996,\"lineTo\":1008,\"visible\":[{\"from\":0,\"to\":1062}],\"blockWindows\":\"0:1062\",\"blockTree\":\"Document(MarkdownFrontmatter(MarkdownFrontmatterMark,MarkdownFrontmatterContent,MarkdownFrontmatterMark),ATXHeading2(HeaderMark,StrongEmphasis(EmphasisMark,EmphasisMark),Link(LinkMark,LinkMark,LinkMark,URL,LinkTitle,LinkMark),InlineCode(CodeMark,CodeMark),HeaderMark),SetextHeading1(Emphasis(EmphasisMark,EmphasisMark),HeaderMark),Paragraph(StrongEmphasis(EmphasisMark,EmphasisMark),Emphasis(EmphasisMark,EmphasisMark),Emphasis(EmphasisMark,StrongEmphasis(EmphasisMark,EmphasisMark),EmphasisMark),Strikethrough(StrikethroughMark,Emphasis(EmphasisMark,EmphasisMark),StrikethroughMark),InlineCode(CodeMark,CodeMark),HTMLTag,StrongEmphasis(EmphasisMark,EmphasisMark),HTMLTag,Comment,Link(LinkMark,LinkMark,LinkMark,URL,LinkMark),Link(LinkMark,LinkMark,LinkMark,URL,LinkMark),Image(LinkMark,LinkMark,LinkMark,URL,LinkMark),Autolink(LinkMark,URL,LinkMark),Link(LinkMark,LinkMark,LinkLabel),Link(LinkMark,LinkMark),Strikethrough(StrikethroughMark,Link(LinkMark,LinkMark,LinkMark,URL,LinkMark),StrikethroughMark)),BulletList(ListItem(ListMark,Task(TaskMarker)),ListItem(ListMark,Paragraph)),Blockquote(QuoteMark,Paragraph,QuoteMark,Blockquote(QuoteMark,Paragraph(QuoteMark))),Blockquote(QuoteMark,Paragraph(Link(LinkMark,LinkMark),QuoteMark)),Blockquote(QuoteMark,Paragraph(Link(LinkMark,LinkMark),QuoteMark)),Blockquote(QuoteMark,Paragraph(Link(LinkMark,LinkMark),QuoteMark)),Blockquote(QuoteMark,Paragraph(Link(LinkMark,LinkMark),QuoteMark)),Blockquote(QuoteMark,Paragraph(Link(LinkMark,LinkMark),QuoteMark)),FencedCode(CodeMark,CodeInfo,CodeText,CodeMark),FencedCode(CodeMark,CodeInfo,CodeText,CodeMark),FencedCode(CodeMark,CodeInfo,CodeText,CodeMark),FencedCode(CodeMark,CodeInfo,CodeText,CodeMark),FencedCode(CodeMark,CodeInfo,CodeText,CodeMark),FencedCode(CodeMark,CodeInfo,CodeText,CodeMark),FencedCode(CodeMark,CodeInfo,CodeText,CodeMark),CodeBlock(CodeText),Paragraph(StrongEmphasis(EmphasisMark,EmphasisMark),Link(LinkMark,LinkMark,LinkMark,URL,LinkMark),HTMLTag,HTMLTag),HTMLBlock,Paragraph)\",\"ranges\":[{\"from\":996,\"to\":996,\"spec\":{\"class\":\"mlrt-markdown-block-code\"}},{\"from\":996,\"to\":1000,\"spec\":{\"class\":\"mlrt-markdown-block-token-variable\"}},{\"from\":1001,\"to\":1002,\"spec\":{\"class\":\"mlrt-markdown-block-token-string\"}},{\"from\":1002,\"to\":1007,\"spec\":{\"class\":\"mlrt-markdown-block-token-variable\"}},{\"from\":1007,\"to\":1008,\"spec\":{\"class\":\"mlrt-markdown-block-token-string\"}},{\"from\":980,\"to\":1008,\"spec\":{\"class\":\"mlrt-markdown-block-code-source\"}}]},\"afterRemovingMultilineCodeSource\":{\"position\":996,\"text\":\"e\",\"classes\":\"mlrt-markdown-block-token-variable\",\"line\":\"echo \\\"$HOME\\\"\",\"lineClasses\":\"cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code\",\"fontSize\":\"14px\",\"fontFamily\":\"Consolas, \\\"Courier New\\\", monospace\",\"lineHeight\":\"18.9px\",\"fontWeight\":\"400\",\"fontStyle\":\"normal\",\"color\":\"rgb(255, 166, 87)\",\"background\":\"rgba(0, 0, 0, 0)\",\"decoration\":\"none\",\"x\":68.32500457763672,\"y\":661.2999877929688,\"height\":16}}"
+    }
+  ],
+  "environment": {
+    "stock": {
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "19px",
+      "dpr": 1.25,
+      "width": 1204,
+      "height": 804
+    }
+  },
+  "limitations": [
+    "OS IME and an actual screen reader are not exercised by this automated script.",
+    "Forced colors uses Chromium emulation, not a changed Windows system theme."
+  ],
+  "finalSourceMatches": true,
+  "console": [],
+  "passed": false
+}

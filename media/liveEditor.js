@@ -1,10 +1,246 @@
 "use strict";
 (() => {
   var __defProp = Object.defineProperty;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __commonJS = (cb, mod) => function __require() {
+    try {
+      return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    } catch (e) {
+      throw mod = 0, e;
+    }
+  };
   var __export = (target, all) => {
     for (var name2 in all)
       __defProp(target, name2, { get: all[name2], enumerable: true });
   };
+
+  // node_modules/@codemirror/legacy-modes/mode/shell.cjs
+  var require_shell = __commonJS({
+    "node_modules/@codemirror/legacy-modes/mode/shell.cjs"(exports) {
+      "use strict";
+      Object.defineProperty(exports, "__esModule", { value: true });
+      var words = {};
+      function define(style, dict) {
+        for (var i2 = 0; i2 < dict.length; i2++) {
+          words[dict[i2]] = style;
+        }
+      }
+      var commonAtoms = ["true", "false"];
+      var commonKeywords = [
+        "if",
+        "then",
+        "do",
+        "else",
+        "elif",
+        "while",
+        "until",
+        "for",
+        "in",
+        "esac",
+        "fi",
+        "fin",
+        "fil",
+        "done",
+        "exit",
+        "set",
+        "unset",
+        "export",
+        "function"
+      ];
+      var commonCommands = [
+        "ab",
+        "awk",
+        "bash",
+        "beep",
+        "cat",
+        "cc",
+        "cd",
+        "chown",
+        "chmod",
+        "chroot",
+        "clear",
+        "cp",
+        "curl",
+        "cut",
+        "diff",
+        "echo",
+        "find",
+        "gawk",
+        "gcc",
+        "get",
+        "git",
+        "grep",
+        "hg",
+        "kill",
+        "killall",
+        "ln",
+        "ls",
+        "make",
+        "mkdir",
+        "openssl",
+        "mv",
+        "nc",
+        "nl",
+        "node",
+        "npm",
+        "ping",
+        "ps",
+        "restart",
+        "rm",
+        "rmdir",
+        "sed",
+        "service",
+        "sh",
+        "shopt",
+        "shred",
+        "source",
+        "sort",
+        "sleep",
+        "ssh",
+        "start",
+        "stop",
+        "su",
+        "sudo",
+        "svn",
+        "tee",
+        "telnet",
+        "top",
+        "touch",
+        "vi",
+        "vim",
+        "wall",
+        "wc",
+        "wget",
+        "who",
+        "write",
+        "yes",
+        "zsh"
+      ];
+      define("atom", commonAtoms);
+      define("keyword", commonKeywords);
+      define("builtin", commonCommands);
+      function tokenBase(stream, state) {
+        if (stream.eatSpace()) return null;
+        var sol = stream.sol();
+        var ch = stream.next();
+        if (ch === "\\") {
+          stream.next();
+          return null;
+        }
+        if (ch === "'" || ch === '"' || ch === "`") {
+          state.tokens.unshift(tokenString(ch, ch === "`" ? "quote" : "string"));
+          return tokenize(stream, state);
+        }
+        if (ch === "#") {
+          if (sol && stream.eat("!")) {
+            stream.skipToEnd();
+            return "meta";
+          }
+          stream.skipToEnd();
+          return "comment";
+        }
+        if (ch === "$") {
+          state.tokens.unshift(tokenDollar);
+          return tokenize(stream, state);
+        }
+        if (ch === "+" || ch === "=") {
+          return "operator";
+        }
+        if (ch === "-") {
+          stream.eat("-");
+          stream.eatWhile(/\w/);
+          return "attribute";
+        }
+        if (ch == "<") {
+          if (stream.match("<<")) return "operator";
+          var heredoc = stream.match(/^<-?\s*(?:['"]([^'"]*)['"]|([^'"\s]*))/);
+          if (heredoc) {
+            state.tokens.unshift(tokenHeredoc(heredoc[1] || heredoc[2]));
+            return "string.special";
+          }
+        }
+        if (/\d/.test(ch)) {
+          stream.eatWhile(/\d/);
+          if (stream.eol() || !/\w/.test(stream.peek())) {
+            return "number";
+          }
+        }
+        stream.eatWhile(/[\w-]/);
+        var cur = stream.current();
+        if (stream.peek() === "=" && /\w+/.test(cur)) return "def";
+        return words.hasOwnProperty(cur) ? words[cur] : null;
+      }
+      function tokenString(quote, style) {
+        var close = quote == "(" ? ")" : quote == "{" ? "}" : quote;
+        return function(stream, state) {
+          var next2, escaped = false;
+          while ((next2 = stream.next()) != null) {
+            if (next2 === close && !escaped) {
+              state.tokens.shift();
+              break;
+            } else if (next2 === "$" && !escaped && quote !== "'" && stream.peek() != close) {
+              escaped = true;
+              stream.backUp(1);
+              state.tokens.unshift(tokenDollar);
+              break;
+            } else if (!escaped && quote !== close && next2 === quote) {
+              state.tokens.unshift(tokenString(quote, style));
+              return tokenize(stream, state);
+            } else if (!escaped && /['"]/.test(next2) && !/['"]/.test(quote)) {
+              state.tokens.unshift(tokenStringStart(next2, "string"));
+              stream.backUp(1);
+              break;
+            }
+            escaped = !escaped && next2 === "\\";
+          }
+          return style;
+        };
+      }
+      function tokenStringStart(quote, style) {
+        return function(stream, state) {
+          state.tokens[0] = tokenString(quote, style);
+          stream.next();
+          return tokenize(stream, state);
+        };
+      }
+      var tokenDollar = function(stream, state) {
+        if (state.tokens.length > 1) stream.eat("$");
+        var ch = stream.next();
+        if (/['"({]/.test(ch)) {
+          state.tokens[0] = tokenString(ch, ch == "(" ? "quote" : ch == "{" ? "def" : "string");
+          return tokenize(stream, state);
+        }
+        if (!/\d/.test(ch)) stream.eatWhile(/\w/);
+        state.tokens.shift();
+        return "def";
+      };
+      function tokenHeredoc(delim) {
+        return function(stream, state) {
+          if (stream.sol() && stream.string == delim) state.tokens.shift();
+          stream.skipToEnd();
+          return "string.special";
+        };
+      }
+      function tokenize(stream, state) {
+        return (state.tokens[0] || tokenBase)(stream, state);
+      }
+      var shell2 = {
+        name: "shell",
+        startState: function() {
+          return { tokens: [] };
+        },
+        token: function(stream, state) {
+          return tokenize(stream, state);
+        },
+        languageData: {
+          autocomplete: commonAtoms.concat(commonKeywords, commonCommands),
+          closeBrackets: { brackets: ["(", "[", "{", "'", '"', "`"] },
+          commentTokens: { line: "#" }
+        }
+      };
+      exports.shell = shell2;
+    }
+  });
 
   // node_modules/@marijn/find-cluster-break/src/index.js
   var rangeFrom = [];
@@ -2483,13 +2719,13 @@
     transactions.
     */
     static create(config2 = {}) {
-      let configuration = Configuration.resolve(config2.extensions || [], /* @__PURE__ */ new Map());
-      let doc2 = config2.doc instanceof Text2 ? config2.doc : Text2.of((config2.doc || "").split(configuration.staticFacet(_EditorState.lineSeparator) || DefaultSplit));
+      let configuration2 = Configuration.resolve(config2.extensions || [], /* @__PURE__ */ new Map());
+      let doc2 = config2.doc instanceof Text2 ? config2.doc : Text2.of((config2.doc || "").split(configuration2.staticFacet(_EditorState.lineSeparator) || DefaultSplit));
       let selection = !config2.selection ? EditorSelection.single(0) : config2.selection instanceof EditorSelection ? config2.selection : EditorSelection.single(config2.selection.anchor, config2.selection.head);
       checkSelection(selection, doc2.length);
-      if (!configuration.staticFacet(allowMultipleSelections))
+      if (!configuration2.staticFacet(allowMultipleSelections))
         selection = selection.asSingle();
-      return new _EditorState(configuration, doc2, selection, configuration.dynamicSlots.map(() => null), (state, slot) => slot.create(state), null);
+      return new _EditorState(configuration2, doc2, selection, configuration2.dynamicSlots.map(() => null), (state, slot) => slot.create(state), null);
     }
     /**
     The size (in columns) of a tab in the document, determined by
@@ -6026,9 +6262,9 @@
     }
   };
   var TileUpdate = class {
-    constructor(view2, old, blockWrappers2, decorations2, disallowBlockEffectsFor) {
+    constructor(view2, old, blockWrappers2, decorations3, disallowBlockEffectsFor) {
       this.view = view2;
-      this.decorations = decorations2;
+      this.decorations = decorations3;
       this.disallowBlockEffectsFor = disallowBlockEffectsFor;
       this.openWidget = false;
       this.openMarks = 0;
@@ -8686,7 +8922,7 @@
     decomposeRight(_from, result) {
       result.push(this);
     }
-    applyChanges(decorations2, oldDoc, oracle, changes) {
+    applyChanges(decorations3, oldDoc, oracle, changes) {
       let me = this, doc2 = oracle.doc;
       for (let i2 = changes.length - 1; i2 >= 0; i2--) {
         let { fromA, toA, fromB, toB } = changes[i2];
@@ -8703,7 +8939,7 @@
         }
         fromB += start.from - fromA;
         fromA = start.from;
-        let nodes = NodeBuilder.build(oracle.setDoc(doc2), decorations2, fromB, toB);
+        let nodes = NodeBuilder.build(oracle.setDoc(doc2), decorations3, fromB, toB);
         me = replace(me, me.replace(fromA, toA, nodes));
       }
       return me.updateHeight(oracle, 0);
@@ -9211,9 +9447,9 @@
     // The returned array uses null to indicate line breaks, but never
     // starts or ends in a line break, or has multiple line breaks next
     // to each other.
-    static build(oracle, decorations2, from, to) {
+    static build(oracle, decorations3, from, to) {
       let builder = new _NodeBuilder(from, oracle);
-      RangeSet.spans(decorations2, from, to, builder, 0);
+      RangeSet.spans(decorations3, from, to, builder, 0);
       return builder.finish(from);
     }
   };
@@ -9300,10 +9536,10 @@
     }
   };
   var LineGapWidget = class extends WidgetType {
-    constructor(size, vertical) {
+    constructor(size, vertical2) {
       super();
       this.size = size;
-      this.vertical = vertical;
+      this.vertical = vertical2;
     }
     eq(other) {
       return other.size == this.size && other.vertical == this.vertical;
@@ -12933,11 +13169,11 @@
   NodeProp.lookAhead = new NodeProp({ perNode: true });
   NodeProp.mounted = new NodeProp({ perNode: true });
   var MountedTree = class {
-    constructor(tree, overlay, parser5, bracketed = false) {
+    constructor(tree, overlay, parser9, bracketed2 = false) {
       this.tree = tree;
       this.overlay = overlay;
-      this.parser = parser5;
-      this.bracketed = bracketed;
+      this.parser = parser9;
+      this.bracketed = bracketed2;
     }
     /**
     @internal
@@ -14124,9 +14360,9 @@
   }
   function buildTree(data2) {
     var _a3;
-    let { buffer, nodeSet, maxBufferLength = DefaultBufferLength, reused = [], minRepeatType = nodeSet.types.length } = data2;
+    let { buffer, nodeSet: nodeSet2, maxBufferLength = DefaultBufferLength, reused = [], minRepeatType = nodeSet2.types.length } = data2;
     let cursor = Array.isArray(buffer) ? new FlatBufferCursor(buffer, buffer.length) : buffer;
-    let types2 = nodeSet.types;
+    let types2 = nodeSet2.types;
     let contextHash = 0, lookAhead = 0;
     function takeNode(parentStart, minPos, children2, positions2, inRepeat, depth) {
       let { id: id2, start, end, size } = cursor;
@@ -14155,7 +14391,7 @@
         let endPos = cursor.pos - buffer2.size, index = data3.length;
         while (cursor.pos > endPos)
           index = copyToBuffer(buffer2.start, data3, index);
-        node = new TreeBuffer(data3, end - buffer2.start, nodeSet);
+        node = new TreeBuffer(data3, end - buffer2.start, nodeSet2);
         startPos = buffer2.start - parentStart;
       } else {
         let endPos = cursor.pos - size;
@@ -14217,7 +14453,7 @@
           buffer2[j++] = nodes[i2 + 2] - start;
           buffer2[j++] = j;
         }
-        children2.push(new TreeBuffer(buffer2, nodes[2] - start, nodeSet));
+        children2.push(new TreeBuffer(buffer2, nodes[2] - start, nodeSet2));
         positions2.push(start - parentStart);
       }
     }
@@ -14239,7 +14475,7 @@
         localChildren.push(children2.pop());
         localPositions.push(positions2.pop() + base3 - from);
       }
-      children2.push(makeTree(nodeSet.types[type], localChildren, localPositions, to - from, lookAhead2 - to, contextHash2));
+      children2.push(makeTree(nodeSet2.types[type], localChildren, localPositions, to - from, lookAhead2 - to, contextHash2));
       positions2.push(from - base3);
     }
     function makeTree(type, children2, positions2, length2, lookAhead2, contextHash2, props) {
@@ -14552,11 +14788,11 @@
     return (parse, input, fragments, ranges) => new MixedParse(parse, nest, input, fragments, ranges);
   }
   var InnerParse = class {
-    constructor(parser5, parse, overlay, bracketed, target, from) {
-      this.parser = parser5;
+    constructor(parser9, parse, overlay, bracketed2, target, from) {
+      this.parser = parser9;
       this.parse = parse;
       this.overlay = overlay;
-      this.bracketed = bracketed;
+      this.bracketed = bracketed2;
       this.target = target;
       this.from = from;
     }
@@ -14566,13 +14802,13 @@
       throw new RangeError("Invalid inner parse ranges given: " + JSON.stringify(ranges));
   }
   var ActiveOverlay = class {
-    constructor(parser5, predicate, mounts, index, start, bracketed, target, prev) {
-      this.parser = parser5;
+    constructor(parser9, predicate, mounts, index, start, bracketed2, target, prev) {
+      this.parser = parser9;
       this.predicate = predicate;
       this.mounts = mounts;
       this.index = index;
       this.start = start;
-      this.bracketed = bracketed;
+      this.bracketed = bracketed2;
       this.target = target;
       this.prev = prev;
       this.depth = 0;
@@ -14825,14 +15061,14 @@
         this.inner = new StructureCursor(frag.tree, -frag.offset);
       }
     }
-    findMounts(pos, parser5) {
+    findMounts(pos, parser9) {
       var _a3;
       let result = [];
       if (this.inner) {
         this.inner.cursor.moveTo(pos, 1);
         for (let pos2 = this.inner.cursor.node; pos2; pos2 = pos2.parent) {
           let mount = (_a3 = pos2.tree) === null || _a3 === void 0 ? void 0 : _a3.prop(NodeProp.mounted);
-          if (mount && mount.parser == parser5) {
+          if (mount && mount.parser == parser9) {
             for (let i2 = this.fragI; i2 < this.fragments.length; i2++) {
               let frag = this.fragments[i2];
               if (frag.from >= pos2.to)
@@ -15135,6 +15371,106 @@
       },
       scope
     };
+  }
+  function highlightTags(highlighters, tags3) {
+    let result = null;
+    for (let highlighter of highlighters) {
+      let value = highlighter.style(tags3);
+      if (value)
+        result = result ? result + " " + value : value;
+    }
+    return result;
+  }
+  function highlightTree(tree, highlighter, putStyle, from = 0, to = tree.length) {
+    let builder = new HighlightBuilder(from, Array.isArray(highlighter) ? highlighter : [highlighter], putStyle);
+    builder.highlightRange(tree.cursor(), from, to, "", builder.highlighters);
+    builder.flush(to);
+  }
+  var HighlightBuilder = class {
+    constructor(at, highlighters, span) {
+      this.at = at;
+      this.highlighters = highlighters;
+      this.span = span;
+      this.class = "";
+    }
+    startSpan(at, cls) {
+      if (cls != this.class) {
+        this.flush(at);
+        if (at > this.at)
+          this.at = at;
+        this.class = cls;
+      }
+    }
+    flush(to) {
+      if (to > this.at && this.class)
+        this.span(this.at, to, this.class);
+    }
+    highlightRange(cursor, from, to, inheritedClass, highlighters) {
+      let { type, from: start, to: end } = cursor;
+      if (start >= to || end <= from)
+        return;
+      if (type.isTop)
+        highlighters = this.highlighters.filter((h) => !h.scope || h.scope(type));
+      let cls = inheritedClass;
+      let rule = getStyleTags(cursor) || Rule.empty;
+      let tagCls = highlightTags(highlighters, rule.tags);
+      if (tagCls) {
+        if (cls)
+          cls += " ";
+        cls += tagCls;
+        if (rule.mode == 1)
+          inheritedClass += (inheritedClass ? " " : "") + tagCls;
+      }
+      this.startSpan(Math.max(from, start), cls);
+      if (rule.opaque)
+        return;
+      let mounted = cursor.tree && cursor.tree.prop(NodeProp.mounted);
+      if (mounted && mounted.overlay) {
+        let inner = cursor.node.enter(mounted.overlay[0].from + start, 1);
+        let innerHighlighters = this.highlighters.filter((h) => !h.scope || h.scope(mounted.tree.type));
+        let hasChild2 = cursor.firstChild();
+        for (let i2 = 0, pos = start; ; i2++) {
+          let next2 = i2 < mounted.overlay.length ? mounted.overlay[i2] : null;
+          let nextPos = next2 ? next2.from + start : end;
+          let rangeFrom2 = Math.max(from, pos), rangeTo2 = Math.min(to, nextPos);
+          if (rangeFrom2 < rangeTo2 && hasChild2) {
+            while (cursor.from < rangeTo2) {
+              this.highlightRange(cursor, rangeFrom2, rangeTo2, inheritedClass, highlighters);
+              this.startSpan(Math.min(rangeTo2, cursor.to), cls);
+              if (cursor.to >= nextPos || !cursor.nextSibling())
+                break;
+            }
+          }
+          if (!next2 || nextPos > to)
+            break;
+          pos = next2.to + start;
+          if (pos > from) {
+            this.highlightRange(inner.cursor(), Math.max(from, next2.from + start), Math.min(to, pos), "", innerHighlighters);
+            this.startSpan(Math.min(to, pos), cls);
+          }
+        }
+        if (hasChild2)
+          cursor.parent();
+      } else if (cursor.firstChild()) {
+        if (mounted)
+          inheritedClass = "";
+        do {
+          if (cursor.to <= from)
+            continue;
+          if (cursor.from >= to)
+            break;
+          this.highlightRange(cursor, from, to, inheritedClass, highlighters);
+          this.startSpan(Math.min(to, cursor.to), cls);
+        } while (cursor.nextSibling());
+        cursor.parent();
+      }
+    }
+  };
+  function getStyleTags(node) {
+    let rule = node.type.prop(ruleNodeProp);
+    while (rule && rule.context && !node.matchContext(rule.context))
+      rule = rule.next;
+    return rule || null;
   }
   var t = Tag.define;
   var comment = t();
@@ -15572,14 +15908,14 @@
     configure your parser to [attach](https://codemirror.net/6/docs/ref/#language.languageDataProp) it
     to the language's outer syntax node.
     */
-    constructor(data2, parser5, extraExtensions = [], name2 = "") {
+    constructor(data2, parser9, extraExtensions = [], name2 = "") {
       this.data = data2;
       this.name = name2;
       if (!EditorState.prototype.hasOwnProperty("tree"))
         Object.defineProperty(EditorState.prototype, "tree", { get() {
           return syntaxTree(this);
         } });
-      this.parser = parser5;
+      this.parser = parser9;
       this.extension = [
         language.of(this),
         EditorState.languageData.of((state, pos, side) => {
@@ -15666,9 +16002,9 @@
     return tree;
   }
   var LRLanguage = class _LRLanguage extends Language {
-    constructor(data2, parser5, name2) {
-      super(data2, parser5, [], name2);
-      this.parser = parser5;
+    constructor(data2, parser9, name2) {
+      super(data2, parser9, [], name2);
+      this.parser = parser9;
     }
     /**
     Define a language from a parser.
@@ -15693,6 +16029,27 @@
   function syntaxTree(state) {
     let field = state.field(Language.state, false);
     return field ? field.tree : Tree.empty;
+  }
+  function ensureSyntaxTree(state, upto, timeout = 50) {
+    var _a3;
+    let parse = (_a3 = state.field(Language.state, false)) === null || _a3 === void 0 ? void 0 : _a3.context;
+    if (!parse)
+      return null;
+    let oldVieport = parse.viewport;
+    parse.updateViewport({ from: 0, to: upto });
+    let result = parse.isDone(upto) || parse.work(timeout, upto) ? parse.tree : null;
+    parse.updateViewport(oldVieport);
+    return result;
+  }
+  function syntaxTreeAvailable(state, upto = state.doc.length) {
+    var _a3;
+    return ((_a3 = state.field(Language.state, false)) === null || _a3 === void 0 ? void 0 : _a3.context.isDone(upto)) || false;
+  }
+  function forceParsing(view2, upto = view2.viewport.to, timeout = 100) {
+    let success = ensureSyntaxTree(view2.state, upto, timeout);
+    if (success != syntaxTree(view2.state))
+      view2.dispatch({});
+    return !!success;
   }
   var DocInput = class {
     /**
@@ -15720,17 +16077,17 @@
       return true;
     }
     read(from, to) {
-      let stringStart = this.cursorPos - this.string.length;
-      if (from < stringStart || to >= this.cursorPos)
+      let stringStart2 = this.cursorPos - this.string.length;
+      if (from < stringStart2 || to >= this.cursorPos)
         return this.doc.sliceString(from, to);
       else
-        return this.string.slice(from - stringStart, to - stringStart);
+        return this.string.slice(from - stringStart2, to - stringStart2);
     }
   };
   var currentContext = null;
   var ParseContext = class _ParseContext {
-    constructor(parser5, state, fragments = [], tree, treeLen, viewport, skipped, scheduleOn) {
-      this.parser = parser5;
+    constructor(parser9, state, fragments = [], tree, treeLen, viewport, skipped, scheduleOn) {
+      this.parser = parser9;
       this.state = state;
       this.fragments = fragments;
       this.tree = tree;
@@ -15744,8 +16101,8 @@
     /**
     @internal
     */
-    static create(parser5, state, viewport) {
-      return new _ParseContext(parser5, state, [], Tree.empty, 0, viewport, [], null);
+    static create(parser9, state, viewport) {
+      return new _ParseContext(parser9, state, [], Tree.empty, 0, viewport, [], null);
     }
     startParse() {
       return this.parser.startParse(new DocInput(this.state.doc), this.fragments);
@@ -15893,7 +16250,7 @@
       return new class extends Parser {
         createParse(input, fragments, ranges) {
           let from = ranges[0].from, to = ranges[ranges.length - 1].to;
-          let parser5 = {
+          let parser9 = {
             parsedPos: from,
             advance() {
               let cx = currentContext;
@@ -15910,7 +16267,7 @@
             stopAt() {
             }
           };
-          return parser5;
+          return parser9;
         }
       }();
     }
@@ -16172,6 +16529,10 @@
       return unit;
     }
   });
+  function getIndentUnit(state) {
+    let unit = state.facet(indentUnit);
+    return unit.charCodeAt(0) == 9 ? state.tabSize * unit.length : unit.length;
+  }
   var indentNodeProp = /* @__PURE__ */ new NodeProp();
   function bracketedAligned(context) {
     let tree = context.node;
@@ -16188,8 +16549,8 @@
       if (!next2.type.isSkipped) {
         if (next2.from >= lineEnd2)
           return null;
-        let space4 = /^ */.exec(openLine.text.slice(openToken.to - openLine.from))[0].length;
-        return { from: openToken.from, to: openToken.to + space4 };
+        let space5 = /^ */.exec(openLine.text.slice(openToken.to - openLine.from))[0].length;
+        return { from: openToken.from, to: openToken.to + space5 };
       }
       pos = next2.to;
     }
@@ -16198,8 +16559,8 @@
     return (context) => delimitedStrategy(context, align, units, closing);
   }
   function delimitedStrategy(context, align, units, closing, closedAt) {
-    let after = context.textAfter, space4 = after.match(/^\s*/)[0].length;
-    let closed = closing && after.slice(space4, space4 + closing.length) == closing || closedAt == context.pos + space4;
+    let after = context.textAfter, space5 = after.match(/^\s*/)[0].length;
+    let closed = closing && after.slice(space5, space5 + closing.length) == closing || closedAt == context.pos + space5;
     let aligned = align ? bracketedAligned(context) : null;
     if (aligned)
       return closed ? context.column(aligned.from) : context.column(aligned.to);
@@ -16338,8 +16699,466 @@
     }
   ]);
   var bracketMatchingHandle = /* @__PURE__ */ new NodeProp();
+  function countCol(string2, end, tabSize, startIndex = 0, startValue = 0) {
+    if (end == null) {
+      end = string2.search(/[^\s\u00a0]/);
+      if (end == -1)
+        end = string2.length;
+    }
+    let n = startValue;
+    for (let i2 = startIndex; i2 < end; i2++) {
+      if (string2.charCodeAt(i2) == 9)
+        n += tabSize - n % tabSize;
+      else
+        n++;
+    }
+    return n;
+  }
+  var StringStream = class {
+    /**
+    Create a stream.
+    */
+    constructor(string2, tabSize, indentUnit2, overrideIndent) {
+      this.string = string2;
+      this.tabSize = tabSize;
+      this.indentUnit = indentUnit2;
+      this.overrideIndent = overrideIndent;
+      this.pos = 0;
+      this.start = 0;
+      this.lastColumnPos = 0;
+      this.lastColumnValue = 0;
+    }
+    /**
+    True if we are at the end of the line.
+    */
+    eol() {
+      return this.pos >= this.string.length;
+    }
+    /**
+    True if we are at the start of the line.
+    */
+    sol() {
+      return this.pos == 0;
+    }
+    /**
+    Get the next code unit after the current position, or undefined
+    if we're at the end of the line.
+    */
+    peek() {
+      return this.string.charAt(this.pos) || void 0;
+    }
+    /**
+    Read the next code unit and advance `this.pos`.
+    */
+    next() {
+      if (this.pos < this.string.length)
+        return this.string.charAt(this.pos++);
+    }
+    /**
+    Match the next character against the given string, regular
+    expression, or predicate. Consume and return it if it matches.
+    */
+    eat(match2) {
+      let ch = this.string.charAt(this.pos);
+      let ok;
+      if (typeof match2 == "string")
+        ok = ch == match2;
+      else
+        ok = ch && (match2 instanceof RegExp ? match2.test(ch) : match2(ch));
+      if (ok) {
+        ++this.pos;
+        return ch;
+      }
+    }
+    /**
+    Continue matching characters that match the given string,
+    regular expression, or predicate function. Return true if any
+    characters were consumed.
+    */
+    eatWhile(match2) {
+      let start = this.pos;
+      while (this.eat(match2)) {
+      }
+      return this.pos > start;
+    }
+    /**
+    Consume whitespace ahead of `this.pos`. Return true if any was
+    found.
+    */
+    eatSpace() {
+      let start = this.pos;
+      while (/[\s\u00a0]/.test(this.string.charAt(this.pos)))
+        ++this.pos;
+      return this.pos > start;
+    }
+    /**
+    Move to the end of the line.
+    */
+    skipToEnd() {
+      this.pos = this.string.length;
+    }
+    /**
+    Move to directly before the given character, if found on the
+    current line.
+    */
+    skipTo(ch) {
+      let found = this.string.indexOf(ch, this.pos);
+      if (found > -1) {
+        this.pos = found;
+        return true;
+      }
+    }
+    /**
+    Move back `n` characters.
+    */
+    backUp(n) {
+      this.pos -= n;
+    }
+    /**
+    Get the column position at `this.pos`.
+    */
+    column() {
+      if (this.lastColumnPos < this.start) {
+        this.lastColumnValue = countCol(this.string, this.start, this.tabSize, this.lastColumnPos, this.lastColumnValue);
+        this.lastColumnPos = this.start;
+      }
+      return this.lastColumnValue;
+    }
+    /**
+    Get the indentation column of the current line.
+    */
+    indentation() {
+      var _a3;
+      return (_a3 = this.overrideIndent) !== null && _a3 !== void 0 ? _a3 : countCol(this.string, null, this.tabSize);
+    }
+    /**
+    Match the input against the given string or regular expression
+    (which should start with a `^`). Return true or the regexp match
+    if it matches.
+    
+    Unless `consume` is set to `false`, this will move `this.pos`
+    past the matched text.
+    
+    When matching a string `caseInsensitive` can be set to true to
+    make the match case-insensitive.
+    */
+    match(pattern, consume, caseInsensitive) {
+      if (typeof pattern == "string") {
+        let cased = (str) => caseInsensitive ? str.toLowerCase() : str;
+        let substr = this.string.substr(this.pos, pattern.length);
+        if (cased(substr) == cased(pattern)) {
+          if (consume !== false)
+            this.pos += pattern.length;
+          return true;
+        } else
+          return null;
+      } else {
+        let match2 = this.string.slice(this.pos).match(pattern);
+        if (match2 && match2.index > 0)
+          return null;
+        if (match2 && consume !== false)
+          this.pos += match2[0].length;
+        return match2;
+      }
+    }
+    /**
+    Get the current token.
+    */
+    current() {
+      return this.string.slice(this.start, this.pos);
+    }
+  };
+  function fullParser(spec) {
+    return {
+      name: spec.name || "",
+      token: spec.token,
+      blankLine: spec.blankLine || (() => {
+      }),
+      startState: spec.startState || (() => true),
+      copyState: spec.copyState || defaultCopyState,
+      indent: spec.indent || (() => null),
+      languageData: spec.languageData || {},
+      tokenTable: spec.tokenTable || noTokens,
+      mergeTokens: spec.mergeTokens !== false
+    };
+  }
+  function defaultCopyState(state) {
+    if (typeof state != "object")
+      return state;
+    let newState = {};
+    for (let prop in state) {
+      let val = state[prop];
+      newState[prop] = val instanceof Array ? val.slice() : val;
+    }
+    return newState;
+  }
+  var IndentedFrom = /* @__PURE__ */ new WeakMap();
+  var StreamLanguage = class _StreamLanguage extends Language {
+    constructor(parser9) {
+      let data2 = defineLanguageFacet(parser9.languageData);
+      let p = fullParser(parser9), self;
+      let impl = new class extends Parser {
+        createParse(input, fragments, ranges) {
+          return new Parse(self, input, fragments, ranges);
+        }
+      }();
+      super(data2, impl, [], parser9.name);
+      this.topNode = docID(data2, this);
+      self = this;
+      this.streamParser = p;
+      this.stateAfter = new NodeProp({ perNode: true });
+      this.tokenTable = parser9.tokenTable ? new TokenTable(p.tokenTable) : defaultTokenTable;
+    }
+    /**
+    Define a stream language.
+    */
+    static define(spec) {
+      return new _StreamLanguage(spec);
+    }
+    /**
+    @internal
+    */
+    getIndent(cx) {
+      let from = void 0;
+      let { overrideIndentation } = cx.options;
+      if (overrideIndentation) {
+        from = IndentedFrom.get(cx.state);
+        if (from != null && from < cx.pos - 1e4)
+          from = void 0;
+      }
+      let start = findState(this, cx.node.tree, cx.node.from, cx.node.from, from !== null && from !== void 0 ? from : cx.pos), statePos, state;
+      if (start) {
+        state = start.state;
+        statePos = start.pos + 1;
+      } else {
+        state = this.streamParser.startState(cx.unit);
+        statePos = cx.node.from;
+      }
+      if (cx.pos - statePos > 1e4)
+        return null;
+      while (statePos < cx.pos) {
+        let line2 = cx.state.doc.lineAt(statePos), end = Math.min(cx.pos, line2.to);
+        if (line2.length) {
+          let indentation3 = overrideIndentation ? overrideIndentation(line2.from) : -1;
+          let stream = new StringStream(line2.text, cx.state.tabSize, cx.unit, indentation3 < 0 ? void 0 : indentation3);
+          while (stream.pos < end - line2.from)
+            readToken(this.streamParser.token, stream, state);
+        } else {
+          this.streamParser.blankLine(state, cx.unit);
+        }
+        if (end == cx.pos)
+          break;
+        statePos = line2.to + 1;
+      }
+      let line = cx.lineAt(cx.pos);
+      if (overrideIndentation && from == null)
+        IndentedFrom.set(cx.state, line.from);
+      return this.streamParser.indent(state, /^\s*(.*)/.exec(line.text)[1], cx);
+    }
+    get allowsNesting() {
+      return false;
+    }
+  };
+  function findState(lang, tree, off, startPos, before) {
+    let state = off >= startPos && off + tree.length <= before && tree.prop(lang.stateAfter);
+    if (state)
+      return { state: lang.streamParser.copyState(state), pos: off + tree.length };
+    for (let i2 = tree.children.length - 1; i2 >= 0; i2--) {
+      let child = tree.children[i2], pos = off + tree.positions[i2];
+      let found = child instanceof Tree && pos < before && findState(lang, child, pos, startPos, before);
+      if (found)
+        return found;
+    }
+    return null;
+  }
+  function cutTree(lang, tree, from, to, inside) {
+    if (inside && from <= 0 && to >= tree.length)
+      return tree;
+    if (!inside && from == 0 && tree.type == lang.topNode)
+      inside = true;
+    for (let i2 = tree.children.length - 1; i2 >= 0; i2--) {
+      let pos = tree.positions[i2], child = tree.children[i2], inner;
+      if (pos < to && child instanceof Tree) {
+        if (!(inner = cutTree(lang, child, from - pos, to - pos, inside)))
+          break;
+        return !inside ? inner : new Tree(tree.type, tree.children.slice(0, i2).concat(inner), tree.positions.slice(0, i2 + 1), pos + inner.length);
+      }
+    }
+    return null;
+  }
+  function findStartInFragments(lang, fragments, startPos, endPos, editorState) {
+    for (let f of fragments) {
+      let from = f.from + (f.openStart ? 25 : 0), to = f.to - (f.openEnd ? 25 : 0);
+      let found = from <= startPos && to > startPos && findState(lang, f.tree, 0 - f.offset, startPos, to), tree;
+      if (found && found.pos <= endPos && (tree = cutTree(lang, f.tree, startPos + f.offset, found.pos + f.offset, false)))
+        return { state: found.state, tree };
+    }
+    return { state: lang.streamParser.startState(editorState ? getIndentUnit(editorState) : 4), tree: Tree.empty };
+  }
+  var Parse = class {
+    constructor(lang, input, fragments, ranges) {
+      this.lang = lang;
+      this.input = input;
+      this.fragments = fragments;
+      this.ranges = ranges;
+      this.stoppedAt = null;
+      this.chunks = [];
+      this.chunkPos = [];
+      this.chunk = [];
+      this.chunkReused = void 0;
+      this.rangeIndex = 0;
+      this.to = ranges[ranges.length - 1].to;
+      let context = ParseContext.get(), from = ranges[0].from;
+      let { state, tree } = findStartInFragments(lang, fragments, from, this.to, context === null || context === void 0 ? void 0 : context.state);
+      this.state = state;
+      this.parsedPos = this.chunkStart = from + tree.length;
+      for (let i2 = 0; i2 < tree.children.length; i2++) {
+        this.chunks.push(tree.children[i2]);
+        this.chunkPos.push(tree.positions[i2]);
+      }
+      if (context && this.parsedPos < context.viewport.from - 1e5 && ranges.some((r) => r.from <= context.viewport.from && r.to >= context.viewport.from)) {
+        this.state = this.lang.streamParser.startState(getIndentUnit(context.state));
+        context.skipUntilInView(this.parsedPos, context.viewport.from);
+        this.parsedPos = context.viewport.from;
+      }
+      this.moveRangeIndex();
+    }
+    advance() {
+      let context = ParseContext.get();
+      let parseEnd = this.stoppedAt == null ? this.to : Math.min(this.to, this.stoppedAt);
+      let end = Math.min(
+        parseEnd,
+        this.chunkStart + 512
+        /* C.ChunkSize */
+      );
+      if (context)
+        end = Math.min(end, context.viewport.to);
+      while (this.parsedPos < end)
+        this.parseLine(context);
+      if (this.chunkStart < this.parsedPos)
+        this.finishChunk();
+      if (this.parsedPos >= parseEnd)
+        return this.finish();
+      if (context && this.parsedPos >= context.viewport.to) {
+        context.skipUntilInView(this.parsedPos, parseEnd);
+        return this.finish();
+      }
+      return null;
+    }
+    stopAt(pos) {
+      this.stoppedAt = pos;
+    }
+    lineAfter(pos) {
+      let chunk = this.input.chunk(pos);
+      if (!this.input.lineChunks) {
+        let eol = chunk.indexOf("\n");
+        if (eol > -1)
+          chunk = chunk.slice(0, eol);
+      } else if (chunk == "\n") {
+        chunk = "";
+      }
+      return pos + chunk.length <= this.to ? chunk : chunk.slice(0, this.to - pos);
+    }
+    nextLine() {
+      let from = this.parsedPos, line = this.lineAfter(from), end = from + line.length;
+      for (let index = this.rangeIndex; ; ) {
+        let rangeEnd = this.ranges[index].to;
+        if (rangeEnd >= end)
+          break;
+        line = line.slice(0, rangeEnd - (end - line.length));
+        index++;
+        if (index == this.ranges.length)
+          break;
+        let rangeStart = this.ranges[index].from;
+        let after = this.lineAfter(rangeStart);
+        line += after;
+        end = rangeStart + after.length;
+      }
+      return { line, end };
+    }
+    skipGapsTo(pos, offset, side) {
+      for (; ; ) {
+        let end = this.ranges[this.rangeIndex].to, offPos = pos + offset;
+        if (side > 0 ? end > offPos : end >= offPos)
+          break;
+        let start = this.ranges[++this.rangeIndex].from;
+        offset += start - end;
+      }
+      return offset;
+    }
+    moveRangeIndex() {
+      while (this.ranges[this.rangeIndex].to < this.parsedPos)
+        this.rangeIndex++;
+    }
+    emitToken(id2, from, to, offset) {
+      let size = 4;
+      if (this.ranges.length > 1) {
+        offset = this.skipGapsTo(from, offset, 1);
+        from += offset;
+        let len0 = this.chunk.length;
+        offset = this.skipGapsTo(to, offset, -1);
+        to += offset;
+        size += this.chunk.length - len0;
+      }
+      let last = this.chunk.length - 4;
+      if (this.lang.streamParser.mergeTokens && size == 4 && last >= 0 && this.chunk[last] == id2 && this.chunk[last + 2] == from)
+        this.chunk[last + 2] = to;
+      else
+        this.chunk.push(id2, from, to, size);
+      return offset;
+    }
+    parseLine(context) {
+      let { line, end } = this.nextLine(), offset = 0, { streamParser } = this.lang;
+      let stream = new StringStream(line, context ? context.state.tabSize : 4, context ? getIndentUnit(context.state) : 2);
+      if (stream.eol()) {
+        streamParser.blankLine(this.state, stream.indentUnit);
+      } else {
+        while (!stream.eol()) {
+          let token = readToken(streamParser.token, stream, this.state);
+          if (token)
+            offset = this.emitToken(this.lang.tokenTable.resolve(token), this.parsedPos + stream.start, this.parsedPos + stream.pos, offset);
+          if (stream.start > 1e4)
+            break;
+        }
+      }
+      this.parsedPos = end;
+      this.moveRangeIndex();
+      if (this.parsedPos < this.to)
+        this.parsedPos++;
+    }
+    finishChunk() {
+      let tree = Tree.build({
+        buffer: this.chunk,
+        start: this.chunkStart,
+        length: this.parsedPos - this.chunkStart,
+        nodeSet,
+        topID: 0,
+        maxBufferLength: 512,
+        reused: this.chunkReused
+      });
+      tree = new Tree(tree.type, tree.children, tree.positions, tree.length, [[this.lang.stateAfter, this.lang.streamParser.copyState(this.state)]]);
+      this.chunks.push(tree);
+      this.chunkPos.push(this.chunkStart - this.ranges[0].from);
+      this.chunk = [];
+      this.chunkReused = void 0;
+      this.chunkStart = this.parsedPos;
+    }
+    finish() {
+      return new Tree(this.lang.topNode, this.chunks, this.chunkPos, this.parsedPos - this.ranges[0].from).balance();
+    }
+  };
+  function readToken(token, stream, state) {
+    stream.start = stream.pos;
+    for (let i2 = 0; i2 < 10; i2++) {
+      let result = token(stream, state);
+      if (stream.pos > stream.start)
+        return result;
+    }
+    throw new Error("Stream parser failed to advance stream.");
+  }
   var noTokens = /* @__PURE__ */ Object.create(null);
   var typeArray = [NodeType.none];
+  var nodeSet = /* @__PURE__ */ new NodeSet(typeArray);
   var warned = [];
   var byTag = /* @__PURE__ */ Object.create(null);
   var defaultTable = /* @__PURE__ */ Object.create(null);
@@ -16358,6 +17177,16 @@
     ["property", "propertyName"]
   ])
     defaultTable[legacyName] = /* @__PURE__ */ createTokenType(noTokens, name2);
+  var TokenTable = class {
+    constructor(extra) {
+      this.extra = extra;
+      this.table = Object.assign(/* @__PURE__ */ Object.create(null), defaultTable);
+    }
+    resolve(tag) {
+      return !tag ? 0 : this.table[tag] || (this.table[tag] = createTokenType(this.extra, tag));
+    }
+  };
+  var defaultTokenTable = /* @__PURE__ */ new TokenTable(noTokens);
   function warnForPart(part, msg) {
     if (warned.indexOf(part) > -1)
       return;
@@ -16400,6 +17229,14 @@
     });
     typeArray.push(type);
     return type.id;
+  }
+  function docID(data2, lang) {
+    let type = NodeType.define({ id: typeArray.length, name: "Document", props: [
+      languageDataProp.add(() => data2),
+      indentNodeProp.add(() => (cx) => lang.getIndent(cx))
+    ], top: true });
+    typeArray.push(type);
+    return type;
   }
   var marks = {
     rtl: /* @__PURE__ */ Decoration.mark({ class: "cm-iso", inclusive: true, attributes: { dir: "rtl" }, bidiIsolate: Direction.RTL }),
@@ -16666,6 +17503,1931 @@
   };
   HistoryState.empty = /* @__PURE__ */ new HistoryState(none2, none2);
   var segmenter = typeof Intl != "undefined" && Intl.Segmenter ? /* @__PURE__ */ new Intl.Segmenter(void 0, { granularity: "word" }) : null;
+
+  // src/shared/tableModel.ts
+  var DELIMITER_RE = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
+  var parsedTablesByDoc = /* @__PURE__ */ new WeakMap();
+  function getParsedTables(doc2) {
+    const cached = parsedTablesByDoc.get(doc2);
+    if (cached) {
+      return cached;
+    }
+    const tables2 = parseMarkdownTables(doc2.toString());
+    parsedTablesByDoc.set(doc2, tables2);
+    return tables2;
+  }
+  function positionAfterTable(doc2, table2) {
+    return table2.to < doc2.length && doc2.sliceString(table2.to, table2.to + 1) === "\n" ? table2.to + 1 : table2.to;
+  }
+  function positionBeforeTable(table2) {
+    return Math.max(0, table2.from - 1);
+  }
+  function parseMarkdownTables(source) {
+    const lines = getSourceLines(source);
+    const tables2 = [];
+    let activeFence = null;
+    let inHtmlComment = false;
+    let lineIndex = 0;
+    while (lineIndex < lines.length) {
+      const line = lines[lineIndex];
+      if (inHtmlComment) {
+        if (line.text.includes("-->")) {
+          inHtmlComment = false;
+        }
+        lineIndex++;
+        continue;
+      }
+      if (activeFence) {
+        if (isClosingFence(line.text, activeFence)) {
+          activeFence = null;
+        }
+        lineIndex++;
+        continue;
+      }
+      if (startsHtmlCommentBlock(line.text)) {
+        inHtmlComment = !line.text.includes("-->");
+        lineIndex++;
+        continue;
+      }
+      const openingFence = parseOpeningFence(line.text);
+      if (openingFence) {
+        activeFence = openingFence;
+        lineIndex++;
+        continue;
+      }
+      if (isIndentedCodeLine(line.text)) {
+        lineIndex++;
+        continue;
+      }
+      const delimiterLine3 = lines[lineIndex + 1];
+      const isHeaderCandidate = hasUnescapedPipe(line.text) && Boolean(delimiterLine3) && !isIndentedCodeLine(delimiterLine3.text) && DELIMITER_RE.test(delimiterLine3.text) && hasUnescapedPipe(delimiterLine3.text);
+      if (!isHeaderCandidate || !delimiterLine3) {
+        lineIndex++;
+        continue;
+      }
+      const header = parseRow(line);
+      const delimiter2 = parseRow(delimiterLine3);
+      if (header.cells.length === 0 || delimiter2.cells.length === 0) {
+        lineIndex++;
+        continue;
+      }
+      const body = [];
+      let bodyIndex = lineIndex + 2;
+      while (bodyIndex < lines.length) {
+        const bodyLine = lines[bodyIndex];
+        if (parseOpeningFence(bodyLine.text) || startsHtmlCommentBlock(bodyLine.text) || isIndentedCodeLine(bodyLine.text) || bodyLine.text.trim() === "" || !hasUnescapedPipe(bodyLine.text)) {
+          break;
+        }
+        const row = parseRow(bodyLine);
+        if (row.cells.length === 0) {
+          break;
+        }
+        body.push(row);
+        bodyIndex++;
+      }
+      const columnCount = Math.max(
+        header.cells.length,
+        delimiter2.cells.length,
+        ...body.map((row) => row.cells.length)
+      );
+      const endRow = body.length > 0 ? body[body.length - 1] : delimiter2;
+      tables2.push({
+        from: line.from,
+        to: endRow.to,
+        startLine: line.index,
+        endLine: endRow.lineIndex,
+        header,
+        delimiter: delimiter2,
+        body,
+        columnCount,
+        alignments: Array.from(
+          { length: columnCount },
+          (_, column) => parseAlignment(delimiter2.cells[column]?.raw ?? "")
+        )
+      });
+      lineIndex = bodyIndex;
+    }
+    return tables2;
+  }
+  function parseOpeningFence(text3) {
+    if (isIndentedCodeLine(text3)) {
+      return null;
+    }
+    const match2 = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(text3);
+    if (!match2) {
+      return null;
+    }
+    const run = match2[1];
+    const marker = run[0];
+    if (marker === "`" && match2[2].includes("`")) {
+      return null;
+    }
+    return { marker, length: run.length };
+  }
+  function isClosingFence(text3, fence2) {
+    const match2 = /^ {0,3}(`+|~+)[ \t]*$/.exec(text3);
+    return Boolean(
+      match2 && match2[1][0] === fence2.marker && match2[1].length >= fence2.length
+    );
+  }
+  function startsHtmlCommentBlock(text3) {
+    return /^ {0,3}<!--/.test(text3);
+  }
+  function isIndentedCodeLine(text3) {
+    let column = 0;
+    for (const character of text3) {
+      if (character === " ") {
+        column++;
+      } else if (character === "	") {
+        column += 4 - column % 4;
+      } else {
+        break;
+      }
+      if (column >= 4) {
+        return true;
+      }
+    }
+    return false;
+  }
+  function rowToDisplayValues(row, columnCount) {
+    return Array.from(
+      { length: columnCount },
+      (_, column) => markdownCellToDisplayText(row.cells[column]?.raw ?? "")
+    );
+  }
+  function markdownCellToDisplayText(text3) {
+    return text3.trim().replace(/<br\s*\/?>/gi, "\n").replace(/&#124;|&vert;/gi, "|");
+  }
+  function formatMarkdownRow(values2) {
+    return `| ${values2.map((value) => formatMarkdownCell(value)).join(" | ")} |`;
+  }
+  function formatMarkdownCell(value, options = {}) {
+    const normalized = value.replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ");
+    return (options.trim === false ? normalized : normalized.trim()).replace(/\n/g, "<br>").replace(/\|/g, "&#124;");
+  }
+  function ensureTableCellSeparatorSafe(raw) {
+    return raw.endsWith("\\") ? `${raw} ` : raw;
+  }
+  function tableCellLeadingPipePrefix(row, column) {
+    const cell2 = row.cells[column];
+    return column === 0 && cell2?.start === row.from ? "|" : "";
+  }
+  function formatTableCellEdit(row, columnCount, column, value) {
+    const values2 = rowToDisplayValues(row, Math.max(columnCount, column + 1));
+    values2[column] = value;
+    return formatMarkdownRow(values2);
+  }
+  function formatTableCellSourceEdit(row, columnCount, column, value) {
+    const cell2 = row.cells[column];
+    if (!cell2) {
+      return {
+        from: row.from,
+        to: row.to,
+        insert: formatTableCellEdit(row, columnCount, column, value)
+      };
+    }
+    const { leadingWhitespace, trailingWhitespace } = getCellPaddingWhitespace(
+      cell2.raw
+    );
+    return {
+      from: cell2.start,
+      to: cell2.end,
+      insert: ensureTableCellSeparatorSafe(
+        `${tableCellLeadingPipePrefix(row, column)}${leadingWhitespace}${formatMarkdownCell(value)}${trailingWhitespace}`
+      )
+    };
+  }
+  function getCellPaddingWhitespace(raw) {
+    if (raw.trim() === "") {
+      const split = Math.floor(raw.length / 2);
+      return {
+        leadingWhitespace: raw.slice(0, split),
+        trailingWhitespace: raw.slice(split)
+      };
+    }
+    return {
+      leadingWhitespace: raw.match(/^\s*/)?.[0] ?? "",
+      trailingWhitespace: raw.match(/\s*$/)?.[0] ?? ""
+    };
+  }
+  function getSourceLines(source) {
+    if (source.length === 0) {
+      return [{ index: 0, from: 0, to: 0, text: "" }];
+    }
+    const lines = [];
+    let from = 0;
+    let index = 0;
+    while (from <= source.length) {
+      const newline5 = source.indexOf("\n", from);
+      const rawTo = newline5 === -1 ? source.length : newline5;
+      const to = rawTo > from && source[rawTo - 1] === "\r" ? rawTo - 1 : rawTo;
+      lines.push({
+        index,
+        from,
+        to,
+        text: source.slice(from, to)
+      });
+      if (newline5 === -1) {
+        break;
+      }
+      from = newline5 + 1;
+      index++;
+    }
+    return lines;
+  }
+  function parseRow(line) {
+    const pipes = findUnescapedPipes(line.text);
+    const firstPipe = pipes[0];
+    const lastPipe = pipes[pipes.length - 1];
+    const hasLeadingPipe = firstPipe !== void 0 && line.text.slice(0, firstPipe).trim() === "";
+    const hasTrailingPipe = lastPipe !== void 0 && line.text.slice(lastPipe + 1).trim() === "";
+    const contentStart = hasLeadingPipe ? (firstPipe ?? -1) + 1 : 0;
+    const contentEnd = hasTrailingPipe ? lastPipe ?? line.text.length : line.text.length;
+    const separatorPipes = pipes.filter(
+      (pipe) => pipe >= contentStart && pipe < contentEnd
+    );
+    const cells = [];
+    let start = contentStart;
+    for (const pipe of separatorPipes) {
+      cells.push({
+        raw: line.text.slice(start, pipe),
+        start: line.from + start,
+        end: line.from + pipe
+      });
+      start = pipe + 1;
+    }
+    if (pipes.length > 0) {
+      cells.push({
+        raw: line.text.slice(start, contentEnd),
+        start: line.from + start,
+        end: line.from + contentEnd
+      });
+    }
+    return {
+      lineIndex: line.index,
+      from: line.from,
+      to: line.to,
+      text: line.text,
+      cells
+    };
+  }
+  function parseMarkdownTableRow(lineIndex, from, text3) {
+    return parseRow({
+      index: lineIndex,
+      from,
+      to: from + text3.length,
+      text: text3
+    });
+  }
+  function parseAlignment(delimiterCell) {
+    const text3 = delimiterCell.trim();
+    const left = text3.startsWith(":");
+    const right = text3.endsWith(":");
+    if (left && right) {
+      return "center";
+    }
+    if (right) {
+      return "right";
+    }
+    return "left";
+  }
+  function hasUnescapedPipe(text3) {
+    return findUnescapedPipes(text3).length > 0;
+  }
+  function findUnescapedPipes(text3) {
+    const pipes = [];
+    for (let index = 0; index < text3.length; index++) {
+      if (text3[index] === "|" && !isEscaped(text3, index)) {
+        pipes.push(index);
+      }
+    }
+    return pipes;
+  }
+  function isEscaped(text3, index) {
+    let slashCount = 0;
+    for (let cursor = index - 1; cursor >= 0 && text3[cursor] === "\\"; cursor--) {
+      slashCount++;
+    }
+    return slashCount % 2 === 1;
+  }
+
+  // src/shared/tableSourceProtection.ts
+  var allowTableSourceChange = Annotation.define();
+  function createTableSourceChangeFilter() {
+    return EditorState.changeFilter.of((transaction) => {
+      if (!transaction.docChanged || transaction.annotation(allowTableSourceChange) || isUndoRedo(transaction)) {
+        return true;
+      }
+      const tables2 = getParsedTables(transaction.startState.doc);
+      if (tables2.length === 0) {
+        return true;
+      }
+      let changeTouchesTable = false;
+      transaction.changes.iterChanges((from, to, _fromB, _toB, inserted) => {
+        if (tables2.some(
+          (table2) => changeTouchesTableSource(
+            transaction.startState,
+            from,
+            to,
+            inserted.toString(),
+            table2
+          )
+        )) {
+          changeTouchesTable = true;
+        }
+      });
+      return !changeTouchesTable;
+    });
+  }
+  function createTableSourceSelectionGuard(options) {
+    return ViewPlugin.fromClass(
+      class {
+        scheduled = false;
+        constructor(view2) {
+          this.scheduleIfNeeded(view2);
+        }
+        update(update) {
+          if (update.selectionSet || update.docChanged || update.focusChanged) {
+            this.scheduleIfNeeded(
+              update.view,
+              update.startState.selection.main.head
+            );
+          }
+        }
+        scheduleIfNeeded(view2, previousHead = void 0) {
+          if (this.scheduled || isTableCellFocused(view2, options.tableCellSelector) || isApplyingHostDocument(view2)) {
+            return;
+          }
+          const target = findSafeSelectionAnchor(view2.state, previousHead);
+          if (target === void 0) {
+            return;
+          }
+          this.scheduled = true;
+          queueMicrotask(() => {
+            this.scheduled = false;
+            if (isTableCellFocused(view2, options.tableCellSelector) || isApplyingHostDocument(view2)) {
+              return;
+            }
+            const refreshedTarget = findSafeSelectionAnchor(
+              view2.state,
+              previousHead
+            );
+            if (refreshedTarget === void 0) {
+              return;
+            }
+            view2.dispatch({
+              selection: EditorSelection.cursor(refreshedTarget, 1),
+              scrollIntoView: true
+            });
+          });
+        }
+      }
+    );
+  }
+  function isUndoRedo(transaction) {
+    return transaction.isUserEvent("undo") || transaction.isUserEvent("redo");
+  }
+  function findSafeSelectionAnchor(state, previousHead) {
+    const tables2 = getParsedTables(state.doc);
+    const range = state.selection.main;
+    if (!range.empty) {
+      return void 0;
+    }
+    const table2 = tables2.find(
+      (candidate) => rangeTouchesTableSource(state, range, candidate)
+    );
+    if (!table2) {
+      return void 0;
+    }
+    return resolveOutsideTableSource(state, table2, range.head, previousHead);
+  }
+  function rangeTouchesTableSource(state, range, table2) {
+    if (range.empty) {
+      return isPositionInTableSource(state, range.head, table2);
+    }
+    return range.from < getTableReplacementTo(state, table2) && range.to > table2.from;
+  }
+  function changeTouchesTableSource(state, from, to, inserted, table2) {
+    if (from === to) {
+      if (from === table2.to && table2.to === state.doc.length) {
+        return !inserted.startsWith("\n");
+      }
+      return isPositionInTableSource(state, from, table2);
+    }
+    return from < getTableReplacementTo(state, table2) && to > getTableReplacementFrom(state, table2);
+  }
+  function getTableReplacementFrom(state, table2) {
+    return table2.from > 0 && state.doc.sliceString(table2.from - 1, table2.from) === "\n" ? table2.from - 1 : table2.from;
+  }
+  function isPositionInTableSource(state, position, table2) {
+    return position >= table2.from && position < getTableReplacementTo(state, table2);
+  }
+  function resolveOutsideTableSource(state, table2, position, previousHead) {
+    const before = positionBeforeTable(table2);
+    const after = positionAfterTable(state.doc, table2);
+    const hasBefore = before < table2.from;
+    const hasAfter = after >= table2.to && after <= state.doc.length;
+    if (position >= table2.to && hasAfter) {
+      return after;
+    }
+    if (previousHead !== void 0 && previousHead < table2.from && hasAfter) {
+      return after;
+    }
+    if (previousHead !== void 0 && previousHead >= after && hasBefore) {
+      return before;
+    }
+    const midpoint = table2.from + (table2.to - table2.from) / 2;
+    if (position <= midpoint && hasBefore) {
+      return before;
+    }
+    if (hasAfter) {
+      return after;
+    }
+    if (hasBefore) {
+      return before;
+    }
+    return Math.min(state.doc.length, Math.max(0, table2.to));
+  }
+  function getTableReplacementTo(state, table2) {
+    return positionAfterTable(state.doc, table2);
+  }
+  function isTableCellFocused(view2, tableCellSelector) {
+    const activeElement = view2.dom.ownerDocument.activeElement;
+    return activeElement instanceof HTMLElement && Boolean(activeElement.closest(tableCellSelector));
+  }
+  function isApplyingHostDocument(view2) {
+    return view2.dom.ownerDocument.documentElement.dataset.mlrtApplyingHostDocument === "true";
+  }
+
+  // src/editor/tableEditAnnotations.ts
+  var tableCellCommitSequenceAnnotation = Annotation.define();
+  var tableCellLiveEditAnnotation = Annotation.define();
+
+  // src/editor/table/cellSelection.ts
+  var TABLE_CELL_SELECTOR = ".mlrt-table-cell";
+  function findCell(target) {
+    if (!(target instanceof HTMLElement)) {
+      return null;
+    }
+    return target.closest(TABLE_CELL_SELECTOR);
+  }
+  function readCellDisplayValue(cell2) {
+    const value = isSimpleCellContent(cell2) ? readSimpleCellText(cell2) : cell2.innerText;
+    return value.replace(/\u00a0/g, " ");
+  }
+  function setCellPlainText(cell2, value) {
+    const needsSentinel = cellValueNeedsCaretSentinel(value);
+    const nodes = cell2.childNodes;
+    if (!needsSentinel && nodes.length === 1 && cell2.firstChild instanceof Text) {
+      if (cell2.firstChild.data !== value) {
+        cell2.firstChild.data = value;
+      }
+      return;
+    }
+    if (needsSentinel && nodes.length === 2 && cell2.firstChild instanceof Text && cell2.lastChild instanceof HTMLBRElement) {
+      if (cell2.firstChild.data !== value) {
+        cell2.firstChild.data = value;
+      }
+      return;
+    }
+    if (!needsSentinel && nodes.length === 0) {
+      cell2.append(cell2.ownerDocument.createTextNode(value));
+      return;
+    }
+    cell2.replaceChildren(
+      cell2.ownerDocument.createTextNode(value),
+      ...needsSentinel ? [cell2.ownerDocument.createElement("br")] : []
+    );
+  }
+  function cellValueNeedsCaretSentinel(value) {
+    return value.length === 0 || value.endsWith("\n");
+  }
+  function isSimpleCellContent(cell2) {
+    const nodes = cell2.childNodes;
+    for (let index = 0; index < nodes.length; index++) {
+      const node = nodes[index];
+      if (node instanceof Text) {
+        continue;
+      }
+      if (node instanceof HTMLBRElement && index === nodes.length - 1) {
+        continue;
+      }
+      return false;
+    }
+    return true;
+  }
+  function readSimpleCellText(cell2) {
+    let text3 = "";
+    for (const node of Array.from(cell2.childNodes)) {
+      if (node instanceof Text) {
+        text3 += node.data;
+      }
+    }
+    return text3;
+  }
+  function getCellCaretOffset(cell2) {
+    const selection = cell2.ownerDocument.defaultView?.getSelection();
+    if (!selection || selection.rangeCount === 0 || !isNodeInside(selection.anchorNode, cell2) || !isNodeInside(selection.focusNode, cell2)) {
+      return readCellDisplayValue(cell2).length;
+    }
+    return getCellNodeOffset(
+      cell2,
+      selection.focusNode,
+      selection.focusOffset
+    );
+  }
+  function getCellSelectionOffsets(cell2) {
+    const selection = cell2.ownerDocument.defaultView?.getSelection();
+    if (!selection || selection.rangeCount === 0 || !isNodeInside(selection.anchorNode, cell2) || !isNodeInside(selection.focusNode, cell2)) {
+      return null;
+    }
+    return {
+      anchor: getCellNodeOffset(
+        cell2,
+        selection.anchorNode,
+        selection.anchorOffset
+      ),
+      head: getCellNodeOffset(cell2, selection.focusNode, selection.focusOffset)
+    };
+  }
+  function setCellCaretOffset(cell2, offset) {
+    setCellSelectionOffsets(cell2, offset, offset);
+  }
+  function setCellSelectionOffsets(cell2, anchor, head) {
+    const selection = cell2.ownerDocument.defaultView?.getSelection();
+    if (!selection) {
+      return;
+    }
+    const valueLength = readCellDisplayValue(cell2).length;
+    const anchorPoint = getCellTextPosition(
+      cell2,
+      Math.max(0, Math.min(valueLength, anchor))
+    );
+    const headPoint = getCellTextPosition(
+      cell2,
+      Math.max(0, Math.min(valueLength, head))
+    );
+    if (!anchorPoint || !headPoint) {
+      setCellSelectionAtEnd(cell2);
+      return;
+    }
+    if (typeof selection.setBaseAndExtent === "function") {
+      selection.setBaseAndExtent(
+        anchorPoint.node,
+        anchorPoint.offset,
+        headPoint.node,
+        headPoint.offset
+      );
+      return;
+    }
+    const range = cell2.ownerDocument.createRange();
+    const forward = anchor <= head;
+    const start = forward ? anchorPoint : headPoint;
+    const end = forward ? headPoint : anchorPoint;
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    range.detach();
+  }
+  function focusCellAtStart(cell2) {
+    cell2.focus();
+    setCellCaretOffset(cell2, 0);
+  }
+  function focusCellAtEnd(cell2) {
+    cell2.focus();
+    setCellCaretOffset(cell2, readCellDisplayValue(cell2).length);
+  }
+  function moveCellSelectionToLineBoundary(cell2, side, extend2) {
+    const selection = cell2.ownerDocument.defaultView?.getSelection();
+    const original = getCellSelectionOffsets(cell2);
+    if (!selection || !original || typeof selection.modify !== "function") {
+      return false;
+    }
+    try {
+      selection.modify(
+        extend2 ? "extend" : "move",
+        side === "start" ? "backward" : "forward",
+        "lineboundary"
+      );
+      if (getCellSelectionOffsets(cell2)) {
+        return true;
+      }
+    } catch {
+    }
+    cell2.focus({ preventScroll: true });
+    setCellSelectionOffsets(cell2, original.anchor, original.head);
+    return false;
+  }
+  function extendCellSelectionVertically(cell2, rowDelta) {
+    const selection = cell2.ownerDocument.defaultView?.getSelection();
+    const original = getCellSelectionOffsets(cell2);
+    if (!selection || !original || typeof selection.modify !== "function") {
+      return { movedWithinCell: false, preferredX: null };
+    }
+    try {
+      selection.modify(
+        "extend",
+        rowDelta < 0 ? "backward" : "forward",
+        "line"
+      );
+      const result = getCellSelectionOffsets(cell2);
+      if (result && (result.anchor !== original.anchor || result.head !== original.head)) {
+        return { movedWithinCell: true, preferredX: null };
+      }
+    } catch {
+    }
+    cell2.focus({ preventScroll: true });
+    setCellSelectionOffsets(cell2, original.anchor, original.head);
+    return { movedWithinCell: false, preferredX: null };
+  }
+  function moveCellCaretVertically(cell2, rowDelta) {
+    const selection = cell2.ownerDocument.defaultView?.getSelection();
+    const original = getCellSelectionOffsets(cell2);
+    if (!selection || !original || typeof selection.modify !== "function") {
+      return { movedWithinCell: false, preferredX: null };
+    }
+    const preferredX = getCollapsedCaretX(cell2, selection);
+    try {
+      selection.modify(
+        "move",
+        rowDelta < 0 ? "backward" : "forward",
+        "line"
+      );
+      const result = getCellSelectionOffsets(cell2);
+      if (result && (result.anchor !== original.anchor || result.head !== original.head)) {
+        return { movedWithinCell: true, preferredX };
+      }
+    } catch {
+    }
+    cell2.focus({ preventScroll: true });
+    setCellSelectionOffsets(cell2, original.anchor, original.head);
+    return { movedWithinCell: false, preferredX };
+  }
+  function focusCellAtVerticalEdge(cell2, rowDelta, preferredX = null) {
+    if (rowDelta > 0) {
+      focusCellAtStart(cell2);
+    } else {
+      focusCellAtEnd(cell2);
+    }
+    if (preferredX === null || !Number.isFinite(preferredX)) {
+      return;
+    }
+    const caretPositionFromPoint = cell2.ownerDocument.caretPositionFromPoint;
+    const cellRect = cell2.getBoundingClientRect();
+    if (typeof caretPositionFromPoint !== "function" || cellRect.width <= 2) {
+      return;
+    }
+    const contents = cell2.ownerDocument.createRange();
+    contents.selectNodeContents(cell2);
+    const lineRects = contents.getClientRects();
+    const lineRect = rowDelta > 0 ? lineRects.item(0) : lineRects.item(lineRects.length - 1);
+    contents.detach();
+    if (!lineRect || lineRect.height <= 0 || lineRect.width <= 0) {
+      return;
+    }
+    const lineInset = Math.min(0.25, lineRect.width / 4);
+    const lineLeft = Math.max(cellRect.left + 1, lineRect.left + lineInset);
+    const lineRight = Math.min(cellRect.right - 1, lineRect.right - lineInset);
+    const x = Math.max(
+      lineLeft,
+      Math.min(lineRight, preferredX)
+    );
+    const y = lineRect.top + lineRect.height / 2;
+    const caret = caretPositionFromPoint.call(cell2.ownerDocument, x, y);
+    if (!caret || !isNodeInside(caret.offsetNode, cell2)) {
+      return;
+    }
+    try {
+      const range = cell2.ownerDocument.createRange();
+      range.setStart(caret.offsetNode, caret.offset);
+      range.collapse(true);
+      const selection = cell2.ownerDocument.defaultView?.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    } catch {
+    }
+  }
+  function requestElementAnimationFrame(element, callback) {
+    const view2 = element.ownerDocument.defaultView;
+    return view2 ? view2.requestAnimationFrame(callback) : requestAnimationFrame(callback);
+  }
+  function cancelElementAnimationFrame(element, frame) {
+    const view2 = element.ownerDocument.defaultView;
+    if (view2) {
+      view2.cancelAnimationFrame(frame);
+      return;
+    }
+    cancelAnimationFrame(frame);
+  }
+  function isNodeInside(node, element) {
+    return node === element || node !== null && element.contains(node);
+  }
+  function setCellSelectionAtEnd(cell2) {
+    const selection = cell2.ownerDocument.defaultView?.getSelection();
+    if (!selection) {
+      return;
+    }
+    const range = cell2.ownerDocument.createRange();
+    range.selectNodeContents(cell2);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  function getCellNodeOffset(cell2, node, offset) {
+    if (!node) {
+      return readCellDisplayValue(cell2).length;
+    }
+    const range = cell2.ownerDocument.createRange();
+    range.selectNodeContents(cell2);
+    range.setEnd(node, offset);
+    const measured = range.toString().replace(/\u00a0/g, " ").length;
+    range.detach();
+    return measured;
+  }
+  function getCellTextPosition(cell2, offset) {
+    const walker = cell2.ownerDocument.createTreeWalker(
+      cell2,
+      NodeFilter.SHOW_TEXT
+    );
+    let remaining = Math.max(0, offset);
+    let lastText = null;
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!(node instanceof Text)) {
+        continue;
+      }
+      lastText = node;
+      if (remaining <= node.data.length) {
+        return { node, offset: remaining };
+      }
+      remaining -= node.data.length;
+    }
+    return lastText && remaining === 0 ? { node: lastText, offset: lastText.data.length } : null;
+  }
+  function getCollapsedCaretX(cell2, selection) {
+    if (!selection.isCollapsed || selection.rangeCount === 0) {
+      return null;
+    }
+    const caretRange = selection.getRangeAt(0);
+    const directRect = caretRange.getBoundingClientRect();
+    if (directRect.height > 0 && Number.isFinite(directRect.left)) {
+      return directRect.left;
+    }
+    const offsets = getCellSelectionOffsets(cell2);
+    const valueLength = readCellDisplayValue(cell2).length;
+    if (!offsets || valueLength === 0) {
+      return null;
+    }
+    const useLeadingEdge = offsets.head < valueLength;
+    const from = useLeadingEdge ? offsets.head : offsets.head - 1;
+    const start = getCellTextPosition(cell2, from);
+    const end = getCellTextPosition(cell2, from + 1);
+    if (!start || !end) {
+      return null;
+    }
+    const adjacentRange = cell2.ownerDocument.createRange();
+    adjacentRange.setStart(start.node, start.offset);
+    adjacentRange.setEnd(end.node, end.offset);
+    const rect = adjacentRange.getBoundingClientRect();
+    adjacentRange.detach();
+    if (rect.height <= 0 || !Number.isFinite(rect.left)) {
+      return null;
+    }
+    const isRtl = getComputedStyle(cell2).direction === "rtl";
+    return useLeadingEdge === isRtl ? rect.right : rect.left;
+  }
+
+  // src/editor/table/tableSelectionOverlay.ts
+  var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+  var OVERLAY_SELECTOR = ":scope > .mlrt-table-selection-overlay";
+  var LEGACY_OUTLINE_SELECTOR = ":scope > .mlrt-table-selection-outline";
+  var COORDINATE_TOLERANCE = 0.25;
+  function syncTableSelectionOverlay(wrapper) {
+    const scroll = wrapper.querySelector(".mlrt-table-scroll");
+    const existing = scroll?.querySelector(OVERLAY_SELECTOR);
+    scroll?.querySelector(LEGACY_OUTLINE_SELECTOR)?.remove();
+    if (!scroll) {
+      existing?.remove();
+      return;
+    }
+    const selected = Array.from(
+      wrapper.querySelectorAll(
+        `${TABLE_CELL_SELECTOR}.mlrt-table-cell-selected, ${TABLE_CELL_SELECTOR}.mlrt-document-range-selected`
+      )
+    );
+    if (selected.length === 0) {
+      existing?.remove();
+      return;
+    }
+    const rectangles = selected.map((cell2) => cell2.getBoundingClientRect());
+    const bounds = {
+      left: Math.min(...rectangles.map((rect) => rect.left)),
+      top: Math.min(...rectangles.map((rect) => rect.top)),
+      right: Math.max(...rectangles.map((rect) => rect.right)),
+      bottom: Math.max(...rectangles.map((rect) => rect.bottom))
+    };
+    const width = bounds.right - bounds.left;
+    const height = bounds.bottom - bounds.top;
+    if (width <= 0 || height <= 0) {
+      existing?.remove();
+      return;
+    }
+    const verticalRails = uniqueInteriorCoordinates(
+      rectangles.map((rect) => rect.left),
+      bounds.left,
+      bounds.right
+    ).map((coordinate) => coordinate - bounds.left);
+    const horizontalRails = uniqueInteriorCoordinates(
+      rectangles.map((rect) => rect.top),
+      bounds.top,
+      bounds.bottom
+    ).map((coordinate) => coordinate - bounds.top);
+    const overlay = existing ?? wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "svg");
+    overlay.classList.add("mlrt-table-selection-overlay");
+    overlay.classList.toggle(
+      "mlrt-table-selection-overlay-cut-pending",
+      wrapper.classList.contains("mlrt-table-cut-pending")
+    );
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.setAttribute("focusable", "false");
+    const formattedWidth = formatCoordinate(width);
+    const formattedHeight = formatCoordinate(height);
+    overlay.setAttribute("width", formattedWidth);
+    overlay.setAttribute("height", formattedHeight);
+    overlay.setAttribute(
+      "viewBox",
+      `0 0 ${formattedWidth} ${formattedHeight}`
+    );
+    overlay.dataset.verticalRailCount = String(verticalRails.length);
+    overlay.dataset.horizontalRailCount = String(horizontalRails.length);
+    overlay.dataset.verticalRails = verticalRails.map(formatCoordinate).join(",");
+    overlay.dataset.horizontalRails = horizontalRails.map(formatCoordinate).join(",");
+    const scrollRect = scroll.getBoundingClientRect();
+    overlay.style.left = `${bounds.left - scrollRect.left + scroll.scrollLeft}px`;
+    overlay.style.top = `${bounds.top - scrollRect.top + scroll.scrollTop}px`;
+    overlay.style.width = `${formattedWidth}px`;
+    overlay.style.height = `${formattedHeight}px`;
+    const inset = Math.min(1, width / 2, height / 2);
+    const gridCommands = [
+      ...verticalRails.map(
+        (x) => `M ${formatCoordinate(x)} ${formatCoordinate(inset)} V ${formatCoordinate(height - inset)}`
+      ),
+      ...horizontalRails.map(
+        (y) => `M ${formatCoordinate(inset)} ${formatCoordinate(y)} H ${formatCoordinate(width - inset)}`
+      )
+    ];
+    const gridPath = gridCommands.join(" ");
+    const frameWidth = formatCoordinate(Math.max(0, width - 1));
+    const frameHeight = formatCoordinate(Math.max(0, height - 1.5));
+    const geometrySignature = [
+      formattedWidth,
+      formattedHeight,
+      gridPath
+    ].join("|");
+    const currentGrid = overlay.querySelector(
+      ":scope > .mlrt-table-selection-grid"
+    );
+    const currentFrame = overlay.querySelector(
+      ":scope > .mlrt-table-selection-frame"
+    );
+    if (overlay.dataset.geometrySignature !== geometrySignature || !currentGrid || !currentFrame || overlay.lastElementChild !== currentFrame) {
+      const grid = wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "path");
+      grid.classList.add("mlrt-table-selection-grid");
+      grid.setAttribute("d", gridPath);
+      const frame = wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "rect");
+      frame.classList.add("mlrt-table-selection-frame");
+      frame.setAttribute("x", "0.5");
+      frame.setAttribute("y", "0.5");
+      frame.setAttribute("width", frameWidth);
+      frame.setAttribute("height", frameHeight);
+      overlay.replaceChildren(grid, frame);
+      overlay.dataset.geometrySignature = geometrySignature;
+    }
+    if (!existing) {
+      scroll.append(overlay);
+    }
+  }
+  function uniqueInteriorCoordinates(values2, minimum, maximum) {
+    const sorted = values2.filter(
+      (value) => value > minimum + COORDINATE_TOLERANCE && value < maximum - COORDINATE_TOLERANCE
+    ).sort((left, right) => left - right);
+    const groups = [];
+    for (const value of sorted) {
+      const group = groups.at(-1);
+      if (!group || Math.abs(value - group.sum / group.count) > COORDINATE_TOLERANCE) {
+        groups.push({ sum: value, count: 1 });
+      } else {
+        group.sum += value;
+        group.count += 1;
+      }
+    }
+    return groups.map((group) => group.sum / group.count);
+  }
+  function formatCoordinate(value) {
+    return String(Math.round(value * 1e3) / 1e3);
+  }
+
+  // src/editor/table/tableWidgetState.ts
+  var TABLE_WIDGET_SELECTOR = ".mlrt-table-widget";
+  var liveEditPreservedTableStarts = /* @__PURE__ */ new Set();
+  function preserveTableForLiveEdit(tableFrom) {
+    liveEditPreservedTableStarts.add(tableFrom);
+  }
+  function releaseTableLiveEditPreservation(tableFrom) {
+    liveEditPreservedTableStarts.delete(tableFrom);
+  }
+  function isTablePreservedForLiveEdit(tableFrom) {
+    return liveEditPreservedTableStarts.has(tableFrom);
+  }
+  function setTableWidgetCleanup(wrapper, cleanup) {
+    wrapper.__mlrtTableWidgetCleanup = cleanup;
+  }
+  function getTableWidgetCleanup(wrapper) {
+    return wrapper.__mlrtTableWidgetCleanup;
+  }
+  function setTableWidgetTable(wrapper, table2) {
+    wrapper.__mlrtTable = cloneParsedTable(table2);
+  }
+  function getTableWidgetTable(wrapper) {
+    return wrapper.__mlrtTable;
+  }
+  function readActiveCellSizingOverride(wrapper) {
+    const activeElement = wrapper.ownerDocument.activeElement;
+    const cell2 = findCell(activeElement);
+    if (!cell2 || !wrapper.contains(cell2)) {
+      return void 0;
+    }
+    const rowKind = cell2.dataset.rowKind;
+    const rowIndex = Number(cell2.dataset.rowIndex ?? "0");
+    const column = Number(cell2.dataset.column ?? "0");
+    if (rowKind !== "header" && rowKind !== "body" || !Number.isInteger(rowIndex) || rowIndex < 0 || !Number.isInteger(column) || column < 0) {
+      return void 0;
+    }
+    return {
+      rowKind,
+      rowIndex,
+      column,
+      value: readCellDisplayValue(cell2)
+    };
+  }
+  function cloneParsedTable(table2) {
+    return {
+      from: table2.from,
+      to: table2.to,
+      startLine: table2.startLine,
+      endLine: table2.endLine,
+      header: cloneParsedRow(table2.header),
+      delimiter: cloneParsedRow(table2.delimiter),
+      body: table2.body.map(cloneParsedRow),
+      columnCount: table2.columnCount,
+      alignments: [...table2.alignments]
+    };
+  }
+  function cloneParsedRow(row) {
+    return {
+      lineIndex: row.lineIndex,
+      from: row.from,
+      to: row.to,
+      text: row.text,
+      cells: row.cells.map((cell2) => ({ ...cell2 }))
+    };
+  }
+
+  // src/shared/tableColumnSizing.ts
+  var CELL_HORIZONTAL_PADDING_CH = 2;
+  var CELL_COMFORT_CH = 1;
+  var TOKEN_COMFORT_CH = 0.5;
+  var MIN_COLUMN_WIDTH_CH = 3;
+  var READABLE_COLUMN_WIDTH_CH = 12;
+  var READABLE_LINE_LENGTH_THRESHOLD_CH = 32;
+  var MAX_UNBROKEN_TOKEN_WIDTH_CH = 36;
+  var MAX_PREFERRED_COLUMN_WIDTH_CH = 96;
+  var HEADER_PREFERRED_WIDTH_CAP_CH = 24;
+  var HEADER_TOKEN_WIDTH_CAP_CH = 24;
+  var WIDTH_STEP_CH = 0.5;
+  function measureTableColumnSizing(table2, availableDataWidthCh, cellOverride) {
+    const rows = [
+      { row: table2.header, rowKind: "header", rowIndex: 0 },
+      ...table2.body.map((row, rowIndex) => ({
+        row,
+        rowKind: "body",
+        rowIndex
+      }))
+    ];
+    const columns = Array.from(
+      { length: table2.columnCount },
+      (_value, column) => measureColumn(rows, table2.columnCount, column, cellOverride)
+    );
+    const totalPreferredWidth = columns.reduce(
+      (total, column) => total + column.preferredWidthCh,
+      0
+    );
+    const totalMinWidth = columns.reduce(
+      (total, column) => total + column.minWidthCh,
+      0
+    );
+    const safeTotalWidth = totalPreferredWidth > 0 ? totalPreferredWidth : table2.columnCount;
+    const targetWidth = availableDataWidthCh === void 0 || availableDataWidthCh <= 0 ? safeTotalWidth : Math.min(safeTotalWidth, availableDataWidthCh);
+    const allocatedColumns = targetWidth >= totalMinWidth ? allocateColumnWidths(columns, targetWidth) : columns.map((column) => ({ ...column, widthCh: column.minWidthCh }));
+    if (availableDataWidthCh !== void 0 && availableDataWidthCh > 0) {
+      distributeWidthSteps(
+        allocatedColumns,
+        availableDataWidthCh,
+        (column) => column.fullPreferredWidthCh
+      );
+    }
+    const dataWidthCh = allocatedColumns.reduce(
+      (total, column) => total + column.widthCh,
+      0
+    );
+    const safeDataWidth = dataWidthCh > 0 ? dataWidthCh : table2.columnCount;
+    return {
+      columns: allocatedColumns,
+      dataWidthCh: safeDataWidth,
+      widthPercentages: allocatedColumns.map(
+        (column) => column.widthCh / safeDataWidth * 100
+      )
+    };
+  }
+  function measureColumn(rows, columnCount, column, cellOverride) {
+    let longestLine = 0;
+    let longestToken = 0;
+    let longestBodyLine = 0;
+    let longestBodyToken = 0;
+    let longestHeaderLine = 0;
+    let longestHeaderToken = 0;
+    let hasBodyRow = false;
+    const cellLineLengths = [];
+    for (const source of rows) {
+      const value = getCellDisplayValue(
+        source,
+        columnCount,
+        column,
+        cellOverride
+      );
+      for (const line of splitDisplayLines(value)) {
+        const lineLength = line.length;
+        const tokenLength = measureLongestToken(line);
+        cellLineLengths.push(lineLength);
+        longestLine = Math.max(longestLine, lineLength);
+        longestToken = Math.max(longestToken, tokenLength);
+        if (source.rowKind === "body") {
+          hasBodyRow = true;
+          longestBodyLine = Math.max(longestBodyLine, lineLength);
+          longestBodyToken = Math.max(longestBodyToken, tokenLength);
+        } else {
+          longestHeaderLine = Math.max(longestHeaderLine, lineLength);
+          longestHeaderToken = Math.max(longestHeaderToken, tokenLength);
+        }
+      }
+    }
+    const sizingLine = hasBodyRow ? Math.max(
+      longestBodyLine,
+      Math.min(longestHeaderLine, HEADER_PREFERRED_WIDTH_CAP_CH)
+    ) : longestLine;
+    const sizingToken = hasBodyRow ? Math.max(
+      longestBodyToken,
+      Math.min(longestHeaderToken, HEADER_TOKEN_WIDTH_CAP_CH)
+    ) : longestToken;
+    const hasProseLikeContent = cellLineLengths.some(
+      (lineLength) => lineLength >= READABLE_LINE_LENGTH_THRESHOLD_CH
+    );
+    const readableMinWidthCh = hasProseLikeContent ? READABLE_COLUMN_WIDTH_CH : 0;
+    const minWidthCh = clamp(
+      Math.max(
+        sizingToken + CELL_HORIZONTAL_PADDING_CH + TOKEN_COMFORT_CH,
+        readableMinWidthCh
+      ),
+      MIN_COLUMN_WIDTH_CH,
+      MAX_UNBROKEN_TOKEN_WIDTH_CH
+    );
+    const preferredWidthCh = clamp(
+      sizingLine + CELL_HORIZONTAL_PADDING_CH + CELL_COMFORT_CH,
+      minWidthCh,
+      MAX_PREFERRED_COLUMN_WIDTH_CH
+    );
+    const fullPreferredWidthCh = clamp(
+      longestLine + CELL_HORIZONTAL_PADDING_CH + CELL_COMFORT_CH,
+      preferredWidthCh,
+      MAX_PREFERRED_COLUMN_WIDTH_CH
+    );
+    return {
+      cellLineLengths,
+      minWidthCh,
+      preferredWidthCh,
+      fullPreferredWidthCh,
+      widthCh: preferredWidthCh
+    };
+  }
+  function getCellDisplayValue(source, columnCount, column, cellOverride) {
+    if (cellOverride && cellOverride.rowKind === source.rowKind && cellOverride.rowIndex === source.rowIndex && cellOverride.column === column) {
+      return cellOverride.value;
+    }
+    return rowToDisplayValues(source.row, columnCount)[column] ?? "";
+  }
+  function allocateColumnWidths(columns, targetWidthCh) {
+    const allocated = columns.map((column) => ({
+      ...column,
+      widthCh: column.minWidthCh
+    }));
+    distributeWidthSteps(
+      allocated,
+      targetWidthCh,
+      (column) => column.preferredWidthCh
+    );
+    return allocated;
+  }
+  function distributeWidthSteps(columns, targetWidthCh, limitOf) {
+    let remainingSteps = Math.round(
+      (targetWidthCh - columns.reduce((total, column) => total + column.widthCh, 0)) / WIDTH_STEP_CH
+    );
+    while (remainingSteps > 0) {
+      let bestColumnIndex = -1;
+      let bestScore = Number.NEGATIVE_INFINITY;
+      for (let index = 0; index < columns.length; index++) {
+        const column2 = columns[index];
+        const limit = limitOf(column2);
+        if (column2.widthCh >= limit) {
+          continue;
+        }
+        const nextWidth = Math.min(limit, column2.widthCh + WIDTH_STEP_CH);
+        const wrapReduction = measureWrapCost(column2, column2.widthCh) - measureWrapCost(column2, nextWidth);
+        const remainingNeed = limit - column2.widthCh;
+        const score = wrapReduction * 1e3 + remainingNeed;
+        if (score > bestScore) {
+          bestScore = score;
+          bestColumnIndex = index;
+        }
+      }
+      if (bestColumnIndex === -1) {
+        break;
+      }
+      const column = columns[bestColumnIndex];
+      column.widthCh = Math.min(limitOf(column), column.widthCh + WIDTH_STEP_CH);
+      remainingSteps--;
+    }
+  }
+  function measureWrapCost(column, widthCh) {
+    const contentWidthCh = Math.max(1, widthCh - CELL_HORIZONTAL_PADDING_CH);
+    return column.cellLineLengths.reduce(
+      (total, lineLength) => total + Math.max(1, Math.ceil(lineLength / contentWidthCh)),
+      0
+    );
+  }
+  function splitDisplayLines(value) {
+    const lines = value.split(/\r\n?|\n/);
+    return lines.length > 0 ? lines : [""];
+  }
+  function measureLongestToken(value) {
+    return value.trim().split(/\s+/).reduce((longest, token) => Math.max(longest, token.length), 0);
+  }
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(value, max));
+  }
+
+  // src/editor/table/tableHeightEstimate.ts
+  var DEFAULT_EDITOR_LINE_HEIGHT_PX = 19;
+  var DEFAULT_CH_WIDTH_PX = 8;
+  var TABLE_ROW_VERTICAL_CHROME_PX = 2;
+  var TABLE_SCROLLBAR_HEIGHT_PX = 8;
+  var CELL_HORIZONTAL_PADDING_CH2 = 2;
+  var METRIC_EPSILON_PX = 0.01;
+  function createTableHeightEstimateMetrics() {
+    return {
+      lineHeightPx: DEFAULT_EDITOR_LINE_HEIGHT_PX,
+      chWidthPx: DEFAULT_CH_WIDTH_PX,
+      availableDataWidthPx: void 0,
+      revision: 0
+    };
+  }
+  function updateTableHeightEstimateMetrics(metrics, measured) {
+    const lineHeightPx = positiveOrFallback(
+      measured.lineHeightPx,
+      metrics.lineHeightPx
+    );
+    const chWidthPx = positiveOrFallback(measured.chWidthPx, metrics.chWidthPx);
+    const availableDataWidthPx = measured.availableDataWidthPx === void 0 ? void 0 : Math.max(0, measured.availableDataWidthPx);
+    const changed = Math.abs(metrics.lineHeightPx - lineHeightPx) > METRIC_EPSILON_PX || Math.abs(metrics.chWidthPx - chWidthPx) > METRIC_EPSILON_PX || optionalNumberChanged(
+      metrics.availableDataWidthPx,
+      availableDataWidthPx
+    );
+    if (!changed) {
+      return false;
+    }
+    metrics.lineHeightPx = lineHeightPx;
+    metrics.chWidthPx = chWidthPx;
+    metrics.availableDataWidthPx = availableDataWidthPx;
+    metrics.revision++;
+    return true;
+  }
+  function estimateRenderedTableHeight(table2, metrics) {
+    const availableDataWidthCh = estimateAvailableDataWidthCh(
+      metrics,
+      table2.columnCount
+    );
+    const columnSizing = measureTableColumnSizing(
+      table2,
+      availableDataWidthCh
+    );
+    const rows = [table2.header, ...table2.body];
+    const rowsHeight = rows.reduce((height, row) => {
+      const values2 = rowToDisplayValues(row, table2.columnCount);
+      const visualLineCount = Math.max(
+        1,
+        ...values2.map(
+          (value, column) => estimateCellVisualLineCount(
+            value,
+            columnSizing.columns[column]?.widthCh ?? 1
+          )
+        )
+      );
+      return height + visualLineCount * metrics.lineHeightPx + TABLE_ROW_VERTICAL_CHROME_PX;
+    }, 0);
+    const scrollbarHeight = availableDataWidthCh !== void 0 && columnSizing.dataWidthCh > availableDataWidthCh + METRIC_EPSILON_PX ? TABLE_SCROLLBAR_HEIGHT_PX : 0;
+    return rowsHeight + scrollbarHeight;
+  }
+  function estimateAvailableDataWidthCh(metrics, columnCount) {
+    if (metrics.availableDataWidthPx === void 0 || metrics.chWidthPx <= 0) {
+      return void 0;
+    }
+    const borderAllowancePx = columnCount + 2;
+    return Math.max(0, metrics.availableDataWidthPx - borderAllowancePx) / metrics.chWidthPx;
+  }
+  function screenPixelsToCssPixels(value, scaleY) {
+    const safeScale = Number.isFinite(scaleY) && scaleY > 0 ? scaleY : 1;
+    return Math.max(0, value / safeScale);
+  }
+  function estimateCellVisualLineCount(value, columnWidthCh) {
+    const contentWidthCh = Math.max(
+      1,
+      columnWidthCh - CELL_HORIZONTAL_PADDING_CH2
+    );
+    return value.split("\n").reduce(
+      (count2, line) => count2 + Math.max(1, Math.ceil(estimateTextWidthCh(line) / contentWidthCh)),
+      0
+    );
+  }
+  function estimateTextWidthCh(value) {
+    return Array.from(value).reduce(
+      (width, character) => width + (character === "	" ? 4 : 1),
+      0
+    );
+  }
+  function optionalNumberChanged(previous, next2) {
+    return previous === void 0 || next2 === void 0 ? previous !== next2 : Math.abs(previous - next2) > METRIC_EPSILON_PX;
+  }
+  function positiveOrFallback(value, fallback) {
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  // src/editor/table/tableLayout.ts
+  var chWidthCache = /* @__PURE__ */ new WeakMap();
+  var cssLengthCache = /* @__PURE__ */ new WeakMap();
+  function appendColumnSizing(tableElement, table2, columnSizing) {
+    const colgroup = document.createElement("colgroup");
+    const lineNumberCol = document.createElement("col");
+    lineNumberCol.className = "mlrt-table-source-line-col";
+    colgroup.append(lineNumberCol);
+    for (let column = 0; column < table2.columnCount; column++) {
+      const col = document.createElement("col");
+      col.className = "mlrt-table-sized-col";
+      col.style.width = `${columnSizing.columns[column].widthCh.toFixed(4)}ch`;
+      colgroup.append(col);
+    }
+    tableElement.append(colgroup);
+  }
+  function applyColumnSizing(wrapper, columnSizing) {
+    wrapper.style.setProperty(
+      "--mlrt-table-data-width",
+      `${columnSizing.dataWidthCh.toFixed(4)}ch`
+    );
+    wrapper.querySelectorAll(".mlrt-table-sized-col").forEach((col, column) => {
+      col.style.width = `${(columnSizing.columns[column]?.widthCh ?? 1).toFixed(
+        4
+      )}ch`;
+    });
+  }
+  function applyCurrentColumnSizing(wrapper, table2) {
+    applyColumnSizing(
+      wrapper,
+      measureTableColumnSizing(
+        table2,
+        measureAvailableDataWidthCh(wrapper),
+        readActiveCellSizingOverride(wrapper)
+      )
+    );
+  }
+  function bindTableLayout(wrapper, tableScroll, tableElement, scrollbar, scrollbarThumb, table2, view2) {
+    const syncScrollbar = () => syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb);
+    let pendingAnimationFrame = 0;
+    const syncLayout = () => {
+      pendingAnimationFrame = 0;
+      synchronizeTableLayoutElements(
+        wrapper,
+        tableScroll,
+        tableElement,
+        scrollbar,
+        scrollbarThumb,
+        getTableWidgetTable(wrapper) ?? table2,
+        view2
+      );
+    };
+    const scheduleDeferredLayout = () => {
+      if (pendingAnimationFrame !== 0) {
+        return;
+      }
+      pendingAnimationFrame = requestElementAnimationFrame(wrapper, syncLayout);
+    };
+    const synchronizeNow = () => {
+      if (pendingAnimationFrame !== 0) {
+        cancelElementAnimationFrame(wrapper, pendingAnimationFrame);
+        pendingAnimationFrame = 0;
+      }
+      syncLayout();
+    };
+    const ResizeObserverCtor = wrapper.ownerDocument.defaultView?.ResizeObserver;
+    const resizeObserver = ResizeObserverCtor ? new ResizeObserverCtor(scheduleDeferredLayout) : void 0;
+    resizeObserver?.observe(tableElement);
+    resizeObserver?.observe(tableScroll);
+    tableScroll.addEventListener("scroll", syncScrollbar);
+    scheduleDeferredLayout();
+    setTableWidgetCleanup(wrapper, () => {
+      if (pendingAnimationFrame !== 0) {
+        cancelElementAnimationFrame(wrapper, pendingAnimationFrame);
+        pendingAnimationFrame = 0;
+      }
+      resizeObserver?.disconnect();
+      tableScroll.removeEventListener("scroll", syncScrollbar);
+    });
+    return synchronizeNow;
+  }
+  function synchronizeTableLayoutNow(wrapper, table2, view2) {
+    const tableScroll = wrapper.querySelector(".mlrt-table-scroll");
+    const tableElement = wrapper.querySelector(".mlrt-table");
+    const scrollbar = wrapper.querySelector(".mlrt-table-scrollbar");
+    const scrollbarThumb = wrapper.querySelector(
+      ".mlrt-table-scrollbar-thumb"
+    );
+    if (!tableScroll || !tableElement || !scrollbar || !scrollbarThumb) {
+      return false;
+    }
+    synchronizeTableLayoutElements(
+      wrapper,
+      tableScroll,
+      tableElement,
+      scrollbar,
+      scrollbarThumb,
+      table2,
+      view2
+    );
+    return true;
+  }
+  function measureAvailableDataWidthCh(wrapper) {
+    const scroller = wrapper.closest(".cm-scroller");
+    if (!scroller) {
+      return void 0;
+    }
+    return measureAvailableDataWidthChFromEditor(
+      scroller,
+      wrapper,
+      getTableWidgetTable(wrapper)?.columnCount ?? 1
+    );
+  }
+  function primeTableLayoutForMount(wrapper, tableScroll, tableElement, scrollbar, scrollbarThumb, table2, view2) {
+    const previousInlineStyle = {
+      position: wrapper.style.position,
+      left: wrapper.style.left,
+      top: wrapper.style.top,
+      visibility: wrapper.style.visibility,
+      pointerEvents: wrapper.style.pointerEvents
+    };
+    wrapper.style.position = "absolute";
+    wrapper.style.left = "0";
+    wrapper.style.top = "0";
+    wrapper.style.visibility = "hidden";
+    wrapper.style.pointerEvents = "none";
+    view2.scrollDOM.append(wrapper);
+    try {
+      synchronizeTableLayoutElements(
+        wrapper,
+        tableScroll,
+        tableElement,
+        scrollbar,
+        scrollbarThumb,
+        table2,
+        view2
+      );
+    } finally {
+      wrapper.remove();
+      wrapper.style.position = previousInlineStyle.position;
+      wrapper.style.left = previousInlineStyle.left;
+      wrapper.style.top = previousInlineStyle.top;
+      wrapper.style.visibility = previousInlineStyle.visibility;
+      wrapper.style.pointerEvents = previousInlineStyle.pointerEvents;
+    }
+  }
+  function synchronizeTableLayoutElements(wrapper, tableScroll, tableElement, scrollbar, scrollbarThumb, table2, view2) {
+    applyCurrentColumnSizing(wrapper, table2);
+    syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb);
+    const tableHeight = tableElement.getBoundingClientRect().height;
+    const scrollbarHeight = scrollbar.hidden ? 0 : scrollbar.getBoundingClientRect().height;
+    const synchronizedHeightPx = screenPixelsToCssPixels(
+      tableHeight + scrollbarHeight,
+      view2.scaleY
+    );
+    wrapper.style.height = `${synchronizedHeightPx}px`;
+    wrapper.dataset.primedHeightPx = String(synchronizedHeightPx);
+    syncTableSelectionOverlay(wrapper);
+  }
+  function measureAvailableDataWidthChForView(view2, columnCount) {
+    const viewport = measureTableEstimateViewportForView(view2);
+    const borderAllowancePx = columnCount + 2;
+    const availablePx = Math.max(
+      0,
+      viewport.availableDataWidthPx - borderAllowancePx
+    );
+    return viewport.chWidthPx > 0 ? availablePx / viewport.chWidthPx : void 0;
+  }
+  function measureTableEstimateViewportForView(view2) {
+    const scroller = view2.scrollDOM;
+    const styles = getComputedStyle(scroller);
+    const gutterWidth = view2.dom.querySelector(".cm-gutters")?.getBoundingClientRect().width ?? resolveCssLengthPx(
+      scroller,
+      styles.getPropertyValue("--mlrt-live-gutter-width")
+    );
+    const rightPadding = resolveCssLengthPx(
+      scroller,
+      styles.getPropertyValue("--mlrt-editor-right-padding")
+    );
+    return {
+      availableDataWidthPx: Math.max(
+        0,
+        scroller.clientWidth - gutterWidth - rightPadding
+      ),
+      chWidthPx: measureChWidth(view2.contentDOM)
+    };
+  }
+  function tableSizingOverflowsAvailableWidth(columnSizing, availableDataWidthCh) {
+    return availableDataWidthCh !== void 0 && columnSizing.dataWidthCh > availableDataWidthCh + 0.01;
+  }
+  function measureAvailableDataWidthChFromEditor(scroller, fontElement, columnCount) {
+    const styles = getComputedStyle(scroller);
+    const gutterWidth = resolveCssLengthPx(
+      scroller,
+      styles.getPropertyValue("--mlrt-live-gutter-width")
+    );
+    const rightPadding = resolveCssLengthPx(
+      scroller,
+      styles.getPropertyValue("--mlrt-editor-right-padding")
+    );
+    const chWidth = measureChWidth(fontElement);
+    const borderAllowancePx = columnCount + 2;
+    const availablePx = Math.max(
+      0,
+      scroller.clientWidth - gutterWidth - rightPadding - borderAllowancePx
+    );
+    return chWidth > 0 ? availablePx / chWidth : void 0;
+  }
+  function syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb) {
+    const maxScrollLeft = Math.max(
+      0,
+      tableScroll.scrollWidth - tableScroll.clientWidth
+    );
+    const hasOverflow = maxScrollLeft > 1;
+    scrollbar.hidden = !hasOverflow;
+    if (!hasOverflow) {
+      if (tableScroll.scrollLeft !== 0) {
+        tableScroll.scrollLeft = 0;
+      }
+      scrollbarThumb.style.width = "0px";
+      scrollbarThumb.style.transform = "translateX(0px)";
+      return;
+    }
+    const trackWidth = Math.max(0, scrollbar.clientWidth);
+    const thumbWidth = Math.max(
+      24,
+      tableScroll.clientWidth / tableScroll.scrollWidth * trackWidth
+    );
+    const maxThumbLeft = Math.max(0, trackWidth - thumbWidth);
+    const thumbLeft = maxScrollLeft > 0 ? tableScroll.scrollLeft / maxScrollLeft * maxThumbLeft : 0;
+    scrollbarThumb.style.width = `${thumbWidth}px`;
+    scrollbarThumb.style.transform = `translateX(${thumbLeft}px)`;
+  }
+  function measureChWidth(element) {
+    const styles = getComputedStyle(element);
+    const cacheKey = [
+      styles.fontFamily,
+      styles.fontSize,
+      styles.fontWeight,
+      styles.fontStretch,
+      styles.fontStyle,
+      styles.letterSpacing,
+      styles.fontFeatureSettings,
+      styles.fontVariationSettings
+    ].join("|");
+    const cached = chWidthCache.get(element);
+    if (cached?.key === cacheKey) {
+      return cached.width;
+    }
+    const probe = element.ownerDocument.createElement("span");
+    probe.textContent = "0";
+    probe.style.position = "absolute";
+    probe.style.left = "-10000px";
+    probe.style.top = "0";
+    probe.style.visibility = "hidden";
+    probe.style.pointerEvents = "none";
+    probe.style.whiteSpace = "pre";
+    probe.style.fontFamily = styles.fontFamily;
+    probe.style.fontSize = styles.fontSize;
+    probe.style.fontWeight = styles.fontWeight;
+    probe.style.fontStretch = styles.fontStretch;
+    probe.style.fontStyle = styles.fontStyle;
+    probe.style.letterSpacing = styles.letterSpacing;
+    probe.style.fontFeatureSettings = styles.fontFeatureSettings;
+    probe.style.fontVariationSettings = styles.fontVariationSettings;
+    const host = element.ownerDocument.body ?? element.ownerDocument.documentElement;
+    host.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    chWidthCache.set(element, { key: cacheKey, width });
+    return width;
+  }
+  function resolveCssLengthPx(element, value) {
+    const direct = Number.parseFloat(value);
+    if (Number.isFinite(direct) && value.trim().endsWith("px")) {
+      return direct;
+    }
+    const cachedLengths = cssLengthCache.get(element);
+    const cached = cachedLengths?.get(value);
+    if (cached !== void 0) {
+      return cached;
+    }
+    const probe = element.ownerDocument.createElement("span");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.pointerEvents = "none";
+    probe.style.width = value.trim() || "0px";
+    element.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    const resolved = Number.isFinite(width) ? width : 0;
+    if (cachedLengths) {
+      cachedLengths.set(value, resolved);
+    } else {
+      cssLengthCache.set(element, /* @__PURE__ */ new Map([[value, resolved]]));
+    }
+    return resolved;
+  }
+
+  // src/editor/editorGeometrySync.ts
+  function createEditorGeometrySync(tableHeightEstimateMetrics = createTableHeightEstimateMetrics()) {
+    return ViewPlugin.fromClass(
+      class {
+        constructor(view2) {
+          this.view = view2;
+          const ResizeObserverCtor = view2.dom.ownerDocument.defaultView?.ResizeObserver;
+          if (ResizeObserverCtor) {
+            this.lastObservedScrollerWidth = view2.scrollDOM.clientWidth;
+            this.resizeObserver = new ResizeObserverCtor((entries2) => {
+              let forceContentRemeasure = false;
+              for (const entry of entries2) {
+                if (entry.target === view2.dom || entry.target === view2.scrollDOM) {
+                  const scrollerWidth = view2.scrollDOM.clientWidth;
+                  if (scrollerWidth !== this.lastObservedScrollerWidth) {
+                    this.lastObservedScrollerWidth = scrollerWidth;
+                    forceContentRemeasure = true;
+                  }
+                  continue;
+                }
+                const height = entry.contentRect.height;
+                const previousHeight = this.observedWidgetHeights.get(
+                  entry.target
+                );
+                if (previousHeight === void 0 || Math.abs(previousHeight - height) > 0.5) {
+                  this.observedWidgetHeights.set(entry.target, height);
+                  forceContentRemeasure = true;
+                }
+              }
+              this.schedule(view2, forceContentRemeasure);
+            });
+            this.resizeObserver.observe(view2.dom);
+            this.resizeObserver.observe(view2.scrollDOM);
+          }
+          this.schedule(view2);
+        }
+        view;
+        measureKey = {};
+        lastGutterWidth = -1;
+        lastContentWidth = -1;
+        lastSelectionPaddingBlockStart = -1;
+        lastSelectionPaddingBlockEnd = -1;
+        lastObservedScrollerWidth = -1;
+        resizeObserver;
+        selectionOutlineFrame;
+        observedTableWidgets = /* @__PURE__ */ new Set();
+        observedWidgetHeights = /* @__PURE__ */ new WeakMap();
+        update(update) {
+          this.syncObservedTableWidgets(update.view);
+          if (update.transactions.some(
+            (transaction) => transaction.annotation(tableCellLiveEditAnnotation)
+          )) {
+            return;
+          }
+          if (update.geometryChanged || update.viewportChanged || update.docChanged) {
+            this.schedule(update.view);
+          }
+        }
+        destroy() {
+          this.resizeObserver?.disconnect();
+          const win = viewWindow(this.view);
+          if (this.selectionOutlineFrame !== void 0 && win) {
+            win.cancelAnimationFrame(this.selectionOutlineFrame);
+          }
+          this.observedTableWidgets.clear();
+        }
+        schedule(view2, forceContentRemeasure = false) {
+          if (forceContentRemeasure) {
+            forceCodeMirrorContentRemeasure(view2);
+          }
+          view2.requestMeasure({
+            key: this.measureKey,
+            read: (measuredView) => ({
+              gutterWidth: measuredView.dom.querySelector(".cm-gutters")?.offsetWidth ?? 0,
+              contentWidth: measuredView.scrollDOM.clientWidth,
+              lineHeightPx: readEditorLineHeight(measuredView),
+              proseSelectionPadding: readProseSelectionPadding(measuredView),
+              tableViewport: measureTableEstimateViewportForView(measuredView)
+            }),
+            write: (metrics, measuredView) => {
+              this.syncObservedTableWidgets(measuredView);
+              const scrollerStyle = measuredView.scrollDOM.style;
+              if (metrics.gutterWidth > 0 && metrics.gutterWidth !== this.lastGutterWidth) {
+                this.lastGutterWidth = metrics.gutterWidth;
+                scrollerStyle.setProperty(
+                  "--mlrt-live-gutter-width",
+                  `${metrics.gutterWidth}px`
+                );
+              }
+              if (metrics.contentWidth > 0 && metrics.contentWidth !== this.lastContentWidth) {
+                this.lastContentWidth = metrics.contentWidth;
+                scrollerStyle.setProperty(
+                  "--mlrt-live-content-width",
+                  `calc(${metrics.contentWidth}px - var(--mlrt-editor-right-padding, 26px))`
+                );
+              }
+              if (metrics.proseSelectionPadding) {
+                const { blockStart, blockEnd: blockEnd2 } = metrics.proseSelectionPadding;
+                if (blockStart !== this.lastSelectionPaddingBlockStart) {
+                  this.lastSelectionPaddingBlockStart = blockStart;
+                  scrollerStyle.setProperty(
+                    "--mlrt-prose-selection-padding-block-start",
+                    `${blockStart}px`
+                  );
+                }
+                if (blockEnd2 !== this.lastSelectionPaddingBlockEnd) {
+                  this.lastSelectionPaddingBlockEnd = blockEnd2;
+                  scrollerStyle.setProperty(
+                    "--mlrt-prose-selection-padding-block-end",
+                    `${blockEnd2}px`
+                  );
+                }
+              }
+              const estimateMetricsChanged = updateTableHeightEstimateMetrics(tableHeightEstimateMetrics, {
+                lineHeightPx: metrics.lineHeightPx,
+                chWidthPx: metrics.tableViewport.chWidthPx,
+                availableDataWidthPx: metrics.tableViewport.availableDataWidthPx
+              });
+              if (estimateMetricsChanged) {
+                forceCodeMirrorContentRemeasure(measuredView);
+                measuredView.requestMeasure();
+              }
+              this.scheduleSelectionOutlineSync(measuredView);
+            }
+          });
+        }
+        /**
+         * Table cells can reflow one frame after the scroller width changes.
+         * The selection frame uses cell rectangles, so refresh it after that
+         * layout is committed rather than leaving it at the pre-resize width.
+         */
+        scheduleSelectionOutlineSync(view2) {
+          const win = viewWindow(view2);
+          if (!win || this.selectionOutlineFrame !== void 0) {
+            return;
+          }
+          this.selectionOutlineFrame = win.requestAnimationFrame(() => {
+            this.selectionOutlineFrame = void 0;
+            for (const widget of this.observedTableWidgets) {
+              if (widget instanceof HTMLElement && widget.isConnected) {
+                syncTableSelectionOverlay(widget);
+              }
+            }
+          });
+        }
+        syncObservedTableWidgets(view2) {
+          if (!this.resizeObserver) {
+            return;
+          }
+          const widgets = new Set(
+            Array.from(view2.dom.querySelectorAll(TABLE_WIDGET_SELECTOR))
+          );
+          for (const widget of widgets) {
+            if (!this.observedTableWidgets.has(widget)) {
+              this.resizeObserver.observe(widget);
+            }
+          }
+          for (const widget of this.observedTableWidgets) {
+            if (!widgets.has(widget)) {
+              this.resizeObserver.unobserve(widget);
+            }
+          }
+          this.observedTableWidgets.clear();
+          for (const widget of widgets) {
+            this.observedTableWidgets.add(widget);
+          }
+        }
+      }
+    );
+  }
+  function viewWindow(view2) {
+    return view2.dom.ownerDocument.defaultView;
+  }
+  function readEditorLineHeight(view2) {
+    const line = view2.dom.querySelector(".cm-line");
+    const styles = getComputedStyle(line ?? view2.contentDOM);
+    const lineHeight = Number.parseFloat(styles.lineHeight);
+    return Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight : view2.defaultLineHeight;
+  }
+  function readProseSelectionPadding(view2) {
+    const lineHeight = readEditorLineHeight(view2);
+    const scaleY = Number.isFinite(view2.scaleY) && view2.scaleY > 0 ? view2.scaleY : 1;
+    for (const line of Array.from(
+      view2.dom.querySelectorAll(".cm-line")
+    )) {
+      const lineRect = line.getBoundingClientRect();
+      const localLineHeight = lineRect.height / scaleY;
+      if (localLineHeight <= 0 || Math.abs(localLineHeight - lineHeight) > 0.5) {
+        continue;
+      }
+      const textNode = firstNonEmptyTextNode(line);
+      if (!textNode) {
+        continue;
+      }
+      const range = line.ownerDocument.createRange();
+      range.selectNodeContents(textNode);
+      const textRect = range.getBoundingClientRect();
+      if (textRect.height <= 0) {
+        continue;
+      }
+      return {
+        blockStart: normalizeSelectionInset(
+          (textRect.top - lineRect.top) / scaleY,
+          lineHeight
+        ),
+        blockEnd: normalizeSelectionInset(
+          (lineRect.bottom - textRect.bottom) / scaleY,
+          lineHeight
+        )
+      };
+    }
+    return null;
+  }
+  function firstNonEmptyTextNode(root2) {
+    for (const child of Array.from(root2.childNodes)) {
+      if (child.nodeType === child.TEXT_NODE && child.textContent) {
+        return child;
+      }
+      const nested = firstNonEmptyTextNode(child);
+      if (nested) {
+        return nested;
+      }
+    }
+    return null;
+  }
+  function normalizeSelectionInset(value, lineHeight) {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.round(Math.min(lineHeight, Math.max(0, value)) * 64) / 64;
+  }
+  function forceCodeMirrorContentRemeasure(view2) {
+    const viewState = view2.viewState;
+    if (viewState) {
+      viewState.mustMeasureContent = "refresh";
+    }
+  }
+
+  // src/editor/editorTheme.ts
+  function createEditorTheme() {
+    return EditorView.theme({
+      "&": {
+        height: "100%",
+        color: "var(--vscode-editor-foreground, #d4d4d4)",
+        backgroundColor: "var(--vscode-editor-background, #1e1e1e)"
+      },
+      ".cm-scroller": {
+        overflowX: "hidden !important",
+        overflowY: "auto !important",
+        height: "100%",
+        fontFamily: "var(--mlrt-editor-font-family, var(--vscode-editor-font-family, monospace))",
+        fontSize: "var(--mlrt-editor-font-size, var(--vscode-editor-font-size, 13px))",
+        fontWeight: "var(--mlrt-editor-font-weight, normal)",
+        lineHeight: "var(--mlrt-editor-line-height, normal)",
+        letterSpacing: "var(--mlrt-editor-letter-spacing, normal)",
+        fontFeatureSettings: "var(--mlrt-editor-font-feature-settings, normal)",
+        fontVariationSettings: "var(--mlrt-editor-font-variation-settings, normal)"
+      },
+      ".cm-gutters": {
+        backgroundColor: "var(--vscode-editorGutter-background, var(--vscode-editor-background, #1e1e1e))",
+        color: "var(--vscode-editorLineNumber-foreground, #858585)",
+        borderRight: "none",
+        boxSizing: "border-box",
+        paddingLeft: "var(--mlrt-editor-gutter-left-padding, 2.5ch)",
+        fontFamily: "var(--mlrt-editor-font-family, var(--vscode-editor-font-family, monospace))",
+        fontSize: "var(--mlrt-editor-font-size, var(--vscode-editor-font-size, 13px))",
+        fontWeight: "var(--mlrt-editor-font-weight, normal)",
+        lineHeight: "var(--mlrt-editor-line-height, normal)",
+        letterSpacing: "var(--mlrt-editor-letter-spacing, normal)",
+        fontFeatureSettings: "var(--mlrt-editor-font-feature-settings, normal)",
+        fontVariationSettings: "var(--mlrt-editor-font-variation-settings, normal)"
+      },
+      ".cm-activeLineGutter": {
+        backgroundColor: "transparent",
+        color: "var(--vscode-editorLineNumber-activeForeground, #c6c6c6)"
+      },
+      ".cm-lineNumbers .cm-gutterElement": {
+        boxSizing: "border-box",
+        width: "calc(var(--mlrt-editor-line-number-width, 3ch) + var(--mlrt-editor-gutter-right-padding, 26px))",
+        minHeight: "var(--mlrt-editor-line-height, 1.5em)",
+        minWidth: "calc(var(--mlrt-editor-line-number-width, 3ch) + var(--mlrt-editor-gutter-right-padding, 26px))",
+        maxWidth: "calc(var(--mlrt-editor-line-number-width, 3ch) + var(--mlrt-editor-gutter-right-padding, 26px))",
+        padding: "0 var(--mlrt-editor-gutter-right-padding, 26px) 0 0"
+      },
+      '.cm-lineNumbers .cm-gutterElement[style*="visibility: hidden"]': {
+        minHeight: "0"
+      },
+      ".cm-content": {
+        minHeight: "100%",
+        boxSizing: "border-box",
+        padding: "var(--mlrt-editor-top-padding, 0px) var(--mlrt-editor-right-padding, var(--mlrt-editor-gutter-right-padding, 26px)) calc(var(--mlrt-editor-bottom-padding, 0px) + var(--mlrt-editor-scroll-beyond-last-line, 0px)) 0",
+        caretColor: "var(--vscode-editorCursor-foreground, #aeafad)"
+      },
+      ".cm-line": {
+        color: "var(--vscode-editor-foreground, #d4d4d4)",
+        padding: "0"
+      },
+      ".cm-activeLine, .mlrt-prose-active-line": {
+        // The lower layer is a guaranteed, theme-derived contrast fallback.
+        // The VS Code token paints over it when supplied, preserving exact
+        // stock-editor color while remaining visible if a host injects an
+        // absent or transparent token.
+        backgroundColor: "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
+        backgroundImage: "linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent))"
+      },
+      ".cm-cursor, .cm-dropCursor": {
+        borderLeftColor: "var(--vscode-editorCursor-foreground, #aeafad)",
+        borderLeftWidth: "var(--mlrt-editor-cursor-width, 1px)"
+      },
+      // CodeMirror normally centers its border cursor with a negative margin.
+      // At column zero that puts part of the cursor beneath the sticky gutter,
+      // whose layer is above the cursor layer. The state-sync plugin supplies
+      // this class directly from the selection/document model, avoiding a
+      // focus-sensitive :has() query over browser-generated line DOM.
+      "&.mlrt-empty-line-cursor:not(.mlrt-table-cell-focused):not(.mlrt-selection-active) .cm-cursor-primary": {
+        marginLeft: "0"
+      },
+      "&.mlrt-table-cell-focused :is(.cm-activeLine, .mlrt-prose-active-line)": {
+        backgroundColor: "transparent",
+        backgroundImage: "none"
+      },
+      "&.mlrt-selection-active :is(.cm-activeLine, .mlrt-prose-active-line)": {
+        backgroundColor: "transparent",
+        backgroundImage: "none"
+      },
+      // A positive focus state wins over any stale negative class left behind
+      // by a long-lived webview focus transition. This is intentionally after
+      // the suppression rules: when the editable CodeMirror content itself
+      // owns an empty cursor, its line highlight is authoritative.
+      "&:is(.cm-focused, .mlrt-prose-cursor-focused) :is(.cm-activeLine, .mlrt-prose-active-line)": {
+        backgroundColor: "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
+        backgroundImage: "linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent))"
+      },
+      "&.mlrt-table-cell-focused .cm-cursor": {
+        display: "none"
+      },
+      // While a rendered table cell has focus, the editor selection is parked
+      // on some unrelated line; do not let the native gutter highlight it.
+      "&.mlrt-table-cell-focused .cm-activeLineGutter": {
+        color: "var(--vscode-editorLineNumber-foreground, #858585)"
+      },
+      // A selection already communicates the active range. Keeping a second
+      // active-line marker on its moving head (or its parked table-source
+      // cursor) leaves a misleading grey line number behind.
+      "&.mlrt-selection-active .cm-activeLineGutter": {
+        color: "var(--vscode-editorLineNumber-foreground, #858585)"
+      }
+    });
+  }
 
   // node_modules/@codemirror/autocomplete/dist/index.js
   var CompletionContext = class {
@@ -16937,11 +19699,11 @@
       let lineObj = state.doc.lineAt(pos), baseIndent = /^\s*/.exec(lineObj.text)[0];
       for (let line of this.lines) {
         if (text3.length) {
-          let indent = baseIndent, tabs = /^\t*/.exec(line)[0].length;
+          let indent2 = baseIndent, tabs = /^\t*/.exec(line)[0].length;
           for (let i2 = 0; i2 < tabs; i2++)
-            indent += state.facet(indentUnit);
-          lineStart.push(pos + indent.length - tabs);
-          line = indent + line.slice(tabs);
+            indent2 += state.facet(indentUnit);
+          lineStart.push(pos + indent2.length - tabs);
+          line = indent2 + line.slice(tabs);
         }
         text3.push(line);
         pos += line.length + 1;
@@ -17135,18 +19897,18 @@
   // node_modules/@lezer/markdown/dist/index.js
   var CompositeBlock = class _CompositeBlock {
     static create(type, value, from, parentHash, end) {
-      let hash2 = parentHash + (parentHash << 8) + type + (value << 4) | 0;
-      return new _CompositeBlock(type, value, from, hash2, end, [], []);
+      let hash3 = parentHash + (parentHash << 8) + type + (value << 4) | 0;
+      return new _CompositeBlock(type, value, from, hash3, end, [], []);
     }
-    constructor(type, value, from, hash2, end, children, positions) {
+    constructor(type, value, from, hash3, end, children, positions) {
       this.type = type;
       this.value = value;
       this.from = from;
-      this.hash = hash2;
+      this.hash = hash3;
       this.end = end;
       this.children = children;
       this.positions = positions;
-      this.hashProp = [[NodeProp.contextHash, hash2]];
+      this.hashProp = [[NodeProp.contextHash, hash3]];
     }
     addChild(child, pos) {
       if (child.prop(NodeProp.contextHash) != this.hash)
@@ -17154,11 +19916,11 @@
       this.children.push(child);
       this.positions.push(pos);
     }
-    toTree(nodeSet, end = this.end) {
+    toTree(nodeSet2, end = this.end) {
       let last = this.children.length - 1;
       if (last >= 0)
         end = Math.max(end, this.positions[last] + this.children[last].length + this.from);
-      return new Tree(nodeSet.types[this.type], this.children, this.positions, end - this.from).balance({
+      return new Tree(nodeSet2.types[this.type], this.children, this.positions, end - this.from).balance({
         makeTree: (children, positions, length) => new Tree(NodeType.none, children, positions, length, this.hashProp)
       });
     }
@@ -17280,9 +20042,9 @@
     /**
     Move the line's base position forward to the given _column_.
     */
-    moveBaseColumn(indent) {
-      this.baseIndent = indent;
-      this.basePos = this.findColumn(indent);
+    moveBaseColumn(indent2) {
+      this.baseIndent = indent2;
+      this.basePos = this.findColumn(indent2);
     }
     /**
     Store a composite-block-level marker. Should be called from
@@ -17296,18 +20058,18 @@
     Find the column position at `to`, optionally starting at a given
     position and column.
     */
-    countIndent(to, from = 0, indent = 0) {
+    countIndent(to, from = 0, indent2 = 0) {
       for (let i2 = from; i2 < to; i2++)
-        indent += this.text.charCodeAt(i2) == 9 ? 4 - indent % 4 : 1;
-      return indent;
+        indent2 += this.text.charCodeAt(i2) == 9 ? 4 - indent2 % 4 : 1;
+      return indent2;
     }
     /**
     Find the position corresponding to the given column.
     */
     findColumn(goal) {
       let i2 = 0;
-      for (let indent = 0; i2 < this.text.length && indent < goal; i2++)
-        indent += this.text.charCodeAt(i2) == 9 ? 4 - indent % 4 : 1;
+      for (let indent2 = 0; i2 < this.text.length && indent2 < goal; i2++)
+        indent2 += this.text.charCodeAt(i2) == 9 ? 4 - indent2 % 4 : 1;
       return i2;
     }
     /**
@@ -17765,8 +20527,8 @@
     /**
     @internal
     */
-    constructor(parser5, input, fragments, ranges) {
-      this.parser = parser5;
+    constructor(parser9, input, fragments, ranges) {
+      this.parser = parser9;
       this.input = input;
       this.ranges = ranges;
       this.line = new Line2();
@@ -17822,9 +20584,9 @@
       let leaf = new LeafBlock(this.lineStart + line.pos, line.text.slice(line.pos));
       for (let parse of this.parser.leafBlockParsers)
         if (parse) {
-          let parser5 = parse(this, leaf);
-          if (parser5)
-            leaf.parsers.push(parser5);
+          let parser9 = parse(this, leaf);
+          if (parser9)
+            leaf.parsers.push(parser9);
         }
       lines: while (this.nextLine()) {
         if (line.pos == line.text.length)
@@ -17834,8 +20596,8 @@
             if (stop(this, line, leaf))
               break lines;
         }
-        for (let parser5 of leaf.parsers)
-          if (parser5.nextLine(this, line, leaf))
+        for (let parser9 of leaf.parsers)
+          if (parser9.nextLine(this, line, leaf))
             return null;
         leaf.content += "\n" + line.scrub();
         for (let m of line.markers)
@@ -18039,8 +20801,8 @@
     @internal
     */
     finishLeaf(leaf) {
-      for (let parser5 of leaf.parsers)
-        if (parser5.finish(this, leaf))
+      for (let parser9 of leaf.parsers)
+        if (parser9.finish(this, leaf))
           return;
       let inline2 = injectMarks(this.parser.parseInline(leaf.content, leaf.start), leaf.marks);
       this.addNode(this.buffer.writeElements(inline2, -leaf.start).finish(Type.Paragraph, leaf.content.length), leaf.start);
@@ -18090,9 +20852,9 @@
     /**
     @internal
     */
-    constructor(nodeSet, blockParsers, leafBlockParsers, blockNames, endLeafBlock, skipContextMarkup, inlineParsers, inlineNames, wrappers) {
+    constructor(nodeSet2, blockParsers, leafBlockParsers, blockNames, endLeafBlock, skipContextMarkup, inlineParsers, inlineNames, wrappers) {
       super();
-      this.nodeSet = nodeSet;
+      this.nodeSet = nodeSet2;
       this.blockParsers = blockParsers;
       this.leafBlockParsers = leafBlockParsers;
       this.blockNames = blockNames;
@@ -18102,7 +20864,7 @@
       this.inlineNames = inlineNames;
       this.wrappers = wrappers;
       this.nodeTypes = /* @__PURE__ */ Object.create(null);
-      for (let t2 of nodeSet.types)
+      for (let t2 of nodeSet2.types)
         this.nodeTypes[t2.name] = t2.id;
     }
     createParse(input, fragments, ranges) {
@@ -18118,11 +20880,11 @@
       let config2 = resolveConfig(spec);
       if (!config2)
         return this;
-      let { nodeSet, skipContextMarkup } = this;
+      let { nodeSet: nodeSet2, skipContextMarkup } = this;
       let blockParsers = this.blockParsers.slice(), leafBlockParsers = this.leafBlockParsers.slice(), blockNames = this.blockNames.slice(), inlineParsers = this.inlineParsers.slice(), inlineNames = this.inlineNames.slice(), endLeafBlock = this.endLeafBlock.slice(), wrappers = this.wrappers;
       if (nonEmpty(config2.defineNodes)) {
         skipContextMarkup = Object.assign({}, skipContextMarkup);
-        let nodeTypes2 = nodeSet.types.slice(), styles;
+        let nodeTypes2 = nodeSet2.types.slice(), styles;
         for (let s of config2.defineNodes) {
           let { name: name2, block: block2, composite, style } = typeof s == "string" ? { name: s } : s;
           if (nodeTypes2.some((t2) => t2.name == name2))
@@ -18145,12 +20907,12 @@
               Object.assign(styles, style);
           }
         }
-        nodeSet = new NodeSet(nodeTypes2);
+        nodeSet2 = new NodeSet(nodeTypes2);
         if (styles)
-          nodeSet = nodeSet.extend(styleTags(styles));
+          nodeSet2 = nodeSet2.extend(styleTags(styles));
       }
       if (nonEmpty(config2.props))
-        nodeSet = nodeSet.extend(...config2.props);
+        nodeSet2 = nodeSet2.extend(...config2.props);
       if (nonEmpty(config2.remove)) {
         for (let rm of config2.remove) {
           let block2 = this.blockNames.indexOf(rm), inline2 = this.inlineNames.indexOf(rm);
@@ -18190,7 +20952,7 @@
       }
       if (config2.wrap)
         wrappers = wrappers.concat(config2.wrap);
-      return new _MarkdownParser(nodeSet, blockParsers, leafBlockParsers, blockNames, endLeafBlock, skipContextMarkup, inlineParsers, inlineNames, wrappers);
+      return new _MarkdownParser(nodeSet2, blockParsers, leafBlockParsers, blockNames, endLeafBlock, skipContextMarkup, inlineParsers, inlineNames, wrappers);
     }
     /**
     @internal
@@ -18265,8 +21027,8 @@
   }
   var none3 = [];
   var Buffer2 = class {
-    constructor(nodeSet) {
-      this.nodeSet = nodeSet;
+    constructor(nodeSet2) {
+      this.nodeSet = nodeSet2;
       this.content = [];
       this.nodes = [];
     }
@@ -18310,8 +21072,8 @@
     /**
     @internal
     */
-    toTree(nodeSet) {
-      return new Buffer2(nodeSet).writeElements(this.children, -this.from).finish(this.type, this.to - this.from);
+    toTree(nodeSet2) {
+      return new Buffer2(nodeSet2).writeElements(this.children, -this.from).finish(this.type, this.to - this.from);
     }
   };
   var TreeElement = class {
@@ -18590,8 +21352,8 @@
     /**
     @internal
     */
-    constructor(parser5, text3, offset) {
-      this.parser = parser5;
+    constructor(parser9, text3, offset) {
+      this.parser = parser9;
       this.text = text3;
       this.offset = offset;
       this.parts = [];
@@ -18819,9 +21581,9 @@
           return false;
       }
     }
-    matches(hash2) {
+    matches(hash3) {
       let tree = this.cursor.tree;
-      return tree && tree.prop(NodeProp.contextHash) == hash2;
+      return tree && tree.prop(NodeProp.contextHash) == hash3;
     }
     takeNodes(cx) {
       let cur = this.cursor, off = this.fragment.offset, fragEnd = this.fragmentEnd - (this.fragment.openEnd ? 1 : 0);
@@ -18919,9 +21681,9 @@
           if (infoNode)
             info = input.read(infoNode.from, infoNode.to);
         }
-        let parser5 = codeParser(info);
-        if (parser5)
-          return { parser: parser5, overlay: (node2) => node2.type.id == Type.CodeText, bracketed: id2 == Type.FencedCode };
+        let parser9 = codeParser(info);
+        if (parser9)
+          return { parser: parser9, overlay: (node2) => node2.type.id == Type.CodeText, bracketed: id2 == Type.FencedCode };
       } else if (htmlParser2 && (id2 == Type.HTMLBlock || id2 == Type.HTMLTag || id2 == Type.CommentBlock)) {
         return { parser: htmlParser2, overlay: leftOverSpace(node.node, node.from, node.to) };
       }
@@ -18951,7 +21713,7 @@
       after: "Emphasis"
     }]
   };
-  function parseRow(cx, line, startI = 0, elts, offset = 0) {
+  function parseRow2(cx, line, startI = 0, elts, offset = 0) {
     let count2 = 0, first = true, cellStart = -1, cellEnd = -1, esc = false;
     let parseCell = () => {
       elts.push(cx.elt("TableCell", offset + cellStart, offset + cellEnd, cx.parser.parseInline(line.slice(cellStart, cellEnd), offset + cellStart)));
@@ -19002,8 +21764,8 @@
         this.rows = false;
         let lineText;
         if ((line.next == 45 || line.next == 58 || line.next == 124) && delimiterLine.test(lineText = line.text.slice(line.pos))) {
-          let firstRow = [], firstCount = parseRow(cx, leaf.content, 0, firstRow, leaf.start);
-          if (firstCount == parseRow(cx, lineText, 0))
+          let firstRow = [], firstCount = parseRow2(cx, leaf.content, 0, firstRow, leaf.start);
+          if (firstCount == parseRow2(cx, lineText, 0))
             this.rows = [
               cx.elt("TableHeader", leaf.start, leaf.start + leaf.content.length, firstRow),
               cx.elt("TableDelimiter", cx.lineStart + line.pos, cx.lineStart + line.text.length)
@@ -19011,7 +21773,7 @@
         }
       } else if (this.rows) {
         let content2 = [];
-        parseRow(cx, line.text, line.pos, content2, cx.lineStart);
+        parseRow2(cx, line.text, line.pos, content2, cx.lineStart);
         this.rows.push(cx.elt("TableRow", cx.lineStart + line.pos, cx.lineStart + line.text.length, content2));
       }
       return false;
@@ -19040,7 +21802,7 @@
         if (leaf.parsers.some((p) => p instanceof TableParser) || !hasPipe(line.text, line.basePos))
           return false;
         let next2 = cx.peekLine();
-        return delimiterLine.test(next2) && parseRow(cx, line.text, line.basePos) == parseRow(cx, next2, line.basePos);
+        return delimiterLine.test(next2) && parseRow2(cx, line.text, line.basePos) == parseRow2(cx, next2, line.basePos);
       },
       before: "SetextHeading"
     }]
@@ -19250,23 +22012,23 @@
     reduce(action) {
       var _a3;
       let depth = action >> 19, type = action & 65535;
-      let { parser: parser5 } = this.p;
+      let { parser: parser9 } = this.p;
       let lookaheadRecord = this.reducePos < this.pos - 25 && this.setLookAhead(this.pos);
-      let dPrec = parser5.dynamicPrecedence(type);
+      let dPrec = parser9.dynamicPrecedence(type);
       if (dPrec)
         this.score += dPrec;
       if (depth == 0) {
-        if (type < parser5.minRepeatTerm && this.reducePos < this.pos)
+        if (type < parser9.minRepeatTerm && this.reducePos < this.pos)
           this.reducePos = this.pos;
-        this.pushState(parser5.getGoto(this.state, type, true), this.reducePos);
-        if (type < parser5.minRepeatTerm)
+        this.pushState(parser9.getGoto(this.state, type, true), this.reducePos);
+        if (type < parser9.minRepeatTerm)
           this.storeNode(type, this.reducePos, this.reducePos, lookaheadRecord ? 8 : 4, true);
         this.reduceContext(type, this.reducePos);
         return;
       }
       let base3 = this.stack.length - (depth - 1) * 3 - (action & 262144 ? 6 : 0);
       let start = base3 ? this.stack[base3 - 2] : this.p.ranges[0].from;
-      if (type < parser5.minRepeatTerm && start == this.reducePos && this.reducePos < this.pos)
+      if (type < parser9.minRepeatTerm && start == this.reducePos && this.reducePos < this.pos)
         this.reducePos = this.pos;
       let size = this.reducePos - start;
       if (size >= 2e3 && !((_a3 = this.p.parser.nodeSet.types[type]) === null || _a3 === void 0 ? void 0 : _a3.isAnonymous)) {
@@ -19280,8 +22042,8 @@
         }
       }
       let bufferBase = base3 ? this.stack[base3 - 1] : 0, count2 = this.bufferBase + this.buffer.length - bufferBase;
-      if (type < parser5.minRepeatTerm || action & 131072) {
-        let pos = parser5.stateFlag(
+      if (type < parser9.minRepeatTerm || action & 131072) {
+        let pos = parser9.stateFlag(
           this.state,
           1
           /* StateFlag.Skipped */
@@ -19292,7 +22054,7 @@
         this.state = this.stack[base3];
       } else {
         let baseStateID = this.stack[base3 - 3];
-        this.state = parser5.getGoto(baseStateID, type, true);
+        this.state = parser9.getGoto(baseStateID, type, true);
       }
       while (this.stack.length > base3)
         this.stack.pop();
@@ -19351,18 +22113,18 @@
       if (action & 131072) {
         this.pushState(action & 65535, this.pos);
       } else if ((action & 262144) == 0) {
-        let nextState = action, { parser: parser5 } = this.p;
+        let nextState = action, { parser: parser9 } = this.p;
         this.pos = end;
-        let skipped = parser5.stateFlag(
+        let skipped = parser9.stateFlag(
           nextState,
           1
           /* StateFlag.Skipped */
         );
-        if (!skipped && (end > start || type <= parser5.maxNode))
+        if (!skipped && (end > start || type <= parser9.maxNode))
           this.reducePos = end;
         this.pushState(nextState, skipped ? start : Math.min(start, this.reducePos));
         this.shiftContext(type, start);
-        if (type <= parser5.maxNode)
+        if (type <= parser9.maxNode)
           this.buffer.push(type, start, end, 4);
       } else {
         this.pos = end;
@@ -19498,18 +22260,18 @@
     @internal
     */
     forceReduce() {
-      let { parser: parser5 } = this.p;
-      let reduce2 = parser5.stateSlot(
+      let { parser: parser9 } = this.p;
+      let reduce2 = parser9.stateSlot(
         this.state,
         5
         /* ParseState.ForcedReduce */
       );
       if ((reduce2 & 65536) == 0)
         return false;
-      if (!parser5.validAction(this.state, reduce2)) {
+      if (!parser9.validAction(this.state, reduce2)) {
         let depth = reduce2 >> 19, term = reduce2 & 65535;
         let target = this.stack.length - depth * 3;
-        if (target < 0 || parser5.getGoto(this.stack[target], term, false) < 0) {
+        if (target < 0 || parser9.getGoto(this.stack[target], term, false) < 0) {
           let backup = this.findForcedReduction();
           if (backup == null)
             return false;
@@ -19528,18 +22290,18 @@
     isn't a valid action. @internal
     */
     findForcedReduction() {
-      let { parser: parser5 } = this.p, seen = [];
+      let { parser: parser9 } = this.p, seen = [];
       let explore = (state, depth) => {
         if (seen.includes(state))
           return;
         seen.push(state);
-        return parser5.allActions(state, (action) => {
+        return parser9.allActions(state, (action) => {
           if (action & (262144 | 131072)) ;
           else if (action & 65536) {
             let rDepth = (action >> 19) - depth;
             if (rDepth > 1) {
               let term = action & 65535, target = this.stack.length - rDepth * 3;
-              if (target >= 0 && parser5.getGoto(this.stack[target], term, false) >= 0)
+              if (target >= 0 && parser9.getGoto(this.stack[target], term, false) >= 0)
                 return rDepth << 19 | 65536 | term;
             }
           } else {
@@ -19575,12 +22337,12 @@
     get deadEnd() {
       if (this.stack.length != 3)
         return false;
-      let { parser: parser5 } = this.p;
-      return parser5.data[parser5.stateSlot(
+      let { parser: parser9 } = this.p;
+      return parser9.data[parser9.stateSlot(
         this.state,
         1
         /* ParseState.Actions */
-      )] == 65535 && !parser5.stateSlot(
+      )] == 65535 && !parser9.stateSlot(
         this.state,
         4
         /* ParseState.DefaultReduce */
@@ -20003,8 +22765,8 @@
       this.id = id2;
     }
     token(input, stack) {
-      let { parser: parser5 } = stack.p;
-      readToken(this.data, input, stack, this.id, parser5.data, parser5.tokenPrecTable);
+      let { parser: parser9 } = stack.p;
+      readToken2(this.data, input, stack, this.id, parser9.data, parser9.tokenPrecTable);
     }
   };
   TokenGroup.prototype.contextual = TokenGroup.prototype.fallback = TokenGroup.prototype.extend = false;
@@ -20018,7 +22780,7 @@
       let start = input.pos, skipped = 0;
       for (; ; ) {
         let atEof = input.next < 0, nextPos = input.resolveOffset(1, 1);
-        readToken(this.data, input, stack, 0, this.data, this.precTable);
+        readToken2(this.data, input, stack, 0, this.data, this.precTable);
         if (input.token.value > -1)
           break;
         if (this.elseToken == null)
@@ -20051,7 +22813,7 @@
       this.extend = !!options.extend;
     }
   };
-  function readToken(data2, input, stack, group, precTable, precOffset) {
+  function readToken2(data2, input, stack, group, precTable, precOffset) {
     let state = 0, groupMask = 1 << group, { dialect } = stack.p.parser;
     scan: for (; ; ) {
       if ((groupMask & data2[state]) == 0)
@@ -20123,9 +22885,9 @@
     }
   }
   var FragmentCursor3 = class {
-    constructor(fragments, nodeSet) {
+    constructor(fragments, nodeSet2) {
       this.fragments = fragments;
-      this.nodeSet = nodeSet;
+      this.nodeSet = nodeSet2;
       this.i = 0;
       this.fragment = null;
       this.safeFrom = -1;
@@ -20205,18 +22967,18 @@
     }
   };
   var TokenCache = class {
-    constructor(parser5, stream) {
+    constructor(parser9, stream) {
       this.stream = stream;
       this.tokens = [];
       this.mainToken = null;
       this.actions = [];
-      this.tokens = parser5.tokenizers.map((_) => new CachedToken());
+      this.tokens = parser9.tokenizers.map((_) => new CachedToken());
     }
     getActions(stack) {
       let actionIndex = 0;
       let main = null;
-      let { parser: parser5 } = stack.p, { tokenizers } = parser5;
-      let mask = parser5.stateSlot(
+      let { parser: parser9 } = stack.p, { tokenizers } = parser9;
+      let mask = parser9.stateSlot(
         stack.state,
         3
         /* ParseState.TokenizerMask */
@@ -20274,10 +23036,10 @@
       let start = this.stream.clipPos(stack.pos);
       tokenizer.token(this.stream.reset(start, token), stack);
       if (token.value > -1) {
-        let { parser: parser5 } = stack.p;
-        for (let i2 = 0; i2 < parser5.specialized.length; i2++)
-          if (parser5.specialized[i2] == token.value) {
-            let result = parser5.specializers[i2](this.stream.read(token.start, token.end), stack);
+        let { parser: parser9 } = stack.p;
+        for (let i2 = 0; i2 < parser9.specialized.length; i2++)
+          if (parser9.specialized[i2] == token.value) {
+            let result = parser9.specializers[i2](this.stream.read(token.start, token.end), stack);
             if (result >= 0 && stack.p.parser.dialect.allows(result >> 1)) {
               if ((result & 1) == 0)
                 token.value = result >> 1;
@@ -20301,9 +23063,9 @@
       return index;
     }
     addActions(stack, token, end, index) {
-      let { state } = stack, { parser: parser5 } = stack.p, { data: data2 } = parser5;
+      let { state } = stack, { parser: parser9 } = stack.p, { data: data2 } = parser9;
       for (let set2 = 0; set2 < 2; set2++) {
-        for (let i2 = parser5.stateSlot(
+        for (let i2 = parser9.stateSlot(
           state,
           set2 ? 2 : 1
           /* ParseState.Actions */
@@ -20324,9 +23086,9 @@
       return index;
     }
   };
-  var Parse = class {
-    constructor(parser5, input, fragments, ranges) {
-      this.parser = parser5;
+  var Parse2 = class {
+    constructor(parser9, input, fragments, ranges) {
+      this.parser = parser9;
       this.input = input;
       this.ranges = ranges;
       this.recovering = 0;
@@ -20338,11 +23100,11 @@
       this.lastBigReductionSize = 0;
       this.bigReductionCount = 0;
       this.stream = new InputStream(input, ranges);
-      this.tokens = new TokenCache(parser5, this.stream);
-      this.topTerm = parser5.top[1];
+      this.tokens = new TokenCache(parser9, this.stream);
+      this.topTerm = parser9.top[1];
       let { from } = ranges[0];
-      this.stacks = [Stack.start(this, parser5.top[0], from)];
-      this.fragments = fragments.length && this.stream.end - from > parser5.bufferLength * 4 ? new FragmentCursor3(fragments, parser5.nodeSet) : null;
+      this.stacks = [Stack.start(this, parser9.top[0], from)];
+      this.fragments = fragments.length && this.stream.end - from > parser9.bufferLength * 4 ? new FragmentCursor3(fragments, parser9.nodeSet) : null;
     }
     get parsedPos() {
       return this.minStackPos;
@@ -20455,18 +23217,18 @@
     // given, stacks split off by ambiguous operations will be pushed to
     // `split`, or added to `stacks` if they move `pos` forward.
     advanceStack(stack, stacks, split) {
-      let start = stack.pos, { parser: parser5 } = this;
+      let start = stack.pos, { parser: parser9 } = this;
       let base3 = verbose ? this.stackID(stack) + " -> " : "";
       if (this.stoppedAt != null && start > this.stoppedAt)
         return stack.forceReduce() ? stack : null;
       if (this.fragments) {
         let strictCx = stack.curContext && stack.curContext.tracker.strict, cxHash = strictCx ? stack.curContext.hash : 0;
         for (let cached = this.fragments.nodeAt(start); cached; ) {
-          let match2 = this.parser.nodeSet.types[cached.type.id] == cached.type ? parser5.getGoto(stack.state, cached.type.id) : -1;
+          let match2 = this.parser.nodeSet.types[cached.type.id] == cached.type ? parser9.getGoto(stack.state, cached.type.id) : -1;
           if (match2 > -1 && cached.length && (!strictCx || (cached.prop(NodeProp.contextHash) || 0) == cxHash)) {
             stack.useNode(cached, match2);
             if (verbose)
-              console.log(base3 + this.stackID(stack) + ` (via reuse of ${parser5.getName(cached.type.id)})`);
+              console.log(base3 + this.stackID(stack) + ` (via reuse of ${parser9.getName(cached.type.id)})`);
             return true;
           }
           if (!(cached instanceof Tree) || cached.children.length == 0 || cached.positions[0] > 0)
@@ -20478,7 +23240,7 @@
             break;
         }
       }
-      let defaultReduce = parser5.stateSlot(
+      let defaultReduce = parser9.stateSlot(
         stack.state,
         4
         /* ParseState.DefaultReduce */
@@ -20486,7 +23248,7 @@
       if (defaultReduce > 0) {
         stack.reduce(defaultReduce);
         if (verbose)
-          console.log(base3 + this.stackID(stack) + ` (via always-reduce ${parser5.getName(
+          console.log(base3 + this.stackID(stack) + ` (via always-reduce ${parser9.getName(
             defaultReduce & 65535
             /* Action.ValueMask */
           )})`);
@@ -20504,10 +23266,10 @@
         let main = this.tokens.mainToken;
         localStack.apply(action, term, main ? main.start : localStack.pos, end);
         if (verbose)
-          console.log(base3 + this.stackID(localStack) + ` (via ${(action & 65536) == 0 ? "shift" : `reduce of ${parser5.getName(
+          console.log(base3 + this.stackID(localStack) + ` (via ${(action & 65536) == 0 ? "shift" : `reduce of ${parser9.getName(
             action & 65535
             /* Action.ValueMask */
-          )}`} for ${parser5.getName(term)} @ ${start}${localStack == stack ? "" : ", split"})`);
+          )}`} for ${parser9.getName(term)} @ ${start}${localStack == stack ? "" : ", split"})`);
         if (last)
           return true;
         else if (localStack.pos > start)
@@ -20704,7 +23466,7 @@
       this.top = this.topRules[Object.keys(this.topRules)[0]];
     }
     createParse(input, fragments, ranges) {
-      let parse = new Parse(this, input, fragments, ranges);
+      let parse = new Parse2(this, input, fragments, ranges);
       for (let w of this.wrappers)
         parse = w(parse, input, fragments, ranges);
       return parse;
@@ -23635,8 +26397,8 @@
     }
     return null;
   });
-  function mkLang(parser5) {
-    return new Language(data, parser5, [], "markdown");
+  function mkLang(parser9) {
+    return new Language(data, parser9, [], "markdown");
   }
   var commonmarkLanguage = /* @__PURE__ */ mkLang(commonmark);
   var extended = /* @__PURE__ */ commonmark.configure([GFM, Subscript, Superscript, Emoji, {
@@ -23751,17 +26513,17 @@
     if (!blank || state.facet(indentUnit) != "	")
       return content2;
     let col = countColumn(content2, 4, blank);
-    let space4 = "";
+    let space5 = "";
     for (let i2 = col; i2 > 0; ) {
       if (i2 >= 4) {
-        space4 += "	";
+        space5 += "	";
         i2 -= 4;
       } else {
-        space4 += " ";
+        space5 += " ";
         i2--;
       }
     }
-    return space4 + content2.slice(blank);
+    return space5 + content2.slice(blank);
   }
   var insertNewlineContinueMarkupCommand = (config2 = {}) => ({ state, dispatch }) => {
     let tree = syntaxTree(state), { doc: doc2 } = state;
@@ -23923,8 +26685,8 @@
   ];
   var htmlNoMatch = /* @__PURE__ */ html({ matchClosingTags: false });
   function markdown(config2 = {}) {
-    let { codeLanguages, defaultCodeLanguage, addKeymap = true, base: { parser: parser5 } = commonmarkLanguage, completeHTMLTags = true, pasteURLAsLink: pasteURL = true, htmlTagLanguage = htmlNoMatch } = config2;
-    if (!(parser5 instanceof MarkdownParser))
+    let { codeLanguages, defaultCodeLanguage, addKeymap = true, base: { parser: parser9 } = commonmarkLanguage, completeHTMLTags = true, pasteURLAsLink: pasteURL = true, htmlTagLanguage = htmlNoMatch } = config2;
+    if (!(parser9 instanceof MarkdownParser))
       throw new RangeError("Base parser provided to `markdown` should be a Markdown parser");
     let extensions = config2.extensions ? [config2.extensions] : [];
     let support = [htmlTagLanguage.support, headerIndent], defaultCode;
@@ -23940,7 +26702,7 @@
     extensions.push(parseCode({ codeParser, htmlParser: htmlTagLanguage.language.parser }));
     if (addKeymap)
       support.push(Prec.high(keymap.of(markdownKeymap)));
-    let lang = mkLang(parser5.configure(extensions));
+    let lang = mkLang(parser9.configure(extensions));
     if (completeHTMLTags)
       support.push(lang.data.of({ autocomplete: htmlTagCompletion }));
     return new LanguageSupport(lang, support);
@@ -24007,1930 +26769,4977 @@
     }
   });
 
-  // src/shared/tableModel.ts
-  var DELIMITER_RE = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
-  var parsedTablesByDoc = /* @__PURE__ */ new WeakMap();
-  function getParsedTables(doc2) {
-    const cached = parsedTablesByDoc.get(doc2);
-    if (cached) {
-      return cached;
-    }
-    const tables2 = parseMarkdownTables(doc2.toString());
-    parsedTablesByDoc.set(doc2, tables2);
-    return tables2;
-  }
-  function positionAfterTable(doc2, table2) {
-    return table2.to < doc2.length && doc2.sliceString(table2.to, table2.to + 1) === "\n" ? table2.to + 1 : table2.to;
-  }
-  function positionBeforeTable(table2) {
-    return Math.max(0, table2.from - 1);
-  }
-  function parseMarkdownTables(source) {
-    const lines = getSourceLines(source);
-    const tables2 = [];
-    let activeFence = null;
-    let inHtmlComment = false;
-    let lineIndex = 0;
-    while (lineIndex < lines.length) {
-      const line = lines[lineIndex];
-      if (inHtmlComment) {
-        if (line.text.includes("-->")) {
-          inHtmlComment = false;
-        }
-        lineIndex++;
-        continue;
-      }
-      if (activeFence) {
-        if (isClosingFence(line.text, activeFence)) {
-          activeFence = null;
-        }
-        lineIndex++;
-        continue;
-      }
-      if (startsHtmlCommentBlock(line.text)) {
-        inHtmlComment = !line.text.includes("-->");
-        lineIndex++;
-        continue;
-      }
-      const openingFence = parseOpeningFence(line.text);
-      if (openingFence) {
-        activeFence = openingFence;
-        lineIndex++;
-        continue;
-      }
-      if (isIndentedCodeLine(line.text)) {
-        lineIndex++;
-        continue;
-      }
-      const delimiterLine2 = lines[lineIndex + 1];
-      const isHeaderCandidate = hasUnescapedPipe(line.text) && Boolean(delimiterLine2) && !isIndentedCodeLine(delimiterLine2.text) && DELIMITER_RE.test(delimiterLine2.text) && hasUnescapedPipe(delimiterLine2.text);
-      if (!isHeaderCandidate || !delimiterLine2) {
-        lineIndex++;
-        continue;
-      }
-      const header = parseRow2(line);
-      const delimiter2 = parseRow2(delimiterLine2);
-      if (header.cells.length === 0 || delimiter2.cells.length === 0) {
-        lineIndex++;
-        continue;
-      }
-      const body = [];
-      let bodyIndex = lineIndex + 2;
-      while (bodyIndex < lines.length) {
-        const bodyLine = lines[bodyIndex];
-        if (parseOpeningFence(bodyLine.text) || startsHtmlCommentBlock(bodyLine.text) || isIndentedCodeLine(bodyLine.text) || bodyLine.text.trim() === "" || !hasUnescapedPipe(bodyLine.text)) {
-          break;
-        }
-        const row = parseRow2(bodyLine);
-        if (row.cells.length === 0) {
-          break;
-        }
-        body.push(row);
-        bodyIndex++;
-      }
-      const columnCount = Math.max(
-        header.cells.length,
-        delimiter2.cells.length,
-        ...body.map((row) => row.cells.length)
-      );
-      const endRow = body.length > 0 ? body[body.length - 1] : delimiter2;
-      tables2.push({
-        from: line.from,
-        to: endRow.to,
-        startLine: line.index,
-        endLine: endRow.lineIndex,
-        header,
-        delimiter: delimiter2,
-        body,
-        columnCount,
-        alignments: Array.from(
-          { length: columnCount },
-          (_, column) => parseAlignment(delimiter2.cells[column]?.raw ?? "")
-        )
-      });
-      lineIndex = bodyIndex;
-    }
-    return tables2;
-  }
-  function parseOpeningFence(text3) {
-    if (isIndentedCodeLine(text3)) {
-      return null;
-    }
-    const match2 = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(text3);
-    if (!match2) {
-      return null;
-    }
-    const run = match2[1];
-    const marker = run[0];
-    if (marker === "`" && match2[2].includes("`")) {
-      return null;
-    }
-    return { marker, length: run.length };
-  }
-  function isClosingFence(text3, fence2) {
-    const match2 = /^ {0,3}(`+|~+)[ \t]*$/.exec(text3);
-    return Boolean(
-      match2 && match2[1][0] === fence2.marker && match2[1].length >= fence2.length
-    );
-  }
-  function startsHtmlCommentBlock(text3) {
-    return /^ {0,3}<!--/.test(text3);
-  }
-  function isIndentedCodeLine(text3) {
-    let column = 0;
-    for (const character of text3) {
-      if (character === " ") {
-        column++;
-      } else if (character === "	") {
-        column += 4 - column % 4;
-      } else {
-        break;
-      }
-      if (column >= 4) {
-        return true;
-      }
-    }
-    return false;
-  }
-  function rowToDisplayValues(row, columnCount) {
-    return Array.from(
-      { length: columnCount },
-      (_, column) => markdownCellToDisplayText(row.cells[column]?.raw ?? "")
-    );
-  }
-  function markdownCellToDisplayText(text3) {
-    return text3.trim().replace(/<br\s*\/?>/gi, "\n").replace(/&#124;|&vert;/gi, "|");
-  }
-  function formatMarkdownRow(values2) {
-    return `| ${values2.map((value) => formatMarkdownCell(value)).join(" | ")} |`;
-  }
-  function formatMarkdownCell(value, options = {}) {
-    const normalized = value.replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ");
-    return (options.trim === false ? normalized : normalized.trim()).replace(/\n/g, "<br>").replace(/\|/g, "&#124;");
-  }
-  function ensureTableCellSeparatorSafe(raw) {
-    return raw.endsWith("\\") ? `${raw} ` : raw;
-  }
-  function tableCellLeadingPipePrefix(row, column) {
-    const cell2 = row.cells[column];
-    return column === 0 && cell2?.start === row.from ? "|" : "";
-  }
-  function formatTableCellEdit(row, columnCount, column, value) {
-    const values2 = rowToDisplayValues(row, Math.max(columnCount, column + 1));
-    values2[column] = value;
-    return formatMarkdownRow(values2);
-  }
-  function formatTableCellSourceEdit(row, columnCount, column, value) {
-    const cell2 = row.cells[column];
-    if (!cell2) {
-      return {
-        from: row.from,
-        to: row.to,
-        insert: formatTableCellEdit(row, columnCount, column, value)
-      };
-    }
-    const { leadingWhitespace, trailingWhitespace } = getCellPaddingWhitespace(
-      cell2.raw
-    );
-    return {
-      from: cell2.start,
-      to: cell2.end,
-      insert: ensureTableCellSeparatorSafe(
-        `${tableCellLeadingPipePrefix(row, column)}${leadingWhitespace}${formatMarkdownCell(value)}${trailingWhitespace}`
-      )
-    };
-  }
-  function getCellPaddingWhitespace(raw) {
-    if (raw.trim() === "") {
-      const split = Math.floor(raw.length / 2);
-      return {
-        leadingWhitespace: raw.slice(0, split),
-        trailingWhitespace: raw.slice(split)
-      };
-    }
-    return {
-      leadingWhitespace: raw.match(/^\s*/)?.[0] ?? "",
-      trailingWhitespace: raw.match(/\s*$/)?.[0] ?? ""
-    };
-  }
-  function getSourceLines(source) {
-    if (source.length === 0) {
-      return [{ index: 0, from: 0, to: 0, text: "" }];
-    }
-    const lines = [];
-    let from = 0;
-    let index = 0;
-    while (from <= source.length) {
-      const newline4 = source.indexOf("\n", from);
-      const rawTo = newline4 === -1 ? source.length : newline4;
-      const to = rawTo > from && source[rawTo - 1] === "\r" ? rawTo - 1 : rawTo;
-      lines.push({
-        index,
-        from,
-        to,
-        text: source.slice(from, to)
-      });
-      if (newline4 === -1) {
-        break;
-      }
-      from = newline4 + 1;
-      index++;
-    }
-    return lines;
-  }
-  function parseRow2(line) {
-    const pipes = findUnescapedPipes(line.text);
-    const firstPipe = pipes[0];
-    const lastPipe = pipes[pipes.length - 1];
-    const hasLeadingPipe = firstPipe !== void 0 && line.text.slice(0, firstPipe).trim() === "";
-    const hasTrailingPipe = lastPipe !== void 0 && line.text.slice(lastPipe + 1).trim() === "";
-    const contentStart = hasLeadingPipe ? (firstPipe ?? -1) + 1 : 0;
-    const contentEnd = hasTrailingPipe ? lastPipe ?? line.text.length : line.text.length;
-    const separatorPipes = pipes.filter(
-      (pipe) => pipe >= contentStart && pipe < contentEnd
-    );
-    const cells = [];
-    let start = contentStart;
-    for (const pipe of separatorPipes) {
-      cells.push({
-        raw: line.text.slice(start, pipe),
-        start: line.from + start,
-        end: line.from + pipe
-      });
-      start = pipe + 1;
-    }
-    if (pipes.length > 0) {
-      cells.push({
-        raw: line.text.slice(start, contentEnd),
-        start: line.from + start,
-        end: line.from + contentEnd
-      });
-    }
-    return {
-      lineIndex: line.index,
-      from: line.from,
-      to: line.to,
-      text: line.text,
-      cells
-    };
-  }
-  function parseMarkdownTableRow(lineIndex, from, text3) {
-    return parseRow2({
-      index: lineIndex,
-      from,
-      to: from + text3.length,
-      text: text3
+  // src/editor/documentSelectionState.ts
+  var projections = /* @__PURE__ */ new WeakMap();
+  var documentSelectionProjectionTransaction = Annotation.define();
+  function setDocumentSelectionProjection(doc2, projection) {
+    projections.set(doc2, {
+      anchor: projection.anchor,
+      head: projection.head,
+      tableRegions: projection.tableRegions.map(normalizeRegion)
     });
   }
-  function parseAlignment(delimiterCell) {
-    const text3 = delimiterCell.trim();
-    const left = text3.startsWith(":");
-    const right = text3.endsWith(":");
-    if (left && right) {
-      return "center";
+  function getDocumentSelectionProjection(doc2, selection) {
+    const projection = projections.get(doc2) ?? null;
+    if (projection && selection && (projection.anchor !== selection.anchor || projection.head !== selection.head)) {
+      projections.delete(doc2);
+      return null;
     }
-    if (right) {
-      return "right";
-    }
-    return "left";
+    return projection ? {
+      anchor: projection.anchor,
+      head: projection.head,
+      tableRegions: projection.tableRegions.map((region) => ({ ...region }))
+    } : null;
   }
-  function hasUnescapedPipe(text3) {
-    return findUnescapedPipes(text3).length > 0;
+  function clearDocumentSelectionProjection(doc2) {
+    projections.delete(doc2);
   }
-  function findUnescapedPipes(text3) {
-    const pipes = [];
-    for (let index = 0; index < text3.length; index++) {
-      if (text3[index] === "|" && !isEscaped(text3, index)) {
-        pipes.push(index);
-      }
+  function documentSelectionProjectionsEqual(left, right) {
+    if (left === right) {
+      return true;
     }
-    return pipes;
+    if (!left || !right || left.anchor !== right.anchor || left.head !== right.head || left.tableRegions.length !== right.tableRegions.length) {
+      return false;
+    }
+    return left.tableRegions.every((region, index) => {
+      const candidate = right.tableRegions[index];
+      return candidate !== void 0 && region.tableFrom === candidate.tableFrom && region.top === candidate.top && region.bottom === candidate.bottom && region.left === candidate.left && region.right === candidate.right;
+    });
   }
-  function isEscaped(text3, index) {
-    let slashCount = 0;
-    for (let cursor = index - 1; cursor >= 0 && text3[cursor] === "\\"; cursor--) {
-      slashCount++;
+  function proseToTableRectangle(direction, cell2, dimensions) {
+    const address = clampCell(cell2, dimensions);
+    if (direction === "forward") {
+      return {
+        top: 0,
+        bottom: address.row,
+        left: 0,
+        right: address.column
+      };
     }
-    return slashCount % 2 === 1;
+    return {
+      top: address.row,
+      bottom: Math.max(0, dimensions.rowCount - 1),
+      left: address.column,
+      right: Math.max(0, dimensions.columnCount - 1)
+    };
+  }
+  function tableToProseRectangle(direction, anchor, dimensions) {
+    const address = clampCell(anchor, dimensions);
+    return direction === "above" ? {
+      top: 0,
+      bottom: address.row,
+      left: 0,
+      right: Math.max(0, dimensions.columnCount - 1)
+    } : {
+      top: address.row,
+      bottom: Math.max(0, dimensions.rowCount - 1),
+      left: 0,
+      right: Math.max(0, dimensions.columnCount - 1)
+    };
+  }
+  function fullTableRectangle(dimensions) {
+    return {
+      top: 0,
+      bottom: Math.max(0, dimensions.rowCount - 1),
+      left: 0,
+      right: Math.max(0, dimensions.columnCount - 1)
+    };
+  }
+  function normalizeRegion(region) {
+    return {
+      tableFrom: region.tableFrom,
+      top: Math.min(region.top, region.bottom),
+      bottom: Math.max(region.top, region.bottom),
+      left: Math.min(region.left, region.right),
+      right: Math.max(region.left, region.right)
+    };
+  }
+  function clampCell(cell2, dimensions) {
+    return {
+      row: Math.max(0, Math.min(dimensions.rowCount - 1, cell2.row)),
+      column: Math.max(0, Math.min(dimensions.columnCount - 1, cell2.column))
+    };
   }
 
-  // src/shared/tableSourceProtection.ts
-  var allowTableSourceChange = Annotation.define();
-  function createTableSourceChangeFilter() {
-    return EditorState.changeFilter.of((transaction) => {
-      if (!transaction.docChanged || transaction.annotation(allowTableSourceChange) || isUndoRedo(transaction)) {
+  // src/editor/markdown/markdownPointer.ts
+  var MARKDOWN_MARKER_DRAG_EVENT = "mlrt:begin-markdown-marker-drag";
+  function isMarkdownTaskPointerActivation(event) {
+    if (event.button !== 0 || !event.isPrimary || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
+      return false;
+    }
+    const target = event.target;
+    return typeof target?.closest === "function" && target.closest(".mlrt-markdown-task-control") !== null;
+  }
+
+  // src/editor/markdown/markdownFocus.ts
+  function taskFocusReturnSelection(doc2, selectionAtRelease, currentSelection, bookmark, tables2) {
+    const useBookmark = currentSelection === selectionAtRelease && currentSelection.ranges.length === 1 && currentSelection.main.empty;
+    const protectedRanges = [];
+    for (const table2 of tables2) {
+      const to = table2.to < doc2.length && doc2.sliceString(table2.to, table2.to + 1) === "\n" ? table2.to + 1 : table2.to;
+      const previous = protectedRanges[protectedRanges.length - 1];
+      if (previous && table2.from <= previous.to) previous.to = Math.max(previous.to, to);
+      else protectedRanges.push({ from: table2.from, to });
+    }
+    const ranges = currentSelection.ranges.map((range) => {
+      if (!range.empty) return range;
+      let head = Math.max(0, Math.min(doc2.length, useBookmark ? bookmark ?? range.head : range.head));
+      const table2 = protectedRanges.find((candidate) => head >= candidate.from && head < candidate.to);
+      if (table2) {
+        const before = table2.from - 1;
+        head = before >= 0 && head - before <= table2.to - head ? before : table2.to;
+      }
+      return head === range.head ? range : EditorSelection.cursor(head, 1);
+    });
+    return ranges.every((range, index) => range === currentSelection.ranges[index]) ? currentSelection : EditorSelection.create(ranges, currentSelection.mainIndex);
+  }
+
+  // src/editor/markdown/markdownBlockSyntax.ts
+  function markdownAlertForQuote(source, quote) {
+    const first = quote.firstChild;
+    const paragraph2 = first?.name === "QuoteMark" ? first.nextSibling : first;
+    if (paragraph2?.name !== "Paragraph") return null;
+    const read = (from, to) => typeof source === "string" ? source.slice(from, to) : source.sliceString(from, to);
+    if (read(quote.from, paragraph2.from).includes("\n")) return null;
+    let header = "";
+    for (let position = paragraph2.from; position < paragraph2.to; ) {
+      const chunk = read(position, Math.min(paragraph2.to, position + 4096));
+      const newline5 = chunk.search(/[\r\n]/u);
+      header += newline5 < 0 ? chunk : chunk.slice(0, newline5);
+      if (newline5 >= 0 || !chunk) break;
+      position += chunk.length;
+    }
+    const match2 = /^\[!([a-z]+)\]([+-])?(?:[ \t]+(.*))?$/iu.exec(header.trimEnd());
+    if (!match2) return null;
+    const name2 = match2[1].toLowerCase();
+    const aliases = {
+      note: "note",
+      info: "note",
+      todo: "note",
+      abstract: "note",
+      summary: "note",
+      tldr: "note",
+      tip: "tip",
+      hint: "tip",
+      success: "tip",
+      check: "tip",
+      done: "tip",
+      important: "important",
+      example: "important",
+      quote: "note",
+      cite: "note",
+      question: "warning",
+      help: "warning",
+      faq: "warning",
+      warning: "warning",
+      attention: "warning",
+      caution: "caution",
+      failure: "caution",
+      fail: "caution",
+      missing: "caution",
+      danger: "caution",
+      error: "caution",
+      bug: "caution"
+    };
+    return {
+      type: aliases[name2] ?? "note",
+      from: paragraph2.from,
+      to: paragraph2.from + match2[1].length + 3,
+      name: name2,
+      title: match2[3]?.trim(),
+      headerTo: paragraph2.from + header.length,
+      ...match2[2] ? { collapsed: match2[2] === "-" } : {}
+    };
+  }
+  function delimiterLine2(source, chunkAt, from, opening) {
+    let position = from, dashes = 0, valid = true, first = true, end = from, carriageReturn2 = false;
+    while (position < source.length) {
+      const chunk = chunkAt(position);
+      for (let index = 0; index < chunk.length; index++, position++) {
+        const ch = chunk.charCodeAt(index);
+        if (ch === 10) return { valid: valid && dashes === 3, end, next: position + 1 };
+        if (carriageReturn2) valid = false;
+        if (first && opening && ch === 65279) {
+          first = false;
+          end = position + 1;
+          continue;
+        }
+        first = false;
+        if (dashes < 3) {
+          if (ch === 45) dashes++;
+          else valid = false;
+        } else if (ch !== 32 && ch !== 9 && ch !== 13) valid = false;
+        if (ch !== 13) end = position + 1;
+        carriageReturn2 = ch === 13;
+        if (opening && !valid) return { valid: false, end, next: position + 1 };
+      }
+      if (!chunk.length) break;
+    }
+    return { valid: valid && dashes === 3, end, next: source.length };
+  }
+  function findMarkdownFrontmatter(source) {
+    let cachedFrom = -1, cached = "";
+    const chunkAt = (position) => {
+      if (position < cachedFrom || position >= cachedFrom + cached.length) {
+        cachedFrom = position;
+        cached = source.read(position, Math.min(source.length, position + 4096));
+      }
+      return cached.slice(position - cachedFrom);
+    };
+    const opening = delimiterLine2(source, chunkAt, 0, true);
+    if (!opening.valid || opening.next >= source.length) return null;
+    for (let start = opening.next; start < source.length; ) {
+      const closing = delimiterLine2(source, chunkAt, start, false);
+      if (closing.valid) return {
+        from: 0,
+        openingTo: opening.end,
+        contentFrom: opening.next,
+        contentTo: start,
+        closingFrom: start,
+        to: closing.end
+      };
+      if (closing.next <= start) break;
+      start = closing.next;
+    }
+    return null;
+  }
+  var activeInput;
+  var markdownFrontmatterParserExtension = {
+    defineNodes: [
+      { name: "MarkdownFrontmatter", block: true },
+      "MarkdownFrontmatterMark",
+      "MarkdownFrontmatterContent"
+    ],
+    parseBlock: [{
+      name: "MarkdownFrontmatter",
+      before: "HorizontalRule",
+      parse(context, line) {
+        if (context.lineStart !== 0 || !activeInput) return false;
+        const bounds = activeInput.bounds === void 0 ? activeInput.bounds = findMarkdownFrontmatter(activeInput.input) : activeInput.bounds;
+        if (!bounds) return false;
+        const children = [context.elt("MarkdownFrontmatterMark", bounds.from, bounds.openingTo)];
+        if (bounds.contentFrom < bounds.contentTo) {
+          children.push(context.elt("MarkdownFrontmatterContent", bounds.contentFrom, bounds.contentTo));
+        }
+        children.push(context.elt("MarkdownFrontmatterMark", bounds.closingFrom, bounds.to));
+        while (context.lineStart < bounds.closingFrom && context.nextLine()) {
+        }
+        context.nextLine();
+        context.addElement(context.elt("MarkdownFrontmatter", 0, bounds.to, children));
         return true;
       }
-      const tables2 = getParsedTables(transaction.startState.doc);
-      if (tables2.length === 0) {
-        return true;
+    }],
+    wrap(inner, input) {
+      const current = { input };
+      return {
+        get parsedPos() {
+          return inner.parsedPos;
+        },
+        get stoppedAt() {
+          return inner.stoppedAt;
+        },
+        stopAt(position) {
+          inner.stopAt(position);
+        },
+        advance() {
+          const previous = activeInput;
+          activeInput = current;
+          try {
+            return inner.advance();
+          } finally {
+            activeInput = previous;
+          }
+        }
+      };
+    }
+  };
+
+  // src/editor/markdown/presentationTheme.ts
+  var black = { r: 0, g: 0, b: 0, a: 1 };
+  var white = { r: 255, g: 255, b: 255, a: 1 };
+  var clamp2 = (value, maximum) => Math.max(0, Math.min(maximum, value));
+  function parseMarkdownColor(value) {
+    if (!value) return null;
+    value = value.trim().toLowerCase();
+    if (value === "transparent") return { ...black, a: 0 };
+    if (value === "black") return black;
+    if (value === "white") return white;
+    const hex = /^#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/.exec(value)?.[1];
+    if (hex) {
+      const expanded = hex.length <= 4 ? [...hex].map((character) => character + character).join("") : hex;
+      return {
+        r: parseInt(expanded.slice(0, 2), 16),
+        g: parseInt(expanded.slice(2, 4), 16),
+        b: parseInt(expanded.slice(4, 6), 16),
+        a: expanded.length === 8 ? parseInt(expanded.slice(6), 16) / 255 : 1
+      };
+    }
+    const rgb = /^rgba?\(\s*([^()]+)\s*\)$/.exec(value)?.[1];
+    if (!rgb) return null;
+    const parts = rgb.replace(/,/g, " ").replace(/\//g, " ").trim().split(/\s+/);
+    if (parts.length !== 3 && parts.length !== 4) return null;
+    if (parts.some((part) => !/^[+-]?(?:\d*\.)?\d+%?$/.test(part))) return null;
+    const channel = (part) => clamp2(parseFloat(part) * (part.endsWith("%") ? 2.55 : 1), 255);
+    const alpha = parts[3] ? clamp2(parseFloat(parts[3]) / (parts[3].endsWith("%") ? 100 : 1), 1) : 1;
+    return { r: channel(parts[0]), g: channel(parts[1]), b: channel(parts[2]), a: alpha };
+  }
+  function compositeMarkdownColor(foreground, background) {
+    const a = foreground.a + background.a * (1 - foreground.a);
+    if (!a) return { ...black, a: 0 };
+    const channel = (key) => (foreground[key] * foreground.a + background[key] * background.a * (1 - foreground.a)) / a;
+    return { r: channel("r"), g: channel("g"), b: channel("b"), a };
+  }
+  function luminance(color) {
+    const channel = (value) => {
+      value /= 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    };
+    return channel(color.r) * 0.2126 + channel(color.g) * 0.7152 + channel(color.b) * 0.0722;
+  }
+  function markdownContrast(foreground, background) {
+    const first = luminance(compositeMarkdownColor(foreground, background)), second = luminance(background);
+    return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+  }
+  function cssColor(color) {
+    const channel = (value) => Math.round(value * 1e3) / 1e3;
+    return `rgba(${channel(color.r)}, ${channel(color.g)}, ${channel(color.b)}, ${channel(color.a)})`;
+  }
+  var markdownCodePalettes = {
+    dark: {
+      comment: "#9198a1",
+      constant: "#79c0ff",
+      declaration: "#d2a8ff",
+      keyword: "#ff7b72",
+      string: "#a5d6ff",
+      variable: "#ffa657",
+      tag: "#7ee787"
+    },
+    light: {
+      comment: "#57606a",
+      constant: "#0550ae",
+      declaration: "#6639ba",
+      keyword: "#cf222e",
+      string: "#0a3069",
+      variable: "#953800",
+      tag: "#116329"
+    }
+  };
+  function resolveMarkdownTheme(input) {
+    const read = (name2) => parseMarkdownColor(input.colors[name2]);
+    const canvas = compositeMarkdownColor(read("editor.background") ?? (input.dark ? black : white), input.dark ? black : white);
+    const host = compositeMarkdownColor(read("editor.foreground") ?? (input.dark ? white : black), canvas);
+    const transparent = { ...canvas, a: 0 };
+    const quietFill = (name2, maxAlpha) => {
+      const color = read(name2);
+      return input.highContrast || !color ? transparent : { ...color, a: Math.min(color.a, maxAlpha) };
+    };
+    let inlineFill = quietFill("textPreformat.background", 0.18);
+    let codeFill = quietFill("textCodeBlock.background", 0.22);
+    let surfaces = [canvas, compositeMarkdownColor(inlineFill, canvas), compositeMarkdownColor(codeFill, canvas)];
+    if ([black, white].every((color) => surfaces.some((surface) => markdownContrast(color, surface) < 4.5))) {
+      inlineFill = codeFill = transparent;
+      surfaces = [canvas];
+    }
+    const safe = (candidate, backgrounds = surfaces, minimum = 4.5) => {
+      const choices = [input.highContrast ? host : candidate, host].filter((color) => !!color && color.a > 0);
+      for (const choice of choices) {
+        if (backgrounds.every((background) => markdownContrast(choice, background) >= minimum)) return cssColor(choice);
       }
-      let changeTouchesTable = false;
-      transaction.changes.iterChanges((from, to, _fromB, _toB, inserted) => {
-        if (tables2.some(
-          (table2) => changeTouchesTableSource(
-            transaction.startState,
-            from,
-            to,
-            inserted.toString(),
-            table2
-          )
-        )) {
-          changeTouchesTable = true;
+      const score = (color) => Math.min(...backgrounds.map((background) => markdownContrast(color, background)));
+      return cssColor(score(black) >= score(white) ? black : white);
+    };
+    const link2 = safe(read("textLink.foreground"));
+    const punctuation2 = safe(read("descriptionForeground"));
+    const codeForeground = safe(read("textPreformat.foreground"));
+    const configuredEdge = read("textBlockQuote.border") ?? read("contrastBorder");
+    const edge = input.highContrast ? safe(host, [canvas], 3) : cssColor(configuredEdge && configuredEdge.a > 0 ? configuredEdge : { ...host, a: 0.28 });
+    const result = {
+      "foreground": safe(host),
+      "background": cssColor(codeFill),
+      "heading": link2,
+      "link": link2,
+      "destination": link2,
+      "title": punctuation2,
+      "punctuation": punctuation2,
+      "inline-code-foreground": codeForeground,
+      "inline-code-background": cssColor(inlineFill),
+      "code-foreground": codeForeground,
+      "code-background": cssColor(codeFill),
+      "edge": edge,
+      "marker": punctuation2,
+      "focus": safe(read("focusBorder") ?? read("contrastActiveBorder"), [canvas], 3),
+      "inline-code-outline": input.highContrast ? `inset 0 0 0 1px ${edge}` : "none"
+    };
+    const taskFill = input.highContrast ? canvas : read("checkbox.background") ?? canvas;
+    const taskSurface = compositeMarkdownColor(taskFill, canvas);
+    result["task-fill"] = cssColor(taskFill);
+    result["task-mark"] = safe(read("checkbox.foreground"), [taskSurface]);
+    result["task-border"] = safe(read("checkbox.border"), [canvas], 3);
+    const palette = markdownCodePalettes[luminance(canvas) < 0.4 ? "dark" : "light"];
+    for (const [role, color] of Object.entries(palette)) result[`code-${role}`] = safe(parseMarkdownColor(color));
+    for (const [kind, name2] of Object.entries({
+      note: "editorInfo.foreground",
+      tip: "testing.iconPassed",
+      important: "textLink.foreground",
+      warning: "editorWarning.foreground",
+      caution: "editorError.foreground"
+    })) {
+      result[`alert-${kind}`] = safe(read(name2));
+    }
+    return Object.fromEntries(Object.entries(result).map(([name2, value]) => [`--mlrt-markdown-${name2}`, value]));
+  }
+  var themeColorNames = [
+    "editor.background",
+    "editor.foreground",
+    "textLink.foreground",
+    "descriptionForeground",
+    "textPreformat.foreground",
+    "textPreformat.background",
+    "textCodeBlock.background",
+    "textBlockQuote.border",
+    "contrastBorder",
+    "focusBorder",
+    "contrastActiveBorder",
+    "checkbox.background",
+    "checkbox.foreground",
+    "checkbox.border",
+    "editorInfo.foreground",
+    "testing.iconPassed",
+    "editorWarning.foreground",
+    "editorError.foreground"
+  ];
+  var MarkdownThemeAdapter = class {
+    constructor(view2) {
+      this.view = view2;
+      this.observer = new MutationObserver(() => this.schedule());
+      const document2 = view2.dom.ownerDocument;
+      this.observer.observe(document2.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
+      this.observer.observe(document2.body, { attributes: true, attributeFilter: ["class", "style"] });
+      this.schedule();
+    }
+    view;
+    destroyed = false;
+    scheduled = false;
+    pending = true;
+    observer = null;
+    applied = /* @__PURE__ */ new Map();
+    schedule() {
+      this.pending = true;
+      if (this.destroyed || this.scheduled || !this.view.inView) return;
+      this.scheduled = true;
+      this.pending = false;
+      this.view.requestMeasure({
+        key: this,
+        read: () => {
+          if (this.destroyed) return null;
+          const document2 = this.view.dom.ownerDocument;
+          const style = document2.defaultView.getComputedStyle(this.view.dom);
+          const classes = document2.body.classList;
+          const colors = Object.fromEntries(themeColorNames.map((name2) => [name2, style.getPropertyValue(`--vscode-${name2.replace(/\./g, "-")}`).trim()]));
+          return resolveMarkdownTheme({
+            colors,
+            dark: !classes.contains("vscode-light"),
+            highContrast: classes.contains("vscode-high-contrast") || classes.contains("vscode-high-contrast-light")
+          });
+        },
+        write: (roles) => {
+          this.scheduled = false;
+          if (this.destroyed || !roles) return;
+          for (const [name2, value] of Object.entries(roles)) {
+            if (this.applied.get(name2) === value) continue;
+            this.view.dom.style.setProperty(name2, value);
+            this.applied.set(name2, value);
+          }
         }
       });
-      return !changeTouchesTable;
-    });
+    }
+    resume() {
+      if (this.pending) this.schedule();
+    }
+    destroy() {
+      this.destroyed = true;
+      this.observer?.disconnect();
+      this.observer = null;
+      for (const [name2, value] of this.applied) {
+        if (this.view.dom.style.getPropertyValue(name2) === value) this.view.dom.style.removeProperty(name2);
+      }
+      this.applied.clear();
+    }
+  };
+
+  // src/editor/markdown/markdownPresentation.ts
+  function mergeRanges(ranges, length) {
+    const result = [];
+    for (const range of ranges.map(({ from, to }) => ({ from: Math.max(0, from), to: Math.min(length, to) })).filter((range2) => range2.from < range2.to).sort((a, b) => a.from - b.from)) {
+      const previous = result[result.length - 1];
+      if (previous && range.from <= previous.to) previous.to = Math.max(previous.to, range.to);
+      else result.push(range);
+    }
+    return result;
   }
-  function createTableSourceSelectionGuard(options) {
-    return ViewPlugin.fromClass(
-      class {
-        scheduled = false;
-        constructor(view2) {
-          this.scheduleIfNeeded(view2);
+  function classifyMarkdownPresentation(source, tree, protectedRanges = [], visibleRanges = [{ from: 0, to: source.length }]) {
+    const windows2 = mergeRanges(visibleRanges, Math.min(source.length, tree.length));
+    const protectedWindows = mergeRanges(protectedRanges, source.length);
+    const spans = [];
+    const read = (from, to) => typeof source === "string" ? source.slice(from, to) : source.sliceString(from, to);
+    for (const window2 of windows2) {
+      const add2 = (from, to, style) => {
+        from = Math.max(from, window2.from);
+        to = Math.min(to, window2.to);
+        if (from >= to) return;
+        for (const protectedRange of protectedWindows) {
+          if (protectedRange.to <= from) continue;
+          if (protectedRange.from >= to) break;
+          if (protectedRange.from > from) spans.push({ from, to: protectedRange.from, style });
+          from = Math.max(from, protectedRange.to);
+          if (from >= to) return;
         }
-        update(update) {
-          if (update.selectionSet || update.docChanged || update.focusChanged) {
-            this.scheduleIfNeeded(
-              update.view,
-              update.startState.selection.main.head
-            );
+        spans.push({ from, to, style });
+      };
+      const role = (from, to, foreground, priority) => add2(from, to, { foreground, priority });
+      const punctuation2 = (from, to) => role(from, to, "punctuation", 100);
+      const content2 = (node, mark, style) => {
+        const first = node.firstChild;
+        const last = node.lastChild;
+        add2(first?.name === mark ? first.to : node.from, last?.name === mark ? last.from : node.to, style);
+      };
+      const html3 = (node) => {
+        add2(node.from, node.to, { foreground: "code", priority: 70, codeFont: true });
+        const mounted = node.prop(NodeProp.mounted);
+        if (!mounted) return;
+        mounted.tree.iterate({
+          from: Math.max(0, window2.from - node.from),
+          to: window2.to - node.from,
+          enter(token) {
+            const from = token.from + node.from, to = token.to + node.from;
+            switch (token.name) {
+              case "TagName":
+                role(from, to, "tag", 80);
+                break;
+              case "AttributeName":
+                role(from, to, "variable", 80);
+                break;
+              case "AttributeValue":
+                role(from, to, "string", 80);
+                break;
+              case "Comment":
+                role(from, to, "comment", 90);
+                return false;
+              case "DoctypeDecl":
+              case "ProcessingInst":
+                role(from, to, "keyword", 80);
+                break;
+              case "StartTag":
+              case "StartCloseTag":
+              case "EndTag":
+              case "SelfCloseEndTag":
+              case "Is":
+                punctuation2(from, to);
+                break;
+            }
+          }
+        });
+      };
+      tree.iterate({
+        from: window2.from,
+        to: window2.to,
+        enter(ref) {
+          const node = ref.node;
+          const { name: name2, from, to } = node;
+          if (to <= window2.from || from >= window2.to) return false;
+          if (name2 === "FencedCode" || name2 === "CodeBlock" || name2 === "MarkdownFrontmatter" || name2 === "Frontmatter") return false;
+          if (/^(?:ATX|Setext)Heading[1-6]$/.test(name2)) {
+            add2(from, to, { foreground: "heading", priority: 20, bold: true });
+          } else switch (name2) {
+            case "StrongEmphasis":
+              content2(node, "EmphasisMark", { bold: true });
+              break;
+            case "Emphasis":
+              content2(node, "EmphasisMark", { italic: true });
+              break;
+            case "Strikethrough":
+              content2(node, "StrikethroughMark", { strike: true });
+              break;
+            case "EmphasisMark":
+            case "StrikethroughMark":
+            case "LinkMark":
+            case "WikiMark":
+              punctuation2(from, to);
+              break;
+            case "WikiLink":
+              role(from, to, "link", 60);
+              break;
+            case "InlineCode":
+              add2(from, to, { foreground: "code", priority: 70, inlineCode: true, codeFont: true });
+              break;
+            case "CodeMark":
+              punctuation2(from, to);
+              break;
+            case "Link": {
+              const paragraph2 = node.parent, quote = paragraph2?.parent;
+              const alert = paragraph2?.name === "Paragraph" && quote?.name === "Blockquote" ? markdownAlertForQuote(source, quote) : null;
+              if (alert?.from === from && alert.to === to) return false;
+              role(from, to, "link", 50);
+              break;
+            }
+            case "Image":
+            case "Autolink":
+              role(from, to, "link", 50);
+              break;
+            case "LinkLabel":
+              role(from, to, "link", 50);
+              if (read(from, from + 1) === "[") punctuation2(from, from + 1);
+              if (read(to - 1, to) === "]") punctuation2(to - 1, to);
+              break;
+            case "URL": {
+              const destination = node.parent?.name === "Link" || node.parent?.name === "Image" || node.parent?.name === "LinkReference";
+              role(from, to, destination ? "destination" : "link", 60);
+              if (read(from, from + 1) === "<" && read(to - 1, to) === ">") {
+                punctuation2(from, from + 1);
+                punctuation2(to - 1, to);
+              }
+              break;
+            }
+            case "LinkTitle":
+              role(from, to, "title", 60);
+              punctuation2(from, from + 1);
+              punctuation2(to - 1, to);
+              break;
+            case "HTMLTag":
+            case "HTMLBlock":
+              html3(node);
+              return false;
+            case "Comment":
+            case "CommentBlock":
+              role(from, to, "comment", 90);
+              return false;
           }
         }
-        scheduleIfNeeded(view2, previousHead = void 0) {
-          if (this.scheduled || isTableCellFocused(view2, options.tableCellSelector) || isApplyingHostDocument(view2)) {
-            return;
-          }
-          const target = findSafeSelectionAnchor(view2.state, previousHead);
-          if (target === void 0) {
-            return;
-          }
-          this.scheduled = true;
+      });
+    }
+    const events = spans.flatMap((span, id2) => [
+      { position: span.from, id: id2, add: true },
+      { position: span.to, id: id2, add: false }
+    ]).sort((a, b) => a.position - b.position);
+    const active = /* @__PURE__ */ new Set();
+    const result = [];
+    let index = 0;
+    while (index < events.length) {
+      const from = events[index].position;
+      while (index < events.length && events[index].position === from) {
+        const event = events[index++];
+        if (event.add) active.add(event.id);
+        else active.delete(event.id);
+      }
+      const to = events[index]?.position ?? from;
+      if (!active.size || from === to) continue;
+      let foreground, priority = -1;
+      const flags = { bold: false, italic: false, strike: false, inlineCode: false, codeFont: false };
+      for (const id2 of active) {
+        const style = spans[id2].style;
+        if (style.foreground && (style.priority ?? 0) > priority) {
+          foreground = style.foreground;
+          priority = style.priority ?? 0;
+        }
+        for (const key of Object.keys(flags)) flags[key] ||= !!style[key];
+      }
+      const classes = ["mlrt-markdown-source"];
+      if (foreground) classes.push(`mlrt-markdown-role-${foreground}`);
+      if (flags.bold && !flags.codeFont) classes.push("mlrt-markdown-bold");
+      if (flags.italic && !flags.codeFont) classes.push("mlrt-markdown-italic");
+      if (flags.strike) classes.push("mlrt-markdown-strike");
+      if (flags.codeFont) classes.push("mlrt-markdown-code-font");
+      if (flags.inlineCode) classes.push("mlrt-markdown-inline-code");
+      const className = classes.join(" ");
+      const previous = result[result.length - 1];
+      if (previous?.to === from && previous.className === className) previous.to = to;
+      else result.push({ from, to, className });
+    }
+    return result;
+  }
+  function markdownPresentationDecorations(document2, runs) {
+    const ranges = [];
+    for (const run of runs) {
+      const mark = Decoration.mark({ class: run.className });
+      for (let from = run.from; from < run.to; ) {
+        const line = document2.lineAt(from), to = Math.min(run.to, line.to);
+        if (from < to) ranges.push(mark.range(from, to));
+        from = line.to + 1;
+      }
+    }
+    return Decoration.set(ranges, true);
+  }
+  var MarkdownPresentationView = class {
+    constructor(view2) {
+      this.view = view2;
+      this.document = view2.state.doc;
+      this.tree = syntaxTree(view2.state);
+      try {
+        this.theme = new MarkdownThemeAdapter(view2);
+        this.rebuild();
+      } catch {
+        this.fail();
+      }
+    }
+    view;
+    decorations = Decoration.none;
+    document;
+    tree;
+    windows = "";
+    composing = false;
+    destroyed = false;
+    failed = false;
+    theme = null;
+    rebuild() {
+      const windows2 = this.view.visibleRanges.filter((range) => syntaxTreeAvailable(this.view.state, range.to));
+      this.windows = windows2.map((range) => `${range.from}:${range.to}`).join(",");
+      const runs = classifyMarkdownPresentation(
+        this.view.state.doc,
+        this.tree,
+        getParsedTables(this.view.state.doc),
+        windows2
+      );
+      const next2 = markdownPresentationDecorations(this.view.state.doc, runs);
+      const changed = !RangeSet.eq([this.decorations], [next2]);
+      this.decorations = next2;
+      return changed;
+    }
+    update(update) {
+      if (this.failed) return;
+      try {
+        if (this.composing || update.view.compositionStarted) {
+          this.decorations = this.decorations.map(update.changes);
+          return;
+        }
+        if (!update.view.inView) {
+          this.decorations = this.decorations.map(update.changes);
+          this.windows = "hidden";
+          return;
+        }
+        this.theme?.resume();
+        const tree = syntaxTree(update.state);
+        const windows2 = this.view.visibleRanges.filter((range) => syntaxTreeAvailable(update.state, range.to)).map((range) => `${range.from}:${range.to}`).join(",");
+        if (this.document === update.state.doc && this.tree === tree && windows2 === this.windows) return;
+        const lateStyle = this.document === update.state.doc && this.tree !== tree && !update.viewportChanged && !update.selectionSet;
+        const anchor = lateStyle ? this.view.scrollSnapshot() : null;
+        this.document = update.state.doc;
+        this.tree = tree;
+        const changed = this.rebuild();
+        if (anchor && changed) {
+          const document2 = this.document, selection = update.state.selection;
+          const scrollTop = this.view.scrollDOM.scrollTop, scrollLeft = this.view.scrollDOM.scrollLeft;
           queueMicrotask(() => {
-            this.scheduled = false;
-            if (isTableCellFocused(view2, options.tableCellSelector) || isApplyingHostDocument(view2)) {
-              return;
-            }
-            const refreshedTarget = findSafeSelectionAnchor(
-              view2.state,
-              previousHead
-            );
-            if (refreshedTarget === void 0) {
-              return;
-            }
-            view2.dispatch({
-              selection: EditorSelection.cursor(refreshedTarget, 1),
-              scrollIntoView: true
-            });
+            if (this.destroyed || this.failed || this.view.state.doc !== document2 || this.view.state.selection !== selection || this.view.scrollDOM.scrollTop !== scrollTop || this.view.scrollDOM.scrollLeft !== scrollLeft) return;
+            this.view.dispatch({ effects: anchor });
           });
         }
+      } catch {
+        this.fail();
       }
-    );
-  }
-  function isUndoRedo(transaction) {
-    return transaction.isUserEvent("undo") || transaction.isUserEvent("redo");
-  }
-  function findSafeSelectionAnchor(state, previousHead) {
-    const tables2 = getParsedTables(state.doc);
-    const range = state.selection.main;
-    if (!range.empty) {
-      return void 0;
     }
-    const table2 = tables2.find(
-      (candidate) => rangeTouchesTableSource(state, range, candidate)
-    );
-    if (!table2) {
-      return void 0;
+    compositionStart() {
+      this.composing = true;
     }
-    return resolveOutsideTableSource(state, table2, range.head, previousHead);
-  }
-  function rangeTouchesTableSource(state, range, table2) {
-    if (range.empty) {
-      return isPositionInTableSource(state, range.head, table2);
+    compositionEnd() {
+      this.composing = false;
+      this.windows = "composition-ended";
+      queueMicrotask(() => {
+        if (!this.destroyed && !this.failed) this.view.dispatch({});
+      });
     }
-    return range.from < getTableReplacementTo(state, table2) && range.to > table2.from;
-  }
-  function changeTouchesTableSource(state, from, to, inserted, table2) {
-    if (from === to) {
-      if (from === table2.to && table2.to === state.doc.length) {
-        return !inserted.startsWith("\n");
+    fail() {
+      this.decorations = Decoration.none;
+      if (!this.failed) console.warn("Markdown readable source styling disabled after an internal failure.");
+      this.failed = true;
+      this.theme?.destroy();
+      this.theme = null;
+    }
+    destroy() {
+      this.destroyed = true;
+      this.theme?.destroy();
+    }
+  };
+  function createMarkdownPresentationExtensions() {
+    return ViewPlugin.fromClass(MarkdownPresentationView, {
+      decorations: (value) => value.decorations,
+      eventHandlers: {
+        compositionstart() {
+          this.compositionStart();
+          return false;
+        },
+        compositionend() {
+          this.compositionEnd();
+          return false;
+        }
       }
-      return isPositionInTableSource(state, from, table2);
-    }
-    return from < getTableReplacementTo(state, table2) && to > getTableReplacementFrom(state, table2);
-  }
-  function getTableReplacementFrom(state, table2) {
-    return table2.from > 0 && state.doc.sliceString(table2.from - 1, table2.from) === "\n" ? table2.from - 1 : table2.from;
-  }
-  function isPositionInTableSource(state, position, table2) {
-    return position >= table2.from && position < getTableReplacementTo(state, table2);
-  }
-  function resolveOutsideTableSource(state, table2, position, previousHead) {
-    const before = positionBeforeTable(table2);
-    const after = positionAfterTable(state.doc, table2);
-    const hasBefore = before < table2.from;
-    const hasAfter = after >= table2.to && after <= state.doc.length;
-    if (position >= table2.to && hasAfter) {
-      return after;
-    }
-    if (previousHead !== void 0 && previousHead < table2.from && hasAfter) {
-      return after;
-    }
-    if (previousHead !== void 0 && previousHead >= after && hasBefore) {
-      return before;
-    }
-    const midpoint = table2.from + (table2.to - table2.from) / 2;
-    if (position <= midpoint && hasBefore) {
-      return before;
-    }
-    if (hasAfter) {
-      return after;
-    }
-    if (hasBefore) {
-      return before;
-    }
-    return Math.min(state.doc.length, Math.max(0, table2.to));
-  }
-  function getTableReplacementTo(state, table2) {
-    return positionAfterTable(state.doc, table2);
-  }
-  function isTableCellFocused(view2, tableCellSelector) {
-    const activeElement = view2.dom.ownerDocument.activeElement;
-    return activeElement instanceof HTMLElement && Boolean(activeElement.closest(tableCellSelector));
-  }
-  function isApplyingHostDocument(view2) {
-    return view2.dom.ownerDocument.documentElement.dataset.mlrtApplyingHostDocument === "true";
+    });
   }
 
-  // src/editor/tableEditAnnotations.ts
-  var tableCellCommitSequenceAnnotation = Annotation.define();
-  var tableCellLiveEditAnnotation = Annotation.define();
+  // src/editor/dragPosition.ts
+  function editorDragPosition(view2, clientX, clientY) {
+    const editorRect = view2.dom.getBoundingClientRect();
+    if (clientY < editorRect.top) {
+      return 0;
+    }
+    if (clientY > editorRect.bottom) {
+      return view2.state.doc.length;
+    }
+    const contentRect = view2.contentDOM.getBoundingClientRect();
+    const horizontalRect = contentRect.width > 1 ? contentRect : editorRect;
+    if (horizontalRect.width <= 1) {
+      return null;
+    }
+    const clampedX = Math.max(
+      horizontalRect.left + 0.5,
+      Math.min(clientX, horizontalRect.right - 0.5)
+    );
+    return view2.posAtCoords({ x: clampedX, y: clientY });
+  }
 
-  // src/editor/table/cellSelection.ts
-  var TABLE_CELL_SELECTOR = ".mlrt-table-cell";
-  function findCell(target) {
-    if (!(target instanceof HTMLElement)) {
+  // src/shared/clipboardModel.ts
+  var MLRT_CLIPBOARD_MIME = "application/x-markdown-live-editor+json";
+  var MLRT_CLIPBOARD_VERSION = 1;
+  var VALID_ALIGNMENTS = /* @__PURE__ */ new Set([
+    "left",
+    "center",
+    "right"
+  ]);
+  function normalizeCellText(value) {
+    return value.replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ");
+  }
+  function validateClipboardPayload(value) {
+    if (!isRecord(value) || value.version !== MLRT_CLIPBOARD_VERSION) {
       return null;
     }
-    return target.closest(TABLE_CELL_SELECTOR);
-  }
-  function readCellDisplayValue(cell2) {
-    const value = isSimpleCellContent(cell2) ? readSimpleCellText(cell2) : cell2.innerText;
-    return value.replace(/\u00a0/g, " ");
-  }
-  function setCellPlainText(cell2, value) {
-    const needsSentinel = cellValueNeedsCaretSentinel(value);
-    const nodes = cell2.childNodes;
-    if (!needsSentinel && nodes.length === 1 && cell2.firstChild instanceof Text) {
-      if (cell2.firstChild.data !== value) {
-        cell2.firstChild.data = value;
-      }
-      return;
-    }
-    if (needsSentinel && nodes.length === 2 && cell2.firstChild instanceof Text && cell2.lastChild instanceof HTMLBRElement) {
-      if (cell2.firstChild.data !== value) {
-        cell2.firstChild.data = value;
-      }
-      return;
-    }
-    if (!needsSentinel && nodes.length === 0) {
-      cell2.append(cell2.ownerDocument.createTextNode(value));
-      return;
-    }
-    cell2.replaceChildren(
-      cell2.ownerDocument.createTextNode(value),
-      ...needsSentinel ? [cell2.ownerDocument.createElement("br")] : []
-    );
-  }
-  function cellValueNeedsCaretSentinel(value) {
-    return value.length === 0 || value.endsWith("\n");
-  }
-  function isSimpleCellContent(cell2) {
-    const nodes = cell2.childNodes;
-    for (let index = 0; index < nodes.length; index++) {
-      const node = nodes[index];
-      if (node instanceof Text) {
-        continue;
-      }
-      if (node instanceof HTMLBRElement && index === nodes.length - 1) {
-        continue;
-      }
-      return false;
-    }
-    return true;
-  }
-  function readSimpleCellText(cell2) {
-    let text3 = "";
-    for (const node of Array.from(cell2.childNodes)) {
-      if (node instanceof Text) {
-        text3 += node.data;
-      }
-    }
-    return text3;
-  }
-  function getCellCaretOffset(cell2) {
-    const selection = cell2.ownerDocument.defaultView?.getSelection();
-    if (!selection || selection.rangeCount === 0 || !isNodeInside(selection.anchorNode, cell2) || !isNodeInside(selection.focusNode, cell2)) {
-      return readCellDisplayValue(cell2).length;
-    }
-    return getCellNodeOffset(
-      cell2,
-      selection.focusNode,
-      selection.focusOffset
-    );
-  }
-  function getCellSelectionOffsets(cell2) {
-    const selection = cell2.ownerDocument.defaultView?.getSelection();
-    if (!selection || selection.rangeCount === 0 || !isNodeInside(selection.anchorNode, cell2) || !isNodeInside(selection.focusNode, cell2)) {
+    if (typeof value.sourceDocument !== "string") {
       return null;
+    }
+    const cutToken = value.cutToken === void 0 || typeof value.cutToken === "string" ? value.cutToken : null;
+    if (cutToken === null) {
+      return null;
+    }
+    if (value.kind === "document") {
+      if (typeof value.markdown !== "string") {
+        return null;
+      }
+      return {
+        version: MLRT_CLIPBOARD_VERSION,
+        kind: "document",
+        sourceDocument: value.sourceDocument,
+        markdown: normalizeCellText(value.markdown),
+        ...cutToken ? { cutToken } : {}
+      };
+    }
+    if (value.kind !== "grid" || !Array.isArray(value.rows) || value.rows.length === 0 || !Array.isArray(value.alignments) || typeof value.includesHeader !== "boolean" || value.exactMarkdown !== void 0 && typeof value.exactMarkdown !== "string") {
+      return null;
+    }
+    const width = Array.isArray(value.rows[0]) ? value.rows[0].length : 0;
+    if (width === 0) {
+      return null;
+    }
+    const rows = [];
+    for (const candidateRow of value.rows) {
+      if (!Array.isArray(candidateRow) || candidateRow.length !== width) {
+        return null;
+      }
+      const row = [];
+      for (const candidateCell of candidateRow) {
+        if (!isRecord(candidateCell) || typeof candidateCell.text !== "string" || candidateCell.markdown !== void 0 && typeof candidateCell.markdown !== "string") {
+          return null;
+        }
+        const text3 = normalizeCellText(candidateCell.text);
+        const markdown2 = candidateCell.markdown;
+        row.push({
+          text: text3,
+          ...typeof markdown2 === "string" && isSafeRawCellSource(markdown2, text3) ? { markdown: markdown2 } : {}
+        });
+      }
+      rows.push(row);
+    }
+    const alignments = [];
+    for (let column = 0; column < width; column++) {
+      const alignment = value.alignments[column];
+      alignments.push(
+        typeof alignment === "string" && VALID_ALIGNMENTS.has(alignment) ? alignment : "left"
+      );
     }
     return {
-      anchor: getCellNodeOffset(
-        cell2,
-        selection.anchorNode,
-        selection.anchorOffset
-      ),
-      head: getCellNodeOffset(cell2, selection.focusNode, selection.focusOffset)
+      version: MLRT_CLIPBOARD_VERSION,
+      kind: "grid",
+      sourceDocument: value.sourceDocument,
+      rows,
+      alignments,
+      includesHeader: value.includesHeader,
+      ...typeof value.exactMarkdown === "string" ? { exactMarkdown: normalizeCellText(value.exactMarkdown) } : {},
+      ...cutToken ? { cutToken } : {}
     };
   }
-  function setCellCaretOffset(cell2, offset) {
-    setCellSelectionOffsets(cell2, offset, offset);
-  }
-  function setCellSelectionOffsets(cell2, anchor, head) {
-    const selection = cell2.ownerDocument.defaultView?.getSelection();
-    if (!selection) {
-      return;
-    }
-    const valueLength = readCellDisplayValue(cell2).length;
-    const anchorPoint = getCellTextPosition(
-      cell2,
-      Math.max(0, Math.min(valueLength, anchor))
-    );
-    const headPoint = getCellTextPosition(
-      cell2,
-      Math.max(0, Math.min(valueLength, head))
-    );
-    if (!anchorPoint || !headPoint) {
-      setCellSelectionAtEnd(cell2);
-      return;
-    }
-    if (typeof selection.setBaseAndExtent === "function") {
-      selection.setBaseAndExtent(
-        anchorPoint.node,
-        anchorPoint.offset,
-        headPoint.node,
-        headPoint.offset
-      );
-      return;
-    }
-    const range = cell2.ownerDocument.createRange();
-    const forward = anchor <= head;
-    const start = forward ? anchorPoint : headPoint;
-    const end = forward ? headPoint : anchorPoint;
-    range.setStart(start.node, start.offset);
-    range.setEnd(end.node, end.offset);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    range.detach();
-  }
-  function focusCellAtStart(cell2) {
-    cell2.focus();
-    setCellCaretOffset(cell2, 0);
-  }
-  function focusCellAtEnd(cell2) {
-    cell2.focus();
-    setCellCaretOffset(cell2, readCellDisplayValue(cell2).length);
-  }
-  function moveCellSelectionToLineBoundary(cell2, side, extend2) {
-    const selection = cell2.ownerDocument.defaultView?.getSelection();
-    const original = getCellSelectionOffsets(cell2);
-    if (!selection || !original || typeof selection.modify !== "function") {
-      return false;
-    }
+  function parseClipboardPayload(text3) {
     try {
-      selection.modify(
-        extend2 ? "extend" : "move",
-        side === "start" ? "backward" : "forward",
-        "lineboundary"
-      );
-      if (getCellSelectionOffsets(cell2)) {
-        return true;
-      }
+      return validateClipboardPayload(JSON.parse(text3));
     } catch {
-    }
-    cell2.focus({ preventScroll: true });
-    setCellSelectionOffsets(cell2, original.anchor, original.head);
-    return false;
-  }
-  function extendCellSelectionVertically(cell2, rowDelta) {
-    const selection = cell2.ownerDocument.defaultView?.getSelection();
-    const original = getCellSelectionOffsets(cell2);
-    if (!selection || !original || typeof selection.modify !== "function") {
-      return { movedWithinCell: false, preferredX: null };
-    }
-    try {
-      selection.modify(
-        "extend",
-        rowDelta < 0 ? "backward" : "forward",
-        "line"
-      );
-      const result = getCellSelectionOffsets(cell2);
-      if (result && (result.anchor !== original.anchor || result.head !== original.head)) {
-        return { movedWithinCell: true, preferredX: null };
-      }
-    } catch {
-    }
-    cell2.focus({ preventScroll: true });
-    setCellSelectionOffsets(cell2, original.anchor, original.head);
-    return { movedWithinCell: false, preferredX: null };
-  }
-  function moveCellCaretVertically(cell2, rowDelta) {
-    const selection = cell2.ownerDocument.defaultView?.getSelection();
-    const original = getCellSelectionOffsets(cell2);
-    if (!selection || !original || typeof selection.modify !== "function") {
-      return { movedWithinCell: false, preferredX: null };
-    }
-    const preferredX = getCollapsedCaretX(cell2, selection);
-    try {
-      selection.modify(
-        "move",
-        rowDelta < 0 ? "backward" : "forward",
-        "line"
-      );
-      const result = getCellSelectionOffsets(cell2);
-      if (result && (result.anchor !== original.anchor || result.head !== original.head)) {
-        return { movedWithinCell: true, preferredX };
-      }
-    } catch {
-    }
-    cell2.focus({ preventScroll: true });
-    setCellSelectionOffsets(cell2, original.anchor, original.head);
-    return { movedWithinCell: false, preferredX };
-  }
-  function focusCellAtVerticalEdge(cell2, rowDelta, preferredX = null) {
-    if (rowDelta > 0) {
-      focusCellAtStart(cell2);
-    } else {
-      focusCellAtEnd(cell2);
-    }
-    if (preferredX === null || !Number.isFinite(preferredX)) {
-      return;
-    }
-    const caretPositionFromPoint = cell2.ownerDocument.caretPositionFromPoint;
-    const cellRect = cell2.getBoundingClientRect();
-    if (typeof caretPositionFromPoint !== "function" || cellRect.width <= 2) {
-      return;
-    }
-    const contents = cell2.ownerDocument.createRange();
-    contents.selectNodeContents(cell2);
-    const lineRects = contents.getClientRects();
-    const lineRect = rowDelta > 0 ? lineRects.item(0) : lineRects.item(lineRects.length - 1);
-    contents.detach();
-    if (!lineRect || lineRect.height <= 0 || lineRect.width <= 0) {
-      return;
-    }
-    const lineInset = Math.min(0.25, lineRect.width / 4);
-    const lineLeft = Math.max(cellRect.left + 1, lineRect.left + lineInset);
-    const lineRight = Math.min(cellRect.right - 1, lineRect.right - lineInset);
-    const x = Math.max(
-      lineLeft,
-      Math.min(lineRight, preferredX)
-    );
-    const y = lineRect.top + lineRect.height / 2;
-    const caret = caretPositionFromPoint.call(cell2.ownerDocument, x, y);
-    if (!caret || !isNodeInside(caret.offsetNode, cell2)) {
-      return;
-    }
-    try {
-      const range = cell2.ownerDocument.createRange();
-      range.setStart(caret.offsetNode, caret.offset);
-      range.collapse(true);
-      const selection = cell2.ownerDocument.defaultView?.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-    } catch {
+      return null;
     }
   }
-  function requestElementAnimationFrame(element, callback) {
-    const view2 = element.ownerDocument.defaultView;
-    return view2 ? view2.requestAnimationFrame(callback) : requestAnimationFrame(callback);
+  function serializeDelimitedGrid(rows, delimiter2) {
+    return rows.map((row) => row.map((value) => quoteDelimited(value, delimiter2)).join(delimiter2)).join("\r\n");
   }
-  function cancelElementAnimationFrame(element, frame) {
-    const view2 = element.ownerDocument.defaultView;
-    if (view2) {
-      view2.cancelAnimationFrame(frame);
-      return;
-    }
-    cancelAnimationFrame(frame);
-  }
-  function isNodeInside(node, element) {
-    return node === element || node !== null && element.contains(node);
-  }
-  function setCellSelectionAtEnd(cell2) {
-    const selection = cell2.ownerDocument.defaultView?.getSelection();
-    if (!selection) {
-      return;
-    }
-    const range = cell2.ownerDocument.createRange();
-    range.selectNodeContents(cell2);
-    range.collapse(false);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-  function getCellNodeOffset(cell2, node, offset) {
-    if (!node) {
-      return readCellDisplayValue(cell2).length;
-    }
-    const range = cell2.ownerDocument.createRange();
-    range.selectNodeContents(cell2);
-    range.setEnd(node, offset);
-    const measured = range.toString().replace(/\u00a0/g, " ").length;
-    range.detach();
-    return measured;
-  }
-  function getCellTextPosition(cell2, offset) {
-    const walker = cell2.ownerDocument.createTreeWalker(
-      cell2,
-      NodeFilter.SHOW_TEXT
-    );
-    let remaining = Math.max(0, offset);
-    let lastText = null;
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      if (!(node instanceof Text)) {
+  function parseDelimitedGrid(input, delimiter2) {
+    const text3 = normalizeCellText(input);
+    const rows = [];
+    let row = [];
+    let field = "";
+    let quoted = false;
+    for (let index = 0; index < text3.length; index++) {
+      const character = text3[index];
+      if (quoted) {
+        if (character === '"') {
+          if (text3[index + 1] === '"') {
+            field += '"';
+            index++;
+          } else {
+            quoted = false;
+          }
+        } else {
+          field += character;
+        }
         continue;
       }
-      lastText = node;
-      if (remaining <= node.data.length) {
-        return { node, offset: remaining };
+      if (character === '"' && field.length === 0) {
+        quoted = true;
+        continue;
       }
-      remaining -= node.data.length;
+      if (character === delimiter2) {
+        row.push(field);
+        field = "";
+        continue;
+      }
+      if (character === "\n") {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = "";
+        continue;
+      }
+      field += character;
     }
-    return lastText && remaining === 0 ? { node: lastText, offset: lastText.data.length } : null;
+    if (quoted) {
+      return null;
+    }
+    row.push(field);
+    rows.push(row);
+    if (rows.length > 1 && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === "" && text3.endsWith("\n")) {
+      rows.pop();
+    }
+    const width = Math.max(...rows.map((candidate) => candidate.length));
+    return rows.map((candidate) => [
+      ...candidate,
+      ...Array.from({ length: width - candidate.length }, () => "")
+    ]);
   }
-  function getCollapsedCaretX(cell2, selection) {
-    if (!selection.isCollapsed || selection.rangeCount === 0) {
-      return null;
+  function gridToMarkdown(rows, alignments = []) {
+    if (rows.length === 0 || rows[0].length === 0) {
+      return "";
     }
-    const caretRange = selection.getRangeAt(0);
-    const directRect = caretRange.getBoundingClientRect();
-    if (directRect.height > 0 && Number.isFinite(directRect.left)) {
-      return directRect.left;
-    }
-    const offsets = getCellSelectionOffsets(cell2);
-    const valueLength = readCellDisplayValue(cell2).length;
-    if (!offsets || valueLength === 0) {
-      return null;
-    }
-    const useLeadingEdge = offsets.head < valueLength;
-    const from = useLeadingEdge ? offsets.head : offsets.head - 1;
-    const start = getCellTextPosition(cell2, from);
-    const end = getCellTextPosition(cell2, from + 1);
-    if (!start || !end) {
-      return null;
-    }
-    const adjacentRange = cell2.ownerDocument.createRange();
-    adjacentRange.setStart(start.node, start.offset);
-    adjacentRange.setEnd(end.node, end.offset);
-    const rect = adjacentRange.getBoundingClientRect();
-    adjacentRange.detach();
-    if (rect.height <= 0 || !Number.isFinite(rect.left)) {
-      return null;
-    }
-    const isRtl = getComputedStyle(cell2).direction === "rtl";
-    return useLeadingEdge === isRtl ? rect.right : rect.left;
-  }
-
-  // src/editor/table/tableSelectionOverlay.ts
-  var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
-  var OVERLAY_SELECTOR = ":scope > .mlrt-table-selection-overlay";
-  var LEGACY_OUTLINE_SELECTOR = ":scope > .mlrt-table-selection-outline";
-  var COORDINATE_TOLERANCE = 0.25;
-  function syncTableSelectionOverlay(wrapper) {
-    const scroll = wrapper.querySelector(".mlrt-table-scroll");
-    const existing = scroll?.querySelector(OVERLAY_SELECTOR);
-    scroll?.querySelector(LEGACY_OUTLINE_SELECTOR)?.remove();
-    if (!scroll) {
-      existing?.remove();
-      return;
-    }
-    const selected = Array.from(
-      wrapper.querySelectorAll(
-        `${TABLE_CELL_SELECTOR}.mlrt-table-cell-selected, ${TABLE_CELL_SELECTOR}.mlrt-document-range-selected`
-      )
+    const width = rows[0].length;
+    const sourceRows = rows.map(
+      (row) => `|${Array.from(
+        { length: width },
+        (_, column) => ensureTableCellSeparatorSafe(sourceCellForMarkdown(row[column]))
+      ).join("|")}|`
     );
-    if (selected.length === 0) {
-      existing?.remove();
-      return;
+    const delimiter2 = `|${Array.from(
+      { length: width },
+      (_, column) => alignmentDelimiter(alignments[column] ?? "left")
+    ).join("|")}|`;
+    return [sourceRows[0], delimiter2, ...sourceRows.slice(1)].join("\n");
+  }
+  function gridPlainTextForCopy(payload, mode) {
+    if (mode === "plain") {
+      return serializeDelimitedGrid(
+        payload.rows.map((row) => row.map((cell2) => cell2.text)),
+        "	"
+      );
     }
-    const rectangles = selected.map((cell2) => cell2.getBoundingClientRect());
-    const bounds = {
-      left: Math.min(...rectangles.map((rect) => rect.left)),
-      top: Math.min(...rectangles.map((rect) => rect.top)),
-      right: Math.max(...rectangles.map((rect) => rect.right)),
-      bottom: Math.max(...rectangles.map((rect) => rect.bottom))
+    return payload.exactMarkdown ?? gridToMarkdown(payload.rows, payload.alignments);
+  }
+  function importedMarkdownToTableCellSource(value) {
+    return normalizeCellText(value).replace(/\|/g, "&#124;").replace(/\n/g, "<br>");
+  }
+  function gridToHtml(rows, options = {}) {
+    const alignments = options.alignments ?? [];
+    const metadata = options.embeddedPayload ? `<meta name="mlrt-clipboard" content="${escapeHtmlAttribute(options.embeddedPayload)}">` : "";
+    const body = rows.map((row, rowIndex) => {
+      const tagName = rowIndex === 0 && options.headerRow !== false ? "th" : "td";
+      return `<tr>${row.map((cell2, column) => {
+        const alignment = alignments[column] ?? "left";
+        const style = `text-align:${alignment};border:1px solid #000000;padding:2px 6px;vertical-align:top;white-space:pre-wrap`;
+        const content2 = options.htmlCells?.[rowIndex]?.[column] !== void 0 ? options.htmlCells[rowIndex][column] : cellTextToHtml(cell2.text);
+        return `<${tagName} style="${style}">${content2}</${tagName}>`;
+      }).join("")}</tr>`;
+    }).join("");
+    return `${metadata}<table style="border-collapse:collapse">${body}</table>`;
+  }
+  function tableRectanglePayload(table2, rectangle, sourceDocument, cutToken) {
+    const rows = tableDataRows(table2);
+    const selected = rows.slice(rectangle.top, rectangle.bottom + 1).map((row) => row.slice(rectangle.left, rectangle.right + 1));
+    const fullTable = rectangle.top === 0 && rectangle.bottom === rows.length - 1 && rectangle.left === 0 && rectangle.right === table2.columnCount - 1;
+    return {
+      version: MLRT_CLIPBOARD_VERSION,
+      kind: "grid",
+      sourceDocument,
+      rows: selected,
+      alignments: table2.alignments.slice(rectangle.left, rectangle.right + 1),
+      includesHeader: rectangle.top === 0,
+      ...fullTable ? { exactMarkdown: tableSourceText(table2) } : {},
+      ...cutToken ? { cutToken } : {}
     };
-    const width = bounds.right - bounds.left;
-    const height = bounds.bottom - bounds.top;
-    if (width <= 0 || height <= 0) {
-      existing?.remove();
-      return;
-    }
-    const verticalRails = uniqueInteriorCoordinates(
-      rectangles.map((rect) => rect.left),
-      bounds.left,
-      bounds.right
-    ).map((coordinate) => coordinate - bounds.left);
-    const horizontalRails = uniqueInteriorCoordinates(
-      rectangles.map((rect) => rect.top),
-      bounds.top,
-      bounds.bottom
-    ).map((coordinate) => coordinate - bounds.top);
-    const overlay = existing ?? wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "svg");
-    overlay.classList.add("mlrt-table-selection-overlay");
-    overlay.classList.toggle(
-      "mlrt-table-selection-overlay-cut-pending",
-      wrapper.classList.contains("mlrt-table-cut-pending")
-    );
-    overlay.setAttribute("aria-hidden", "true");
-    overlay.setAttribute("focusable", "false");
-    const formattedWidth = formatCoordinate(width);
-    const formattedHeight = formatCoordinate(height);
-    overlay.setAttribute("width", formattedWidth);
-    overlay.setAttribute("height", formattedHeight);
-    overlay.setAttribute(
-      "viewBox",
-      `0 0 ${formattedWidth} ${formattedHeight}`
-    );
-    overlay.dataset.verticalRailCount = String(verticalRails.length);
-    overlay.dataset.horizontalRailCount = String(horizontalRails.length);
-    overlay.dataset.verticalRails = verticalRails.map(formatCoordinate).join(",");
-    overlay.dataset.horizontalRails = horizontalRails.map(formatCoordinate).join(",");
-    const scrollRect = scroll.getBoundingClientRect();
-    overlay.style.left = `${bounds.left - scrollRect.left + scroll.scrollLeft}px`;
-    overlay.style.top = `${bounds.top - scrollRect.top + scroll.scrollTop}px`;
-    overlay.style.width = `${formattedWidth}px`;
-    overlay.style.height = `${formattedHeight}px`;
-    const inset = Math.min(1, width / 2, height / 2);
-    const gridCommands = [
-      ...verticalRails.map(
-        (x) => `M ${formatCoordinate(x)} ${formatCoordinate(inset)} V ${formatCoordinate(height - inset)}`
-      ),
-      ...horizontalRails.map(
-        (y) => `M ${formatCoordinate(inset)} ${formatCoordinate(y)} H ${formatCoordinate(width - inset)}`
-      )
-    ];
-    const gridPath = gridCommands.join(" ");
-    const frameWidth = formatCoordinate(Math.max(0, width - 1));
-    const frameHeight = formatCoordinate(Math.max(0, height - 1.5));
-    const geometrySignature = [
-      formattedWidth,
-      formattedHeight,
-      gridPath
-    ].join("|");
-    const currentGrid = overlay.querySelector(
-      ":scope > .mlrt-table-selection-grid"
-    );
-    const currentFrame = overlay.querySelector(
-      ":scope > .mlrt-table-selection-frame"
-    );
-    if (overlay.dataset.geometrySignature !== geometrySignature || !currentGrid || !currentFrame || overlay.lastElementChild !== currentFrame) {
-      const grid = wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "path");
-      grid.classList.add("mlrt-table-selection-grid");
-      grid.setAttribute("d", gridPath);
-      const frame = wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "rect");
-      frame.classList.add("mlrt-table-selection-frame");
-      frame.setAttribute("x", "0.5");
-      frame.setAttribute("y", "0.5");
-      frame.setAttribute("width", frameWidth);
-      frame.setAttribute("height", frameHeight);
-      overlay.replaceChildren(grid, frame);
-      overlay.dataset.geometrySignature = geometrySignature;
-    }
-    if (!existing) {
-      scroll.append(overlay);
-    }
   }
-  function uniqueInteriorCoordinates(values2, minimum, maximum) {
-    const sorted = values2.filter(
-      (value) => value > minimum + COORDINATE_TOLERANCE && value < maximum - COORDINATE_TOLERANCE
-    ).sort((left, right) => left - right);
-    const groups = [];
-    for (const value of sorted) {
-      const group = groups.at(-1);
-      if (!group || Math.abs(value - group.sum / group.count) > COORDINATE_TOLERANCE) {
-        groups.push({ sum: value, count: 1 });
-      } else {
-        group.sum += value;
-        group.count += 1;
+  function resolveGridPasteRows(source, destination) {
+    if (source.length === 0 || source[0]?.length === 0) {
+      return null;
+    }
+    const sourceHeight = source.length;
+    const sourceWidth = source[0].length;
+    if (source.some((row) => row.length !== sourceWidth)) {
+      return null;
+    }
+    const destinationHeight = destination.bottom - destination.top + 1;
+    const destinationWidth = destination.right - destination.left + 1;
+    const isSingleAnchor = destinationHeight === 1 && destinationWidth === 1;
+    if (isSingleAnchor) {
+      return source.map((row) => row.map(cloneCell));
+    }
+    if (destinationHeight % sourceHeight !== 0 || destinationWidth % sourceWidth !== 0) {
+      return null;
+    }
+    return Array.from(
+      { length: destinationHeight },
+      (_, row) => Array.from(
+        { length: destinationWidth },
+        (_2, column) => cloneCell(source[row % sourceHeight][column % sourceWidth])
+      )
+    );
+  }
+  function buildGridPasteEdit(table2, plan) {
+    const sourceHeight = plan.rows.length;
+    const sourceWidth = plan.rows[0]?.length ?? 0;
+    const requiredRows = Math.max(
+      table2.body.length + 1,
+      plan.destination.top + sourceHeight
+    );
+    const requiredColumns = Math.max(
+      table2.columnCount,
+      plan.destination.left + sourceWidth
+    );
+    const dataRows = [table2.header, ...table2.body];
+    const rawRows = Array.from(
+      { length: requiredRows },
+      (_, rowIndex) => Array.from(
+        { length: requiredColumns },
+        (_2, column) => existingRawCell(dataRows[rowIndex], column)
+      )
+    );
+    for (let row = 0; row < sourceHeight; row++) {
+      for (let column = 0; column < sourceWidth; column++) {
+        const targetRow = plan.destination.top + row;
+        const targetColumn = plan.destination.left + column;
+        const sourceCell = plan.rows[row][column];
+        const existingRaw = rawRows[targetRow][targetColumn];
+        rawRows[targetRow][targetColumn] = sourceCell.markdown ?? formatDisplayCellForDestination(sourceCell.text, existingRaw);
       }
     }
-    return groups.map((group) => group.sum / group.count);
+    const delimiterRaw = Array.from({ length: requiredColumns }, (_, column) => {
+      if (column < table2.columnCount) {
+        return table2.delimiter.cells[column]?.raw ?? " --- ";
+      }
+      const sourceColumn = column - plan.destination.left;
+      const alignment = plan.sourceAlignments?.[sourceColumn] ?? "left";
+      return alignmentDelimiter(alignment);
+    });
+    const lines = [rawRows[0], delimiterRaw, ...rawRows.slice(1)].map(
+      (rawCells) => `|${rawCells.map(ensureTableCellSeparatorSafe).join("|")}|`
+    );
+    return {
+      from: table2.from,
+      to: table2.to,
+      insert: lines.join(tableLineSeparator(table2))
+    };
   }
-  function formatCoordinate(value) {
-    return String(Math.round(value * 1e3) / 1e3);
+  function buildGridClearEdit(table2, rectangle) {
+    const rows = Array.from(
+      { length: rectangle.bottom - rectangle.top + 1 },
+      () => Array.from(
+        { length: rectangle.right - rectangle.left + 1 },
+        () => ({ text: "" })
+      )
+    );
+    return buildGridPasteEdit(table2, { rows, destination: rectangle });
+  }
+  function tableDataRows(table2) {
+    return [table2.header, ...table2.body].map(
+      (row) => Array.from({ length: table2.columnCount }, (_, column) => ({
+        text: markdownCellToDisplayText(row.cells[column]?.raw ?? ""),
+        markdown: row.cells[column]?.raw ?? "  "
+      }))
+    );
+  }
+  function tableSourceText(table2) {
+    return [table2.header, table2.delimiter, ...table2.body].map((row) => row.text).join(tableLineSeparator(table2));
+  }
+  function existingRawCell(row, column) {
+    return row?.cells[column]?.raw ?? "  ";
+  }
+  function formatDisplayCellForDestination(text3, raw) {
+    const { leadingWhitespace, trailingWhitespace } = getCellPaddingWhitespace(raw);
+    const leading = leadingWhitespace || " ";
+    const trailing = trailingWhitespace || " ";
+    return `${leading}${formatMarkdownCell(normalizeCellText(text3), {
+      trim: false
+    })}${trailing}`;
+  }
+  function sourceCellForMarkdown(cell2) {
+    if (cell2?.markdown && isSafeRawCellSource(cell2.markdown, cell2.text)) {
+      return cell2.markdown;
+    }
+    return ` ${formatMarkdownCell(cell2?.text ?? "", { trim: false })} `;
+  }
+  function isSafeRawCellSource(raw, text3) {
+    return !/[\r\n]/.test(raw) && !raw.includes("|") && markdownCellToDisplayText(raw) === text3;
+  }
+  function alignmentDelimiter(alignment) {
+    if (alignment === "center") {
+      return " :---: ";
+    }
+    if (alignment === "right") {
+      return " ---: ";
+    }
+    return " --- ";
+  }
+  function tableLineSeparator(table2) {
+    return table2.delimiter.from - table2.header.to === 2 ? "\r\n" : "\n";
+  }
+  function quoteDelimited(value, delimiter2) {
+    const normalized = normalizeCellText(value);
+    if (normalized.includes(delimiter2) || normalized.includes('"') || normalized.includes("\n")) {
+      return `"${normalized.replace(/"/g, '""')}"`;
+    }
+    return normalized;
+  }
+  function cellTextToHtml(value) {
+    return escapeHtml(normalizeCellText(value)).replace(/\n/g, "<br>");
+  }
+  function escapeHtml(value) {
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function escapeHtmlAttribute(value) {
+    return escapeHtml(value).replace(/\r?\n/g, "&#10;");
+  }
+  function cloneCell(cell2) {
+    return { text: cell2.text, ...cell2.markdown ? { markdown: cell2.markdown } : {} };
+  }
+  function isRecord(value) {
+    return Boolean(value) && typeof value === "object";
   }
 
-  // src/editor/table/tableWidgetState.ts
-  var TABLE_WIDGET_SELECTOR = ".mlrt-table-widget";
-  var liveEditPreservedTableStarts = /* @__PURE__ */ new Set();
-  function preserveTableForLiveEdit(tableFrom) {
-    liveEditPreservedTableStarts.add(tableFrom);
+  // src/editor/clipboardCutState.ts
+  var pendingCuts = /* @__PURE__ */ new WeakMap();
+  function getPendingClipboardCut(doc2) {
+    return pendingCuts.get(doc2) ?? null;
   }
-  function releaseTableLiveEditPreservation(tableFrom) {
-    liveEditPreservedTableStarts.delete(tableFrom);
+  function setPendingClipboardCut(doc2, pending) {
+    clearPendingClipboardCut(doc2);
+    pendingCuts.set(doc2, pending);
   }
-  function isTablePreservedForLiveEdit(tableFrom) {
-    return liveEditPreservedTableStarts.has(tableFrom);
+  function clearPendingClipboardCut(doc2) {
+    pendingCuts.delete(doc2);
+    doc2.querySelectorAll(".mlrt-table-cut-source-pending").forEach((wrapper) => wrapper.classList.remove("mlrt-table-cut-source-pending"));
+    doc2.querySelectorAll(".mlrt-table-cut-source").forEach(
+      (cell2) => cell2.classList.remove(
+        "mlrt-table-cut-source",
+        "mlrt-table-cut-source-top",
+        "mlrt-table-cut-source-right",
+        "mlrt-table-cut-source-bottom",
+        "mlrt-table-cut-source-left"
+      )
+    );
   }
-  function setTableWidgetCleanup(wrapper, cleanup) {
-    wrapper.__mlrtTableWidgetCleanup = cleanup;
-  }
-  function getTableWidgetCleanup(wrapper) {
-    return wrapper.__mlrtTableWidgetCleanup;
-  }
-  function setTableWidgetTable(wrapper, table2) {
-    wrapper.__mlrtTable = cloneParsedTable(table2);
-  }
-  function getTableWidgetTable(wrapper) {
-    return wrapper.__mlrtTable;
-  }
-  function readActiveCellSizingOverride(wrapper) {
-    const activeElement = wrapper.ownerDocument.activeElement;
-    const cell2 = findCell(activeElement);
-    if (!cell2 || !wrapper.contains(cell2)) {
-      return void 0;
+
+  // src/editor/tableBoundaryInput.ts
+  function planVisibleTableBoundary(doc2, table2, side) {
+    if (side === "before") {
+      return table2.from === 0 ? {
+        anchor: 0,
+        change: { from: 0, to: 0, insert: "\n" }
+      } : { anchor: positionBeforeTable(table2) };
     }
+    if (table2.to === doc2.length) {
+      return {
+        anchor: table2.to + 1,
+        change: { from: table2.to, to: table2.to, insert: "\n" }
+      };
+    }
+    return { anchor: positionAfterTable(doc2, table2) };
+  }
+  function selectVisibleTableBoundary(view2, table2, side) {
+    const latestTable = getParsedTables(view2.state.doc).find(
+      (candidate) => candidate.from === table2.from
+    ) ?? table2;
+    const plan = planVisibleTableBoundary(view2.state.doc, latestTable, side);
+    if (plan.change) {
+      view2.dispatch({
+        changes: plan.change,
+        selection: EditorSelection.cursor(
+          plan.anchor,
+          side === "before" ? -1 : 1
+        ),
+        annotations: allowTableSourceChange.of(true),
+        scrollIntoView: true,
+        userEvent: "input.type"
+      });
+    } else {
+      view2.dispatch({
+        selection: EditorSelection.cursor(
+          plan.anchor,
+          side === "before" ? -1 : 1
+        ),
+        scrollIntoView: true
+      });
+    }
+    return plan.anchor;
+  }
+  function createTableBoundaryInputHandler() {
+    return EditorView.inputHandler.of((view2, from, to, text3) => {
+      if (from !== to || text3.length === 0) {
+        return false;
+      }
+      const table2 = getParsedTables(view2.state.doc).find(
+        (candidate) => candidate.from === 0 && from === candidate.from || candidate.to === view2.state.doc.length && from === candidate.to
+      );
+      if (!table2) {
+        return false;
+      }
+      const insertingBefore = table2.from === 0 && from === table2.from;
+      const insert2 = insertingBefore ? text3.endsWith("\n") ? text3 : `${text3}
+` : text3.startsWith("\n") ? text3 : `
+${text3}`;
+      const anchor = insertingBefore ? from + insert2.length - 1 : from + insert2.length;
+      view2.dispatch({
+        changes: { from, to, insert: insert2 },
+        selection: EditorSelection.cursor(anchor, insertingBefore ? -1 : 1),
+        annotations: allowTableSourceChange.of(true),
+        scrollIntoView: true,
+        userEvent: "input.type"
+      });
+      return true;
+    });
+  }
+
+  // src/editor/table/tableRangeSelection.ts
+  var TABLE_SELECTION_CHANGE_EVENT = "mlrt:table-selection-change";
+  var TABLE_SELECTION_CLEAR_EVENT = "mlrt:table-selection-clear";
+  var TABLE_CUT_CANCEL_EVENT = "mlrt:table-cut-cancel";
+  var states = /* @__PURE__ */ new WeakMap();
+  function isTablePointerSelectionActive(doc2) {
+    const state = states.get(doc2);
+    return !!state?.pointerAnchor && state.pointerCrossedCells;
+  }
+  function bindTableRangeSelection(wrapper, view2, table2) {
+    wrapper.tabIndex = -1;
+    wrapper.setAttribute("role", "group");
+    wrapper.setAttribute("aria-label", "Markdown table cell selection");
+    let suppressNativeMouseDrag = false;
+    let lastDocumentDragRange = null;
+    let lastDocumentDragProjection = null;
+    let lastDocumentDragDocument = null;
+    let pointerCaptureId = null;
+    let pointerCaptureGeneration = null;
+    let ownsPointerCapture = false;
+    let pointerCleanupTimer = null;
+    let gestureGeneration = 0;
+    let activeGestureGeneration = null;
+    const currentTable = () => getTableWidgetTable(wrapper) ?? table2;
+    stateFor(wrapper.ownerDocument).view = view2;
+    const onPointerDown = (event) => {
+      const start = tableSelectionStart(wrapper, event);
+      if (!start) {
+        return;
+      }
+      if (event.button !== 0) {
+        if (event.button === 2) {
+          event.preventDefault();
+        }
+        return;
+      }
+      if (!event.isPrimary) {
+        return;
+      }
+      const address = addressFromCell(start.cell);
+      if (!address) {
+        return;
+      }
+      const state = stateFor(wrapper.ownerDocument);
+      state.pointerCleanup?.();
+      if (!view2.state.selection.main.empty) {
+        view2.dispatch({
+          selection: EditorSelection.cursor(positionBeforeTable(currentTable()), 1)
+        });
+      }
+      clearDocumentSelectionProjection(wrapper.ownerDocument);
+      if (event.shiftKey) {
+        const current = getTableRangeSelection(wrapper.ownerDocument);
+        const focusedCell = findCell(wrapper.ownerDocument.activeElement);
+        const focusedAddress = focusedCell && wrapper.contains(focusedCell) ? addressFromCell(focusedCell) : null;
+        const rawAnchor = current?.wrapper === wrapper ? current.anchor : focusedAddress ?? address;
+        const anchor = start.mode === "row" ? { row: rawAnchor.row, column: 0 } : rawAnchor;
+        const head = start.mode === "row" ? { row: address.row, column: currentTable().columnCount - 1 } : address;
+        event.preventDefault();
+        setTableRangeSelection(wrapper, currentTable().from, anchor, head, true);
+        return;
+      }
+      state.pointerAnchor = address;
+      state.pointerAnchorMode = start.mode;
+      state.pointerId = event.pointerId;
+      state.pointerCrossedCells = false;
+      activeGestureGeneration = ++gestureGeneration;
+      suppressNativeMouseDrag = start.mode === "row";
+      lastDocumentDragRange = null;
+      lastDocumentDragProjection = null;
+      lastDocumentDragDocument = null;
+      wrapper.ownerDocument.addEventListener("pointermove", onPointerMove, true);
+      wrapper.ownerDocument.addEventListener("pointerup", onPointerUp, true);
+      wrapper.ownerDocument.addEventListener("pointercancel", onPointerUp, true);
+      wrapper.ownerDocument.addEventListener("mousemove", onMouseMove, true);
+      wrapper.ownerDocument.addEventListener("mouseup", onMouseUp, true);
+      wrapper.ownerDocument.addEventListener("click", onClickAfterDrag, true);
+      state.pointerCleanup = removeDocumentPointerListeners;
+      if (state.selection?.wrapper === wrapper) {
+        clearTableRangeSelection(wrapper.ownerDocument);
+      }
+      if (start.mode === "row") {
+        event.preventDefault();
+        clearNativeSelection(wrapper.ownerDocument);
+        setTableRangeSelection(
+          wrapper,
+          currentTable().from,
+          address,
+          { row: address.row, column: currentTable().columnCount - 1 },
+          true
+        );
+      }
+    };
+    const claimPointerCapture = (event) => {
+      if (!("pointerId" in event)) {
+        return;
+      }
+      const state = stateFor(wrapper.ownerDocument);
+      if (state.pointerCleanup !== removeDocumentPointerListeners || state.pointerId !== event.pointerId || ownsPointerCapture) {
+        return;
+      }
+      try {
+        if (!wrapper.hasPointerCapture(event.pointerId)) {
+          wrapper.setPointerCapture(event.pointerId);
+        }
+        ownsPointerCapture = wrapper.hasPointerCapture(event.pointerId);
+        pointerCaptureId = ownsPointerCapture ? event.pointerId : null;
+        pointerCaptureGeneration = ownsPointerCapture ? activeGestureGeneration : null;
+      } catch {
+      }
+    };
+    const updateDragSelection = (event) => {
+      const state = stateFor(wrapper.ownerDocument);
+      if ("pointerId" in event && state.pointerId !== -1 && state.pointerId !== event.pointerId || !state.pointerAnchor || (event.buttons & 1) === 0) {
+        return;
+      }
+      const target = wrapper.ownerDocument.elementFromPoint(
+        event.clientX,
+        event.clientY
+      );
+      const cell2 = findCell(target);
+      if (cell2 && wrapper.contains(cell2)) {
+        const rawAddress = addressFromCell(cell2);
+        const address = rawAddress && state.pointerAnchorMode === "row" ? {
+          row: rawAddress.row,
+          column: currentTable().columnCount - 1
+        } : rawAddress;
+        if (!address) {
+          return;
+        }
+        if (sameAddress(address, state.pointerAnchor) && !state.pointerCrossedCells && !lastDocumentDragRange) {
+          return;
+        }
+        state.pointerCrossedCells = true;
+        suppressNativeMouseDrag = true;
+        claimPointerCapture(event);
+        event.preventDefault();
+        event.stopPropagation();
+        const currentSelection = getTableRangeSelection(
+          wrapper.ownerDocument
+        );
+        const selectionUnchanged = Boolean(
+          currentSelection?.wrapper === wrapper && sameAddress(currentSelection.anchor, state.pointerAnchor) && sameAddress(currentSelection.head, address) && lastDocumentDragRange === null
+        );
+        lastDocumentDragRange = null;
+        lastDocumentDragProjection = null;
+        lastDocumentDragDocument = null;
+        clearDocumentSelectionProjection(wrapper.ownerDocument);
+        if (!selectionUnchanged) {
+          setTableRangeSelection(
+            wrapper,
+            currentTable().from,
+            state.pointerAnchor,
+            address,
+            true
+          );
+        }
+        return;
+      }
+      const latestTable = currentTable();
+      const tableRect = wrapper.querySelector(".mlrt-table")?.getBoundingClientRect() ?? wrapper.getBoundingClientRect();
+      if (event.clientY >= tableRect.top && event.clientY <= tableRect.bottom) {
+        const clampedCell = nearestCellInWrapper(
+          wrapper,
+          event.clientX,
+          event.clientY
+        );
+        const address = clampedCell ? addressFromCell(clampedCell) : null;
+        if (address) {
+          const selectionHead = state.pointerAnchorMode === "row" ? {
+            row: address.row,
+            column: latestTable.columnCount - 1
+          } : address;
+          state.pointerCrossedCells = true;
+          suppressNativeMouseDrag = true;
+          claimPointerCapture(event);
+          event.preventDefault();
+          event.stopPropagation();
+          const currentSelection = getTableRangeSelection(
+            wrapper.ownerDocument
+          );
+          const selectionUnchanged = Boolean(
+            currentSelection?.wrapper === wrapper && sameAddress(currentSelection.anchor, state.pointerAnchor) && sameAddress(currentSelection.head, selectionHead) && lastDocumentDragRange === null
+          );
+          lastDocumentDragRange = null;
+          lastDocumentDragProjection = null;
+          lastDocumentDragDocument = null;
+          clearDocumentSelectionProjection(wrapper.ownerDocument);
+          if (!selectionUnchanged) {
+            setTableRangeSelection(
+              wrapper,
+              latestTable.from,
+              state.pointerAnchor,
+              selectionHead,
+              true
+            );
+          }
+        }
+        return;
+      }
+      const tableFrom = Number(wrapper.dataset.srcFrom ?? latestTable.from);
+      const parsedTables = getParsedTables(view2.state.doc);
+      const parsedTable = parsedTables.find(
+        (candidate) => candidate.from === tableFrom
+      );
+      const tableTo = parsedTable?.to ?? tableFrom + (latestTable.to - latestTable.from);
+      const movingBeforeTable = event.clientY < tableRect.top;
+      const movingAfterTable = event.clientY > tableRect.bottom;
+      if (!movingBeforeTable && !movingAfterTable) {
+        return;
+      }
+      const selectionTarget = cell2 ? { cell: cell2, rowSelection: false } : documentTargetAtPoint(
+        wrapper.ownerDocument,
+        event.clientX,
+        event.clientY,
+        wrapper
+      );
+      const targetCell = selectionTarget?.cell ?? null;
+      let documentPosition = null;
+      let targetTable = null;
+      let targetAddress = null;
+      if (targetCell) {
+        const targetFrom = Number(targetCell.dataset.tableFrom ?? "NaN");
+        targetTable = parsedTables.find(
+          (candidate) => candidate.from === targetFrom
+        ) ?? null;
+        const rawTargetAddress = addressFromCell(targetCell);
+        targetAddress = rawTargetAddress && selectionTarget?.rowSelection ? {
+          row: rawTargetAddress.row,
+          column: movingAfterTable ? (targetTable?.columnCount ?? 1) - 1 : 0
+        } : rawTargetAddress;
+        if (targetTable && targetAddress) {
+          const sourceSpan = renderedCellSpan(targetCell, targetTable);
+          documentPosition = movingAfterTable ? sourceSpan?.to ?? targetTable.to : sourceSpan?.from ?? targetTable.from;
+        }
+      }
+      if (documentPosition === null) {
+        documentPosition = editorDragPosition(
+          view2,
+          event.clientX,
+          event.clientY
+        );
+      }
+      if (documentPosition === null) {
+        return;
+      }
+      state.pointerCrossedCells = true;
+      suppressNativeMouseDrag = true;
+      claimPointerCapture(event);
+      event.preventDefault();
+      event.stopPropagation();
+      clearTableRangeSelection(wrapper.ownerDocument);
+      if (!view2.hasFocus) {
+        view2.focus();
+      }
+      clearNativeSelection(wrapper.ownerDocument);
+      const anchorPosition = movingBeforeTable ? tableTo : tableFrom;
+      const nextRange = {
+        anchor: anchorPosition,
+        head: documentPosition
+      };
+      const nextProjection = {
+        ...nextRange,
+        tableRegions: regionsForTableToDocument(
+          parsedTables,
+          parsedTable ?? latestTable,
+          state.pointerAnchor,
+          movingBeforeTable ? "above" : "below",
+          documentPosition,
+          targetTable,
+          targetAddress
+        )
+      };
+      publishDocumentDragSelection(nextRange, nextProjection);
+    };
+    const publishDocumentDragSelection = (range, projection) => {
+      const currentRange = view2.state.selection.main;
+      const currentProjection = getDocumentSelectionProjection(
+        wrapper.ownerDocument,
+        currentRange
+      );
+      const rangeChanged = currentRange.anchor !== range.anchor || currentRange.head !== range.head;
+      const projectionChanged = !documentSelectionProjectionsEqual(
+        currentProjection,
+        projection
+      );
+      lastDocumentDragRange = range;
+      lastDocumentDragProjection = projection;
+      lastDocumentDragDocument = view2.state.doc;
+      setDocumentSelectionProjection(wrapper.ownerDocument, projection);
+      if (!rangeChanged && !projectionChanged) {
+        return;
+      }
+      view2.dispatch({
+        selection: EditorSelection.range(range.anchor, range.head),
+        scrollIntoView: true,
+        annotations: documentSelectionProjectionTransaction.of(true)
+      });
+    };
+    const onPointerMove = (event) => {
+      const state = stateFor(wrapper.ownerDocument);
+      if (state.pointerCleanup !== removeDocumentPointerListeners) {
+        return;
+      }
+      if (ownsPointerCapture && pointerCaptureId !== null && pointerCaptureGeneration === activeGestureGeneration && !wrapper.hasPointerCapture(pointerCaptureId)) {
+        finishDocumentPointerGesture(true, activeGestureGeneration);
+        return;
+      }
+      updateDragSelection(event);
+    };
+    const onPointerUp = (event) => {
+      const state = stateFor(wrapper.ownerDocument);
+      if (state.pointerId !== event.pointerId) {
+        return;
+      }
+      state.pointerAnchor = null;
+      state.pointerAnchorMode = null;
+      state.pointerId = null;
+      state.pointerCrossedCells = false;
+      if (suppressNativeMouseDrag) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const generation = activeGestureGeneration;
+      queueMicrotask(() => restoreLastDocumentDragRange(generation));
+      schedulePointerCleanup();
+    };
+    const onMouseMove = (event) => {
+      const state = stateFor(wrapper.ownerDocument);
+      if (state.pointerAnchor && (event.buttons & 1) !== 0) {
+        updateDragSelection(event);
+      }
+      if (suppressNativeMouseDrag) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    const onMouseUp = (event) => {
+      const state = stateFor(wrapper.ownerDocument);
+      if (suppressNativeMouseDrag) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      if (state.pointerId === -1) {
+        state.pointerAnchor = null;
+        state.pointerAnchorMode = null;
+        state.pointerId = null;
+        state.pointerCrossedCells = false;
+        schedulePointerCleanup();
+      }
+      const generation = activeGestureGeneration;
+      queueMicrotask(() => restoreLastDocumentDragRange(generation));
+    };
+    const onClickAfterDrag = (event) => {
+      if (!suppressNativeMouseDrag) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      suppressNativeMouseDrag = false;
+    };
+    const restoreLastDocumentDragRange = (expectedGeneration = activeGestureGeneration) => {
+      if (expectedGeneration === null || expectedGeneration !== activeGestureGeneration || !lastDocumentDragRange) {
+        return;
+      }
+      restoreDocumentDragRange(
+        lastDocumentDragRange,
+        lastDocumentDragProjection,
+        lastDocumentDragDocument
+      );
+    };
+    const restoreDocumentDragRange = (range, projection, documentSnapshot) => {
+      if (!view2.dom.isConnected || view2.dom.ownerDocument !== wrapper.ownerDocument || documentSnapshot === null || view2.state.doc !== documentSnapshot) {
+        return;
+      }
+      const documentLength = view2.state.doc.length;
+      const clampedRange = {
+        anchor: Math.max(0, Math.min(documentLength, range.anchor)),
+        head: Math.max(0, Math.min(documentLength, range.head))
+      };
+      const clampedProjection = projection ? { ...projection, ...clampedRange } : null;
+      if (clampedProjection) {
+        setDocumentSelectionProjection(
+          wrapper.ownerDocument,
+          clampedProjection
+        );
+      }
+      view2.dispatch({
+        selection: EditorSelection.range(
+          clampedRange.anchor,
+          clampedRange.head
+        ),
+        ...clampedProjection ? {
+          annotations: documentSelectionProjectionTransaction.of(true)
+        } : {}
+      });
+    };
+    const schedulePointerCleanup = () => {
+      const generation = activeGestureGeneration;
+      if (generation === null) {
+        return;
+      }
+      if (pointerCleanupTimer !== null) {
+        clearTimeout(pointerCleanupTimer);
+      }
+      const timer = setTimeout(() => {
+        if (pointerCleanupTimer !== timer) {
+          return;
+        }
+        pointerCleanupTimer = null;
+        if (activeGestureGeneration !== generation) {
+          return;
+        }
+        finishDocumentPointerGesture(true, generation);
+      }, 0);
+      pointerCleanupTimer = timer;
+    };
+    const onMouseDown = (event) => {
+      const state = stateFor(wrapper.ownerDocument);
+      if (event.button !== 0) {
+        return;
+      }
+      if (state.pointerAnchor) {
+        if (state.pointerId !== -1) {
+          if (state.pointerAnchorMode === "row") {
+            event.preventDefault();
+            clearNativeSelection(wrapper.ownerDocument);
+          }
+          return;
+        }
+        state.pointerCleanup?.();
+      }
+      const start = tableSelectionStart(wrapper, event);
+      const address = start ? addressFromCell(start.cell) : null;
+      if (!address) {
+        return;
+      }
+      state.pointerAnchor = address;
+      state.pointerAnchorMode = start?.mode ?? "cell";
+      state.pointerId = -1;
+      state.pointerCrossedCells = false;
+      activeGestureGeneration = ++gestureGeneration;
+      suppressNativeMouseDrag = start?.mode === "row";
+      lastDocumentDragRange = null;
+      lastDocumentDragProjection = null;
+      lastDocumentDragDocument = null;
+      if (!view2.state.selection.main.empty) {
+        view2.dispatch({
+          selection: EditorSelection.cursor(positionBeforeTable(currentTable()), 1)
+        });
+      }
+      clearDocumentSelectionProjection(wrapper.ownerDocument);
+      wrapper.ownerDocument.addEventListener("mousemove", onMouseMove, true);
+      wrapper.ownerDocument.addEventListener("mouseup", onMouseUp, true);
+      wrapper.ownerDocument.addEventListener("click", onClickAfterDrag, true);
+      state.pointerCleanup = removeDocumentPointerListeners;
+      if (state.selection?.wrapper === wrapper) {
+        clearTableRangeSelection(wrapper.ownerDocument);
+      }
+      if (start?.mode === "row") {
+        event.preventDefault();
+        clearNativeSelection(wrapper.ownerDocument);
+        setTableRangeSelection(
+          wrapper,
+          currentTable().from,
+          address,
+          { row: address.row, column: currentTable().columnCount - 1 },
+          true
+        );
+      }
+    };
+    const removeDocumentPointerListeners = () => {
+      finishDocumentPointerGesture(true, activeGestureGeneration);
+    };
+    const finishDocumentPointerGesture = (restoreFinalRange, expectedGeneration) => {
+      const state = stateFor(wrapper.ownerDocument);
+      const ownsGesture = expectedGeneration !== null && expectedGeneration === activeGestureGeneration && state.pointerCleanup === removeDocumentPointerListeners;
+      const finalRange = ownsGesture && restoreFinalRange ? lastDocumentDragRange : null;
+      const finalProjection = ownsGesture && restoreFinalRange ? lastDocumentDragProjection : null;
+      const finalDocument = ownsGesture && restoreFinalRange ? lastDocumentDragDocument : null;
+      const capturedPointerId = pointerCaptureId;
+      if (pointerCleanupTimer !== null) {
+        clearTimeout(pointerCleanupTimer);
+        pointerCleanupTimer = null;
+      }
+      pointerCaptureId = null;
+      pointerCaptureGeneration = null;
+      ownsPointerCapture = false;
+      wrapper.ownerDocument.removeEventListener("pointermove", onPointerMove, true);
+      wrapper.ownerDocument.removeEventListener("pointerup", onPointerUp, true);
+      wrapper.ownerDocument.removeEventListener("pointercancel", onPointerUp, true);
+      wrapper.ownerDocument.removeEventListener("mousemove", onMouseMove, true);
+      wrapper.ownerDocument.removeEventListener("mouseup", onMouseUp, true);
+      wrapper.ownerDocument.removeEventListener("click", onClickAfterDrag, true);
+      suppressNativeMouseDrag = false;
+      lastDocumentDragRange = null;
+      lastDocumentDragProjection = null;
+      lastDocumentDragDocument = null;
+      if (ownsGesture) {
+        state.pointerAnchor = null;
+        state.pointerAnchorMode = null;
+        state.pointerId = null;
+        state.pointerCrossedCells = false;
+        state.pointerCleanup = null;
+        activeGestureGeneration = null;
+      }
+      if (capturedPointerId !== null && wrapper.hasPointerCapture(capturedPointerId)) {
+        try {
+          wrapper.releasePointerCapture(capturedPointerId);
+        } catch {
+        }
+      }
+      if (finalRange) {
+        clearNativeSelection(wrapper.ownerDocument);
+        restoreDocumentDragRange(finalRange, finalProjection, finalDocument);
+      }
+    };
+    const onLostPointerCapture = (event) => {
+      const state = stateFor(wrapper.ownerDocument);
+      if (event.pointerId !== pointerCaptureId || pointerCaptureGeneration !== activeGestureGeneration || state.pointerCleanup !== removeDocumentPointerListeners) {
+        return;
+      }
+      if (wrapper.hasPointerCapture(event.pointerId)) {
+        return;
+      }
+      if (state.pointerId === null) {
+        pointerCaptureId = null;
+        pointerCaptureGeneration = null;
+        ownsPointerCapture = false;
+        return;
+      }
+      finishDocumentPointerGesture(true, activeGestureGeneration);
+    };
+    const onWindowBlur = () => {
+      const state = stateFor(wrapper.ownerDocument);
+      if (state.pointerCleanup === removeDocumentPointerListeners) {
+        finishDocumentPointerGesture(true, activeGestureGeneration);
+      }
+    };
+    const onFocusIn = (event) => {
+      const cell2 = findCell(event.target);
+      if (cell2 && wrapper.contains(cell2)) {
+        if (!view2.state.selection.main.empty) {
+          const latestTable = currentTable();
+          view2.dispatch({
+            selection: EditorSelection.cursor(positionBeforeTable(latestTable), 1)
+          });
+        }
+        clearDocumentSelectionProjection(wrapper.ownerDocument);
+        clearTableRangeSelection(wrapper.ownerDocument);
+      }
+    };
+    const onDocumentSelectionPointerDown = (event) => {
+      if (event.button !== 0 || isMarkdownTaskPointerActivation(event)) {
+        return;
+      }
+      if (event.target instanceof Element && event.target.closest(".mlrt-clipboard-menu")) {
+        return;
+      }
+      const selection = getTableRangeSelection(wrapper.ownerDocument);
+      if (selection?.wrapper === wrapper && event.target instanceof Node && !wrapper.contains(event.target)) {
+        clearTableRangeSelection(wrapper.ownerDocument);
+      }
+    };
+    const onKeyDown = (event) => {
+      const activeCell = findCell(event.target);
+      if (activeCell && wrapper.contains(activeCell)) {
+        const latestTable2 = currentTable();
+        if (event.key === "Escape") {
+          const address = addressFromCell(activeCell);
+          if (!address) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          activeCell.blur();
+          setTableRangeSelection(
+            wrapper,
+            Number(wrapper.dataset.srcFrom ?? latestTable2.from),
+            address,
+            address,
+            true
+          );
+          return;
+        }
+        if (isSelectAll(event)) {
+          handleCellSelectAll(event, wrapper, latestTable2, activeCell);
+        }
+        return;
+      }
+      const selection = getTableRangeSelection(wrapper.ownerDocument);
+      if (!selection || selection.wrapper !== wrapper) {
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (selection.pendingCutToken || getPendingClipboardCut(wrapper.ownerDocument)?.kind === "table") {
+          wrapper.dispatchEvent(
+            new CustomEvent(TABLE_CUT_CANCEL_EVENT, { bubbles: true })
+          );
+        } else {
+          const target = cellFromAddress(wrapper, selection.head);
+          clearTableRangeSelection(wrapper.ownerDocument);
+          if (target) {
+            focusCellAtEnd(target);
+          }
+        }
+        return;
+      }
+      const latestTable = currentTable();
+      if (isSelectAll(event)) {
+        event.preventDefault();
+        event.stopPropagation();
+        const rectangle = selectionRectangle(selection);
+        const rowCount = latestTable.body.length + 1;
+        if (rectangle.top === 0 && rectangle.bottom === rowCount - 1 && rectangle.left === 0 && rectangle.right === latestTable.columnCount - 1) {
+          clearTableRangeSelection(wrapper.ownerDocument);
+          view2.focus();
+          view2.dispatch({
+            selection: EditorSelection.range(0, view2.state.doc.length),
+            scrollIntoView: true
+          });
+        } else {
+          setTableRangeSelection(
+            wrapper,
+            selection.tableFrom,
+            { row: 0, column: 0 },
+            { row: rowCount - 1, column: latestTable.columnCount - 1 },
+            true
+          );
+        }
+        return;
+      }
+      if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "Tab") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.key === "Tab") {
+          const nextHead2 = tabDestination(
+            selection.head,
+            latestTable,
+            event.shiftKey
+          );
+          if (nextHead2) {
+            setTableRangeSelection(
+              wrapper,
+              latestTable.from,
+              nextHead2,
+              nextHead2,
+              true
+            );
+          } else {
+            clearTableRangeSelection(wrapper.ownerDocument);
+            view2.focus();
+            selectVisibleTableBoundary(
+              view2,
+              latestTable,
+              event.shiftKey ? "before" : "after"
+            );
+          }
+          return;
+        }
+        if (isPlainKey(event) && (event.key === "ArrowUp" && selection.head.row === 0 || event.key === "ArrowDown" && selection.head.row === latestTable.body.length)) {
+          clearTableRangeSelection(wrapper.ownerDocument);
+          view2.focus();
+          selectVisibleTableBoundary(
+            view2,
+            latestTable,
+            event.key === "ArrowUp" ? "before" : "after"
+          );
+          return;
+        }
+        const delta = keyDelta(event);
+        const nextHead = clampAddress(
+          {
+            row: selection.head.row + delta.row,
+            column: selection.head.column + delta.column
+          },
+          latestTable
+        );
+        const nextAnchor = event.shiftKey ? selection.anchor : nextHead;
+        setTableRangeSelection(
+          wrapper,
+          selection.tableFrom,
+          nextAnchor,
+          nextHead,
+          true
+        );
+        return;
+      }
+      if (event.key === "Enter" || event.key === "F2") {
+        event.preventDefault();
+        event.stopPropagation();
+        const target = cellFromAddress(wrapper, selection.head);
+        clearTableRangeSelection(wrapper.ownerDocument);
+        if (target) {
+          focusCellAtEnd(target);
+        }
+        return;
+      }
+      if (event.key === "Backspace" || event.key === "Delete") {
+        event.preventDefault();
+        event.stopPropagation();
+        wrapper.dispatchEvent(
+          new CustomEvent(TABLE_SELECTION_CLEAR_EVENT, { bubbles: true })
+        );
+        return;
+      }
+      if (isPrintableKey(event)) {
+        const target = cellFromAddress(wrapper, selection.head);
+        event.preventDefault();
+        event.stopPropagation();
+        clearTableRangeSelection(wrapper.ownerDocument);
+        if (target) {
+          target.focus();
+          const nativeSelection = wrapper.ownerDocument.defaultView?.getSelection();
+          const range = wrapper.ownerDocument.createRange();
+          range.selectNodeContents(target);
+          nativeSelection?.removeAllRanges();
+          nativeSelection?.addRange(range);
+          wrapper.ownerDocument.execCommand("insertText", false, event.key);
+        }
+      }
+    };
+    wrapper.addEventListener("pointerdown", onPointerDown);
+    wrapper.addEventListener("lostpointercapture", onLostPointerCapture, true);
+    wrapper.addEventListener("mousedown", onMouseDown);
+    wrapper.addEventListener("focusin", onFocusIn);
+    wrapper.addEventListener("keydown", onKeyDown);
+    wrapper.ownerDocument.addEventListener(
+      "pointerdown",
+      onDocumentSelectionPointerDown,
+      true
+    );
+    wrapper.ownerDocument.defaultView?.addEventListener("blur", onWindowBlur);
+    restoreSelectionClasses(wrapper);
+    return () => {
+      wrapper.removeEventListener("pointerdown", onPointerDown);
+      wrapper.removeEventListener(
+        "lostpointercapture",
+        onLostPointerCapture,
+        true
+      );
+      wrapper.removeEventListener("mousedown", onMouseDown);
+      finishDocumentPointerGesture(false, activeGestureGeneration);
+      wrapper.removeEventListener("focusin", onFocusIn);
+      wrapper.removeEventListener("keydown", onKeyDown);
+      wrapper.ownerDocument.removeEventListener(
+        "pointerdown",
+        onDocumentSelectionPointerDown,
+        true
+      );
+      wrapper.ownerDocument.defaultView?.removeEventListener(
+        "blur",
+        onWindowBlur
+      );
+    };
+  }
+  function getTableRangeSelection(doc2) {
+    const documentState = states.get(doc2);
+    const state = documentState?.selection ?? null;
+    if (state && !state.wrapper.isConnected) {
+      const replacement = Array.from(
+        doc2.querySelectorAll(".mlrt-table-widget")
+      ).find(
+        (candidate) => Number(candidate.dataset.srcFrom ?? "-1") === state.tableFrom
+      );
+      if (replacement) {
+        state.wrapper = replacement;
+        if (!tableSelectionFitsWrapper(state, replacement)) {
+          discardStaleTableSelection(documentState, state);
+          return null;
+        }
+        applySelectionClasses(state);
+        return state;
+      }
+      discardStaleTableSelection(documentState, state);
+      return null;
+    }
+    if (state) {
+      const currentFrom = Number(state.wrapper.dataset.srcFrom ?? "NaN");
+      if (Number.isFinite(currentFrom)) {
+        state.tableFrom = currentFrom;
+      }
+      if (!tableSelectionFitsWrapper(state, state.wrapper)) {
+        discardStaleTableSelection(documentState, state);
+        return null;
+      }
+    }
+    return state;
+  }
+  function setTableRangeSelection(wrapper, tableFrom, anchor, head, focusWrapper) {
+    const doc2 = wrapper.ownerDocument;
+    const state = stateFor(doc2);
+    const activeView = state.view;
+    if (activeView && !activeView.state.selection.main.empty) {
+      const activeTable = getTableWidgetTable(wrapper);
+      activeView.dispatch({
+        selection: EditorSelection.cursor(
+          activeTable ? positionBeforeTable(activeTable) : tableFrom,
+          1
+        )
+      });
+    }
+    clearDocumentSelectionProjection(doc2);
+    if (state.selection?.wrapper !== wrapper) {
+      clearSelectionClasses(state.selection?.wrapper);
+    }
+    const selection = {
+      version: MLRT_CLIPBOARD_VERSION,
+      wrapper,
+      tableFrom,
+      anchor,
+      head
+    };
+    state.selection = selection;
+    applySelectionClasses(selection);
+    clearNativeSelection(doc2);
+    if (focusWrapper) {
+      wrapper.focus({ preventScroll: true });
+    }
+    dispatchSelectionChange(wrapper);
+    return selection;
+  }
+  function selectTableRow(wrapper, tableFrom, row, columnCount) {
+    setTableRangeSelection(
+      wrapper,
+      tableFrom,
+      { row, column: 0 },
+      { row, column: Math.max(0, columnCount - 1) },
+      true
+    );
+  }
+  function selectTableColumn(wrapper, tableFrom, column, rowCount) {
+    setTableRangeSelection(
+      wrapper,
+      tableFrom,
+      { row: 0, column },
+      { row: Math.max(0, rowCount - 1), column },
+      true
+    );
+  }
+  function selectionRectangle(selection) {
+    return {
+      top: Math.min(selection.anchor.row, selection.head.row),
+      bottom: Math.max(selection.anchor.row, selection.head.row),
+      left: Math.min(selection.anchor.column, selection.head.column),
+      right: Math.max(selection.anchor.column, selection.head.column)
+    };
+  }
+  function isCellInSelection(selection, address) {
+    const rectangle = selectionRectangle(selection);
+    return address.row >= rectangle.top && address.row <= rectangle.bottom && address.column >= rectangle.left && address.column <= rectangle.right;
+  }
+  function clearTableRangeSelection(doc2) {
+    const state = states.get(doc2);
+    if (!state?.selection) {
+      return;
+    }
+    const wrapper = state.selection.wrapper;
+    clearSelectionClasses(wrapper);
+    state.selection = null;
+    dispatchSelectionChange(wrapper);
+  }
+  function setPendingCutToken(doc2, token) {
+    const selection = getTableRangeSelection(doc2);
+    if (!selection) {
+      return;
+    }
+    selection.pendingCutToken = token;
+    applySelectionClasses(selection);
+    dispatchSelectionChange(selection.wrapper);
+  }
+  function ensureContextCellSelection(wrapper, tableFrom, cell2) {
+    const address = addressFromCell(cell2);
+    if (!address) {
+      return null;
+    }
+    const current = getTableRangeSelection(wrapper.ownerDocument);
+    if (current?.wrapper === wrapper && isCellInSelection(current, address)) {
+      return current;
+    }
+    return setTableRangeSelection(wrapper, tableFrom, address, address, false);
+  }
+  function addressFromCell(cell2) {
     const rowKind = cell2.dataset.rowKind;
     const rowIndex = Number(cell2.dataset.rowIndex ?? "0");
     const column = Number(cell2.dataset.column ?? "0");
     if (rowKind !== "header" && rowKind !== "body" || !Number.isInteger(rowIndex) || rowIndex < 0 || !Number.isInteger(column) || column < 0) {
-      return void 0;
+      return null;
     }
-    return {
-      rowKind,
-      rowIndex,
-      column,
-      value: readCellDisplayValue(cell2)
-    };
+    return { row: rowKind === "header" ? 0 : rowIndex + 1, column };
   }
-  function cloneParsedTable(table2) {
-    return {
-      from: table2.from,
-      to: table2.to,
-      startLine: table2.startLine,
-      endLine: table2.endLine,
-      header: cloneParsedRow(table2.header),
-      delimiter: cloneParsedRow(table2.delimiter),
-      body: table2.body.map(cloneParsedRow),
-      columnCount: table2.columnCount,
-      alignments: [...table2.alignments]
-    };
-  }
-  function cloneParsedRow(row) {
-    return {
-      lineIndex: row.lineIndex,
-      from: row.from,
-      to: row.to,
-      text: row.text,
-      cells: row.cells.map((cell2) => ({ ...cell2 }))
-    };
-  }
-
-  // src/shared/tableColumnSizing.ts
-  var CELL_HORIZONTAL_PADDING_CH = 2;
-  var CELL_COMFORT_CH = 1;
-  var TOKEN_COMFORT_CH = 0.5;
-  var MIN_COLUMN_WIDTH_CH = 3;
-  var READABLE_COLUMN_WIDTH_CH = 12;
-  var READABLE_LINE_LENGTH_THRESHOLD_CH = 32;
-  var MAX_UNBROKEN_TOKEN_WIDTH_CH = 36;
-  var MAX_PREFERRED_COLUMN_WIDTH_CH = 96;
-  var HEADER_PREFERRED_WIDTH_CAP_CH = 24;
-  var HEADER_TOKEN_WIDTH_CAP_CH = 24;
-  var WIDTH_STEP_CH = 0.5;
-  function measureTableColumnSizing(table2, availableDataWidthCh, cellOverride) {
-    const rows = [
-      { row: table2.header, rowKind: "header", rowIndex: 0 },
-      ...table2.body.map((row, rowIndex) => ({
-        row,
-        rowKind: "body",
-        rowIndex
-      }))
-    ];
-    const columns = Array.from(
-      { length: table2.columnCount },
-      (_value, column) => measureColumn(rows, table2.columnCount, column, cellOverride)
-    );
-    const totalPreferredWidth = columns.reduce(
-      (total, column) => total + column.preferredWidthCh,
-      0
-    );
-    const totalMinWidth = columns.reduce(
-      (total, column) => total + column.minWidthCh,
-      0
-    );
-    const safeTotalWidth = totalPreferredWidth > 0 ? totalPreferredWidth : table2.columnCount;
-    const targetWidth = availableDataWidthCh === void 0 || availableDataWidthCh <= 0 ? safeTotalWidth : Math.min(safeTotalWidth, availableDataWidthCh);
-    const allocatedColumns = targetWidth >= totalMinWidth ? allocateColumnWidths(columns, targetWidth) : columns.map((column) => ({ ...column, widthCh: column.minWidthCh }));
-    if (availableDataWidthCh !== void 0 && availableDataWidthCh > 0) {
-      distributeWidthSteps(
-        allocatedColumns,
-        availableDataWidthCh,
-        (column) => column.fullPreferredWidthCh
-      );
-    }
-    const dataWidthCh = allocatedColumns.reduce(
-      (total, column) => total + column.widthCh,
-      0
-    );
-    const safeDataWidth = dataWidthCh > 0 ? dataWidthCh : table2.columnCount;
-    return {
-      columns: allocatedColumns,
-      dataWidthCh: safeDataWidth,
-      widthPercentages: allocatedColumns.map(
-        (column) => column.widthCh / safeDataWidth * 100
-      )
-    };
-  }
-  function measureColumn(rows, columnCount, column, cellOverride) {
-    let longestLine = 0;
-    let longestToken = 0;
-    let longestBodyLine = 0;
-    let longestBodyToken = 0;
-    let longestHeaderLine = 0;
-    let longestHeaderToken = 0;
-    let hasBodyRow = false;
-    const cellLineLengths = [];
-    for (const source of rows) {
-      const value = getCellDisplayValue(
-        source,
-        columnCount,
-        column,
-        cellOverride
-      );
-      for (const line of splitDisplayLines(value)) {
-        const lineLength = line.length;
-        const tokenLength = measureLongestToken(line);
-        cellLineLengths.push(lineLength);
-        longestLine = Math.max(longestLine, lineLength);
-        longestToken = Math.max(longestToken, tokenLength);
-        if (source.rowKind === "body") {
-          hasBodyRow = true;
-          longestBodyLine = Math.max(longestBodyLine, lineLength);
-          longestBodyToken = Math.max(longestBodyToken, tokenLength);
-        } else {
-          longestHeaderLine = Math.max(longestHeaderLine, lineLength);
-          longestHeaderToken = Math.max(longestHeaderToken, tokenLength);
-        }
-      }
-    }
-    const sizingLine = hasBodyRow ? Math.max(
-      longestBodyLine,
-      Math.min(longestHeaderLine, HEADER_PREFERRED_WIDTH_CAP_CH)
-    ) : longestLine;
-    const sizingToken = hasBodyRow ? Math.max(
-      longestBodyToken,
-      Math.min(longestHeaderToken, HEADER_TOKEN_WIDTH_CAP_CH)
-    ) : longestToken;
-    const hasProseLikeContent = cellLineLengths.some(
-      (lineLength) => lineLength >= READABLE_LINE_LENGTH_THRESHOLD_CH
-    );
-    const readableMinWidthCh = hasProseLikeContent ? READABLE_COLUMN_WIDTH_CH : 0;
-    const minWidthCh = clamp(
-      Math.max(
-        sizingToken + CELL_HORIZONTAL_PADDING_CH + TOKEN_COMFORT_CH,
-        readableMinWidthCh
-      ),
-      MIN_COLUMN_WIDTH_CH,
-      MAX_UNBROKEN_TOKEN_WIDTH_CH
-    );
-    const preferredWidthCh = clamp(
-      sizingLine + CELL_HORIZONTAL_PADDING_CH + CELL_COMFORT_CH,
-      minWidthCh,
-      MAX_PREFERRED_COLUMN_WIDTH_CH
-    );
-    const fullPreferredWidthCh = clamp(
-      longestLine + CELL_HORIZONTAL_PADDING_CH + CELL_COMFORT_CH,
-      preferredWidthCh,
-      MAX_PREFERRED_COLUMN_WIDTH_CH
-    );
-    return {
-      cellLineLengths,
-      minWidthCh,
-      preferredWidthCh,
-      fullPreferredWidthCh,
-      widthCh: preferredWidthCh
-    };
-  }
-  function getCellDisplayValue(source, columnCount, column, cellOverride) {
-    if (cellOverride && cellOverride.rowKind === source.rowKind && cellOverride.rowIndex === source.rowIndex && cellOverride.column === column) {
-      return cellOverride.value;
-    }
-    return rowToDisplayValues(source.row, columnCount)[column] ?? "";
-  }
-  function allocateColumnWidths(columns, targetWidthCh) {
-    const allocated = columns.map((column) => ({
-      ...column,
-      widthCh: column.minWidthCh
-    }));
-    distributeWidthSteps(
-      allocated,
-      targetWidthCh,
-      (column) => column.preferredWidthCh
-    );
-    return allocated;
-  }
-  function distributeWidthSteps(columns, targetWidthCh, limitOf) {
-    let remainingSteps = Math.round(
-      (targetWidthCh - columns.reduce((total, column) => total + column.widthCh, 0)) / WIDTH_STEP_CH
-    );
-    while (remainingSteps > 0) {
-      let bestColumnIndex = -1;
-      let bestScore = Number.NEGATIVE_INFINITY;
-      for (let index = 0; index < columns.length; index++) {
-        const column2 = columns[index];
-        const limit = limitOf(column2);
-        if (column2.widthCh >= limit) {
-          continue;
-        }
-        const nextWidth = Math.min(limit, column2.widthCh + WIDTH_STEP_CH);
-        const wrapReduction = measureWrapCost(column2, column2.widthCh) - measureWrapCost(column2, nextWidth);
-        const remainingNeed = limit - column2.widthCh;
-        const score = wrapReduction * 1e3 + remainingNeed;
-        if (score > bestScore) {
-          bestScore = score;
-          bestColumnIndex = index;
-        }
-      }
-      if (bestColumnIndex === -1) {
-        break;
-      }
-      const column = columns[bestColumnIndex];
-      column.widthCh = Math.min(limitOf(column), column.widthCh + WIDTH_STEP_CH);
-      remainingSteps--;
-    }
-  }
-  function measureWrapCost(column, widthCh) {
-    const contentWidthCh = Math.max(1, widthCh - CELL_HORIZONTAL_PADDING_CH);
-    return column.cellLineLengths.reduce(
-      (total, lineLength) => total + Math.max(1, Math.ceil(lineLength / contentWidthCh)),
-      0
+  function cellFromAddress(wrapper, address) {
+    const rowKind = address.row === 0 ? "header" : "body";
+    const rowIndex = address.row === 0 ? 0 : address.row - 1;
+    return wrapper.querySelector(
+      `${TABLE_CELL_SELECTOR}[data-row-kind="${rowKind}"][data-row-index="${rowIndex}"][data-column="${address.column}"]`
     );
   }
-  function splitDisplayLines(value) {
-    const lines = value.split(/\r\n?|\n/);
-    return lines.length > 0 ? lines : [""];
-  }
-  function measureLongestToken(value) {
-    return value.trim().split(/\s+/).reduce((longest, token) => Math.max(longest, token.length), 0);
-  }
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(value, max));
-  }
-
-  // src/editor/table/tableHeightEstimate.ts
-  var DEFAULT_EDITOR_LINE_HEIGHT_PX = 19;
-  var DEFAULT_CH_WIDTH_PX = 8;
-  var TABLE_ROW_VERTICAL_CHROME_PX = 2;
-  var TABLE_SCROLLBAR_HEIGHT_PX = 8;
-  var CELL_HORIZONTAL_PADDING_CH2 = 2;
-  var METRIC_EPSILON_PX = 0.01;
-  function createTableHeightEstimateMetrics() {
-    return {
-      lineHeightPx: DEFAULT_EDITOR_LINE_HEIGHT_PX,
-      chWidthPx: DEFAULT_CH_WIDTH_PX,
-      availableDataWidthPx: void 0,
-      revision: 0
-    };
-  }
-  function updateTableHeightEstimateMetrics(metrics, measured) {
-    const lineHeightPx = positiveOrFallback(
-      measured.lineHeightPx,
-      metrics.lineHeightPx
-    );
-    const chWidthPx = positiveOrFallback(measured.chWidthPx, metrics.chWidthPx);
-    const availableDataWidthPx = measured.availableDataWidthPx === void 0 ? void 0 : Math.max(0, measured.availableDataWidthPx);
-    const changed = Math.abs(metrics.lineHeightPx - lineHeightPx) > METRIC_EPSILON_PX || Math.abs(metrics.chWidthPx - chWidthPx) > METRIC_EPSILON_PX || optionalNumberChanged(
-      metrics.availableDataWidthPx,
-      availableDataWidthPx
-    );
-    if (!changed) {
-      return false;
-    }
-    metrics.lineHeightPx = lineHeightPx;
-    metrics.chWidthPx = chWidthPx;
-    metrics.availableDataWidthPx = availableDataWidthPx;
-    metrics.revision++;
-    return true;
-  }
-  function estimateRenderedTableHeight(table2, metrics) {
-    const availableDataWidthCh = estimateAvailableDataWidthCh(
-      metrics,
-      table2.columnCount
-    );
-    const columnSizing = measureTableColumnSizing(
-      table2,
-      availableDataWidthCh
-    );
-    const rows = [table2.header, ...table2.body];
-    const rowsHeight = rows.reduce((height, row) => {
-      const values2 = rowToDisplayValues(row, table2.columnCount);
-      const visualLineCount = Math.max(
-        1,
-        ...values2.map(
-          (value, column) => estimateCellVisualLineCount(
-            value,
-            columnSizing.columns[column]?.widthCh ?? 1
-          )
-        )
-      );
-      return height + visualLineCount * metrics.lineHeightPx + TABLE_ROW_VERTICAL_CHROME_PX;
-    }, 0);
-    const scrollbarHeight = availableDataWidthCh !== void 0 && columnSizing.dataWidthCh > availableDataWidthCh + METRIC_EPSILON_PX ? TABLE_SCROLLBAR_HEIGHT_PX : 0;
-    return rowsHeight + scrollbarHeight;
-  }
-  function estimateAvailableDataWidthCh(metrics, columnCount) {
-    if (metrics.availableDataWidthPx === void 0 || metrics.chWidthPx <= 0) {
-      return void 0;
-    }
-    const borderAllowancePx = columnCount + 2;
-    return Math.max(0, metrics.availableDataWidthPx - borderAllowancePx) / metrics.chWidthPx;
-  }
-  function screenPixelsToCssPixels(value, scaleY) {
-    const safeScale = Number.isFinite(scaleY) && scaleY > 0 ? scaleY : 1;
-    return Math.max(0, value / safeScale);
-  }
-  function estimateCellVisualLineCount(value, columnWidthCh) {
-    const contentWidthCh = Math.max(
-      1,
-      columnWidthCh - CELL_HORIZONTAL_PADDING_CH2
-    );
-    return value.split("\n").reduce(
-      (count2, line) => count2 + Math.max(1, Math.ceil(estimateTextWidthCh(line) / contentWidthCh)),
-      0
-    );
-  }
-  function estimateTextWidthCh(value) {
-    return Array.from(value).reduce(
-      (width, character) => width + (character === "	" ? 4 : 1),
-      0
-    );
-  }
-  function optionalNumberChanged(previous, next2) {
-    return previous === void 0 || next2 === void 0 ? previous !== next2 : Math.abs(previous - next2) > METRIC_EPSILON_PX;
-  }
-  function positiveOrFallback(value, fallback) {
-    return Number.isFinite(value) && value > 0 ? value : fallback;
-  }
-
-  // src/editor/table/tableLayout.ts
-  var chWidthCache = /* @__PURE__ */ new WeakMap();
-  var cssLengthCache = /* @__PURE__ */ new WeakMap();
-  function appendColumnSizing(tableElement, table2, columnSizing) {
-    const colgroup = document.createElement("colgroup");
-    const lineNumberCol = document.createElement("col");
-    lineNumberCol.className = "mlrt-table-source-line-col";
-    colgroup.append(lineNumberCol);
-    for (let column = 0; column < table2.columnCount; column++) {
-      const col = document.createElement("col");
-      col.className = "mlrt-table-sized-col";
-      col.style.width = `${columnSizing.columns[column].widthCh.toFixed(4)}ch`;
-      colgroup.append(col);
-    }
-    tableElement.append(colgroup);
-  }
-  function applyColumnSizing(wrapper, columnSizing) {
-    wrapper.style.setProperty(
-      "--mlrt-table-data-width",
-      `${columnSizing.dataWidthCh.toFixed(4)}ch`
-    );
-    wrapper.querySelectorAll(".mlrt-table-sized-col").forEach((col, column) => {
-      col.style.width = `${(columnSizing.columns[column]?.widthCh ?? 1).toFixed(
-        4
-      )}ch`;
-    });
-  }
-  function applyCurrentColumnSizing(wrapper, table2) {
-    applyColumnSizing(
-      wrapper,
-      measureTableColumnSizing(
-        table2,
-        measureAvailableDataWidthCh(wrapper),
-        readActiveCellSizingOverride(wrapper)
-      )
-    );
-  }
-  function bindTableLayout(wrapper, tableScroll, tableElement, scrollbar, scrollbarThumb, table2, view2) {
-    const syncScrollbar = () => syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb);
-    let pendingAnimationFrame = 0;
-    const syncLayout = () => {
-      pendingAnimationFrame = 0;
-      synchronizeTableLayoutElements(
-        wrapper,
-        tableScroll,
-        tableElement,
-        scrollbar,
-        scrollbarThumb,
-        getTableWidgetTable(wrapper) ?? table2,
-        view2
-      );
-    };
-    const scheduleDeferredLayout = () => {
-      if (pendingAnimationFrame !== 0) {
-        return;
-      }
-      pendingAnimationFrame = requestElementAnimationFrame(wrapper, syncLayout);
-    };
-    const synchronizeNow = () => {
-      if (pendingAnimationFrame !== 0) {
-        cancelElementAnimationFrame(wrapper, pendingAnimationFrame);
-        pendingAnimationFrame = 0;
-      }
-      syncLayout();
-    };
-    const ResizeObserverCtor = wrapper.ownerDocument.defaultView?.ResizeObserver;
-    const resizeObserver = ResizeObserverCtor ? new ResizeObserverCtor(scheduleDeferredLayout) : void 0;
-    resizeObserver?.observe(tableElement);
-    resizeObserver?.observe(tableScroll);
-    tableScroll.addEventListener("scroll", syncScrollbar);
-    scheduleDeferredLayout();
-    setTableWidgetCleanup(wrapper, () => {
-      if (pendingAnimationFrame !== 0) {
-        cancelElementAnimationFrame(wrapper, pendingAnimationFrame);
-        pendingAnimationFrame = 0;
-      }
-      resizeObserver?.disconnect();
-      tableScroll.removeEventListener("scroll", syncScrollbar);
-    });
-    return synchronizeNow;
-  }
-  function synchronizeTableLayoutNow(wrapper, table2, view2) {
-    const tableScroll = wrapper.querySelector(".mlrt-table-scroll");
-    const tableElement = wrapper.querySelector(".mlrt-table");
-    const scrollbar = wrapper.querySelector(".mlrt-table-scrollbar");
-    const scrollbarThumb = wrapper.querySelector(
-      ".mlrt-table-scrollbar-thumb"
-    );
-    if (!tableScroll || !tableElement || !scrollbar || !scrollbarThumb) {
-      return false;
-    }
-    synchronizeTableLayoutElements(
-      wrapper,
-      tableScroll,
-      tableElement,
-      scrollbar,
-      scrollbarThumb,
-      table2,
-      view2
-    );
-    return true;
-  }
-  function measureAvailableDataWidthCh(wrapper) {
-    const scroller = wrapper.closest(".cm-scroller");
-    if (!scroller) {
-      return void 0;
-    }
-    return measureAvailableDataWidthChFromEditor(
-      scroller,
-      wrapper,
-      getTableWidgetTable(wrapper)?.columnCount ?? 1
-    );
-  }
-  function primeTableLayoutForMount(wrapper, tableScroll, tableElement, scrollbar, scrollbarThumb, table2, view2) {
-    const previousInlineStyle = {
-      position: wrapper.style.position,
-      left: wrapper.style.left,
-      top: wrapper.style.top,
-      visibility: wrapper.style.visibility,
-      pointerEvents: wrapper.style.pointerEvents
-    };
-    wrapper.style.position = "absolute";
-    wrapper.style.left = "0";
-    wrapper.style.top = "0";
-    wrapper.style.visibility = "hidden";
-    wrapper.style.pointerEvents = "none";
-    view2.scrollDOM.append(wrapper);
-    try {
-      synchronizeTableLayoutElements(
-        wrapper,
-        tableScroll,
-        tableElement,
-        scrollbar,
-        scrollbarThumb,
-        table2,
-        view2
-      );
-    } finally {
-      wrapper.remove();
-      wrapper.style.position = previousInlineStyle.position;
-      wrapper.style.left = previousInlineStyle.left;
-      wrapper.style.top = previousInlineStyle.top;
-      wrapper.style.visibility = previousInlineStyle.visibility;
-      wrapper.style.pointerEvents = previousInlineStyle.pointerEvents;
-    }
-  }
-  function synchronizeTableLayoutElements(wrapper, tableScroll, tableElement, scrollbar, scrollbarThumb, table2, view2) {
-    applyCurrentColumnSizing(wrapper, table2);
-    syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb);
-    const tableHeight = tableElement.getBoundingClientRect().height;
-    const scrollbarHeight = scrollbar.hidden ? 0 : scrollbar.getBoundingClientRect().height;
-    const synchronizedHeightPx = screenPixelsToCssPixels(
-      tableHeight + scrollbarHeight,
-      view2.scaleY
-    );
-    wrapper.style.height = `${synchronizedHeightPx}px`;
-    wrapper.dataset.primedHeightPx = String(synchronizedHeightPx);
-    syncTableSelectionOverlay(wrapper);
-  }
-  function measureAvailableDataWidthChForView(view2, columnCount) {
-    const viewport = measureTableEstimateViewportForView(view2);
-    const borderAllowancePx = columnCount + 2;
-    const availablePx = Math.max(
-      0,
-      viewport.availableDataWidthPx - borderAllowancePx
-    );
-    return viewport.chWidthPx > 0 ? availablePx / viewport.chWidthPx : void 0;
-  }
-  function measureTableEstimateViewportForView(view2) {
-    const scroller = view2.scrollDOM;
-    const styles = getComputedStyle(scroller);
-    const gutterWidth = view2.dom.querySelector(".cm-gutters")?.getBoundingClientRect().width ?? resolveCssLengthPx(
-      scroller,
-      styles.getPropertyValue("--mlrt-live-gutter-width")
-    );
-    const rightPadding = resolveCssLengthPx(
-      scroller,
-      styles.getPropertyValue("--mlrt-editor-right-padding")
-    );
-    return {
-      availableDataWidthPx: Math.max(
-        0,
-        scroller.clientWidth - gutterWidth - rightPadding
-      ),
-      chWidthPx: measureChWidth(view2.contentDOM)
-    };
-  }
-  function tableSizingOverflowsAvailableWidth(columnSizing, availableDataWidthCh) {
-    return availableDataWidthCh !== void 0 && columnSizing.dataWidthCh > availableDataWidthCh + 0.01;
-  }
-  function measureAvailableDataWidthChFromEditor(scroller, fontElement, columnCount) {
-    const styles = getComputedStyle(scroller);
-    const gutterWidth = resolveCssLengthPx(
-      scroller,
-      styles.getPropertyValue("--mlrt-live-gutter-width")
-    );
-    const rightPadding = resolveCssLengthPx(
-      scroller,
-      styles.getPropertyValue("--mlrt-editor-right-padding")
-    );
-    const chWidth = measureChWidth(fontElement);
-    const borderAllowancePx = columnCount + 2;
-    const availablePx = Math.max(
-      0,
-      scroller.clientWidth - gutterWidth - rightPadding - borderAllowancePx
-    );
-    return chWidth > 0 ? availablePx / chWidth : void 0;
-  }
-  function syncTableScrollbar(tableScroll, scrollbar, scrollbarThumb) {
-    const maxScrollLeft = Math.max(
-      0,
-      tableScroll.scrollWidth - tableScroll.clientWidth
-    );
-    const hasOverflow = maxScrollLeft > 1;
-    scrollbar.hidden = !hasOverflow;
-    if (!hasOverflow) {
-      if (tableScroll.scrollLeft !== 0) {
-        tableScroll.scrollLeft = 0;
-      }
-      scrollbarThumb.style.width = "0px";
-      scrollbarThumb.style.transform = "translateX(0px)";
+  function handleCellSelectAll(event, wrapper, table2, activeCell) {
+    const selection = wrapper.ownerDocument.defaultView?.getSelection();
+    const valueLength = readCellDisplayValue(activeCell).length;
+    const selectedLength = selection?.toString().replace(/\u00a0/g, " ").length ?? 0;
+    if (selectedLength < valueLength) {
+      event.preventDefault();
+      event.stopPropagation();
+      const range = wrapper.ownerDocument.createRange();
+      range.selectNodeContents(activeCell);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
       return;
     }
-    const trackWidth = Math.max(0, scrollbar.clientWidth);
-    const thumbWidth = Math.max(
-      24,
-      tableScroll.clientWidth / tableScroll.scrollWidth * trackWidth
-    );
-    const maxThumbLeft = Math.max(0, trackWidth - thumbWidth);
-    const thumbLeft = maxScrollLeft > 0 ? tableScroll.scrollLeft / maxScrollLeft * maxThumbLeft : 0;
-    scrollbarThumb.style.width = `${thumbWidth}px`;
-    scrollbarThumb.style.transform = `translateX(${thumbLeft}px)`;
-  }
-  function measureChWidth(element) {
-    const styles = getComputedStyle(element);
-    const cacheKey = [
-      styles.fontFamily,
-      styles.fontSize,
-      styles.fontWeight,
-      styles.fontStretch,
-      styles.fontStyle,
-      styles.letterSpacing,
-      styles.fontFeatureSettings,
-      styles.fontVariationSettings
-    ].join("|");
-    const cached = chWidthCache.get(element);
-    if (cached?.key === cacheKey) {
-      return cached.width;
-    }
-    const probe = element.ownerDocument.createElement("span");
-    probe.textContent = "0";
-    probe.style.position = "absolute";
-    probe.style.left = "-10000px";
-    probe.style.top = "0";
-    probe.style.visibility = "hidden";
-    probe.style.pointerEvents = "none";
-    probe.style.whiteSpace = "pre";
-    probe.style.fontFamily = styles.fontFamily;
-    probe.style.fontSize = styles.fontSize;
-    probe.style.fontWeight = styles.fontWeight;
-    probe.style.fontStretch = styles.fontStretch;
-    probe.style.fontStyle = styles.fontStyle;
-    probe.style.letterSpacing = styles.letterSpacing;
-    probe.style.fontFeatureSettings = styles.fontFeatureSettings;
-    probe.style.fontVariationSettings = styles.fontVariationSettings;
-    const host = element.ownerDocument.body ?? element.ownerDocument.documentElement;
-    host.append(probe);
-    const width = probe.getBoundingClientRect().width;
-    probe.remove();
-    chWidthCache.set(element, { key: cacheKey, width });
-    return width;
-  }
-  function resolveCssLengthPx(element, value) {
-    const direct = Number.parseFloat(value);
-    if (Number.isFinite(direct) && value.trim().endsWith("px")) {
-      return direct;
-    }
-    const cachedLengths = cssLengthCache.get(element);
-    const cached = cachedLengths?.get(value);
-    if (cached !== void 0) {
-      return cached;
-    }
-    const probe = element.ownerDocument.createElement("span");
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    probe.style.pointerEvents = "none";
-    probe.style.width = value.trim() || "0px";
-    element.append(probe);
-    const width = probe.getBoundingClientRect().width;
-    probe.remove();
-    const resolved = Number.isFinite(width) ? width : 0;
-    if (cachedLengths) {
-      cachedLengths.set(value, resolved);
-    } else {
-      cssLengthCache.set(element, /* @__PURE__ */ new Map([[value, resolved]]));
-    }
-    return resolved;
-  }
-
-  // src/editor/editorGeometrySync.ts
-  function createEditorGeometrySync(tableHeightEstimateMetrics = createTableHeightEstimateMetrics()) {
-    return ViewPlugin.fromClass(
-      class {
-        constructor(view2) {
-          this.view = view2;
-          const ResizeObserverCtor = view2.dom.ownerDocument.defaultView?.ResizeObserver;
-          if (ResizeObserverCtor) {
-            this.lastObservedScrollerWidth = view2.scrollDOM.clientWidth;
-            this.resizeObserver = new ResizeObserverCtor((entries2) => {
-              let forceContentRemeasure = false;
-              for (const entry of entries2) {
-                if (entry.target === view2.dom || entry.target === view2.scrollDOM) {
-                  const scrollerWidth = view2.scrollDOM.clientWidth;
-                  if (scrollerWidth !== this.lastObservedScrollerWidth) {
-                    this.lastObservedScrollerWidth = scrollerWidth;
-                    forceContentRemeasure = true;
-                  }
-                  continue;
-                }
-                const height = entry.contentRect.height;
-                const previousHeight = this.observedWidgetHeights.get(
-                  entry.target
-                );
-                if (previousHeight === void 0 || Math.abs(previousHeight - height) > 0.5) {
-                  this.observedWidgetHeights.set(entry.target, height);
-                  forceContentRemeasure = true;
-                }
-              }
-              this.schedule(view2, forceContentRemeasure);
-            });
-            this.resizeObserver.observe(view2.dom);
-            this.resizeObserver.observe(view2.scrollDOM);
-          }
-          this.schedule(view2);
-        }
-        view;
-        measureKey = {};
-        lastGutterWidth = -1;
-        lastContentWidth = -1;
-        lastSelectionPaddingBlockStart = -1;
-        lastSelectionPaddingBlockEnd = -1;
-        lastObservedScrollerWidth = -1;
-        resizeObserver;
-        selectionOutlineFrame;
-        observedTableWidgets = /* @__PURE__ */ new Set();
-        observedWidgetHeights = /* @__PURE__ */ new WeakMap();
-        update(update) {
-          this.syncObservedTableWidgets(update.view);
-          if (update.transactions.some(
-            (transaction) => transaction.annotation(tableCellLiveEditAnnotation)
-          )) {
-            return;
-          }
-          if (update.geometryChanged || update.viewportChanged || update.docChanged) {
-            this.schedule(update.view);
-          }
-        }
-        destroy() {
-          this.resizeObserver?.disconnect();
-          const win = viewWindow(this.view);
-          if (this.selectionOutlineFrame !== void 0 && win) {
-            win.cancelAnimationFrame(this.selectionOutlineFrame);
-          }
-          this.observedTableWidgets.clear();
-        }
-        schedule(view2, forceContentRemeasure = false) {
-          if (forceContentRemeasure) {
-            forceCodeMirrorContentRemeasure(view2);
-          }
-          view2.requestMeasure({
-            key: this.measureKey,
-            read: (measuredView) => ({
-              gutterWidth: measuredView.dom.querySelector(".cm-gutters")?.offsetWidth ?? 0,
-              contentWidth: measuredView.scrollDOM.clientWidth,
-              lineHeightPx: readEditorLineHeight(measuredView),
-              proseSelectionPadding: readProseSelectionPadding(measuredView),
-              tableViewport: measureTableEstimateViewportForView(measuredView)
-            }),
-            write: (metrics, measuredView) => {
-              this.syncObservedTableWidgets(measuredView);
-              const scrollerStyle = measuredView.scrollDOM.style;
-              if (metrics.gutterWidth > 0 && metrics.gutterWidth !== this.lastGutterWidth) {
-                this.lastGutterWidth = metrics.gutterWidth;
-                scrollerStyle.setProperty(
-                  "--mlrt-live-gutter-width",
-                  `${metrics.gutterWidth}px`
-                );
-              }
-              if (metrics.contentWidth > 0 && metrics.contentWidth !== this.lastContentWidth) {
-                this.lastContentWidth = metrics.contentWidth;
-                scrollerStyle.setProperty(
-                  "--mlrt-live-content-width",
-                  `calc(${metrics.contentWidth}px - var(--mlrt-editor-right-padding, 26px))`
-                );
-              }
-              if (metrics.proseSelectionPadding) {
-                const { blockStart, blockEnd } = metrics.proseSelectionPadding;
-                if (blockStart !== this.lastSelectionPaddingBlockStart) {
-                  this.lastSelectionPaddingBlockStart = blockStart;
-                  scrollerStyle.setProperty(
-                    "--mlrt-prose-selection-padding-block-start",
-                    `${blockStart}px`
-                  );
-                }
-                if (blockEnd !== this.lastSelectionPaddingBlockEnd) {
-                  this.lastSelectionPaddingBlockEnd = blockEnd;
-                  scrollerStyle.setProperty(
-                    "--mlrt-prose-selection-padding-block-end",
-                    `${blockEnd}px`
-                  );
-                }
-              }
-              const estimateMetricsChanged = updateTableHeightEstimateMetrics(tableHeightEstimateMetrics, {
-                lineHeightPx: metrics.lineHeightPx,
-                chWidthPx: metrics.tableViewport.chWidthPx,
-                availableDataWidthPx: metrics.tableViewport.availableDataWidthPx
-              });
-              if (estimateMetricsChanged) {
-                forceCodeMirrorContentRemeasure(measuredView);
-                measuredView.requestMeasure();
-              }
-              this.scheduleSelectionOutlineSync(measuredView);
-            }
-          });
-        }
-        /**
-         * Table cells can reflow one frame after the scroller width changes.
-         * The selection frame uses cell rectangles, so refresh it after that
-         * layout is committed rather than leaving it at the pre-resize width.
-         */
-        scheduleSelectionOutlineSync(view2) {
-          const win = viewWindow(view2);
-          if (!win || this.selectionOutlineFrame !== void 0) {
-            return;
-          }
-          this.selectionOutlineFrame = win.requestAnimationFrame(() => {
-            this.selectionOutlineFrame = void 0;
-            for (const widget of this.observedTableWidgets) {
-              if (widget instanceof HTMLElement && widget.isConnected) {
-                syncTableSelectionOverlay(widget);
-              }
-            }
-          });
-        }
-        syncObservedTableWidgets(view2) {
-          if (!this.resizeObserver) {
-            return;
-          }
-          const widgets = new Set(
-            Array.from(view2.dom.querySelectorAll(TABLE_WIDGET_SELECTOR))
-          );
-          for (const widget of widgets) {
-            if (!this.observedTableWidgets.has(widget)) {
-              this.resizeObserver.observe(widget);
-            }
-          }
-          for (const widget of this.observedTableWidgets) {
-            if (!widgets.has(widget)) {
-              this.resizeObserver.unobserve(widget);
-            }
-          }
-          this.observedTableWidgets.clear();
-          for (const widget of widgets) {
-            this.observedTableWidgets.add(widget);
-          }
-        }
-      }
+    event.preventDefault();
+    event.stopPropagation();
+    activeCell.blur();
+    setTableRangeSelection(
+      wrapper,
+      Number(wrapper.dataset.srcFrom ?? table2.from),
+      { row: 0, column: 0 },
+      { row: table2.body.length, column: table2.columnCount - 1 },
+      true
     );
   }
-  function viewWindow(view2) {
-    return view2.dom.ownerDocument.defaultView;
+  function applySelectionClasses(selection) {
+    const rectangle = selectionRectangle(selection);
+    const selectedRowCount = rectangle.bottom - rectangle.top + 1;
+    const selectedColumnCount = rectangle.right - rectangle.left + 1;
+    selection.wrapper.classList.remove("mlrt-document-selection-mode");
+    selection.wrapper.classList.add("mlrt-table-selection-mode");
+    selection.wrapper.setAttribute(
+      "aria-label",
+      `${selectedRowCount} by ${selectedColumnCount} table cell selection`
+    );
+    selection.wrapper.classList.toggle(
+      "mlrt-table-cut-pending",
+      Boolean(selection.pendingCutToken)
+    );
+    selection.wrapper.querySelectorAll(TABLE_CELL_SELECTOR).forEach((cell2) => {
+      const address = addressFromCell(cell2);
+      const selected = Boolean(
+        address && address.row >= rectangle.top && address.row <= rectangle.bottom && address.column >= rectangle.left && address.column <= rectangle.right
+      );
+      cell2.classList.toggle("mlrt-table-cell-selected", selected);
+      cell2.classList.toggle(
+        "mlrt-table-selection-top",
+        selected && Boolean(address && address.row === rectangle.top)
+      );
+      cell2.classList.toggle(
+        "mlrt-table-selection-bottom",
+        selected && Boolean(address && address.row === rectangle.bottom)
+      );
+      cell2.classList.toggle(
+        "mlrt-table-selection-left",
+        selected && Boolean(address && address.column === rectangle.left)
+      );
+      cell2.classList.toggle(
+        "mlrt-table-selection-right",
+        selected && Boolean(address && address.column === rectangle.right)
+      );
+      cell2.classList.toggle(
+        "mlrt-table-cell-selection-head",
+        selected && Boolean(address && sameAddress(address, selection.head))
+      );
+    });
+    syncTableSelectionOverlay(selection.wrapper);
   }
-  function readEditorLineHeight(view2) {
-    const line = view2.dom.querySelector(".cm-line");
-    const styles = getComputedStyle(line ?? view2.contentDOM);
-    const lineHeight = Number.parseFloat(styles.lineHeight);
-    return Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight : view2.defaultLineHeight;
+  function restoreSelectionClasses(wrapper) {
+    const selection = states.get(wrapper.ownerDocument)?.selection;
+    if (selection && selection.tableFrom === Number(wrapper.dataset.srcFrom ?? "-1")) {
+      selection.wrapper = wrapper;
+      if (!tableSelectionFitsWrapper(selection, wrapper)) {
+        discardStaleTableSelection(
+          states.get(wrapper.ownerDocument),
+          selection
+        );
+        return;
+      }
+      applySelectionClasses(selection);
+    }
   }
-  function readProseSelectionPadding(view2) {
-    const lineHeight = readEditorLineHeight(view2);
-    const scaleY = Number.isFinite(view2.scaleY) && view2.scaleY > 0 ? view2.scaleY : 1;
-    for (const line of Array.from(
-      view2.dom.querySelectorAll(".cm-line")
-    )) {
-      const lineRect = line.getBoundingClientRect();
-      const localLineHeight = lineRect.height / scaleY;
-      if (localLineHeight <= 0 || Math.abs(localLineHeight - lineHeight) > 0.5) {
-        continue;
-      }
-      const textNode = firstNonEmptyTextNode(line);
-      if (!textNode) {
-        continue;
-      }
-      const range = line.ownerDocument.createRange();
-      range.selectNodeContents(textNode);
-      const textRect = range.getBoundingClientRect();
-      if (textRect.height <= 0) {
-        continue;
-      }
-      return {
-        blockStart: normalizeSelectionInset(
-          (textRect.top - lineRect.top) / scaleY,
-          lineHeight
-        ),
-        blockEnd: normalizeSelectionInset(
-          (lineRect.bottom - textRect.bottom) / scaleY,
-          lineHeight
+  function tableSelectionFitsWrapper(selection, wrapper) {
+    return Boolean(
+      cellFromAddress(wrapper, selection.anchor) && cellFromAddress(wrapper, selection.head)
+    );
+  }
+  function discardStaleTableSelection(documentState, selection) {
+    clearSelectionClasses(selection.wrapper);
+    if (documentState?.selection === selection) {
+      documentState.selection = null;
+    }
+    if (selection.wrapper.isConnected) {
+      dispatchSelectionChange(selection.wrapper);
+    }
+  }
+  function clearSelectionClasses(wrapper) {
+    if (!wrapper) {
+      return;
+    }
+    wrapper.classList.remove(
+      "mlrt-table-selection-mode",
+      "mlrt-table-cut-pending"
+    );
+    wrapper.setAttribute("aria-label", "Markdown table cell selection");
+    wrapper.querySelectorAll(TABLE_CELL_SELECTOR).forEach((cell2) => {
+      cell2.classList.remove(
+        "mlrt-table-cell-selected",
+        "mlrt-table-cell-selection-head",
+        "mlrt-table-selection-top",
+        "mlrt-table-selection-bottom",
+        "mlrt-table-selection-left",
+        "mlrt-table-selection-right"
+      );
+    });
+    syncTableSelectionOverlay(wrapper);
+  }
+  function dispatchSelectionChange(wrapper) {
+    wrapper.dispatchEvent(
+      new CustomEvent(TABLE_SELECTION_CHANGE_EVENT, { bubbles: true })
+    );
+  }
+  function stateFor(doc2) {
+    const current = states.get(doc2);
+    if (current) {
+      return current;
+    }
+    const state = {
+      selection: null,
+      pointerAnchor: null,
+      pointerAnchorMode: null,
+      pointerId: null,
+      pointerCrossedCells: false,
+      pointerCleanup: null,
+      view: null
+    };
+    states.set(doc2, state);
+    return state;
+  }
+  function tableDimensions(table2) {
+    return {
+      rowCount: table2.body.length + 1,
+      columnCount: table2.columnCount
+    };
+  }
+  function regionsForTableToDocument(tables2, sourceTable, sourceAnchor, direction, documentPosition, targetTable, targetAddress) {
+    const forward = direction === "below";
+    const regions = [
+      {
+        tableFrom: sourceTable.from,
+        ...tableToProseRectangle(
+          direction,
+          sourceAnchor,
+          tableDimensions(sourceTable)
         )
-      };
-    }
-    return null;
-  }
-  function firstNonEmptyTextNode(root2) {
-    for (const child of Array.from(root2.childNodes)) {
-      if (child.nodeType === child.TEXT_NODE && child.textContent) {
-        return child;
       }
-      const nested = firstNonEmptyTextNode(child);
-      if (nested) {
-        return nested;
+    ];
+    for (const table2 of tables2) {
+      if (table2.from === sourceTable.from || table2.from === targetTable?.from) {
+        continue;
+      }
+      const between = forward ? table2.from > sourceTable.from && table2.from < documentPosition : table2.from < sourceTable.from && table2.to > documentPosition;
+      if (between) {
+        regions.push({
+          tableFrom: table2.from,
+          ...fullTableRectangle(tableDimensions(table2))
+        });
       }
     }
-    return null;
-  }
-  function normalizeSelectionInset(value, lineHeight) {
-    if (!Number.isFinite(value)) {
-      return 0;
+    if (targetTable && targetAddress && targetTable.from !== sourceTable.from) {
+      regions.push({
+        tableFrom: targetTable.from,
+        ...proseToTableRectangle(
+          forward ? "forward" : "backward",
+          targetAddress,
+          tableDimensions(targetTable)
+        )
+      });
     }
-    return Math.round(Math.min(lineHeight, Math.max(0, value)) * 64) / 64;
+    return regions;
   }
-  function forceCodeMirrorContentRemeasure(view2) {
-    const viewState = view2.viewState;
-    if (viewState) {
-      viewState.mustMeasureContent = "refresh";
+  function documentTargetAtPoint(doc2, clientX, clientY, excludedWrapper) {
+    const direct = findCell(doc2.elementFromPoint(clientX, clientY));
+    if (direct && !excludedWrapper.contains(direct)) {
+      return { cell: direct, rowSelection: false };
     }
-  }
-
-  // src/editor/editorTheme.ts
-  function createEditorTheme() {
-    return EditorView.theme({
-      "&": {
-        height: "100%",
-        color: "var(--vscode-editor-foreground, #d4d4d4)",
-        backgroundColor: "var(--vscode-editor-background, #1e1e1e)"
-      },
-      ".cm-scroller": {
-        overflowX: "hidden !important",
-        overflowY: "auto !important",
-        height: "100%",
-        fontFamily: "var(--mlrt-editor-font-family, var(--vscode-editor-font-family, monospace))",
-        fontSize: "var(--mlrt-editor-font-size, var(--vscode-editor-font-size, 13px))",
-        fontWeight: "var(--mlrt-editor-font-weight, normal)",
-        lineHeight: "var(--mlrt-editor-line-height, normal)",
-        letterSpacing: "var(--mlrt-editor-letter-spacing, normal)",
-        fontFeatureSettings: "var(--mlrt-editor-font-feature-settings, normal)",
-        fontVariationSettings: "var(--mlrt-editor-font-variation-settings, normal)"
-      },
-      ".cm-gutters": {
-        backgroundColor: "var(--vscode-editorGutter-background, var(--vscode-editor-background, #1e1e1e))",
-        color: "var(--vscode-editorLineNumber-foreground, #858585)",
-        borderRight: "none",
-        boxSizing: "border-box",
-        paddingLeft: "var(--mlrt-editor-gutter-left-padding, 2.5ch)",
-        fontFamily: "var(--mlrt-editor-font-family, var(--vscode-editor-font-family, monospace))",
-        fontSize: "var(--mlrt-editor-font-size, var(--vscode-editor-font-size, 13px))",
-        fontWeight: "var(--mlrt-editor-font-weight, normal)",
-        lineHeight: "var(--mlrt-editor-line-height, normal)",
-        letterSpacing: "var(--mlrt-editor-letter-spacing, normal)",
-        fontFeatureSettings: "var(--mlrt-editor-font-feature-settings, normal)",
-        fontVariationSettings: "var(--mlrt-editor-font-variation-settings, normal)"
-      },
-      ".cm-activeLineGutter": {
-        backgroundColor: "transparent",
-        color: "var(--vscode-editorLineNumber-activeForeground, #c6c6c6)"
-      },
-      ".cm-lineNumbers .cm-gutterElement": {
-        boxSizing: "border-box",
-        width: "calc(var(--mlrt-editor-line-number-width, 3ch) + var(--mlrt-editor-gutter-right-padding, 26px))",
-        minHeight: "var(--mlrt-editor-line-height, 1.5em)",
-        minWidth: "calc(var(--mlrt-editor-line-number-width, 3ch) + var(--mlrt-editor-gutter-right-padding, 26px))",
-        maxWidth: "calc(var(--mlrt-editor-line-number-width, 3ch) + var(--mlrt-editor-gutter-right-padding, 26px))",
-        padding: "0 var(--mlrt-editor-gutter-right-padding, 26px) 0 0"
-      },
-      '.cm-lineNumbers .cm-gutterElement[style*="visibility: hidden"]': {
-        minHeight: "0"
-      },
-      ".cm-content": {
-        minHeight: "100%",
-        boxSizing: "border-box",
-        padding: "var(--mlrt-editor-top-padding, 0px) var(--mlrt-editor-right-padding, var(--mlrt-editor-gutter-right-padding, 26px)) calc(var(--mlrt-editor-bottom-padding, 0px) + var(--mlrt-editor-scroll-beyond-last-line, 0px)) 0",
-        caretColor: "var(--vscode-editorCursor-foreground, #aeafad)"
-      },
-      ".cm-line": {
-        color: "var(--vscode-editor-foreground, #d4d4d4)",
-        padding: "0"
-      },
-      ".cm-activeLine, .mlrt-prose-active-line": {
-        // The lower layer is a guaranteed, theme-derived contrast fallback.
-        // The VS Code token paints over it when supplied, preserving exact
-        // stock-editor color while remaining visible if a host injects an
-        // absent or transparent token.
-        backgroundColor: "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
-        backgroundImage: "linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent))"
-      },
-      ".cm-cursor, .cm-dropCursor": {
-        borderLeftColor: "var(--vscode-editorCursor-foreground, #aeafad)",
-        borderLeftWidth: "var(--mlrt-editor-cursor-width, 1px)"
-      },
-      // CodeMirror normally centers its border cursor with a negative margin.
-      // At column zero that puts part of the cursor beneath the sticky gutter,
-      // whose layer is above the cursor layer. The state-sync plugin supplies
-      // this class directly from the selection/document model, avoiding a
-      // focus-sensitive :has() query over browser-generated line DOM.
-      "&.mlrt-empty-line-cursor:not(.mlrt-table-cell-focused):not(.mlrt-selection-active) .cm-cursor-primary": {
-        marginLeft: "0"
-      },
-      "&.mlrt-table-cell-focused :is(.cm-activeLine, .mlrt-prose-active-line)": {
-        backgroundColor: "transparent",
-        backgroundImage: "none"
-      },
-      "&.mlrt-selection-active :is(.cm-activeLine, .mlrt-prose-active-line)": {
-        backgroundColor: "transparent",
-        backgroundImage: "none"
-      },
-      // A positive focus state wins over any stale negative class left behind
-      // by a long-lived webview focus transition. This is intentionally after
-      // the suppression rules: when the editable CodeMirror content itself
-      // owns an empty cursor, its line highlight is authoritative.
-      "&:is(.cm-focused, .mlrt-prose-cursor-focused) :is(.cm-activeLine, .mlrt-prose-active-line)": {
-        backgroundColor: "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
-        backgroundImage: "linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent))"
-      },
-      "&.mlrt-table-cell-focused .cm-cursor": {
-        display: "none"
-      },
-      // While a rendered table cell has focus, the editor selection is parked
-      // on some unrelated line; do not let the native gutter highlight it.
-      "&.mlrt-table-cell-focused .cm-activeLineGutter": {
-        color: "var(--vscode-editorLineNumber-foreground, #858585)"
-      },
-      // A selection already communicates the active range. Keeping a second
-      // active-line marker on its moving head (or its parked table-source
-      // cursor) leaves a misleading grey line number behind.
-      "&.mlrt-selection-active .cm-activeLineGutter": {
-        color: "var(--vscode-editorLineNumber-foreground, #858585)"
+    const wrapper = Array.from(
+      doc2.querySelectorAll(".mlrt-table-widget")
+    ).find((candidate) => {
+      if (candidate === excludedWrapper) {
+        return false;
       }
+      const rect = candidate.querySelector(".mlrt-table")?.getBoundingClientRect() ?? candidate.getBoundingClientRect();
+      return clientY >= rect.top && clientY <= rect.bottom;
+    });
+    if (!wrapper) {
+      return null;
+    }
+    const sourceLine = Array.from(
+      wrapper.querySelectorAll(".mlrt-table-source-line")
+    ).find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    });
+    const rowCell = sourceLine?.parentElement?.querySelector(
+      TABLE_CELL_SELECTOR
+    );
+    if (rowCell) {
+      return { cell: rowCell, rowSelection: true };
+    }
+    const nearest = nearestCellInWrapper(wrapper, clientX, clientY);
+    return nearest ? { cell: nearest, rowSelection: false } : null;
+  }
+  function nearestCellInWrapper(wrapper, clientX, clientY) {
+    const cells = Array.from(
+      wrapper.querySelectorAll(TABLE_CELL_SELECTOR)
+    );
+    if (cells.length === 0) {
+      return null;
+    }
+    return cells.reduce((nearest, candidate) => {
+      const distance = distanceToRect(
+        candidate.getBoundingClientRect(),
+        clientX,
+        clientY
+      );
+      const nearestDistance = distanceToRect(
+        nearest.getBoundingClientRect(),
+        clientX,
+        clientY
+      );
+      return distance < nearestDistance ? candidate : nearest;
     });
   }
+  function tableSelectionStart(wrapper, event) {
+    const directCell = findCell(event.target);
+    if (directCell && wrapper.contains(directCell)) {
+      return { cell: directCell, mode: "cell" };
+    }
+    if (event.target instanceof Element && event.target.closest(
+      "button, input, select, textarea, a, .mlrt-table-structure-menu, .mlrt-table-scrollbar"
+    )) {
+      return null;
+    }
+    const table2 = wrapper.querySelector(".mlrt-table");
+    if (!table2) {
+      return null;
+    }
+    const tableRect = table2.getBoundingClientRect();
+    if (event.clientX < tableRect.left || event.clientX > tableRect.right || event.clientY < tableRect.top || event.clientY > tableRect.bottom) {
+      return null;
+    }
+    const sourceLine = Array.from(
+      wrapper.querySelectorAll(".mlrt-table-source-line")
+    ).find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    });
+    const rowCell = sourceLine?.parentElement?.querySelector(
+      TABLE_CELL_SELECTOR
+    );
+    if (rowCell) {
+      return { cell: rowCell, mode: "row" };
+    }
+    const nearest = nearestCellInWrapper(wrapper, event.clientX, event.clientY);
+    return nearest ? { cell: nearest, mode: "cell" } : null;
+  }
+  function distanceToRect(rect, clientX, clientY) {
+    const dx = Math.max(rect.left - clientX, 0, clientX - rect.right);
+    const dy = Math.max(rect.top - clientY, 0, clientY - rect.bottom);
+    return dx * dx + dy * dy;
+  }
+  function renderedCellSpan(cell2, table2) {
+    const directFrom = Number(cell2.dataset.sourceFrom ?? "NaN");
+    const directTo = Number(cell2.dataset.sourceTo ?? "NaN");
+    if (Number.isFinite(directFrom) && Number.isFinite(directTo)) {
+      return { from: directFrom, to: Math.max(directFrom + 1, directTo) };
+    }
+    const row = cell2.dataset.rowKind === "header" ? table2.header : table2.body[Number(cell2.dataset.rowIndex ?? "0")];
+    return row ? { from: row.from, to: Math.max(row.from + 1, row.to) } : null;
+  }
+  function clearNativeSelection(doc2) {
+    doc2.defaultView?.getSelection()?.removeAllRanges();
+  }
+  function clampAddress(address, table2) {
+    return {
+      row: Math.max(0, Math.min(table2.body.length, address.row)),
+      column: Math.max(0, Math.min(table2.columnCount - 1, address.column))
+    };
+  }
+  function keyDelta(event) {
+    if (event.key === "ArrowUp") {
+      return { row: -1, column: 0 };
+    }
+    if (event.key === "ArrowDown") {
+      return { row: 1, column: 0 };
+    }
+    if (event.key === "ArrowLeft") {
+      return { row: 0, column: -1 };
+    }
+    return { row: 0, column: 1 };
+  }
+  function tabDestination(address, table2, reverse) {
+    const lastRow = table2.body.length;
+    const lastColumn = table2.columnCount - 1;
+    if (reverse) {
+      if (address.column > 0) {
+        return { row: address.row, column: address.column - 1 };
+      }
+      return address.row > 0 ? { row: address.row - 1, column: lastColumn } : null;
+    }
+    if (address.column < lastColumn) {
+      return { row: address.row, column: address.column + 1 };
+    }
+    return address.row < lastRow ? { row: address.row + 1, column: 0 } : null;
+  }
+  function isSelectAll(event) {
+    const ownerDocument = event.target instanceof Node ? event.target.ownerDocument : null;
+    const platform = ownerDocument?.defaultView?.navigator.platform ?? "";
+    const isApplePlatform = /Mac|iPhone|iPad|iPod/i.test(platform);
+    const primaryModifier = isApplePlatform ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+    return primaryModifier && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "a";
+  }
+  function isPlainKey(event) {
+    return !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+  }
+  function isPrintableKey(event) {
+    return event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey;
+  }
+  function sameAddress(left, right) {
+    return left.row === right.row && left.column === right.column;
+  }
+
+  // src/editor/markdown/markdownLivePreview.ts
+  var overlaps = (a, b) => a.from < b.to && b.from < a.to;
+  function classifyMarkdownPreview(doc2, tree, tables2, windows2) {
+    const parts = [], seen = /* @__PURE__ */ new Set();
+    const read = (from, to) => doc2.sliceString(from, to);
+    const add2 = (part) => {
+      if (part.from >= part.to || tables2.some((table2) => overlaps(part, table2))) return;
+      const key = `${part.kind}:${part.from}:${part.to}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        parts.push(part);
+      }
+    };
+    const hide = (from, to, owner, block2 = false) => add2({ from, to, owner, kind: "hide", block: block2 });
+    const whitespaceAfter = (to) => to + (/^[ \t]*/u.exec(read(to, doc2.lineAt(to).to))?.[0].length ?? 0);
+    for (const window2 of windows2) tree.iterate({ from: window2.from, to: window2.to, enter(ref) {
+      const node = ref.node;
+      if (node.to <= window2.from || node.from >= window2.to || tables2.some((table2) => table2.from <= node.from && table2.to >= node.to)) return false;
+      const owner = { from: node.from, to: node.to };
+      if (["HTMLBlock", "HTMLTag", "Comment", "WikiEmbed"].includes(node.name)) return false;
+      if (node.name === "MarkdownFrontmatter") {
+        if (!tables2.some((table2) => overlaps(node, table2))) add2({
+          ...owner,
+          owner,
+          kind: "properties",
+          block: true,
+          content: read(node.from, node.to),
+          editAt: node.firstChild?.to ? node.firstChild.to + 1 : node.from
+        });
+        return false;
+      }
+      if (node.name === "FencedCode" || node.name === "CodeBlock") {
+        const marks2 = node.getChildren("CodeMark"), info = node.getChild("CodeInfo");
+        const first = doc2.lineAt(node.from), last = doc2.lineAt(node.to);
+        const prefix = read(first.from, node.from).replace(/(?:[-+*]|\d+[.)])(?=[ \t])/gu, (marker) => " ".repeat(marker.length));
+        const language2 = info ? read(info.from, info.to).trim().split(/\s/u)[0] : "text";
+        const start = node.name === "FencedCode" ? first.to + 1 : first.from;
+        const end = marks2.length > 1 ? doc2.lineAt(marks2[marks2.length - 1].from).from : node.to;
+        const copy = { from: start, to: Math.max(start, end), prefix, indented: node.name === "CodeBlock" };
+        if (node.name === "FencedCode") {
+          if (first.from <= window2.to && first.to >= window2.from) add2({ from: first.from, to: first.to, owner, kind: "code-header", block: true, label: language2, copy, editAt: Math.min(node.to, start) });
+          if (marks2.length > 1 && last.from <= window2.to && last.to >= window2.from) add2({ from: last.from, to: last.to, owner, kind: "code-end", block: true });
+        } else {
+          if (first.from <= window2.to && first.to >= window2.from) add2({ from: first.from, to: first.to, owner, kind: "code-header", block: true, insertion: true, label: "text", copy, editAt: node.from });
+        }
+        for (let from = Math.max(start, doc2.lineAt(window2.from).from); from < Math.min(end, window2.to); ) {
+          const line = doc2.lineAt(from);
+          const structural = codeStructuralPrefixLength(line.text, prefix);
+          if (structural) hide(line.from, line.from + structural, owner);
+          from = line.to + 1;
+        }
+        return false;
+      }
+      if (node.name === "Blockquote") {
+        const alert = markdownAlertForQuote(doc2, node);
+        if (alert) add2({
+          from: alert.from,
+          to: alert.headerTo ?? alert.to,
+          owner,
+          kind: "callout",
+          label: alert.title || (alert.name ?? alert.type).replace(/^./u, (char) => char.toUpperCase()),
+          accent: alert.type,
+          editAt: alert.from,
+          foldTo: tables2.some((table2) => overlaps(table2, node)) ? void 0 : node.to,
+          collapsed: tables2.some((table2) => overlaps(table2, node)) ? void 0 : alert.collapsed
+        });
+      }
+      if (node.name === "QuoteMark") {
+        const line = doc2.lineAt(node.from);
+        hide(node.from, Math.min(node.to + (read(node.to, node.to + 1) === " " ? 1 : 0), line.to), { from: line.from, to: line.to });
+      } else if (/^(?:ATX|Setext)Heading[1-6]$/u.test(node.name)) {
+        for (const mark of node.getChildren("HeaderMark")) {
+          const line = doc2.lineAt(mark.from);
+          if (node.name.startsWith("Setext")) hide(line.from, line.to, owner, true);
+          else hide(mark.from === node.from ? mark.from : Math.max(node.from, mark.from - 1), whitespaceAfter(mark.to), owner);
+        }
+      } else if (["StrongEmphasis", "Emphasis", "Strikethrough", "InlineCode"].includes(node.name)) {
+        const markName = node.name === "InlineCode" ? "CodeMark" : node.name === "Strikethrough" ? "StrikethroughMark" : "EmphasisMark";
+        for (const mark of node.getChildren(markName)) hide(mark.from, mark.to, owner);
+        if (node.name === "InlineCode") return false;
+      } else if (node.name === "Link" || node.name === "Image") {
+        const paragraph2 = node.parent, quote = paragraph2?.parent;
+        const alert = paragraph2?.name === "Paragraph" && quote?.name === "Blockquote" ? markdownAlertForQuote(doc2, quote) : null;
+        if (alert && node.from >= alert.from && node.to <= alert.to) return false;
+        const marks2 = node.getChildren("LinkMark");
+        const first = marks2[0], close = marks2.find((mark) => read(mark.from, mark.to) === "]");
+        if (first && close) {
+          hide(first.from, first.to, owner);
+          hide(close.from, node.to, owner);
+        }
+      } else if (node.name === "WikiLink") {
+        const label = node.getChild("WikiLabel") ?? node.getChild("WikiTarget");
+        if (label) {
+          hide(node.from, label.from, owner);
+          hide(label.to, node.to, owner);
+        }
+      } else if (node.name === "Autolink") {
+        for (const mark of node.getChildren("LinkMark")) hide(mark.from, mark.to, owner);
+      } else if (node.name === "LinkReference") {
+        const label = node.getChild("LinkLabel");
+        if (label) {
+          hide(node.from, label.from + 1, owner);
+          hide(label.to - 1, node.to, owner);
+        }
+        return false;
+      } else if (node.name === "Escape") hide(node.from, node.from + 1, owner);
+    } });
+    return parts.sort((a, b) => a.from - b.from || b.to - a.to);
+  }
+  function codeStructuralPrefixLength(line, prefix) {
+    let offset = 0;
+    for (const character of prefix) {
+      if (line[offset] === character) offset++;
+      else if (character !== " " && character !== "	") break;
+    }
+    return offset;
+  }
+  function codeBlockText(doc2, from, to, prefix = "", indented = false) {
+    const body = doc2.sliceString(from, Math.min(to, doc2.length));
+    return body.split("\n").map((line) => !prefix && indented ? line.replace(/^(?: {4}|\t)/u, "") : line.slice(codeStructuralPrefixLength(line, prefix))).join("\n");
+  }
+  function previewOwnerActive(owner, selection, focused, projected) {
+    return !!projected && overlaps(owner, projected) || selection.ranges.some((range) => range.empty ? focused && range.head >= owner.from && range.head <= owner.to : overlaps(owner, range));
+  }
+  function frontmatterPropertyRows(source) {
+    const rows = [];
+    const lines = source.split("\n");
+    let offset = lines[0].length + 1;
+    const scalar = (value) => {
+      if (value.startsWith('"') && value.endsWith('"')) {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
+        }
+      }
+      return value.startsWith("'") && value.endsWith("'") ? value.slice(1, -1).replace(/''/g, "'") : value;
+    };
+    for (const line of lines.slice(1, -1)) {
+      const key = /^([^\s:#][^:]*):(?:[ \t]+(.*))?\s*$/u.exec(line);
+      if (key) rows.push({ key: scalar(key[1].trim()), value: scalar(key[2]?.trim() ?? ""), offset: offset + line.indexOf(":") + 1 });
+      else if (line.trim() && !line.trimStart().startsWith("#")) {
+        const previous = rows[rows.length - 1];
+        const value = scalar(line.trim().replace(/^-\s+/u, ""));
+        if (previous) previous.value += `${previous.value ? " \xB7 " : ""}${value}`;
+        else rows.push({ key: "Value", value, offset });
+      }
+      offset += line.length + 1;
+    }
+    return rows;
+  }
+  var activityEffect = StateEffect.define();
+  var windowEffect = StateEffect.define();
+  var foldEffect = StateEffect.define();
+  var PreviewWidget = class extends WidgetType {
+    constructor(part, source, collapsed = false) {
+      super();
+      this.part = part;
+      this.source = source;
+      this.collapsed = collapsed;
+    }
+    part;
+    source;
+    collapsed;
+    eq(other) {
+      return this.source === other.source && JSON.stringify(this.part) === JSON.stringify(other.part) && this.collapsed === other.collapsed;
+    }
+    toDOM(view2) {
+      const doc2 = view2.dom.ownerDocument, part = this.part;
+      const wrapper = doc2.createElement(part.block ? "div" : "span");
+      wrapper.className = `mlrt-preview-${part.kind}`;
+      wrapper.dataset.previewFrom = String(part.from);
+      wrapper.contentEditable = "false";
+      const current = () => view2.state.doc.sliceString(part.from, part.to) === this.source;
+      const edit2 = (position = part.editAt ?? part.from) => {
+        if (!current()) return;
+        view2.dispatch({ selection: EditorSelection.cursor(Math.min(view2.state.doc.length, position)), effects: activityEffect.of({ focused: true, composing: false, projected: null }), scrollIntoView: true });
+        view2.focus();
+      };
+      wrapper.addEventListener("pointerdown", (event) => {
+        if (event.button === 0) event.preventDefault();
+      });
+      wrapper.addEventListener("keydown", (event) => {
+        const keyboard = event;
+        if ((keyboard.key === "Enter" || keyboard.key === " ") && keyboard.target instanceof HTMLButtonElement && !keyboard.ctrlKey && !keyboard.metaKey && !keyboard.altKey && !keyboard.shiftKey) {
+          keyboard.preventDefault();
+          keyboard.stopPropagation();
+          keyboard.target.click();
+        }
+      });
+      if (part.kind === "code-end") return wrapper;
+      if (part.kind === "code-header") {
+        const language2 = doc2.createElement("button");
+        language2.type = "button";
+        language2.className = "mlrt-preview-code-language";
+        language2.textContent = part.label || "text";
+        language2.title = "Edit code block";
+        language2.addEventListener("click", () => edit2());
+        const copy = doc2.createElement("button");
+        copy.type = "button";
+        copy.className = "mlrt-preview-code-copy";
+        copy.textContent = "Copy";
+        copy.setAttribute("aria-label", `Copy ${part.label || "text"} code`);
+        copy.addEventListener("click", async () => {
+          if (!current()) return;
+          const range = part.copy;
+          const content2 = range ? codeBlockText(view2.state.doc, range.from, range.to, range.prefix, range.indented) : "";
+          try {
+            await doc2.defaultView.navigator.clipboard.writeText(content2);
+            copy.textContent = "Copied";
+          } catch {
+            copy.textContent = "Copy failed";
+          }
+          doc2.defaultView.setTimeout(() => {
+            if (copy.isConnected) copy.textContent = "Copy";
+          }, 1800);
+        });
+        wrapper.append(language2, copy);
+      } else if (part.kind === "properties") {
+        const title = doc2.createElement("button");
+        title.type = "button";
+        title.className = "mlrt-preview-properties-title";
+        title.textContent = "Properties";
+        title.title = "Edit YAML properties";
+        title.addEventListener("click", () => edit2());
+        wrapper.append(title);
+        for (const row of frontmatterPropertyRows(part.content ?? "")) {
+          const button = doc2.createElement("button");
+          button.type = "button";
+          button.className = "mlrt-preview-property";
+          const key = doc2.createElement("span"), value = doc2.createElement("span");
+          key.className = "mlrt-preview-property-key";
+          value.className = "mlrt-preview-property-value";
+          key.textContent = row.key;
+          value.textContent = row.value || "Empty";
+          button.append(key, value);
+          button.setAttribute("aria-label", `Edit property ${row.key}`);
+          button.addEventListener("click", () => edit2(part.from + row.offset));
+          wrapper.append(button);
+        }
+      } else if (part.kind === "callout") {
+        wrapper.classList.add(`mlrt-preview-callout-${part.accent}`);
+        if (part.collapsed !== void 0) {
+          const fold = doc2.createElement("button");
+          fold.type = "button";
+          fold.className = "mlrt-preview-callout-fold";
+          fold.textContent = this.collapsed ? "\u25B8" : "\u25BE";
+          fold.setAttribute("aria-label", `${this.collapsed ? "Expand" : "Collapse"} ${part.label}`);
+          fold.setAttribute("aria-expanded", String(!this.collapsed));
+          fold.addEventListener("click", () => {
+            if (current()) view2.dispatch({ effects: foldEffect.of({ from: part.from, collapsed: !this.collapsed }) });
+          });
+          wrapper.append(fold);
+        }
+        const label = doc2.createElement("button");
+        label.type = "button";
+        label.className = "mlrt-preview-callout-title";
+        const icon = doc2.createElement("span");
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = { note: "\u24D8", tip: "\u2713", important: "\u2726", warning: "\u26A0", caution: "!" }[part.accent ?? "note"];
+        label.append(icon, doc2.createTextNode(` ${part.label}`));
+        label.title = "Edit callout";
+        label.addEventListener("click", () => edit2());
+        wrapper.append(label);
+      }
+      return wrapper;
+    }
+    ignoreEvent() {
+      return true;
+    }
+    get estimatedHeight() {
+      return this.part.kind === "code-end" ? 0 : this.part.kind === "properties" ? 30 + frontmatterPropertyRows(this.part.content ?? "").length * 28 : -1;
+    }
+  };
+  function decorations2(state, value) {
+    const ranges = [], covered = [];
+    for (const part of value.parts) {
+      const active = previewOwnerActive(part.owner, state.selection, value.focused, value.projected);
+      if (part.kind === "code-header" && (active || part.insertion)) {
+        ranges.push(Decoration.widget({ block: true, side: -1, widget: new PreviewWidget(part, state.doc.sliceString(part.from, part.to)) }).range(part.from));
+        continue;
+      }
+      if (active || covered.some((range) => overlaps(range, part))) continue;
+      const collapsed = value.folds.get(part.from) ?? part.collapsed ?? false;
+      ranges.push(Decoration.replace({
+        block: part.block,
+        inclusive: part.block === true,
+        ...part.kind !== "hide" ? { widget: new PreviewWidget(part, state.doc.sliceString(part.from, part.to), collapsed) } : {}
+      }).range(part.from, part.to));
+      covered.push(part);
+      if (part.kind === "callout" && collapsed && part.foldTo && part.foldTo > part.to) {
+        const from = state.doc.lineAt(part.to).to;
+        ranges.push(Decoration.replace({ inclusive: false }).range(from, part.foldTo));
+        covered.push({ from, to: part.foldTo });
+      }
+    }
+    return Decoration.set(ranges, true);
+  }
+  var markdownPreviewField = StateField.define({
+    create(state) {
+      const windows2 = [{ from: 0, to: Math.min(state.doc.length, 12e3) }];
+      const value = {
+        parts: classifyMarkdownPreview(state.doc, syntaxTree(state), getParsedTables(state.doc), windows2),
+        windows: windows2,
+        focused: false,
+        composing: false,
+        projected: null,
+        folds: /* @__PURE__ */ new Map()
+      };
+      return { ...value, decorations: decorations2(state, value) };
+    },
+    update(value, transaction) {
+      let { focused, composing, projected, windows: windows2 } = value;
+      let folds = value.folds;
+      for (const effect of transaction.effects) {
+        if (effect.is(activityEffect)) ({ focused, composing, projected } = effect.value);
+        if (effect.is(windowEffect)) windows2 = effect.value;
+        if (effect.is(foldEffect)) {
+          folds = new Map(folds);
+          folds.set(effect.value.from, effect.value.collapsed);
+        }
+      }
+      if (transaction.docChanged) {
+        windows2 = windows2.map((range) => ({ from: transaction.changes.mapPos(range.from), to: transaction.changes.mapPos(range.to) }));
+        folds = new Map([...folds].map(([from, folded]) => [transaction.changes.mapPos(from), folded]));
+      }
+      if (composing) return { ...value, focused, composing, projected, folds, windows: windows2, decorations: value.decorations.map(transaction.changes) };
+      const changed = transaction.docChanged || syntaxTree(transaction.state) !== syntaxTree(transaction.startState) || windows2 !== value.windows;
+      const parts = changed ? classifyMarkdownPreview(transaction.state.doc, syntaxTree(transaction.state), getParsedTables(transaction.state.doc), windows2) : value.parts;
+      const next2 = { parts, windows: windows2, focused, composing, projected, folds };
+      return { ...next2, decorations: decorations2(transaction.state, next2) };
+    },
+    provide: (field) => EditorView.decorations.from(field, (value) => value.decorations)
+  });
+  function isMarkdownPreviewActive(view2, range) {
+    const value = view2.state.field(markdownPreviewField, false);
+    return !!value && !previewOwnerActive(range, view2.state.selection, view2.hasFocus, value.projected);
+  }
+  function createMarkdownLivePreviewExtensions(screenReaderOptimized) {
+    if (screenReaderOptimized) return [];
+    return [markdownPreviewField, ViewPlugin.fromClass(class {
+      constructor(view2) {
+        this.view = view2;
+        this.schedule();
+      }
+      view;
+      queued = false;
+      frame = null;
+      destroyed = false;
+      composing = false;
+      update(_update) {
+        this.schedule();
+      }
+      schedule() {
+        if (this.queued || this.destroyed) return;
+        this.queued = true;
+        this.frame = this.view.dom.ownerDocument.defaultView.requestAnimationFrame(() => {
+          this.frame = null;
+          this.queued = false;
+          if (this.destroyed || this.view.dom.ownerDocument.hidden || isTablePointerSelectionActive(this.view.dom.ownerDocument)) return;
+          const view2 = this.view, field = view2.state.field(markdownPreviewField);
+          const windows2 = [{
+            from: view2.state.doc.line(Math.max(1, view2.state.doc.lineAt(view2.viewport.from).number - 30)).from,
+            to: view2.state.doc.line(Math.min(view2.state.doc.lines, view2.state.doc.lineAt(view2.viewport.to).number + 30)).to
+          }].filter((range) => syntaxTreeAvailable(view2.state, Math.min(range.to, view2.viewport.to)));
+          const effects = [];
+          const focused = view2.hasFocus || !!view2.dom.ownerDocument.activeElement?.closest(".mlrt-preview-code-header");
+          if (field.focused !== focused || field.composing !== this.composing) effects.push(activityEffect.of({ focused, composing: this.composing, projected: null }));
+          if (JSON.stringify(field.windows) !== JSON.stringify(windows2)) effects.push(windowEffect.of(windows2));
+          if (effects.length) view2.dispatch({ effects });
+        });
+      }
+      destroy() {
+        this.destroyed = true;
+        if (this.frame !== null) this.view.dom.ownerDocument.defaultView.cancelAnimationFrame(this.frame);
+      }
+      compositionStart() {
+        this.composing = true;
+        this.view.dispatch({ effects: activityEffect.of({ focused: this.view.hasFocus, composing: true, projected: null }) });
+      }
+      compositionEnd() {
+        this.composing = false;
+        this.schedule();
+      }
+    }, { eventHandlers: {
+      focus() {
+        this.schedule();
+      },
+      blur() {
+        this.schedule();
+      },
+      compositionstart() {
+        this.compositionStart();
+      },
+      compositionend() {
+        this.compositionEnd();
+      }
+    } })];
+  }
+
+  // src/editor/markdown/markdownListEditing.ts
+  function markdownListLine(doc2, tree, position, tables2 = []) {
+    if (tables2.some((table2) => table2.from <= position && position < table2.to)) return null;
+    const line = doc2.lineAt(position);
+    let item = null;
+    const markerPosition = line.from + Math.max(0, line.text.search(/\S/u)) + 1;
+    for (const at of [position, Math.min(line.to, markerPosition)]) {
+      for (const side of [-1, 1]) {
+        for (let node = tree.resolveInner(at, side); node; node = node.parent) {
+          if (["FencedCode", "CodeBlock", "InlineCode", "HTMLBlock", "MarkdownFrontmatter"].includes(node.name)) return null;
+          if (node.name === "ListItem" && !item && doc2.lineAt(node.from).number === line.number) item = node;
+        }
+      }
+      if (item) break;
+    }
+    if (!item || doc2.lineAt(item.from).number !== line.number) return null;
+    const match2 = /^((?:[ \t]*>[ \t]?)*)([ \t]*)([-+*]|\d+[.)])([ \t]+)(\[[ xX]\](?:[ \t]+|$))?/u.exec(line.text);
+    if (!match2) return null;
+    return {
+      from: line.from,
+      to: line.to,
+      itemTo: item.to,
+      prefix: match2[1],
+      indent: match2[2],
+      marker: match2[3],
+      task: match2[5] ?? "",
+      contentFrom: line.from + match2[0].length
+    };
+  }
+  function planMarkdownListEdit(state, action) {
+    if (state.readOnly || state.selection.ranges.length !== 1) return null;
+    const selection = state.selection.main, doc2 = state.doc, tree = syntaxTree(state), tables2 = getParsedTables(doc2);
+    const item = markdownListLine(doc2, tree, selection.head, tables2);
+    if (!item) return null;
+    if (action === "enter") {
+      if (!selection.empty || selection.head < item.contentFrom) return null;
+      if (!doc2.sliceString(item.contentFrom, item.to).trim()) {
+        if (item.indent) return planMarkdownListEdit(state, "outdent");
+        return {
+          changes: { from: item.from + item.prefix.length, to: item.contentFrom, insert: "" },
+          selection: { anchor: item.from + item.prefix.length },
+          userEvent: "input.list"
+        };
+      }
+      const number2 = /^(\d+)([.)])$/u.exec(item.marker);
+      const next2 = number2 ? `${Number(number2[1]) + 1}${number2[2]}` : item.marker;
+      const insert2 = `
+${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
+      return { changes: { from: selection.head, insert: insert2 }, selection: { anchor: selection.head + insert2.length }, userEvent: "input.list" };
+    }
+    if (action === "backspace" && (!selection.empty || selection.head !== item.contentFrom)) return null;
+    const outdent = action === "outdent" || action === "backspace";
+    if (outdent && !item.indent) return action === "backspace" ? {
+      changes: { from: item.from + item.prefix.length, to: item.contentFrom, insert: "" },
+      selection: { anchor: item.from + item.prefix.length },
+      userEvent: "input.list"
+    } : null;
+    let firstLine = doc2.lineAt(item.from).number, lastLine = doc2.lineAt(item.itemTo).number;
+    if (!selection.empty) {
+      firstLine = doc2.lineAt(selection.from).number;
+      lastLine = doc2.lineAt(selection.to > selection.from && doc2.lineAt(selection.to).from === selection.to ? selection.to - 1 : selection.to).number;
+      for (let number2 = firstLine; number2 <= lastLine; number2++) {
+        const line = doc2.line(number2);
+        if (line.text.trim() && !markdownListLine(doc2, tree, line.from + line.text.length, tables2)) return null;
+      }
+    }
+    const unit = item.indent.includes("	") ? "	" : "  ";
+    const remove3 = item.indent.startsWith("	") ? 1 : Math.min(2, item.indent.length);
+    const changes = [];
+    for (let number2 = firstLine; number2 <= lastLine; number2++) {
+      const line = doc2.line(number2);
+      if (tables2.some((table2) => table2.from < line.to && table2.to > line.from)) return null;
+      const quote = /^(?:[ \t]*>[ \t]?)*/u.exec(line.text)?.[0] ?? "";
+      const from = line.from + quote.length;
+      const available2 = /^[ \t]*/u.exec(line.text.slice(quote.length))?.[0].length ?? 0;
+      if (!outdent) changes.push({ from, to: from, insert: unit });
+      else if (available2) changes.push({ from, to: from + Math.min(remove3, available2), insert: "" });
+    }
+    const set2 = state.changes(changes);
+    return { changes: set2, selection: state.selection.map(set2), userEvent: "input.list" };
+  }
+  function ownsSource(view2) {
+    const projection = getDocumentSelectionProjection(view2.dom.ownerDocument, view2.state.selection.main);
+    return view2.hasFocus && !view2.compositionStarted && !view2.composing && !view2.dom.ownerDocument.activeElement?.closest(".mlrt-table-widget") && (!projection || projection.tableRegions.length === 0);
+  }
+  function edit(action) {
+    return (view2) => {
+      if (!ownsSource(view2)) return false;
+      const transaction = planMarkdownListEdit(view2.state, action);
+      if (!transaction) return false;
+      view2.dispatch({ ...transaction, scrollIntoView: true });
+      return true;
+    };
+  }
+  function vertical(view2, forward) {
+    if (!ownsSource(view2) || !view2.state.selection.main.empty || view2.state.selection.ranges.length !== 1) return false;
+    const current = view2.state.selection.main, next2 = view2.moveVertically(current, forward);
+    const list2 = markdownListLine(view2.state.doc, syntaxTree(view2.state), next2.head, getParsedTables(view2.state.doc));
+    if (!list2 || next2.head >= list2.contentFrom) return false;
+    view2.dispatch({
+      selection: EditorSelection.cursor(list2.contentFrom, next2.assoc, next2.bidiLevel ?? void 0, next2.goalColumn),
+      scrollIntoView: true,
+      userEvent: "select"
+    });
+    return true;
+  }
+  function home(view2) {
+    if (!ownsSource(view2) || !view2.state.selection.main.empty) return false;
+    const head = view2.state.selection.main.head;
+    const list2 = markdownListLine(view2.state.doc, syntaxTree(view2.state), head, getParsedTables(view2.state.doc));
+    if (!list2) return false;
+    view2.dispatch({ selection: { anchor: head === list2.contentFrom ? list2.from : list2.contentFrom }, scrollIntoView: true });
+    return true;
+  }
+  function createMarkdownListEditing(readOnly2 = false) {
+    const mutate = (action) => readOnly2 ? () => false : edit(action);
+    return [keymap.of([
+      { key: "ArrowUp", run: (view2) => vertical(view2, false) },
+      { key: "ArrowDown", run: (view2) => vertical(view2, true) },
+      { key: "Home", run: home }
+    ]), Prec.high(keymap.of([
+      { key: "Enter", run: mutate("enter") },
+      { key: "Tab", run: mutate("indent"), shift: mutate("outdent") },
+      { key: "Mod-[", run: mutate("outdent") },
+      { key: "Mod-]", run: mutate("indent") },
+      { key: "Backspace", run: mutate("backspace") }
+    ]))];
+  }
+
+  // node_modules/@lezer/json/dist/index.js
+  var jsonHighlighting = styleTags({
+    String: tags.string,
+    Number: tags.number,
+    "True False": tags.bool,
+    PropertyName: tags.propertyName,
+    Null: tags.null,
+    ", :": tags.separator,
+    "[ ]": tags.squareBracket,
+    "{ }": tags.brace
+  });
+  var parser5 = LRParser.deserialize({
+    version: 14,
+    states: "$bOVQPOOOOQO'#Cb'#CbOnQPO'#CeOvQPO'#ClOOQO'#Cr'#CrQOQPOOOOQO'#Cg'#CgO}QPO'#CfO!SQPO'#CtOOQO,59P,59PO![QPO,59PO!aQPO'#CuOOQO,59W,59WO!iQPO,59WOVQPO,59QOqQPO'#CmO!nQPO,59`OOQO1G.k1G.kOVQPO'#CnO!vQPO,59aOOQO1G.r1G.rOOQO1G.l1G.lOOQO,59X,59XOOQO-E6k-E6kOOQO,59Y,59YOOQO-E6l-E6l",
+    stateData: "#O~OeOS~OQSORSOSSOTSOWQO_ROgPO~OVXOgUO~O^[O~PVO[^O~O]_OVhX~OVaO~O]bO^iX~O^dO~O]_OVha~O]bO^ia~O",
+    goto: "!kjPPPPPPkPPkqwPPPPk{!RPPP!XP!e!hXSOR^bQWQRf_TVQ_Q`WRg`QcZRicQTOQZRQe^RhbRYQR]R",
+    nodeNames: "\u26A0 JsonText True False Null Number String } { Object Property PropertyName : , ] [ Array",
+    maxTerm: 25,
+    nodeProps: [
+      ["isolate", -2, 6, 11, ""],
+      ["openedBy", 7, "{", 14, "["],
+      ["closedBy", 8, "}", 15, "]"]
+    ],
+    propSources: [jsonHighlighting],
+    skippedNodes: [0],
+    repeatNodeCount: 2,
+    tokenData: "(|~RaXY!WYZ!W]^!Wpq!Wrs!]|}$u}!O$z!Q!R%T!R![&c![!]&t!}#O&y#P#Q'O#Y#Z'T#b#c'r#h#i(Z#o#p(r#q#r(w~!]Oe~~!`Wpq!]qr!]rs!xs#O!]#O#P!}#P;'S!];'S;=`$o<%lO!]~!}Og~~#QXrs!]!P!Q!]#O#P!]#U#V!]#Y#Z!]#b#c!]#f#g!]#h#i!]#i#j#m~#pR!Q![#y!c!i#y#T#Z#y~#|R!Q![$V!c!i$V#T#Z$V~$YR!Q![$c!c!i$c#T#Z$c~$fR!Q![!]!c!i!]#T#Z!]~$rP;=`<%l!]~$zO]~~$}Q!Q!R%T!R![&c~%YRT~!O!P%c!g!h%w#X#Y%w~%fP!Q![%i~%nRT~!Q![%i!g!h%w#X#Y%w~%zR{|&T}!O&T!Q![&Z~&WP!Q![&Z~&`PT~!Q![&Z~&hST~!O!P%c!Q![&c!g!h%w#X#Y%w~&yO[~~'OO_~~'TO^~~'WP#T#U'Z~'^P#`#a'a~'dP#g#h'g~'jP#X#Y'm~'rOR~~'uP#i#j'x~'{P#`#a(O~(RP#`#a(U~(ZOS~~(^P#f#g(a~(dP#i#j(g~(jP#X#Y(m~(rOQ~~(wOW~~(|OV~",
+    tokenizers: [0],
+    topRules: { "JsonText": [0, 1] },
+    tokenPrec: 0
+  });
+
+  // node_modules/@codemirror/lang-json/dist/index.js
+  var jsonLanguage = /* @__PURE__ */ LRLanguage.define({
+    name: "json",
+    parser: /* @__PURE__ */ parser5.configure({
+      props: [
+        /* @__PURE__ */ indentNodeProp.add({
+          Object: /* @__PURE__ */ continuedIndent({ except: /^\s*\}/ }),
+          Array: /* @__PURE__ */ continuedIndent({ except: /^\s*\]/ })
+        }),
+        /* @__PURE__ */ foldNodeProp.add({
+          "Object Array": foldInside
+        })
+      ]
+    }),
+    languageData: {
+      closeBrackets: { brackets: ["[", "{", '"'] },
+      indentOnInput: /^\s*[\}\]]$/
+    }
+  });
+
+  // node_modules/@lezer/python/dist/index.js
+  var printKeyword = 1;
+  var indent = 194;
+  var dedent = 195;
+  var newline$1 = 196;
+  var blankLineStart = 197;
+  var newlineBracketed = 198;
+  var eof = 199;
+  var stringContent = 200;
+  var Escape = 2;
+  var replacementStart = 3;
+  var stringEnd = 201;
+  var ParenL = 24;
+  var ParenthesizedExpression = 25;
+  var TupleExpression = 49;
+  var ComprehensionExpression = 50;
+  var BracketL = 55;
+  var ArrayExpression = 56;
+  var ArrayComprehensionExpression = 57;
+  var BraceL = 59;
+  var DictionaryExpression = 60;
+  var DictionaryComprehensionExpression = 61;
+  var SetExpression = 62;
+  var SetComprehensionExpression = 63;
+  var ArgList = 65;
+  var subscript = 238;
+  var String$1 = 71;
+  var stringStart = 241;
+  var stringStartD = 242;
+  var stringStartL = 243;
+  var stringStartLD = 244;
+  var stringStartR = 245;
+  var stringStartRD = 246;
+  var stringStartRL = 247;
+  var stringStartRLD = 248;
+  var FormatString = 72;
+  var stringStartF = 249;
+  var stringStartFD = 250;
+  var stringStartFL = 251;
+  var stringStartFLD = 252;
+  var stringStartFR = 253;
+  var stringStartFRD = 254;
+  var stringStartFRL = 255;
+  var stringStartFRLD = 256;
+  var FormatReplacement = 73;
+  var nestedFormatReplacement = 77;
+  var importList = 263;
+  var TypeParamList = 112;
+  var ParamList = 130;
+  var SequencePattern = 151;
+  var MappingPattern = 152;
+  var PatternArgList = 155;
+  var newline3 = 10;
+  var carriageReturn = 13;
+  var space4 = 32;
+  var tab = 9;
+  var hash2 = 35;
+  var parenOpen = 40;
+  var dot2 = 46;
+  var braceOpen = 123;
+  var braceClose = 125;
+  var singleQuote = 39;
+  var doubleQuote = 34;
+  var backslash2 = 92;
+  var letter_o = 111;
+  var letter_x = 120;
+  var letter_N = 78;
+  var letter_u = 117;
+  var letter_U = 85;
+  var bracketed = /* @__PURE__ */ new Set([
+    ParenthesizedExpression,
+    TupleExpression,
+    ComprehensionExpression,
+    importList,
+    ArgList,
+    ParamList,
+    ArrayExpression,
+    ArrayComprehensionExpression,
+    subscript,
+    SetExpression,
+    SetComprehensionExpression,
+    FormatString,
+    FormatReplacement,
+    nestedFormatReplacement,
+    DictionaryExpression,
+    DictionaryComprehensionExpression,
+    SequencePattern,
+    MappingPattern,
+    PatternArgList,
+    TypeParamList
+  ]);
+  function isLineBreak(ch) {
+    return ch == newline3 || ch == carriageReturn;
+  }
+  function isHex2(ch) {
+    return ch >= 48 && ch <= 57 || ch >= 65 && ch <= 70 || ch >= 97 && ch <= 102;
+  }
+  var newlines = new ExternalTokenizer((input, stack) => {
+    let prev;
+    if (input.next < 0) {
+      input.acceptToken(eof);
+    } else if (stack.context.flags & cx_Bracketed) {
+      if (isLineBreak(input.next)) input.acceptToken(newlineBracketed, 1);
+    } else if (((prev = input.peek(-1)) < 0 || isLineBreak(prev)) && stack.canShift(blankLineStart)) {
+      let spaces2 = 0;
+      while (input.next == space4 || input.next == tab) {
+        input.advance();
+        spaces2++;
+      }
+      if (input.next == newline3 || input.next == carriageReturn || input.next == hash2)
+        input.acceptToken(blankLineStart, -spaces2);
+    } else if (isLineBreak(input.next)) {
+      input.acceptToken(newline$1, 1);
+    }
+  }, { contextual: true });
+  var indentation = new ExternalTokenizer((input, stack) => {
+    let context = stack.context;
+    if (context.flags) return;
+    let prev = input.peek(-1);
+    if (prev == newline3 || prev == carriageReturn) {
+      let depth = 0, chars = 0;
+      for (; ; ) {
+        if (input.next == space4) depth++;
+        else if (input.next == tab) depth += 8 - depth % 8;
+        else break;
+        input.advance();
+        chars++;
+      }
+      if (depth != context.indent && input.next != newline3 && input.next != carriageReturn && input.next != hash2) {
+        if (depth < context.indent) input.acceptToken(dedent, -chars);
+        else input.acceptToken(indent);
+      }
+    }
+  });
+  var cx_Bracketed = 1;
+  var cx_String = 2;
+  var cx_DoubleQuote = 4;
+  var cx_Long = 8;
+  var cx_Raw = 16;
+  var cx_Format = 32;
+  function Context2(parent, indent2, flags) {
+    this.parent = parent;
+    this.indent = indent2;
+    this.flags = flags;
+    this.hash = (parent ? parent.hash + parent.hash << 8 : 0) + indent2 + (indent2 << 4) + flags + (flags << 6);
+  }
+  var topIndent = new Context2(null, 0, 0);
+  function countIndent(space5) {
+    let depth = 0;
+    for (let i2 = 0; i2 < space5.length; i2++)
+      depth += space5.charCodeAt(i2) == tab ? 8 - depth % 8 : 1;
+    return depth;
+  }
+  var stringFlags = new Map([
+    [stringStart, 0],
+    [stringStartD, cx_DoubleQuote],
+    [stringStartL, cx_Long],
+    [stringStartLD, cx_Long | cx_DoubleQuote],
+    [stringStartR, cx_Raw],
+    [stringStartRD, cx_Raw | cx_DoubleQuote],
+    [stringStartRL, cx_Raw | cx_Long],
+    [stringStartRLD, cx_Raw | cx_Long | cx_DoubleQuote],
+    [stringStartF, cx_Format],
+    [stringStartFD, cx_Format | cx_DoubleQuote],
+    [stringStartFL, cx_Format | cx_Long],
+    [stringStartFLD, cx_Format | cx_Long | cx_DoubleQuote],
+    [stringStartFR, cx_Format | cx_Raw],
+    [stringStartFRD, cx_Format | cx_Raw | cx_DoubleQuote],
+    [stringStartFRL, cx_Format | cx_Raw | cx_Long],
+    [stringStartFRLD, cx_Format | cx_Raw | cx_Long | cx_DoubleQuote]
+  ].map(([term, flags]) => [term, flags | cx_String]));
+  var trackIndent = new ContextTracker({
+    start: topIndent,
+    reduce(context, term, _, input) {
+      if (context.flags & cx_Bracketed && bracketed.has(term) || (term == String$1 || term == FormatString) && context.flags & cx_String)
+        return context.parent;
+      return context;
+    },
+    shift(context, term, stack, input) {
+      if (term == indent)
+        return new Context2(context, countIndent(input.read(input.pos, stack.pos)), 0);
+      if (term == dedent)
+        return context.parent;
+      if (term == ParenL || term == BracketL || term == BraceL || term == replacementStart)
+        return new Context2(context, 0, cx_Bracketed);
+      if (stringFlags.has(term))
+        return new Context2(context, 0, stringFlags.get(term) | context.flags & cx_Bracketed);
+      return context;
+    },
+    hash(context) {
+      return context.hash;
+    }
+  });
+  var legacyPrint = new ExternalTokenizer((input) => {
+    for (let i2 = 0; i2 < 5; i2++) {
+      if (input.next != "print".charCodeAt(i2)) return;
+      input.advance();
+    }
+    if (/\w/.test(String.fromCharCode(input.next))) return;
+    for (let off = 0; ; off++) {
+      let next2 = input.peek(off);
+      if (next2 == space4 || next2 == tab) continue;
+      if (next2 != parenOpen && next2 != dot2 && next2 != newline3 && next2 != carriageReturn && next2 != hash2)
+        input.acceptToken(printKeyword);
+      return;
+    }
+  });
+  var strings = new ExternalTokenizer((input, stack) => {
+    let { flags } = stack.context;
+    let quote = flags & cx_DoubleQuote ? doubleQuote : singleQuote;
+    let long = (flags & cx_Long) > 0;
+    let escapes = !(flags & cx_Raw);
+    let format2 = (flags & cx_Format) > 0;
+    let start = input.pos;
+    for (; ; ) {
+      if (input.next < 0) {
+        break;
+      } else if (format2 && input.next == braceOpen) {
+        if (input.peek(1) == braceOpen) {
+          input.advance(2);
+        } else {
+          if (input.pos == start) {
+            input.acceptToken(replacementStart, 1);
+            return;
+          }
+          break;
+        }
+      } else if (escapes && input.next == backslash2) {
+        if (input.pos == start) {
+          input.advance();
+          let escaped = input.next;
+          if (escaped >= 0) {
+            input.advance();
+            skipEscape(input, escaped);
+          }
+          input.acceptToken(Escape);
+          return;
+        }
+        break;
+      } else if (input.next == backslash2 && !escapes && input.peek(1) > -1) {
+        input.advance(2);
+      } else if (input.next == quote && (!long || input.peek(1) == quote && input.peek(2) == quote)) {
+        if (input.pos == start) {
+          input.acceptToken(stringEnd, long ? 3 : 1);
+          return;
+        }
+        break;
+      } else if (input.next == newline3) {
+        if (long) {
+          input.advance();
+        } else if (input.pos == start) {
+          input.acceptToken(stringEnd);
+          return;
+        }
+        break;
+      } else {
+        input.advance();
+      }
+    }
+    if (input.pos > start) input.acceptToken(stringContent);
+  });
+  function skipEscape(input, ch) {
+    if (ch == letter_o) {
+      for (let i2 = 0; i2 < 2 && input.next >= 48 && input.next <= 55; i2++) input.advance();
+    } else if (ch == letter_x) {
+      for (let i2 = 0; i2 < 2 && isHex2(input.next); i2++) input.advance();
+    } else if (ch == letter_u) {
+      for (let i2 = 0; i2 < 4 && isHex2(input.next); i2++) input.advance();
+    } else if (ch == letter_U) {
+      for (let i2 = 0; i2 < 8 && isHex2(input.next); i2++) input.advance();
+    } else if (ch == letter_N) {
+      if (input.next == braceOpen) {
+        input.advance();
+        while (input.next >= 0 && input.next != braceClose && input.next != singleQuote && input.next != doubleQuote && input.next != newline3) input.advance();
+        if (input.next == braceClose) input.advance();
+      }
+    }
+  }
+  var pythonHighlighting = styleTags({
+    'async "*" "**" FormatConversion FormatSpec': tags.modifier,
+    "for while if elif else try except finally return raise break continue with pass assert await yield match case": tags.controlKeyword,
+    "in not and or is del": tags.operatorKeyword,
+    "from def class global nonlocal lambda": tags.definitionKeyword,
+    import: tags.moduleKeyword,
+    "with as print": tags.keyword,
+    Boolean: tags.bool,
+    None: tags.null,
+    VariableName: tags.variableName,
+    "CallExpression/VariableName": tags.function(tags.variableName),
+    "FunctionDefinition/VariableName": tags.function(tags.definition(tags.variableName)),
+    "ClassDefinition/VariableName": tags.definition(tags.className),
+    PropertyName: tags.propertyName,
+    "CallExpression/MemberExpression/PropertyName": tags.function(tags.propertyName),
+    Comment: tags.lineComment,
+    Number: tags.number,
+    String: tags.string,
+    FormatString: tags.special(tags.string),
+    Escape: tags.escape,
+    UpdateOp: tags.updateOperator,
+    "ArithOp!": tags.arithmeticOperator,
+    BitOp: tags.bitwiseOperator,
+    CompareOp: tags.compareOperator,
+    AssignOp: tags.definitionOperator,
+    Ellipsis: tags.punctuation,
+    At: tags.meta,
+    "( )": tags.paren,
+    "[ ]": tags.squareBracket,
+    "{ }": tags.brace,
+    ".": tags.derefOperator,
+    ", ;": tags.separator
+  });
+  var spec_identifier3 = { __proto__: null, await: 44, or: 54, and: 56, in: 60, not: 62, is: 64, if: 70, else: 72, lambda: 76, yield: 94, from: 96, async: 102, for: 104, None: 162, True: 164, False: 164, del: 178, pass: 182, break: 186, continue: 190, return: 194, raise: 202, import: 206, as: 208, global: 212, nonlocal: 214, assert: 218, type: 223, elif: 236, while: 240, try: 246, except: 248, finally: 250, with: 254, def: 258, class: 268, match: 279, case: 285 };
+  var parser6 = LRParser.deserialize({
+    version: 14,
+    states: "##jQ`QeOOP$}OSOOO&WQtO'#HUOOQS'#Co'#CoOOQS'#Cp'#CpO'vQdO'#CnO*UQtO'#HTOOQS'#HU'#HUOOQS'#DU'#DUOOQS'#HT'#HTO*rQdO'#D_O+VQdO'#DfO+gQdO'#DjO+zOWO'#DuO,VOWO'#DvO.[QtO'#GuOOQS'#Gu'#GuO'vQdO'#GtO0ZQtO'#GtOOQS'#Eb'#EbO0rQdO'#EcOOQS'#Gs'#GsO0|QdO'#GrOOQV'#Gr'#GrO1XQdO'#FYOOQS'#G^'#G^O1^QdO'#FXOOQV'#IS'#ISOOQV'#Gq'#GqOOQV'#Fq'#FqQ`QeOOO'vQdO'#CqO1lQdO'#C}O1sQdO'#DRO2RQdO'#HYO2cQtO'#EVO'vQdO'#EWOOQS'#EY'#EYOOQS'#E['#E[OOQS'#E^'#E^O2wQdO'#E`O3_QdO'#EdO3rQdO'#EfO3zQtO'#EfO1XQdO'#EiO0rQdO'#ElO1XQdO'#EnO0rQdO'#EtO0rQdO'#EwO4VQdO'#EyO4^QdO'#FOO4iQdO'#EzO0rQdO'#FOO1XQdO'#FQO1XQdO'#FVO4nQdO'#F[P4uOdO'#GpPOOO)CBd)CBdOOQS'#Ce'#CeOOQS'#Cf'#CfOOQS'#Cg'#CgOOQS'#Ch'#ChOOQS'#Ci'#CiOOQS'#Cj'#CjOOQS'#Cl'#ClO'vQdO,59OO'vQdO,59OO'vQdO,59OO'vQdO,59OO'vQdO,59OO'vQdO,59OO5TQdO'#DoOOQS,5:Y,5:YO5hQdO'#HdOOQS,5:],5:]O5uQ!fO,5:]O5zQtO,59YO1lQdO,59bO1lQdO,59bO1lQdO,59bO8jQdO,59bO8oQdO,59bO8vQdO,59jO8}QdO'#HTO:TQdO'#HSOOQS'#HS'#HSOOQS'#D['#D[O:lQdO,59aO'vQdO,59aO:zQdO,59aOOQS,59y,59yO;PQdO,5:RO'vQdO,5:ROOQS,5:Q,5:QO;_QdO,5:QO;dQdO,5:XO'vQdO,5:XO'vQdO,5:VOOQS,5:U,5:UO;uQdO,5:UO;zQdO,5:WOOOW'#Fy'#FyO<POWO,5:aOOQS,5:a,5:aO<[QdO'#HwOOOW'#Dw'#DwOOOW'#Fz'#FzO<lOWO,5:bOOQS,5:b,5:bOOQS'#F}'#F}O<zQtO,5:iO?lQtO,5=`O@VQ#xO,5=`O@vQtO,5=`OOQS,5:},5:}OA_QeO'#GWOBqQdO,5;^OOQV,5=^,5=^OB|QtO'#IPOCkQdO,5;tOOQS-E:[-E:[OOQV,5;s,5;sO4dQdO'#FQOOQV-E9o-E9oOCsQtO,59]OEzQtO,59iOFeQdO'#HVOFpQdO'#HVO1XQdO'#HVOF{QdO'#DTOGTQdO,59mOGYQdO'#HZO'vQdO'#HZO0rQdO,5=tOOQS,5=t,5=tO0rQdO'#EROOQS'#ES'#ESOGwQdO'#GPOHXQdO,58|OHXQdO,58|O*xQdO,5:oOHgQtO'#H]OOQS,5:r,5:rOOQS,5:z,5:zOHzQdO,5;OOI]QdO'#IOO1XQdO'#H}OOQS,5;Q,5;QOOQS'#GT'#GTOIqQtO,5;QOJPQdO,5;QOJUQdO'#IQOOQS,5;T,5;TOJdQdO'#H|OOQS,5;W,5;WOJuQdO,5;YO4iQdO,5;`O4iQdO,5;cOJ}QtO'#ITO'vQdO'#ITOKXQdO,5;eO4VQdO,5;eO0rQdO,5;jO1XQdO,5;lOK^QeO'#EuOLjQgO,5;fO!!kQdO'#IUO4iQdO,5;jO!!vQdO,5;lO!#OQdO,5;qO!#ZQtO,5;vO'vQdO,5;vPOOO,5=[,5=[P!#bOSO,5=[P!#jOdO,5=[O!&bQtO1G.jO!&iQtO1G.jO!)YQtO1G.jO!)dQtO1G.jO!+}QtO1G.jO!,bQtO1G.jO!,uQdO'#HcO!-TQtO'#GuO0rQdO'#HcO!-_QdO'#HbOOQS,5:Z,5:ZO!-gQdO,5:ZO!-lQdO'#HeO!-wQdO'#HeO!.[QdO,5>OOOQS'#Ds'#DsOOQS1G/w1G/wOOQS1G.|1G.|O!/[QtO1G.|O!/cQtO1G.|O1lQdO1G.|O!0OQdO1G/UOOQS'#DZ'#DZO0rQdO,59tOOQS1G.{1G.{O!0VQdO1G/eO!0gQdO1G/eO!0oQdO1G/fO'vQdO'#H[O!0tQdO'#H[O!0yQtO1G.{O!1ZQdO,59iO!2aQdO,5=zO!2qQdO,5=zO!2yQdO1G/mO!3OQtO1G/mOOQS1G/l1G/lO!3`QdO,5=uO!4VQdO,5=uO0rQdO1G/qO!4tQdO1G/sO!4yQtO1G/sO!5ZQtO1G/qOOQS1G/p1G/pOOQS1G/r1G/rOOOW-E9w-E9wOOQS1G/{1G/{O!5kQdO'#HxO0rQdO'#HxO!5|QdO,5>cOOOW-E9x-E9xOOQS1G/|1G/|OOQS-E9{-E9{O!6[Q#xO1G2zO!6{QtO1G2zO'vQdO,5<jOOQS,5<j,5<jOOQS-E9|-E9|OOQS,5<r,5<rOOQS-E:U-E:UOOQV1G0x1G0xO1XQdO'#GRO!7dQtO,5>kOOQS1G1`1G1`O!8RQdO1G1`OOQS'#DV'#DVO0rQdO,5=qOOQS,5=q,5=qO!8WQdO'#FrO!8cQdO,59oO!8kQdO1G/XO!8uQtO,5=uOOQS1G3`1G3`OOQS,5:m,5:mO!9fQdO'#GtOOQS,5<k,5<kOOQS-E9}-E9}O!9wQdO1G.hOOQS1G0Z1G0ZO!:VQdO,5=wO!:gQdO,5=wO0rQdO1G0jO0rQdO1G0jO!:xQdO,5>jO!;ZQdO,5>jO1XQdO,5>jO!;lQdO,5>iOOQS-E:R-E:RO!;qQdO1G0lO!;|QdO1G0lO!<RQdO,5>lO!<aQdO,5>lO!<oQdO,5>hO!=VQdO,5>hO!=hQdO'#EpO0rQdO1G0tO!=sQdO1G0tO!=xQgO1G0zO!AvQgO1G0}O!EqQdO,5>oO!E{QdO,5>oO!FTQtO,5>oO0rQdO1G1PO!F_QdO1G1PO4iQdO1G1UO!!vQdO1G1WOOQV,5;a,5;aO!FdQfO,5;aO!FiQgO1G1QO!JjQdO'#GZO4iQdO1G1QO4iQdO1G1QO!JzQdO,5>pO!KXQdO,5>pO1XQdO,5>pOOQV1G1U1G1UO!KaQdO'#FSO!KrQ!fO1G1WO!KzQdO1G1WOOQV1G1]1G1]O4iQdO1G1]O!LPQdO1G1]O!LXQdO'#F^OOQV1G1b1G1bO!#ZQtO1G1bPOOO1G2v1G2vP!L^OSO1G2vOOQS,5=},5=}OOQS'#Dp'#DpO0rQdO,5=}O!LfQdO,5=|O!LyQdO,5=|OOQS1G/u1G/uO!MRQdO,5>PO!McQdO,5>PO!MkQdO,5>PO!NOQdO,5>PO!N`QdO,5>POOQS1G3j1G3jOOQS7+$h7+$hO!8kQdO7+$pO#!RQdO1G.|O#!YQdO1G.|OOQS1G/`1G/`OOQS,5<`,5<`O'vQdO,5<`OOQS7+%P7+%PO#!aQdO7+%POOQS-E9r-E9rOOQS7+%Q7+%QO#!qQdO,5=vO'vQdO,5=vOOQS7+$g7+$gO#!vQdO7+%PO##OQdO7+%QO##TQdO1G3fOOQS7+%X7+%XO##eQdO1G3fO##mQdO7+%XOOQS,5<_,5<_O'vQdO,5<_O##rQdO1G3aOOQS-E9q-E9qO#$iQdO7+%]OOQS7+%_7+%_O#$wQdO1G3aO#%fQdO7+%_O#%kQdO1G3gO#%{QdO1G3gO#&TQdO7+%]O#&YQdO,5>dO#&sQdO,5>dO#&sQdO,5>dOOQS'#Dx'#DxO#'UO&jO'#DzO#'aO`O'#HyOOOW1G3}1G3}O#'fQdO1G3}O#'nQdO1G3}O#'yQ#xO7+(fO#(jQtO1G2UP#)TQdO'#GOOOQS,5<m,5<mOOQS-E:P-E:POOQS7+&z7+&zOOQS1G3]1G3]OOQS,5<^,5<^OOQS-E9p-E9pOOQS7+$s7+$sO#)bQdO,5=`O#){QdO,5=`O#*^QtO,5<aO#*qQdO1G3cOOQS-E9s-E9sOOQS7+&U7+&UO#+RQdO7+&UO#+aQdO,5<nO#+uQdO1G4UOOQS-E:Q-E:QO#,WQdO1G4UOOQS1G4T1G4TOOQS7+&W7+&WO#,iQdO7+&WOOQS,5<p,5<pO#,tQdO1G4WOOQS-E:S-E:SOOQS,5<l,5<lO#-SQdO1G4SOOQS-E:O-E:OO1XQdO'#EqO#-jQdO'#EqO#-uQdO'#IRO#-}QdO,5;[OOQS7+&`7+&`O0rQdO7+&`O#.SQgO7+&fO!JmQdO'#GXO4iQdO7+&fO4iQdO7+&iO#2QQtO,5<tO'vQdO,5<tO#2[QdO1G4ZOOQS-E:W-E:WO#2fQdO1G4ZO4iQdO7+&kO0rQdO7+&kOOQV7+&p7+&pO!KrQ!fO7+&rO!KzQdO7+&rO`QeO1G0{OOQV-E:X-E:XO4iQdO7+&lO4iQdO7+&lOOQV,5<u,5<uO#2nQdO,5<uO!JmQdO,5<uOOQV7+&l7+&lO#2yQgO7+&lO#6tQdO,5<vO#7PQdO1G4[OOQS-E:Y-E:YO#7^QdO1G4[O#7fQdO'#IWO#7tQdO'#IWO1XQdO'#IWOOQS'#IW'#IWO#8PQdO'#IVOOQS,5;n,5;nO#8XQdO,5;nO0rQdO'#FUOOQV7+&r7+&rO4iQdO7+&rOOQV7+&w7+&wO4iQdO7+&wO#8^QfO,5;xOOQV7+&|7+&|POOO7+(b7+(bO#8cQdO1G3iOOQS,5<c,5<cO#8qQdO1G3hOOQS-E9u-E9uO#9UQdO,5<dO#9aQdO,5<dO#9tQdO1G3kOOQS-E9v-E9vO#:UQdO1G3kO#:^QdO1G3kO#:nQdO1G3kO#:UQdO1G3kOOQS<<H[<<H[O#:yQtO1G1zOOQS<<Hk<<HkP#;WQdO'#FtO8vQdO1G3bO#;eQdO1G3bO#;jQdO<<HkOOQS<<Hl<<HlO#;zQdO7+)QOOQS<<Hs<<HsO#<[QtO1G1yP#<{QdO'#FsO#=YQdO7+)RO#=jQdO7+)RO#=rQdO<<HwO#=wQdO7+({OOQS<<Hy<<HyO#>nQdO,5<bO'vQdO,5<bOOQS-E9t-E9tOOQS<<Hw<<HwOOQS,5<g,5<gO0rQdO,5<gO#>sQdO1G4OOOQS-E9y-E9yO#?^QdO1G4OO<[QdO'#H{OOOO'#D{'#D{OOOO'#F|'#F|O#?oO&jO,5:fOOOW,5>e,5>eOOOW7+)i7+)iO#?zQdO7+)iO#@SQdO1G2zO#@mQdO1G2zP'vQdO'#FuO0rQdO<<IpO1XQdO1G2YP1XQdO'#GSO#AOQdO7+)pO#AaQdO7+)pOOQS<<Ir<<IrP1XQdO'#GUP0rQdO'#GQOOQS,5;],5;]O#ArQdO,5>mO#BQQdO,5>mOOQS1G0v1G0vOOQS<<Iz<<IzOOQV-E:V-E:VO4iQdO<<JQOOQV,5<s,5<sO4iQdO,5<sOOQV<<JQ<<JQOOQV<<JT<<JTO#BYQtO1G2`P#BdQdO'#GYO#BkQdO7+)uO#BuQgO<<JVO4iQdO<<JVOOQV<<J^<<J^O4iQdO<<J^O!KrQ!fO<<J^O#FpQgO7+&gOOQV<<JW<<JWO#FzQgO<<JWOOQV1G2a1G2aO1XQdO1G2aO#JuQdO1G2aO4iQdO<<JWO1XQdO1G2bP0rQdO'#G[O#KQQdO7+)vO#K_QdO7+)vOOQS'#FT'#FTO0rQdO,5>rO#KgQdO,5>rO#KrQdO,5>rO#K}QdO,5>qO#L`QdO,5>qOOQS1G1Y1G1YOOQS,5;p,5;pOOQV<<Jc<<JcO#LhQdO1G1dOOQS7+)T7+)TP#LmQdO'#FwO#L}QdO1G2OO#MbQdO1G2OO#MrQdO1G2OP#M}QdO'#FxO#N[QdO7+)VO#NlQdO7+)VO#NlQdO7+)VO#NtQdO7+)VO$ UQdO7+(|O8vQdO7+(|OOQSAN>VAN>VO$ oQdO<<LmOOQSAN>cAN>cO0rQdO1G1|O$!PQtO1G1|P$!ZQdO'#FvOOQS1G2R1G2RP$!hQdO'#F{O$!uQdO7+)jO$#`QdO,5>gOOOO-E9z-E9zOOOW<<MT<<MTO$#nQdO7+(fOOQSAN?[AN?[OOQS7+'t7+'tO$$XQdO<<M[OOQS,5<q,5<qO$$jQdO1G4XOOQS-E:T-E:TOOQVAN?lAN?lOOQV1G2_1G2_O4iQdOAN?qO$$xQgOAN?qOOQVAN?xAN?xO4iQdOAN?xOOQV<<JR<<JRO4iQdOAN?rO4iQdO7+'{OOQV7+'{7+'{O1XQdO7+'{OOQVAN?rAN?rOOQS7+'|7+'|O$(sQdO<<MbOOQS1G4^1G4^O0rQdO1G4^OOQS,5<w,5<wO$)QQdO1G4]OOQS-E:Z-E:ZOOQU'#G_'#G_O$)cQfO7+'OO$)nQdO'#F_O$*uQdO7+'jO$+VQdO7+'jOOQS7+'j7+'jO$+bQdO<<LqO$+rQdO<<LqO$+rQdO<<LqO$+zQdO'#H^OOQS<<Lh<<LhO$,UQdO<<LhOOQS7+'h7+'hOOQS'#D|'#D|OOOO1G4R1G4RO$,oQdO1G4RO$,wQdO1G4RP!=hQdO'#GVOOQVG25]G25]O4iQdOG25]OOQVG25dG25dOOQVG25^G25^OOQV<<Kg<<KgO4iQdO<<KgOOQS7+)x7+)xP$-SQdO'#G]OOQU-E:]-E:]OOQV<<Jj<<JjO$-vQtO'#FaOOQS'#Fc'#FcO$.WQdO'#FbO$.xQdO'#FbOOQS'#Fb'#FbO$.}QdO'#IYO$)nQdO'#FiO$)nQdO'#FiO$/fQdO'#FjO$)nQdO'#FkO$/mQdO'#IZOOQS'#IZ'#IZO$0[QdO,5;yOOQS<<KU<<KUO$0dQdO<<KUO$0tQdOANB]O$1UQdOANB]O$1^QdO'#H_OOQS'#H_'#H_O1sQdO'#DcO$1wQdO,5=xOOQSANBSANBSOOOO7+)m7+)mO$2`QdO7+)mOOQVLD*wLD*wOOQVANARANARO5uQ!fO'#GaO$2hQtO,5<SO$)nQdO'#FmOOQS,5<W,5<WOOQS'#Fd'#FdO$3YQdO,5;|O$3_QdO,5;|OOQS'#Fg'#FgO$)nQdO'#G`O$4PQdO,5<QO$4kQdO,5>tO$4{QdO,5>tO1XQdO,5<PO$5^QdO,5<TO$5cQdO,5<TO$)nQdO'#I[O$5hQdO'#I[O$5mQdO,5<UOOQS,5<V,5<VO0rQdO'#FpOOQU1G1e1G1eO4iQdO1G1eOOQSAN@pAN@pO$5rQdOG27wO$6SQdO,59}OOQS1G3d1G3dOOOO<<MX<<MXOOQS,5<{,5<{OOQS-E:_-E:_O$6XQtO'#FaO$6`QdO'#I]O$6nQdO'#I]O$6vQdO,5<XOOQS1G1h1G1hO$6{QdO1G1hO$7QQdO,5<zOOQS-E:^-E:^O$7lQdO,5=OO$8TQdO1G4`OOQS-E:b-E:bOOQS1G1k1G1kOOQS1G1o1G1oO$8eQdO,5>vO$)nQdO,5>vOOQS1G1p1G1pOOQS,5<[,5<[OOQU7+'P7+'PO$+zQdO1G/iO$)nQdO,5<YO$8sQdO,5>wO$8zQdO,5>wOOQS1G1s1G1sOOQS7+'S7+'SP$)nQdO'#GdO$9SQdO1G4bO$9^QdO1G4bO$9fQdO1G4bOOQS7+%T7+%TO$9tQdO1G1tO$:SQtO'#FaO$:ZQdO,5<}OOQS,5<},5<}O$:iQdO1G4cOOQS-E:a-E:aO$)nQdO,5<|O$:pQdO,5<|O$:uQdO7+)|OOQS-E:`-E:`O$;PQdO7+)|O$)nQdO,5<ZP$)nQdO'#GcO$;XQdO1G2hO$)nQdO1G2hP$;gQdO'#GbO$;nQdO<<MhO$;xQdO1G1uO$<WQdO7+(SO8vQdO'#C}O8vQdO,59bO8vQdO,59bO8vQdO,59bO$<fQtO,5=`O8vQdO1G.|O0rQdO1G/XO0rQdO7+$pP$<yQdO'#GOO'vQdO'#GtO$=WQdO,59bO$=]QdO,59bO$=dQdO,59mO$=iQdO1G/UO1sQdO'#DRO8vQdO,59j",
+    stateData: "$>S~O%cOS%^OSSOS%]PQ~OPdOVaOfoOhYOopOs!POvqO!PrO!Q{O!T!SO!U!RO!XZO!][O!h`O!r`O!s`O!t`O!{tO!}uO#PvO#RwO#TxO#XyO#ZzO#^|O#_|O#a}O#c!OO#l!QO#o!TO#s!UO#u!VO#z!WO#}hO$P!XO%oRO%pRO%tSO%uWO&Z]O&[]O&]]O&^]O&_]O&`]O&a]O&b]O&c^O&d^O&e^O&f^O&g^O&h^O&i^O&j^O~O%]!YO~OV!aO_!aOa!bOh!iO!X!kO!f!mO%j![O%k!]O%l!^O%m!_O%n!_O%o!`O%p!`O%q!aO%r!aO%s!aO~Ok%xXl%xXm%xXn%xXo%xXp%xXs%xXz%xX{%xX!x%xX#g%xX%[%xX%_%xX%z%xXg%xX!T%xX!U%xX%{%xX!W%xX![%xX!Q%xX#[%xXt%xX!m%xX~P%SOfoOhYO!XZO!][O!h`O!r`O!s`O!t`O%oRO%pRO%tSO%uWO&Z]O&[]O&]]O&^]O&_]O&`]O&a]O&b]O&c^O&d^O&e^O&f^O&g^O&h^O&i^O&j^O~Oz%wX{%wX#g%wX%[%wX%_%wX%z%wX~Ok!pOl!qOm!oOn!oOo!rOp!sOs!tO!x%wX~P)pOV!zOg!|Oo0cOv0qO!PrO~P'vOV#OOo0cOv0qO!W#PO~P'vOV#SOa#TOo0cOv0qO![#UO~P'vOQ#XO%`#XO%a#ZO~OQ#^OR#[O%`#^O%a#`O~OV%iX_%iXa%iXh%iXk%iXl%iXm%iXn%iXo%iXp%iXs%iXz%iX!X%iX!f%iX%j%iX%k%iX%l%iX%m%iX%n%iX%o%iX%p%iX%q%iX%r%iX%s%iXg%iX!T%iX!U%iX~O&Z]O&[]O&]]O&^]O&_]O&`]O&a]O&b]O&c^O&d^O&e^O&f^O&g^O&h^O&i^O&j^O{%iX!x%iX#g%iX%[%iX%_%iX%z%iX%{%iX!W%iX![%iX!Q%iX#[%iXt%iX!m%iX~P,eOz#dO{%hX!x%hX#g%hX%[%hX%_%hX%z%hX~Oo0cOv0qO~P'vO#g#gO%[#iO%_#iO~O%uWO~O!T#nO#u!VO#z!WO#}hO~OopO~P'vOV#sOa#tO%uWO{wP~OV#xOo0cOv0qO!Q#yO~P'vO{#{O!x$QO%z#|O#g!yX%[!yX%_!yX~OV#xOo0cOv0qO#g#SX%[#SX%_#SX~P'vOo0cOv0qO#g#WX%[#WX%_#WX~P'vOh$WO%uWO~O!f$YO!r$YO%uWO~OV$eO~P'vO!U$gO#s$hO#u$iO~O{$jO~OV$qO~P'vOS$sO%[$rO%_$rO%c$tO~OV$}Oa$}Og%POo0cOv0qO~P'vOo0cOv0qO{%SO~P'vO&Y%UO~Oa!bOh!iO!X!kO!f!mOVba_bakbalbambanbaobapbasbazba{ba!xba#gba%[ba%_ba%jba%kba%lba%mba%nba%oba%pba%qba%rba%sba%zbagba!Tba!Uba%{ba!Wba![ba!Qba#[batba!mba~On%ZO~Oo%ZO~P'vOo0cO~P'vOk0eOl0fOm0dOn0dOo0mOp0nOs0rOg%wX!T%wX!U%wX%{%wX!W%wX![%wX!Q%wX#[%wX!m%wX~P)pO%{%]Og%vXz%vX!T%vX!U%vX!W%vX{%vX~Og%_Oz%`O!T%dO!U%cO~Og%_O~Oz%gO!T%dO!U%cO!W&SX~O!W%kO~Oz%lO{%nO!T%dO!U%cO![%}X~O![%rO~O![%sO~OQ#XO%`#XO%a%uO~OV%wOo0cOv0qO!PrO~P'vOQ#^OR#[O%`#^O%a%zO~OV!qa_!qaa!qah!qak!qal!qam!qan!qao!qap!qas!qaz!qa{!qa!X!qa!f!qa!x!qa#g!qa%[!qa%_!qa%j!qa%k!qa%l!qa%m!qa%n!qa%o!qa%p!qa%q!qa%r!qa%s!qa%z!qag!qa!T!qa!U!qa%{!qa!W!qa![!qa!Q!qa#[!qat!qa!m!qa~P#yOz%|O{%ha!x%ha#g%ha%[%ha%_%ha%z%ha~P%SOV&OOopOvqO{%ha!x%ha#g%ha%[%ha%_%ha%z%ha~P'vOz%|O{%ha!x%ha#g%ha%[%ha%_%ha%z%ha~OPdOVaOopOvqO!PrO!Q{O!{tO!}uO#PvO#RwO#TxO#XyO#ZzO#^|O#_|O#a}O#c!OO#g$zX%[$zX%_$zX~P'vO#g#gO%[&TO%_&TO~O!f&UOh&sX%[&sXz&sX#[&sX#g&sX%_&sX#Z&sXg&sX~Oh!iO%[&WO~Okealeameaneaoeapeaseazea{ea!xea#gea%[ea%_ea%zeagea!Tea!Uea%{ea!Wea![ea!Qea#[eatea!mea~P%SOsqazqa{qa#gqa%[qa%_qa%zqa~Ok!pOl!qOm!oOn!oOo!rOp!sO!xqa~PEcO%z&YOz%yX{%yX~O%uWOz%yX{%yX~Oz&]O{wX~O{&_O~Oz%lO#g%}X%[%}X%_%}Xg%}X{%}X![%}X!m%}X%z%}X~OV0lOo0cOv0qO!PrO~P'vO%z#|O#gUa%[Ua%_Ua~Oz&hO#g&PX%[&PX%_&PXn&PX~P%SOz&kO!Q&jO#g#Wa%[#Wa%_#Wa~Oz&lO#[&nO#g&rX%[&rX%_&rXg&rX~O!f$YO!r$YO#Z&qO%uWO~O#Z&qO~Oz&sO#g&tX%[&tX%_&tX~Oz&uO#g&pX%[&pX%_&pX{&pX~O!X&wO%z&xO~Oz&|On&wX~P%SOn'PO~OPdOVaOopOvqO!PrO!Q{O!{tO!}uO#PvO#RwO#TxO#XyO#ZzO#^|O#_|O#a}O#c!OO%['UO~P'vOt'YO#p'WO#q'XOP#naV#naf#nah#nao#nas#nav#na!P#na!Q#na!T#na!U#na!X#na!]#na!h#na!r#na!s#na!t#na!{#na!}#na#P#na#R#na#T#na#X#na#Z#na#^#na#_#na#a#na#c#na#l#na#o#na#s#na#u#na#z#na#}#na$P#na%X#na%o#na%p#na%t#na%u#na&Z#na&[#na&]#na&^#na&_#na&`#na&a#na&b#na&c#na&d#na&e#na&f#na&g#na&h#na&i#na&j#na%Z#na%_#na~Oz'ZO#[']O{&xX~Oh'_O!X&wO~Oh!iO{$jO!X&wO~O{'eO~P%SO%['hO%_'hO~OS'iO%['hO%_'hO~OV!aO_!aOa!bOh!iO!X!kO!f!mO%l!^O%m!_O%n!_O%o!`O%p!`O%q!aO%r!aO%s!aOkWilWimWinWioWipWisWizWi{Wi!xWi#gWi%[Wi%_Wi%jWi%zWigWi!TWi!UWi%{Wi!WWi![Wi!QWi#[WitWi!mWi~O%k!]O~P!#uO%kWi~P!#uOV!aO_!aOa!bOh!iO!X!kO!f!mO%o!`O%p!`O%q!aO%r!aO%s!aOkWilWimWinWioWipWisWizWi{Wi!xWi#gWi%[Wi%_Wi%jWi%kWi%lWi%zWigWi!TWi!UWi%{Wi!WWi![Wi!QWi#[WitWi!mWi~O%m!_O%n!_O~P!&pO%mWi%nWi~P!&pOa!bOh!iO!X!kO!f!mOkWilWimWinWioWipWisWizWi{Wi!xWi#gWi%[Wi%_Wi%jWi%kWi%lWi%mWi%nWi%oWi%pWi%zWigWi!TWi!UWi%{Wi!WWi![Wi!QWi#[WitWi!mWi~OV!aO_!aO%q!aO%r!aO%s!aO~P!)nOVWi_Wi%qWi%rWi%sWi~P!)nO!T%dO!U%cOg&VXz&VX~O%z'kO%{'kO~P,eOz'mOg&UX~Og'oO~Oz'pO{'rO!W&XX~Oo0cOv0qOz'pO{'sO!W&XX~P'vO!W'uO~Om!oOn!oOo!rOp!sOkjisjizji{ji!xji#gji%[ji%_ji%zji~Ol!qO~P!.aOlji~P!.aOk0eOl0fOm0dOn0dOo0mOp0nO~Ot'wO~P!/jOV'|Og'}Oo0cOv0qO~P'vOg'}Oz(OO~Og(QO~O!U(SO~Og(TOz(OO!T%dO!U%cO~P%SOk0eOl0fOm0dOn0dOo0mOp0nOgqa!Tqa!Uqa%{qa!Wqa![qa!Qqa#[qatqa!mqa~PEcOV'|Oo0cOv0qO!W&Sa~P'vOz(WO!W&Sa~O!W(XO~Oz(WO!T%dO!U%cO!W&Sa~P%SOV(]Oo0cOv0qO![%}a#g%}a%[%}a%_%}ag%}a{%}a!m%}a%z%}a~P'vOz(^O![%}a#g%}a%[%}a%_%}ag%}a{%}a!m%}a%z%}a~O![(aO~Oz(^O!T%dO!U%cO![%}a~P%SOz(dO!T%dO!U%cO![&Ta~P%SOz(gO{&lX![&lX!m&lX%z&lX~O{(kO![(mO!m(nO%z(jO~OV&OOopOvqO{%hi!x%hi#g%hi%[%hi%_%hi%z%hi~P'vOz(pO{%hi!x%hi#g%hi%[%hi%_%hi%z%hi~O!f&UOh&sa%[&saz&sa#[&sa#g&sa%_&sa#Z&sag&sa~O%[(uO~OV#sOa#tO%uWO~Oz&]O{wa~OopOvqO~P'vOz(^O#g%}a%[%}a%_%}ag%}a{%}a![%}a!m%}a%z%}a~P%SOz(zO#g%hX%[%hX%_%hX%z%hX~O%z#|O#gUi%[Ui%_Ui~O#g&Pa%[&Pa%_&Pan&Pa~P'vOz(}O#g&Pa%[&Pa%_&Pan&Pa~O%uWO#g&ra%[&ra%_&rag&ra~Oz)SO#g&ra%[&ra%_&rag&ra~Og)VO~OV)WOh$WO%uWO~O#Z)XO~O%uWO#g&ta%[&ta%_&ta~Oz)ZO#g&ta%[&ta%_&ta~Oo0cOv0qO#g&pa%[&pa%_&pa{&pa~P'vOz)^O#g&pa%[&pa%_&pa{&pa~OV)`Oa)`O%uWO~O%z)eO~Ot)hO#j)gOP#hiV#hif#hih#hio#his#hiv#hi!P#hi!Q#hi!T#hi!U#hi!X#hi!]#hi!h#hi!r#hi!s#hi!t#hi!{#hi!}#hi#P#hi#R#hi#T#hi#X#hi#Z#hi#^#hi#_#hi#a#hi#c#hi#l#hi#o#hi#s#hi#u#hi#z#hi#}#hi$P#hi%X#hi%o#hi%p#hi%t#hi%u#hi&Z#hi&[#hi&]#hi&^#hi&_#hi&`#hi&a#hi&b#hi&c#hi&d#hi&e#hi&f#hi&g#hi&h#hi&i#hi&j#hi%Z#hi%_#hi~Ot)iOP#kiV#kif#kih#kio#kis#kiv#ki!P#ki!Q#ki!T#ki!U#ki!X#ki!]#ki!h#ki!r#ki!s#ki!t#ki!{#ki!}#ki#P#ki#R#ki#T#ki#X#ki#Z#ki#^#ki#_#ki#a#ki#c#ki#l#ki#o#ki#s#ki#u#ki#z#ki#}#ki$P#ki%X#ki%o#ki%p#ki%t#ki%u#ki&Z#ki&[#ki&]#ki&^#ki&_#ki&`#ki&a#ki&b#ki&c#ki&d#ki&e#ki&f#ki&g#ki&h#ki&i#ki&j#ki%Z#ki%_#ki~OV)kOn&wa~P'vOz)lOn&wa~Oz)lOn&wa~P%SOn)pO~O%Y)tO~Ot)wO#p'WO#q)vOP#niV#nif#nih#nio#nis#niv#ni!P#ni!Q#ni!T#ni!U#ni!X#ni!]#ni!h#ni!r#ni!s#ni!t#ni!{#ni!}#ni#P#ni#R#ni#T#ni#X#ni#Z#ni#^#ni#_#ni#a#ni#c#ni#l#ni#o#ni#s#ni#u#ni#z#ni#}#ni$P#ni%X#ni%o#ni%p#ni%t#ni%u#ni&Z#ni&[#ni&]#ni&^#ni&_#ni&`#ni&a#ni&b#ni&c#ni&d#ni&e#ni&f#ni&g#ni&h#ni&i#ni&j#ni%Z#ni%_#ni~OV)zOo0cOv0qO{$jO~P'vOo0cOv0qO{&xa~P'vOz*OO{&xa~OV*SOa*TOg*WO%q*UO%uWO~O{$jO&{*YO~Oh'_O~Oh!iO{$jO~O%[*_O~O%[*aO%_*aO~OV$}Oa$}Oo0cOv0qOg&Ua~P'vOz*dOg&Ua~Oo0cOv0qO{*gO!W&Xa~P'vOz*hO!W&Xa~Oo0cOv0qOz*hO{*kO!W&Xa~P'vOo0cOv0qOz*hO!W&Xa~P'vOz*hO{*kO!W&Xa~Om0dOn0dOo0mOp0nOgjikjisjizji!Tji!Uji%{ji!Wji{ji![ji#gji%[ji%_ji!Qji#[jitji!mji%zji~Ol0fO~P!NkOlji~P!NkOV'|Og*pOo0cOv0qO~P'vOn*rO~Og*pOz*tO~Og*uO~OV'|Oo0cOv0qO!W&Si~P'vOz*vO!W&Si~O!W*wO~OV(]Oo0cOv0qO![%}i#g%}i%[%}i%_%}ig%}i{%}i!m%}i%z%}i~P'vOz*zO!T%dO!U%cO![&Ti~Oz*}O![%}i#g%}i%[%}i%_%}ig%}i{%}i!m%}i%z%}i~O![+OO~Oa+QOo0cOv0qO![&Ti~P'vOz*zO![&Ti~O![+SO~OV+UOo0cOv0qO{&la![&la!m&la%z&la~P'vOz+VO{&la![&la!m&la%z&la~O!]+YO&n+[O![!nX~O![+^O~O{(kO![+_O~O{(kO![+_O!m+`O~OV&OOopOvqO{%hq!x%hq#g%hq%[%hq%_%hq%z%hq~P'vOz$ri{$ri!x$ri#g$ri%[$ri%_$ri%z$ri~P%SOV&OOopOvqO~P'vOV&OOo0cOv0qO#g%ha%[%ha%_%ha%z%ha~P'vOz+aO#g%ha%[%ha%_%ha%z%ha~Oz$ia#g$ia%[$ia%_$ian$ia~P%SO#g&Pi%[&Pi%_&Pin&Pi~P'vOz+dO#g#Wq%[#Wq%_#Wq~O#[+eOz$va#g$va%[$va%_$vag$va~O%uWO#g&ri%[&ri%_&rig&ri~Oz+gO#g&ri%[&ri%_&rig&ri~OV+iOh$WO%uWO~O%uWO#g&ti%[&ti%_&ti~Oo0cOv0qO#g&pi%[&pi%_&pi{&pi~P'vO{#{Oz#eX!W#eX~Oz+mO!W&uX~O!W+oO~Ot+rO#j)gOP#hqV#hqf#hqh#hqo#hqs#hqv#hq!P#hq!Q#hq!T#hq!U#hq!X#hq!]#hq!h#hq!r#hq!s#hq!t#hq!{#hq!}#hq#P#hq#R#hq#T#hq#X#hq#Z#hq#^#hq#_#hq#a#hq#c#hq#l#hq#o#hq#s#hq#u#hq#z#hq#}#hq$P#hq%X#hq%o#hq%p#hq%t#hq%u#hq&Z#hq&[#hq&]#hq&^#hq&_#hq&`#hq&a#hq&b#hq&c#hq&d#hq&e#hq&f#hq&g#hq&h#hq&i#hq&j#hq%Z#hq%_#hq~On$|az$|a~P%SOV)kOn&wi~P'vOz+yOn&wi~Oz,TO{$jO#[,TO~O#q,VOP#nqV#nqf#nqh#nqo#nqs#nqv#nq!P#nq!Q#nq!T#nq!U#nq!X#nq!]#nq!h#nq!r#nq!s#nq!t#nq!{#nq!}#nq#P#nq#R#nq#T#nq#X#nq#Z#nq#^#nq#_#nq#a#nq#c#nq#l#nq#o#nq#s#nq#u#nq#z#nq#}#nq$P#nq%X#nq%o#nq%p#nq%t#nq%u#nq&Z#nq&[#nq&]#nq&^#nq&_#nq&`#nq&a#nq&b#nq&c#nq&d#nq&e#nq&f#nq&g#nq&h#nq&i#nq&j#nq%Z#nq%_#nq~O#[,WOz%Oa{%Oa~Oo0cOv0qO{&xi~P'vOz,YO{&xi~O{#{O%z,[Og&zXz&zX~O%uWOg&zXz&zX~Oz,`Og&yX~Og,bO~O%Y,eO~O!T%dO!U%cOg&Viz&Vi~OV$}Oa$}Oo0cOv0qOg&Ui~P'vO{,hOz$la!W$la~Oo0cOv0qO{,iOz$la!W$la~P'vOo0cOv0qO{*gO!W&Xi~P'vOz,lO!W&Xi~Oo0cOv0qOz,lO!W&Xi~P'vOz,lO{,oO!W&Xi~Og$hiz$hi!W$hi~P%SOV'|Oo0cOv0qO~P'vOn,qO~OV'|Og,rOo0cOv0qO~P'vOV'|Oo0cOv0qO!W&Sq~P'vOz$gi![$gi#g$gi%[$gi%_$gig$gi{$gi!m$gi%z$gi~P%SOV(]Oo0cOv0qO~P'vOa+QOo0cOv0qO![&Tq~P'vOz,sO![&Tq~O![,tO~OV(]Oo0cOv0qO![%}q#g%}q%[%}q%_%}qg%}q{%}q!m%}q%z%}q~P'vO{,uO~OV+UOo0cOv0qO{&li![&li!m&li%z&li~P'vOz,zO{&li![&li!m&li%z&li~O!]+YO&n+[O![!na~O{(kO![,}O~OV&OOo0cOv0qO#g%hi%[%hi%_%hi%z%hi~P'vOz-OO#g%hi%[%hi%_%hi%z%hi~O%uWO#g&rq%[&rq%_&rqg&rq~Oz-RO#g&rq%[&rq%_&rqg&rq~OV)`Oa)`O%uWO!W&ua~Oz-TO!W&ua~On$|iz$|i~P%SOV)kO~P'vOV)kOn&wq~P'vOt-XOP#myV#myf#myh#myo#mys#myv#my!P#my!Q#my!T#my!U#my!X#my!]#my!h#my!r#my!s#my!t#my!{#my!}#my#P#my#R#my#T#my#X#my#Z#my#^#my#_#my#a#my#c#my#l#my#o#my#s#my#u#my#z#my#}#my$P#my%X#my%o#my%p#my%t#my%u#my&Z#my&[#my&]#my&^#my&_#my&`#my&a#my&b#my&c#my&d#my&e#my&f#my&g#my&h#my&i#my&j#my%Z#my%_#my~O%Z-]O%_-]O~P`O#q-^OP#nyV#nyf#nyh#nyo#nys#nyv#ny!P#ny!Q#ny!T#ny!U#ny!X#ny!]#ny!h#ny!r#ny!s#ny!t#ny!{#ny!}#ny#P#ny#R#ny#T#ny#X#ny#Z#ny#^#ny#_#ny#a#ny#c#ny#l#ny#o#ny#s#ny#u#ny#z#ny#}#ny$P#ny%X#ny%o#ny%p#ny%t#ny%u#ny&Z#ny&[#ny&]#ny&^#ny&_#ny&`#ny&a#ny&b#ny&c#ny&d#ny&e#ny&f#ny&g#ny&h#ny&i#ny&j#ny%Z#ny%_#ny~Oz-aO{$jO#[-aO~Oo0cOv0qO{&xq~P'vOz-dO{&xq~O%z,[Og&zaz&za~O{#{Og&zaz&za~OV*SOa*TO%q*UO%uWOg&ya~Oz-hOg&ya~O$S-lO~OV$}Oa$}Oo0cOv0qO~P'vOo0cOv0qO{-mOz$li!W$li~P'vOo0cOv0qOz$li!W$li~P'vO{-mOz$li!W$li~Oo0cOv0qO{*gO~P'vOo0cOv0qO{*gO!W&Xq~P'vOz-pO!W&Xq~Oo0cOv0qOz-pO!W&Xq~P'vOs-sO!T%dO!U%cOg&Oq!W&Oq![&Oqz&Oq~P!/jOa+QOo0cOv0qO![&Ty~P'vOz$ji![$ji~P%SOa+QOo0cOv0qO~P'vOV+UOo0cOv0qO~P'vOV+UOo0cOv0qO{&lq![&lq!m&lq%z&lq~P'vO{(kO![-xO!m-yO%z-wO~OV&OOo0cOv0qO#g%hq%[%hq%_%hq%z%hq~P'vO%uWO#g&ry%[&ry%_&ryg&ry~OV)`Oa)`O%uWO!W&ui~Ot-}OP#m!RV#m!Rf#m!Rh#m!Ro#m!Rs#m!Rv#m!R!P#m!R!Q#m!R!T#m!R!U#m!R!X#m!R!]#m!R!h#m!R!r#m!R!s#m!R!t#m!R!{#m!R!}#m!R#P#m!R#R#m!R#T#m!R#X#m!R#Z#m!R#^#m!R#_#m!R#a#m!R#c#m!R#l#m!R#o#m!R#s#m!R#u#m!R#z#m!R#}#m!R$P#m!R%X#m!R%o#m!R%p#m!R%t#m!R%u#m!R&Z#m!R&[#m!R&]#m!R&^#m!R&_#m!R&`#m!R&a#m!R&b#m!R&c#m!R&d#m!R&e#m!R&f#m!R&g#m!R&h#m!R&i#m!R&j#m!R%Z#m!R%_#m!R~Oo0cOv0qO{&xy~P'vOV*SOa*TO%q*UO%uWOg&yi~O$S-lO%Z.VO%_.VO~OV.aOh._O!X.^O!].`O!h.YO!s.[O!t.[O%p.XO%uWO&Z]O&[]O&]]O&^]O&_]O&`]O&a]O&b]O~Oo0cOv0qOz$lq!W$lq~P'vO{.fOz$lq!W$lq~Oo0cOv0qO{*gO!W&Xy~P'vOz.gO!W&Xy~Oo0cOv.kO~P'vOs-sO!T%dO!U%cOg&Oy!W&Oy![&Oyz&Oy~P!/jO{(kO![.nO~O{(kO![.nO!m.oO~OV*SOa*TO%q*UO%uWO~Oh.tO!f.rOz$TX#[$TX%j$TXg$TX~Os$TX{$TX!W$TX![$TX~P$-bO%o.vO%p.vOs$UXz$UX{$UX#[$UX%j$UX!W$UXg$UX![$UX~O!h.xO~Oz.|O#[/OO%j.yOs&|X{&|X!W&|Xg&|X~Oa/RO~P$)zOh.tOs&}Xz&}X{&}X#[&}X%j&}X!W&}Xg&}X![&}X~Os/VO{$jO~Oo0cOv0qOz$ly!W$ly~P'vOo0cOv0qO{*gO!W&X!R~P'vOz/ZO!W&X!R~Og&RXs&RX!T&RX!U&RX!W&RX![&RXz&RX~P!/jOs-sO!T%dO!U%cOg&Qa!W&Qa![&Qaz&Qa~O{(kO![/^O~O!f.rOh$[as$[az$[a{$[a#[$[a%j$[a!W$[ag$[a![$[a~O!h/eO~O%o.vO%p.vOs$Uaz$Ua{$Ua#[$Ua%j$Ua!W$Uag$Ua![$Ua~O%j.yOs$Yaz$Ya{$Ya#[$Ya!W$Yag$Ya![$Ya~Os&|a{&|a!W&|ag&|a~P$)nOz/jOs&|a{&|a!W&|ag&|a~O!W/mO~Og/mO~O{/oO~O![/pO~Oo0cOv0qO{*gO!W&X!Z~P'vO{/sO~O%z/tO~P$-bOz/uO#[/OO%j.yOg'PX~Oz/uOg'PX~Og/wO~O!h/xO~O#[/OOs%Saz%Sa{%Sa%j%Sa!W%Sag%Sa![%Sa~O#[/OO%j.yOs%Waz%Wa{%Wa!W%Wag%Wa~Os&|i{&|i!W&|ig&|i~P$)nOz/zO#[/OO%j.yO!['Oa~Og'Pa~P$)nOz0SOg'Pa~Oa0UO!['Oi~P$)zOz0WO!['Oi~Oz0WO#[/OO%j.yO!['Oi~O#[/OO%j.yOg$biz$bi~O%z0ZO~P$-bO#[/OO%j.yOg%Vaz%Va~Og'Pi~P$)nO{0^O~Oa0UO!['Oq~P$)zOz0`O!['Oq~O#[/OO%j.yOz%Ui![%Ui~Oa0UO~P$)zOa0UO!['Oy~P$)zO#[/OO%j.yOg$ciz$ci~O#[/OO%j.yOz%Uq![%Uq~Oz+aO#g%ha%[%ha%_%ha%z%ha~P%SOV&OOo0cOv0qO~P'vOn0hO~Oo0hO~P'vO{0iO~Ot0jO~P!/jO&]&Z&j&h&i&g&f&d&e&c&b&`&a&_&^&[%u~",
+    goto: "!=j'QPPPPPP'RP'Z*s+[+t,_,y-fP.SP'Z.r.r'ZPPP'Z2[PPPPPP2[5PPP5PP7b7k=sPP=v>h>kPP'Z'ZPP>zPP'Z'ZPP'Z'Z'Z'Z'Z?O?w'ZP?zP@QDXGuGyPG|HWH['ZPPPH_Hk'RP'R'RP'RP'RP'RP'RP'R'R'RP'RPP'RPP'RP'RPHqH}IVPI^IdPI^PI^I^PPPI^PKrPK{LVL]KrPI^LfPI^PLmLsPLwM]MzNeLwLwNkNxLwLwLwLw! ^! d! g! l! o! y!!P!!]!!o!!u!#P!#V!#s!#y!$P!$Z!$a!$g!$y!%T!%Z!%a!%k!%q!%w!%}!&T!&Z!&e!&k!&u!&{!'U!'[!'k!'s!'}!(UPPPPPPPPPPP!([!(_!(e!(n!(x!)TPPPPPPPPPPPP!-u!/Z!3^!6oPP!6w!7W!7a!8Y!8P!8c!8i!8l!8o!8r!8z!9jPPPPPPPPPPPPPPPPP!9m!9q!9wP!:]!:a!:m!:v!;S!;j!;m!;p!;v!;|!<S!<VP!<_!<h!=d!=g]eOn#g$j)t,P'}`OTYZ[adnoprtxy}!P!Q!R!U!X!c!d!e!f!g!h!i!k!o!p!q!s!t!z#O#S#T#[#d#g#x#y#{#}$Q$e$g$h$j$q$}%S%Z%^%`%c%g%l%n%w%|&O&Z&_&h&j&k&u&x&|'P'W'Z'l'm'p'r's'w'|(O(S(W(](^(d(g(p(r(z(})^)e)g)k)l)p)t)z*O*Y*d*g*h*k*q*r*t*v*y*z*}+Q+U+V+Y+a+c+d+k+x+y,P,X,Y,],g,h,i,k,l,o,q,s,u,w,y,z-O-d-f-m-p-s.f.g/V/Z/s0c0d0e0f0h0i0j0k0l0n0r{!cQ#c#p$R$d$p%e%j%p%q&`'O'g(q(|)j*o*x+w,v0g}!dQ#c#p$R$d$p$u%e%j%p%q&`'O'g(q(|)j*o*x+w,v0g!P!eQ#c#p$R$d$p$u$v%e%j%p%q&`'O'g(q(|)j*o*x+w,v0g!R!fQ#c#p$R$d$p$u$v$w%e%j%p%q&`'O'g(q(|)j*o*x+w,v0g!T!gQ#c#p$R$d$p$u$v$w$x%e%j%p%q&`'O'g(q(|)j*o*x+w,v0g!V!hQ#c#p$R$d$p$u$v$w$x$y%e%j%p%q&`'O'g(q(|)j*o*x+w,v0g!Z!hQ!n#c#p$R$d$p$u$v$w$x$y$z%e%j%p%q&`'O'g(q(|)j*o*x+w,v0g'}TOTYZ[adnoprtxy}!P!Q!R!U!X!c!d!e!f!g!h!i!k!o!p!q!s!t!z#O#S#T#[#d#g#x#y#{#}$Q$e$g$h$j$q$}%S%Z%^%`%c%g%l%n%w%|&O&Z&_&h&j&k&u&x&|'P'W'Z'l'm'p'r's'w'|(O(S(W(](^(d(g(p(r(z(})^)e)g)k)l)p)t)z*O*Y*d*g*h*k*q*r*t*v*y*z*}+Q+U+V+Y+a+c+d+k+x+y,P,X,Y,],g,h,i,k,l,o,q,s,u,w,y,z-O-d-f-m-p-s.f.g/V/Z/s0c0d0e0f0h0i0j0k0l0n0r&eVOYZ[dnprxy}!P!Q!U!i!k!o!p!q!s!t#[#d#g#y#{#}$Q$h$j$}%S%Z%^%`%g%l%n%w%|&Z&_&j&k&u&x'P'W'Z'l'm'p'r's'w(O(W(^(d(g(p(r(z)^)e)g)p)t)z*O*Y*d*g*h*k*q*r*t*v*y*z*}+U+V+Y+a+d+k,P,X,Y,],g,h,i,k,l,o,q,s,u,w,y,z-O-d-f-m-p-s.f.g/V/Z/s0c0d0e0f0h0i0j0k0n0r%oXOYZ[dnrxy}!P!Q!U!i!k#[#d#g#y#{#}$Q$h$j$}%S%^%`%g%l%n%w%|&Z&_&j&k&u&x'P'W'Z'l'm'p'r's'w(O(W(^(d(g(p(r(z)^)e)g)p)t)z*O*Y*d*g*h*k*q*t*v*y*z*}+U+V+Y+a+d+k,P,X,Y,],g,h,i,k,l,o,s,u,w,y,z-O-d-f-m-p.f.g/V/Z0i0j0kQ#vqQ/[.kR0o0q't`OTYZ[adnoprtxy}!P!Q!R!U!X!c!d!e!f!g!h!k!o!p!q!s!t!z#O#S#T#[#d#g#x#y#{#}$Q$e$g$h$j$q$}%S%Z%^%`%c%g%l%n%w%|&O&Z&_&h&j&k&u&x&|'P'W'Z'l'p'r's'w'|(O(S(W(](^(d(g(p(r(z(})^)e)g)k)l)p)t)z*O*Y*g*h*k*q*r*t*v*y*z*}+Q+U+V+Y+a+c+d+k+x+y,P,X,Y,],h,i,k,l,o,q,s,u,w,y,z-O-d-f-m-p-s.f.g/V/Z/s0c0d0e0f0h0i0j0k0l0n0rh#jhz{$W$Z&l&q)S)X+f+g-RW#rq&].k0qQ$]|Q$a!OQ$n!VQ$o!WW$|!i'm*d,gS&[#s#tQ'S$iQ(s&UQ)U&nU)Y&s)Z+jW)a&w+m-T-{Q*Q']W*R'_,`-h.TQ+l)`S,_*S*TQ-Q+eQ-_,TQ-c,WQ.R-al.W-l.^._.a.z.|/R/j/o/t/y0U0Z0^Q/S.`Q/a.tQ/l/OU0P/u0S0[X0V/z0W0_0`R&Z#r!_!wYZ!P!Q!k%S%`%g'p'r's(O(W)g*g*h*k*q*t*v,h,i,k,l,o-m-p.f.g/ZR%^!vQ!{YQ%x#[Q&d#}Q&g$QR,{+YT.j-s/s!Y!jQ!n#c#p$R$d$p$u$v$w$x$y$z%e%j%p%q&`'O'g(q(|)j*o*x+w,v0gQ&X#kQ'c$oR*^'dR'l$|Q%V!mR/_.r'|_OTYZ[adnoprtxy}!P!Q!R!U!X!c!d!e!f!g!h!i!k!o!p!q!s!t!z#O#S#T#[#d#g#x#y#{#}$Q$e$g$h$j$q$}%S%Z%^%`%c%g%l%n%w%|&O&Z&_&h&j&k&u&x&|'P'W'Z'l'm'p'r's'w'|(O(S(W(](^(d(g(p(r(z(})^)e)g)k)l)p)t)z*O*Y*d*g*h*k*q*r*t*v*y*z*}+Q+U+V+Y+a+c+d+k+x+y,P,X,Y,],g,h,i,k,l,o,q,s,u,w,y,z-O-d-f-m-p-s.f.g/V/Z/s0c0d0e0f0h0i0j0k0l0n0rS#a_#b!P.[-l.^._.`.a.t.z.|/R/j/o/t/u/y/z0S0U0W0Z0[0^0_0`'|_OTYZ[adnoprtxy}!P!Q!R!U!X!c!d!e!f!g!h!i!k!o!p!q!s!t!z#O#S#T#[#d#g#x#y#{#}$Q$e$g$h$j$q$}%S%Z%^%`%c%g%l%n%w%|&O&Z&_&h&j&k&u&x&|'P'W'Z'l'm'p'r's'w'|(O(S(W(](^(d(g(p(r(z(})^)e)g)k)l)p)t)z*O*Y*d*g*h*k*q*r*t*v*y*z*}+Q+U+V+Y+a+c+d+k+x+y,P,X,Y,],g,h,i,k,l,o,q,s,u,w,y,z-O-d-f-m-p-s.f.g/V/Z/s0c0d0e0f0h0i0j0k0l0n0rT#a_#bT#^^#_R(o%xa(l%x(n(o+`,{-y-z.oT+[(k+]R-z,{Q$PsQ+l)aQ,^*RR-e,_X#}s$O$P&fQ&y$aQ'a$nQ'd$oR)s'SQ)b&wV-S+m-T-{ZgOn$j)t,PXkOn)t,PQ$k!TQ&z$bQ&{$cQ'^$mQ'b$oQ)q'RQ)x'WQ){'XQ)|'YQ*Z'`S*]'c'dQ+s)gQ+u)hQ+v)iQ+z)oS+|)r*[Q,Q)vQ,R)wS,S)y)zQ,d*^Q-V+rQ-W+tQ-Y+{S-Z+},OQ-`,UQ-b,VQ-|-XQ.O-[Q.P-^Q.Q-_Q.p-}Q.q.RQ/W.dR/r/XWkOn)t,PR#mjQ'`$nS)r'S'aR,O)sQ,]*RR-f,^Q*['`Q+})rR-[,OZiOjn)t,PQ'f$pR*`'gT-j,e-ku.c-l.^._.a.t.z.|/R/j/o/t/u/y0S0U0Z0[0^t.c-l.^._.a.t.z.|/R/j/o/t/u/y0S0U0Z0[0^Q/S.`X0V/z0W0_0`!P.Z-l.^._.`.a.t.z.|/R/j/o/t/u/y/z0S0U0W0Z0[0^0_0`Q.w.YR/f.xg.z.].{/b/i/n/|0O0Q0]0a0bu.b-l.^._.a.t.z.|/R/j/o/t/u/y0S0U0Z0[0^X.u.W.b/a0PR/c.tV0R/u0S0[R/X.dQnOS#on,PR,P)tQ&^#uR(x&^S%m#R#wS(_%m(bT(b%p&`Q%a!yQ%h!}W(P%a%h(U(YQ(U%eR(Y%jQ&i$RR)O&iQ(e%qQ*{(`T+R(e*{Q'n%OR*e'nS'q%R%SY*i'q*j,m-q.hU*j'r's'tU,m*k*l*mS-q,n,oR.h-rQ#Y]R%t#YQ#_^R%y#_Q(h%vS+W(h+XR+X(iQ+](kR,|+]Q#b_R%{#bQ#ebQ%}#cW&Q#e%}({+bQ({&cR+b0gQ$OsS&e$O&fR&f$PQ&v$_R)_&vQ&V#jR(t&VQ&m$VS)T&m+hR+h)UQ$Z{R&p$ZQ&t$]R)[&tQ+n)bR-U+nQ#hfR&S#hQ)f&zR+q)fQ&}$dS)m&})nR)n'OQ'V$kR)u'VQ'[$lS*P'[,ZR,Z*QQ,a*VR-i,aWjOn)t,PR#ljQ-k,eR.U-kd.{.]/b/i/n/|0O0Q0]0a0bR/h.{U.s.W/a0PR/`.sQ/{/nS0X/{0YR0Y/|S/v/b/cR0T/vQ.}.]R/k.}R!ZPXmOn)t,PWlOn)t,PR'T$jYfOn$j)t,PR&R#g[sOn#g$j)t,PR&d#}&dQOYZ[dnprxy}!P!Q!U!i!k!o!p!q!s!t#[#d#g#y#{#}$Q$h$j$}%S%Z%^%`%g%l%n%w%|&Z&_&j&k&u&x'P'W'Z'l'm'p'r's'w(O(W(^(d(g(p(r(z)^)e)g)p)t)z*O*Y*d*g*h*k*q*r*t*v*y*z*}+U+V+Y+a+d+k,P,X,Y,],g,h,i,k,l,o,q,s,u,w,y,z-O-d-f-m-p-s.f.g/V/Z/s0c0d0e0f0h0i0j0k0n0rQ!nTQ#caQ#poU$Rt%c(SS$d!R$gQ$p!XQ$u!cQ$v!dQ$w!eQ$x!fQ$y!gQ$z!hQ%e!zQ%j#OQ%p#SQ%q#TQ&`#xQ'O$eQ'g$qQ(q&OU(|&h(}+cW)j&|)l+x+yQ*o'|Q*x(]Q+w)kQ,v+QR0g0lQ!yYQ!}ZQ$b!PQ$c!QQ%R!kQ't%S^'{%`%g(O(W*q*t*v^*f'p*h,k,l-p.g/ZQ*l'rQ*m'sQ+t)gQ,j*gQ,n*kQ-n,hQ-o,iQ-r,oQ.e-mR/Y.f[bOn#g$j)t,P!^!vYZ!P!Q!k%S%`%g'p'r's(O(W)g*g*h*k*q*t*v,h,i,k,l,o-m-p.f.g/ZQ#R[Q#fdS#wrxQ$UyW$_}$Q'P)pS$l!U$hW${!i'm*d,gS%v#[+Y`&P#d%|(p(r(z+a-O0kQ&a#yQ&b#{Q&c#}Q'j$}Q'z%^W([%l(^*y*}Q(`%nQ(i%wQ(v&ZS(y&_0iQ)P&jQ)Q&kU)]&u)^+kQ)d&xQ)y'WY)}'Z*O,X,Y-dQ*b'lS*n'w0jW+P(d*z,s,wW+T(g+V,y,zQ+p)eQ,U)zQ,c*YQ,x+UQ-P+dQ-e,]Q-v,uQ.S-fR/q/VhUOn#d#g$j%|&_'w(p(r)t,P%U!uYZ[drxy}!P!Q!U!i!k#[#y#{#}$Q$h$}%S%^%`%g%l%n%w&Z&j&k&u&x'P'W'Z'l'm'p'r's(O(W(^(d(g(z)^)e)g)p)z*O*Y*d*g*h*k*q*t*v*y*z*}+U+V+Y+a+d+k,X,Y,],g,h,i,k,l,o,s,u,w,y,z-O-d-f-m-p.f.g/V/Z0i0j0kQ#qpW%W!o!s0d0nQ%X!pQ%Y!qQ%[!tQ%f0cS'v%Z0hQ'x0eQ'y0fQ,p*rQ-u,qS.i-s/sR0p0rU#uq.k0qR(w&][cOn#g$j)t,PZ!xY#[#}$Q+YQ#W[Q#zrR$TxQ%b!yQ%i!}Q%o#RQ'j${Q(V%eQ(Z%jQ(c%pQ(f%qQ*|(`Q,f*bQ-t,pQ.m-uR/].lQ$StQ(R%cR*s(SQ.l-sR/}/sR#QZR#V[R%Q!iQ%O!iV*c'm*d,g!Z!lQ!n#c#p$R$d$p$u$v$w$x$y$z%e%j%p%q&`'O'g(q(|)j*o*x+w,v0gR%T!kT#]^#_Q%x#[R,{+YQ(m%xS+_(n(oQ,}+`Q-x,{S.n-y-zR/^.oT+Z(k+]Q$`}Q&g$QQ)o'PR+{)pQ$XzQ)W&qR+i)XQ$XzQ&o$WQ)W&qR+i)XQ#khW$Vz$W&q)XQ$[{Q&r$ZZ)R&l)S+f+g-RR$^|R)c&wXlOn)t,PQ$f!RR'Q$gQ$m!UR'R$hR*X'_Q*V'_V-g,`-h.TQ.d-lQ/P.^R/Q._U.]-l.^._Q/U.aQ/b.tQ/g.zU/i.|/j/yQ/n/RQ/|/oQ0O/tU0Q/u0S0[Q0]0UQ0a0ZR0b0^R/T.`R/d.t",
+    nodeNames: "\u26A0 print Escape { Comment Script AssignStatement * BinaryExpression BitOp BitOp BitOp BitOp ArithOp ArithOp @ ArithOp ** UnaryExpression ArithOp BitOp AwaitExpression await ) ( ParenthesizedExpression BinaryExpression or and CompareOp in not is UnaryExpression ConditionalExpression if else LambdaExpression lambda ParamList VariableName AssignOp , : NamedExpression AssignOp YieldExpression yield from TupleExpression ComprehensionExpression async for LambdaExpression ] [ ArrayExpression ArrayComprehensionExpression } { DictionaryExpression DictionaryComprehensionExpression SetExpression SetComprehensionExpression CallExpression ArgList AssignOp MemberExpression . PropertyName Number String FormatString FormatReplacement FormatSelfDoc FormatConversion FormatSpec FormatReplacement FormatSelfDoc ContinuedString Ellipsis None Boolean TypeDef AssignOp UpdateStatement UpdateOp ExpressionStatement DeleteStatement del PassStatement pass BreakStatement break ContinueStatement continue ReturnStatement return YieldStatement PrintStatement RaiseStatement raise ImportStatement import as ScopeStatement global nonlocal AssertStatement assert TypeDefinition type TypeParamList TypeParam StatementGroup ; IfStatement Body elif WhileStatement while ForStatement TryStatement try except finally WithStatement with FunctionDefinition def ParamList AssignOp TypeDef ClassDefinition class DecoratedStatement Decorator At MatchStatement match MatchBody MatchClause case CapturePattern LiteralPattern ArithOp ArithOp AsPattern OrPattern LogicOp AttributePattern SequencePattern MappingPattern StarPattern ClassPattern PatternArgList KeywordPattern KeywordPattern Guard",
+    maxTerm: 277,
+    context: trackIndent,
+    nodeProps: [
+      ["isolate", -5, 4, 71, 72, 73, 77, ""],
+      ["group", -15, 6, 85, 87, 88, 90, 92, 94, 96, 98, 99, 100, 102, 105, 108, 110, "Statement Statement", -22, 8, 18, 21, 25, 40, 49, 50, 56, 57, 60, 61, 62, 63, 64, 67, 70, 71, 72, 79, 80, 81, 82, "Expression", -10, 114, 116, 119, 121, 122, 126, 128, 133, 135, 138, "Statement", -9, 143, 144, 147, 148, 150, 151, 152, 153, 154, "Pattern"],
+      ["openedBy", 23, "(", 54, "[", 58, "{"],
+      ["closedBy", 24, ")", 55, "]", 59, "}"]
+    ],
+    propSources: [pythonHighlighting],
+    skippedNodes: [0, 4],
+    repeatNodeCount: 34,
+    tokenData: "!2|~R!`OX%TXY%oY[%T[]%o]p%Tpq%oqr'ars)Yst*xtu%Tuv,dvw-hwx.Uxy/tyz0[z{0r{|2S|}2p}!O3W!O!P4_!P!Q:Z!Q!R;k!R![>_![!]Do!]!^Es!^!_FZ!_!`Gk!`!aHX!a!b%T!b!cIf!c!dJU!d!eK^!e!hJU!h!i!#f!i!tJU!t!u!,|!u!wJU!w!x!.t!x!}JU!}#O!0S#O#P&o#P#Q!0j#Q#R!1Q#R#SJU#S#T%T#T#UJU#U#VK^#V#YJU#Y#Z!#f#Z#fJU#f#g!,|#g#iJU#i#j!.t#j#oJU#o#p!1n#p#q!1s#q#r!2a#r#s!2f#s$g%T$g;'SJU;'S;=`KW<%lOJU`%YT&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%T`%lP;=`<%l%To%v]&n`%c_OX%TXY%oY[%T[]%o]p%Tpq%oq#O%T#O#P&o#P#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%To&tX&n`OY%TYZ%oZ]%T]^%o^#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tc'f[&n`O!_%T!_!`([!`#T%T#T#U(r#U#f%T#f#g(r#g#h(r#h#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tc(cTmR&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tc(yT!mR&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk)aV&n`&[ZOr%Trs)vs#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk){V&n`Or%Trs*bs#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk*iT&n`&^ZO#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%To+PZS_&n`OY*xYZ%TZ]*x]^%T^#o*x#o#p+r#p#q*x#q#r+r#r;'S*x;'S;=`,^<%lO*x_+wTS_OY+rZ]+r^;'S+r;'S;=`,W<%lO+r_,ZP;=`<%l+ro,aP;=`<%l*xj,kV%rQ&n`O!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tj-XT!xY&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tj-oV%lQ&n`O!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk.]V&n`&ZZOw%Twx.rx#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk.wV&n`Ow%Twx/^x#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk/eT&n`&]ZO#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk/{ThZ&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tc0cTgR&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk0yXVZ&n`Oz%Tz{1f{!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk1mVaR&n`O!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk2ZV%oZ&n`O!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tc2wTzR&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%To3_W%pZ&n`O!_%T!_!`-Q!`!a3w!a#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Td4OT&{S&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk4fX!fQ&n`O!O%T!O!P5R!P!Q%T!Q![6T![#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk5WV&n`O!O%T!O!P5m!P#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk5tT!rZ&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Ti6[a!hX&n`O!Q%T!Q![6T![!g%T!g!h7a!h!l%T!l!m9s!m#R%T#R#S6T#S#X%T#X#Y7a#Y#^%T#^#_9s#_#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Ti7fZ&n`O{%T{|8X|}%T}!O8X!O!Q%T!Q![8s![#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Ti8^V&n`O!Q%T!Q![8s![#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Ti8z]!hX&n`O!Q%T!Q![8s![!l%T!l!m9s!m#R%T#R#S8s#S#^%T#^#_9s#_#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Ti9zT!hX&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk:bX%qR&n`O!P%T!P!Q:}!Q!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tj;UV%sQ&n`O!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Ti;ro!hX&n`O!O%T!O!P=s!P!Q%T!Q![>_![!d%T!d!e?q!e!g%T!g!h7a!h!l%T!l!m9s!m!q%T!q!rA]!r!z%T!z!{Bq!{#R%T#R#S>_#S#U%T#U#V?q#V#X%T#X#Y7a#Y#^%T#^#_9s#_#c%T#c#dA]#d#l%T#l#mBq#m#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Ti=xV&n`O!Q%T!Q![6T![#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Ti>fc!hX&n`O!O%T!O!P=s!P!Q%T!Q![>_![!g%T!g!h7a!h!l%T!l!m9s!m#R%T#R#S>_#S#X%T#X#Y7a#Y#^%T#^#_9s#_#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Ti?vY&n`O!Q%T!Q!R@f!R!S@f!S#R%T#R#S@f#S#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Ti@mY!hX&n`O!Q%T!Q!R@f!R!S@f!S#R%T#R#S@f#S#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TiAbX&n`O!Q%T!Q!YA}!Y#R%T#R#SA}#S#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TiBUX!hX&n`O!Q%T!Q!YA}!Y#R%T#R#SA}#S#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TiBv]&n`O!Q%T!Q![Co![!c%T!c!iCo!i#R%T#R#SCo#S#T%T#T#ZCo#Z#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TiCv]!hX&n`O!Q%T!Q![Co![!c%T!c!iCo!i#R%T#R#SCo#S#T%T#T#ZCo#Z#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%ToDvV{_&n`O!_%T!_!`E]!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TcEdT%{R&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TkEzT#gZ&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TkFbXmR&n`O!^%T!^!_F}!_!`([!`!a([!a#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TjGUV%mQ&n`O!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TkGrV%zZ&n`O!_%T!_!`([!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TkH`WmR&n`O!_%T!_!`([!`!aHx!a#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TjIPV%nQ&n`O!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TkIoV_Q#}P&n`O!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%ToJ_]&n`&YS%uZO!Q%T!Q![JU![!c%T!c!}JU!}#R%T#R#SJU#S#T%T#T#oJU#p#q%T#r$g%T$g;'SJU;'S;=`KW<%lOJUoKZP;=`<%lJUoKge&n`&YS%uZOr%Trs)Ysw%Twx.Ux!Q%T!Q![JU![!c%T!c!tJU!t!uLx!u!}JU!}#R%T#R#SJU#S#T%T#T#fJU#f#gLx#g#oJU#p#q%T#r$g%T$g;'SJU;'S;=`KW<%lOJUoMRa&n`&YS%uZOr%TrsNWsw%Twx! vx!Q%T!Q![JU![!c%T!c!}JU!}#R%T#R#SJU#S#T%T#T#oJU#p#q%T#r$g%T$g;'SJU;'S;=`KW<%lOJUkN_V&n`&`ZOr%TrsNts#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%TkNyV&n`Or%Trs! `s#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk! gT&n`&bZO#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk! }V&n`&_ZOw%Twx!!dx#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!!iV&n`Ow%Twx!#Ox#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!#VT&n`&aZO#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%To!#oe&n`&YS%uZOr%Trs!%Qsw%Twx!&px!Q%T!Q![JU![!c%T!c!tJU!t!u!(`!u!}JU!}#R%T#R#SJU#S#T%T#T#fJU#f#g!(`#g#oJU#p#q%T#r$g%T$g;'SJU;'S;=`KW<%lOJUk!%XV&n`&dZOr%Trs!%ns#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!%sV&n`Or%Trs!&Ys#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!&aT&n`&fZO#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!&wV&n`&cZOw%Twx!'^x#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!'cV&n`Ow%Twx!'xx#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!(PT&n`&eZO#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%To!(ia&n`&YS%uZOr%Trs!)nsw%Twx!+^x!Q%T!Q![JU![!c%T!c!}JU!}#R%T#R#SJU#S#T%T#T#oJU#p#q%T#r$g%T$g;'SJU;'S;=`KW<%lOJUk!)uV&n`&hZOr%Trs!*[s#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!*aV&n`Or%Trs!*vs#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!*}T&n`&jZO#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!+eV&n`&gZOw%Twx!+zx#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!,PV&n`Ow%Twx!,fx#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tk!,mT&n`&iZO#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%To!-Vi&n`&YS%uZOr%TrsNWsw%Twx! vx!Q%T!Q![JU![!c%T!c!dJU!d!eLx!e!hJU!h!i!(`!i!}JU!}#R%T#R#SJU#S#T%T#T#UJU#U#VLx#V#YJU#Y#Z!(`#Z#oJU#p#q%T#r$g%T$g;'SJU;'S;=`KW<%lOJUo!.}a&n`&YS%uZOr%Trs)Ysw%Twx.Ux!Q%T!Q![JU![!c%T!c!}JU!}#R%T#R#SJU#S#T%T#T#oJU#p#q%T#r$g%T$g;'SJU;'S;=`KW<%lOJUk!0ZT!XZ&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tc!0qT!WR&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%Tj!1XV%kQ&n`O!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%T~!1sO!]~k!1zV%jR&n`O!_%T!_!`-Q!`#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%T~!2fO![~i!2mT%tX&n`O#o%T#p#q%T#r;'S%T;'S;=`%i<%lO%T",
+    tokenizers: [legacyPrint, indentation, newlines, strings, 0, 1, 2, 3, 4],
+    topRules: { "Script": [0, 5] },
+    specialized: [{ term: 221, get: (value) => spec_identifier3[value] || -1 }],
+    tokenPrec: 7668
+  });
+
+  // node_modules/@codemirror/lang-python/dist/index.js
+  function innerBody(context) {
+    let { node, pos } = context;
+    let lineIndent = context.lineIndent(pos, -1);
+    let found = null;
+    for (; ; ) {
+      let before = node.childBefore(pos);
+      if (!before) {
+        break;
+      } else if (before.name == "Comment") {
+        pos = before.from;
+      } else if (before.name == "Body" || before.name == "MatchBody") {
+        if (context.baseIndentFor(before) + context.unit <= lineIndent)
+          found = before;
+        node = before;
+      } else if (before.name == "MatchClause") {
+        node = before;
+      } else if (before.type.is("Statement")) {
+        node = before;
+      } else {
+        break;
+      }
+    }
+    return found;
+  }
+  function indentBody(context, node) {
+    let base3 = context.baseIndentFor(node);
+    let line = context.lineAt(context.pos, -1), to = line.from + line.text.length;
+    if (/^\s*($|#)/.test(line.text) && context.node.to < to + 100 && !/\S/.test(context.state.sliceDoc(to, context.node.to)) && context.lineIndent(context.pos, -1) <= base3)
+      return null;
+    if (/^\s*(else:|elif |except |finally:|case\s+[^=:]+:)/.test(context.textAfter) && context.lineIndent(context.pos, -1) > base3)
+      return null;
+    return base3 + context.unit;
+  }
+  var pythonLanguage = /* @__PURE__ */ LRLanguage.define({
+    name: "python",
+    parser: /* @__PURE__ */ parser6.configure({
+      props: [
+        /* @__PURE__ */ indentNodeProp.add({
+          Body: (context) => {
+            var _a3;
+            let body = /^\s*(#|$)/.test(context.textAfter) && innerBody(context) || context.node;
+            return (_a3 = indentBody(context, body)) !== null && _a3 !== void 0 ? _a3 : context.continue();
+          },
+          MatchBody: (context) => {
+            var _a3;
+            let inner = innerBody(context);
+            return (_a3 = indentBody(context, inner || context.node)) !== null && _a3 !== void 0 ? _a3 : context.continue();
+          },
+          IfStatement: (cx) => /^\s*(else:|elif )/.test(cx.textAfter) ? cx.baseIndent : cx.continue(),
+          "ForStatement WhileStatement": (cx) => /^\s*else:/.test(cx.textAfter) ? cx.baseIndent : cx.continue(),
+          TryStatement: (cx) => /^\s*(except[ :]|finally:|else:)/.test(cx.textAfter) ? cx.baseIndent : cx.continue(),
+          MatchStatement: (cx) => {
+            if (/^\s*case /.test(cx.textAfter))
+              return cx.baseIndent + cx.unit;
+            return cx.continue();
+          },
+          "TupleExpression ComprehensionExpression ParamList ArgList ParenthesizedExpression": /* @__PURE__ */ delimitedIndent({ closing: ")" }),
+          "DictionaryExpression DictionaryComprehensionExpression SetExpression SetComprehensionExpression": /* @__PURE__ */ delimitedIndent({ closing: "}" }),
+          "ArrayExpression ArrayComprehensionExpression": /* @__PURE__ */ delimitedIndent({ closing: "]" }),
+          MemberExpression: (cx) => cx.baseIndent + cx.unit,
+          "String FormatString": () => null,
+          Script: (context) => {
+            var _a3;
+            let inner = innerBody(context);
+            return (_a3 = inner && indentBody(context, inner)) !== null && _a3 !== void 0 ? _a3 : context.continue();
+          }
+        }),
+        /* @__PURE__ */ foldNodeProp.add({
+          "ArrayExpression DictionaryExpression SetExpression TupleExpression": foldInside,
+          Body: (node, state) => ({ from: node.from + 1, to: node.to - (node.to == state.doc.length ? 0 : 1) }),
+          "String FormatString": (node, state) => ({ from: state.doc.lineAt(node.from).to, to: node.to })
+        })
+      ]
+    }),
+    languageData: {
+      closeBrackets: {
+        brackets: ["(", "[", "{", "'", '"', "'''", '"""'],
+        stringPrefixes: [
+          "f",
+          "fr",
+          "rf",
+          "r",
+          "u",
+          "b",
+          "br",
+          "rb",
+          "F",
+          "FR",
+          "RF",
+          "R",
+          "U",
+          "B",
+          "BR",
+          "RB"
+        ]
+      },
+      commentTokens: { line: "#" },
+      // Indent logic logic are triggered upon below input patterns
+      indentOnInput: /^\s*([\}\]\)]|else:|elif |except |finally:|case\s+[^:]*:?)$/
+    }
+  });
+
+  // node_modules/@lezer/yaml/dist/index.js
+  var blockEnd = 63;
+  var eof2 = 64;
+  var DirectiveEnd = 1;
+  var DocEnd = 2;
+  var sequenceStartMark = 3;
+  var sequenceContinueMark = 4;
+  var explicitMapStartMark = 5;
+  var explicitMapContinueMark = 6;
+  var flowMapMark = 7;
+  var mapStartMark = 65;
+  var mapContinueMark = 66;
+  var Literal = 8;
+  var QuotedLiteral = 9;
+  var Anchor = 10;
+  var Alias = 11;
+  var Tag2 = 12;
+  var BlockLiteralContent = 13;
+  var BracketL2 = 19;
+  var FlowSequence = 20;
+  var Colon = 29;
+  var BraceL2 = 33;
+  var FlowMapping = 34;
+  var BlockLiteralHeader = 47;
+  var type_Top = 0;
+  var type_Seq = 1;
+  var type_Map = 2;
+  var type_Flow = 3;
+  var type_Lit = 4;
+  var Context3 = class {
+    constructor(parent, depth, type) {
+      this.parent = parent;
+      this.depth = depth;
+      this.type = type;
+      this.hash = (parent ? parent.hash + parent.hash << 8 : 0) + depth + (depth << 4) + type;
+    }
+  };
+  Context3.top = new Context3(null, -1, type_Top);
+  function findColumn2(input, pos) {
+    for (let col = 0, p = pos - input.pos - 1; ; p--, col++) {
+      let ch = input.peek(p);
+      if (isBreakSpace(ch) || ch == -1) return col;
+    }
+  }
+  function isNonBreakSpace(ch) {
+    return ch == 32 || ch == 9;
+  }
+  function isBreakSpace(ch) {
+    return ch == 10 || ch == 13;
+  }
+  function isSpace(ch) {
+    return isNonBreakSpace(ch) || isBreakSpace(ch);
+  }
+  function isSep(ch) {
+    return ch < 0 || isSpace(ch);
+  }
+  var indentation2 = new ContextTracker({
+    start: Context3.top,
+    reduce(context, term) {
+      return context.type == type_Flow && (term == FlowSequence || term == FlowMapping) ? context.parent : context;
+    },
+    shift(context, term, stack, input) {
+      if (term == sequenceStartMark)
+        return new Context3(context, findColumn2(input, input.pos), type_Seq);
+      if (term == mapStartMark || term == explicitMapStartMark)
+        return new Context3(context, findColumn2(input, input.pos), type_Map);
+      if (term == blockEnd)
+        return context.parent;
+      if (term == BracketL2 || term == BraceL2)
+        return new Context3(context, 0, type_Flow);
+      if (term == BlockLiteralContent && context.type == type_Lit)
+        return context.parent;
+      if (term == BlockLiteralHeader) {
+        let indent2 = /[1-9]/.exec(input.read(input.pos, stack.pos));
+        if (indent2) return new Context3(context, context.depth + +indent2[0], type_Lit);
+      }
+      return context;
+    },
+    hash(context) {
+      return context.hash;
+    }
+  });
+  function three(input, ch, off = 0) {
+    return input.peek(off) == ch && input.peek(off + 1) == ch && input.peek(off + 2) == ch && isSep(input.peek(off + 3));
+  }
+  var newlines2 = new ExternalTokenizer((input, stack) => {
+    if (input.next == -1 && stack.canShift(eof2))
+      return input.acceptToken(eof2);
+    let prev = input.peek(-1);
+    if ((isBreakSpace(prev) || prev < 0) && stack.context.type != type_Flow) {
+      if (three(
+        input,
+        45
+        /* '-' */
+      )) {
+        if (stack.canShift(blockEnd)) input.acceptToken(blockEnd);
+        else return input.acceptToken(DirectiveEnd, 3);
+      }
+      if (three(
+        input,
+        46
+        /* '.' */
+      )) {
+        if (stack.canShift(blockEnd)) input.acceptToken(blockEnd);
+        else return input.acceptToken(DocEnd, 3);
+      }
+      let depth = 0;
+      while (input.next == 32) {
+        depth++;
+        input.advance();
+      }
+      if ((depth < stack.context.depth || depth == stack.context.depth && stack.context.type == type_Seq && (input.next != 45 || !isSep(input.peek(1)))) && // Not blank
+      input.next != -1 && !isBreakSpace(input.next) && input.next != 35)
+        input.acceptToken(blockEnd, -depth);
+    }
+  }, { contextual: true });
+  var blockMark = new ExternalTokenizer((input, stack) => {
+    if (stack.context.type == type_Flow) {
+      if (input.next == 63) {
+        input.advance();
+        if (isSep(input.next)) input.acceptToken(flowMapMark);
+      }
+      return;
+    }
+    if (input.next == 45) {
+      input.advance();
+      if (isSep(input.next))
+        input.acceptToken(stack.context.type == type_Seq && stack.context.depth == findColumn2(input, input.pos - 1) ? sequenceContinueMark : sequenceStartMark);
+    } else if (input.next == 63) {
+      input.advance();
+      if (isSep(input.next))
+        input.acceptToken(stack.context.type == type_Map && stack.context.depth == findColumn2(input, input.pos - 1) ? explicitMapContinueMark : explicitMapStartMark);
+    } else {
+      let start = input.pos;
+      for (; ; ) {
+        if (isNonBreakSpace(input.next)) {
+          if (input.pos == start) return;
+          input.advance();
+        } else if (input.next == 33) {
+          readTag(input);
+        } else if (input.next == 38) {
+          readAnchor(input);
+        } else if (input.next == 42) {
+          readAnchor(input);
+          break;
+        } else if (input.next == 39 || input.next == 34) {
+          if (readQuoted(input, true)) break;
+          return;
+        } else if (input.next == 91 || input.next == 123) {
+          if (!scanBrackets(input)) return;
+          break;
+        } else {
+          readPlain(input, true, false, 0);
+          break;
+        }
+      }
+      while (isNonBreakSpace(input.next)) input.advance();
+      if (input.next == 58) {
+        if (input.pos == start && stack.canShift(Colon)) return;
+        let after = input.peek(1);
+        if (isSep(after))
+          input.acceptTokenTo(stack.context.type == type_Map && stack.context.depth == findColumn2(input, start) ? mapContinueMark : mapStartMark, start);
+      }
+    }
+  }, { contextual: true });
+  function uriChar(ch) {
+    return ch > 32 && ch < 127 && ch != 34 && ch != 37 && ch != 44 && ch != 60 && ch != 62 && ch != 92 && ch != 94 && ch != 96 && ch != 123 && ch != 124 && ch != 125;
+  }
+  function hexChar(ch) {
+    return ch >= 48 && ch <= 57 || ch >= 97 && ch <= 102 || ch >= 65 && ch <= 70;
+  }
+  function readUriChar(input, quoted) {
+    if (input.next == 37) {
+      input.advance();
+      if (hexChar(input.next)) input.advance();
+      if (hexChar(input.next)) input.advance();
+      return true;
+    } else if (uriChar(input.next) || quoted && input.next == 44) {
+      input.advance();
+      return true;
+    }
+    return false;
+  }
+  function readTag(input) {
+    input.advance();
+    if (input.next == 60) {
+      input.advance();
+      for (; ; ) {
+        if (!readUriChar(input, true)) {
+          if (input.next == 62) input.advance();
+          break;
+        }
+      }
+    } else {
+      while (readUriChar(input, false)) {
+      }
+    }
+  }
+  function readAnchor(input) {
+    input.advance();
+    while (!isSep(input.next) && charTag(input.next) != "f") input.advance();
+  }
+  function readQuoted(input, scan) {
+    let quote = input.next, lineBreak = false, start = input.pos;
+    input.advance();
+    for (; ; ) {
+      let ch = input.next;
+      if (ch < 0) break;
+      input.advance();
+      if (ch == quote) {
+        if (ch == 39) {
+          if (input.next == 39) input.advance();
+          else break;
+        } else {
+          break;
+        }
+      } else if (ch == 92 && quote == 34) {
+        if (input.next >= 0) input.advance();
+      } else if (isBreakSpace(ch)) {
+        if (scan) return false;
+        lineBreak = true;
+      } else if (scan && input.pos >= start + 1024) {
+        return false;
+      }
+    }
+    return !lineBreak;
+  }
+  function scanBrackets(input) {
+    for (let stack = [], end = input.pos + 1024; ; ) {
+      if (input.next == 91 || input.next == 123) {
+        stack.push(input.next);
+        input.advance();
+      } else if (input.next == 39 || input.next == 34) {
+        if (!readQuoted(input, true)) return false;
+      } else if (input.next == 93 || input.next == 125) {
+        if (stack[stack.length - 1] != input.next - 2) return false;
+        stack.pop();
+        input.advance();
+        if (!stack.length) return true;
+      } else if (input.next < 0 || input.pos > end || isBreakSpace(input.next)) {
+        return false;
+      } else {
+        input.advance();
+      }
+    }
+  }
+  var charTable = "iiisiiissisfissssssssssssisssiiissssssssssssssssssssssssssfsfssissssssssssssssssssssssssssfif";
+  function charTag(ch) {
+    if (ch < 33) return "u";
+    if (ch > 125) return "s";
+    return charTable[ch - 33];
+  }
+  function isSafe(ch, inFlow) {
+    let tag = charTag(ch);
+    return tag != "u" && !(inFlow && tag == "f");
+  }
+  function readPlain(input, scan, inFlow, indent2) {
+    if (charTag(input.next) == "s" || (input.next == 63 || input.next == 58 || input.next == 45) && isSafe(input.peek(1), inFlow)) {
+      input.advance();
+    } else {
+      return false;
+    }
+    let start = input.pos;
+    for (; ; ) {
+      let next2 = input.next, off = 0, lineIndent = indent2 + 1;
+      while (isSpace(next2)) {
+        if (isBreakSpace(next2)) {
+          if (scan) return false;
+          lineIndent = 0;
+        } else {
+          lineIndent++;
+        }
+        next2 = input.peek(++off);
+      }
+      let safe = next2 >= 0 && (next2 == 58 ? isSafe(input.peek(off + 1), inFlow) : next2 == 35 ? input.peek(off - 1) != 32 : isSafe(next2, inFlow));
+      if (!safe || !inFlow && lineIndent <= indent2 || lineIndent == 0 && !inFlow && (three(input, 45, off) || three(input, 46, off)))
+        break;
+      if (scan && charTag(next2) == "f") return false;
+      for (let i2 = off; i2 >= 0; i2--) input.advance();
+      if (scan && input.pos > start + 1024) return false;
+    }
+    return true;
+  }
+  var literals = new ExternalTokenizer((input, stack) => {
+    if (input.next == 33) {
+      readTag(input);
+      input.acceptToken(Tag2);
+    } else if (input.next == 38 || input.next == 42) {
+      let token = input.next == 38 ? Anchor : Alias;
+      readAnchor(input);
+      input.acceptToken(token);
+    } else if (input.next == 39 || input.next == 34) {
+      readQuoted(input, false);
+      input.acceptToken(QuotedLiteral);
+    } else if (readPlain(input, false, stack.context.type == type_Flow, stack.context.depth)) {
+      input.acceptToken(Literal);
+    }
+  });
+  var blockLiteral = new ExternalTokenizer((input, stack) => {
+    let indent2 = stack.context.type == type_Lit ? stack.context.depth : -1, upto = input.pos;
+    scan: for (; ; ) {
+      let depth = 0, next2 = input.next;
+      while (next2 == 32) next2 = input.peek(++depth);
+      if (!depth && (three(input, 45, depth) || three(input, 46, depth))) break;
+      if (!isBreakSpace(next2)) {
+        if (indent2 < 0) indent2 = Math.max(stack.context.depth + 1, depth);
+        if (depth < indent2) break;
+      }
+      for (; ; ) {
+        if (input.next < 0) break scan;
+        let isBreak = isBreakSpace(input.next);
+        input.advance();
+        if (isBreak) continue scan;
+        upto = input.pos;
+      }
+    }
+    input.acceptTokenTo(BlockLiteralContent, upto);
+  });
+  var yamlHighlighting = styleTags({
+    DirectiveName: tags.keyword,
+    DirectiveContent: tags.attributeValue,
+    "DirectiveEnd DocEnd": tags.meta,
+    QuotedLiteral: tags.string,
+    BlockLiteralHeader: tags.special(tags.string),
+    BlockLiteralContent: tags.content,
+    Literal: tags.content,
+    "Key/Literal Key/QuotedLiteral": tags.definition(tags.propertyName),
+    "Anchor Alias": tags.labelName,
+    Tag: tags.typeName,
+    Comment: tags.lineComment,
+    ": , -": tags.separator,
+    "?": tags.punctuation,
+    "[ ]": tags.squareBracket,
+    "{ }": tags.brace
+  });
+  var parser7 = LRParser.deserialize({
+    version: 14,
+    states: "5lQ!ZQgOOO#PQfO'#CpO#uQfO'#DOOOQR'#Dv'#DvO$qQgO'#DRO%gQdO'#DUO%nQgO'#DUO&ROaO'#D[OOQR'#Du'#DuO&{QgO'#D^O'rQgO'#D`OOQR'#Dt'#DtO(iOqO'#DbOOQP'#Dj'#DjO(zQaO'#CmO)YQgO'#CmOOQP'#Cm'#CmQ)jQaOOQ)uQgOOQ]QgOOO*PQdO'#CrO*nQdO'#CtOOQO'#Dw'#DwO+]Q`O'#CxO+hQdO'#CwO+rQ`O'#CwOOQO'#Cv'#CvO+wQdO'#CvOOQO'#Cq'#CqO,UQ`O,59[O,^QfO,59[OOQR,59[,59[OOQO'#Cx'#CxO,eQ`O'#DPO,pQdO'#DPOOQO'#Dx'#DxO,zQdO'#DxO-XQ`O,59jO-aQfO,59jOOQR,59j,59jOOQR'#DS'#DSO-hQcO,59mO-sQgO'#DVO.TQ`O'#DVO.YQcO,59pOOQR'#DX'#DXO#|QfO'#DWO.hQcO'#DWOOQR,59v,59vO.yOWO,59vO/OOaO,59vO/WOaO,59vO/cQgO'#D_OOQR,59x,59xO0VQgO'#DaOOQR,59z,59zOOQP,59|,59|O0yOaO,59|O1ROaO,59|O1aOqO,59|OOQP-E7h-E7hO1oQgO,59XOOQP,59X,59XO2PQaO'#DeO2_QgO'#DeO2oQgO'#DkOOQP'#Dk'#DkQ)jQaOOO3PQdO'#CsOOQO,59^,59^O3kQdO'#CuOOQO,59`,59`OOQO,59c,59cO4VQdO,59cO4aQdO'#CzO4kQ`O'#CzOOQO,59b,59bOOQU,5:Q,5:QOOQR1G.v1G.vO4pQ`O1G.vOOQU-E7d-E7dO4xQdO,59kOOQO,59k,59kO5SQdO'#DQO5^Q`O'#DQOOQO,5:d,5:dOOQU,5:R,5:ROOQR1G/U1G/UO5cQ`O1G/UOOQU-E7e-E7eO5kQgO'#DhO5xQcO1G/XOOQR1G/X1G/XOOQR,59q,59qO6TQgO,59qO6eQdO'#DiO6lQgO'#DiO7PQcO1G/[OOQR1G/[1G/[OOQR,59r,59rO#|QfO,59rOOQR1G/b1G/bO7_OWO1G/bO7dOaO1G/bOOQR,59y,59yOOQR,59{,59{OOQP1G/h1G/hO7lOaO1G/hO7tOaO1G/hO8POaO1G/hOOQP1G.s1G.sO8_QgO,5:POOQP,5:P,5:POOQP,5:V,5:VOOQP-E7i-E7iOOQO,59_,59_OOQO,59a,59aOOQO1G.}1G.}OOQO,59f,59fO8oQdO,59fOOQR7+$b7+$bP,XQ`O'#DfOOQO1G/V1G/VOOQO,59l,59lO8yQdO,59lOOQR7+$p7+$pP9TQ`O'#DgOOQR'#DT'#DTOOQR,5:S,5:SOOQR-E7f-E7fOOQR7+$s7+$sOOQR1G/]1G/]O9YQgO'#DYO9jQ`O'#DYOOQR,5:T,5:TO#|QfO'#DZO9oQcO'#DZOOQR-E7g-E7gOOQR7+$v7+$vOOQR1G/^1G/^OOQR7+$|7+$|O:QOWO7+$|OOQP7+%S7+%SO:VOaO7+%SO:_OaO7+%SOOQP1G/k1G/kOOQO1G/Q1G/QOOQO1G/W1G/WOOQR,59t,59tO:jQgO,59tOOQR,59u,59uO#|QfO,59uOOQR<<Hh<<HhOOQP<<Hn<<HnO:zOaO<<HnOOQR1G/`1G/`OOQR1G/a1G/aOOQPAN>YAN>Y",
+    stateData: ";S~O!fOS!gOS^OS~OP_OQbORSOTUOWROXROYYOZZO[XOcPOqQO!PVO!V[O!cTO~O`cO~P]OVkOWROXROYeOZfO[dOcPOmhOqQO~OboO~P!bOVtOWROXROYeOZfO[dOcPOmrOqQO~OpwO~P#WORSOTUOWROXROYYOZZO[XOcPOqQO!PVO!cTO~OSvP!avP!bvP~P#|OWROXROYeOZfO[dOcPOqQO~OmzO~P%OOm!OOUzP!azP!bzP!dzP~P#|O^!SO!b!QO!f!TO!g!RO~ORSOTUOWROXROcPOqQO!PVO!cTO~OY!UOP!QXQ!QX!V!QX!`!QXS!QX!a!QX!b!QXU!QXm!QX!d!QX~P&aO[!WOP!SXQ!SX!V!SX!`!SXS!SX!a!SX!b!SXU!SXm!SX!d!SX~P&aO^!ZO!W![O!b!YO!f!]O!g!YO~OP!_O!V[OQaX!`aX~OPaXQaX!VaX!`aX~P#|OP!bOQ!cO!V[O~OP_O!V[O~P#|OWROXROY!fOcPOqQObfXmfXofXpfX~OWROXRO[!hOcPOqQObhXmhXohXphX~ObeXmlXoeX~ObkXokX~P%OOm!kO~Om!lObnPonP~P%OOb!pOo!oO~Ob!pO~P!bOm!sOosXpsX~OosXpsX~P%OOm!uOotPptP~P%OOo!xOp!yO~Op!yO~P#WOS!|O!a#OO!b#OO~OUyX!ayX!byX!dyX~P#|Om#QO~OU#SO!a#UO!b#UO!d#RO~Om#WOUzX!azX!bzX!dzX~O]#XO~O!b#XO!g#YO~O^#ZO!b#XO!g#YO~OP!RXQ!RX!V!RX!`!RXS!RX!a!RX!b!RXU!RXm!RX!d!RX~P&aOP!TXQ!TX!V!TX!`!TXS!TX!a!TX!b!TXU!TXm!TX!d!TX~P&aO!b#^O!g#^O~O^#_O!b#^O!f#`O!g#^O~O^#_O!W#aO!b#^O!g#^O~OPaaQaa!Vaa!`aa~P#|OP#cO!V[OQ!XX!`!XX~OP!XXQ!XX!V!XX!`!XX~P#|OP_O!V[OQ!_X!`!_X~P#|OWROXROcPOqQObgXmgXogXpgX~OWROXROcPOqQObiXmiXoiXpiX~Obkaoka~P%OObnXonX~P%OOm#kO~Ob#lOo!oO~Oosapsa~P%OOotXptX~P%OOm#pO~Oo!xOp#qO~OSwP!awP!bwP~P#|OS!|O!a#vO!b#vO~OUya!aya!bya!dya~P#|Om#xO~P%OOm#{OU}P!a}P!b}P!d}P~P#|OU#SO!a$OO!b$OO!d#RO~O]$QO~O!b$QO!g$RO~O!b$SO!g$SO~O^$TO!b$SO!g$SO~O^$TO!b$SO!f$UO!g$SO~OP!XaQ!Xa!V!Xa!`!Xa~P#|Obnaona~P%OOotapta~P%OOo!xO~OU|X!a|X!b|X!d|X~P#|Om$ZO~Om$]OU}X!a}X!b}X!d}X~O]$^O~O!b$_O!g$_O~O^$`O!b$_O!g$_O~OU|a!a|a!b|a!d|a~P#|O!b$cO!g$cO~O",
+    goto: ",]!mPPPPPPPPPPPPPPPPP!nPP!v#v#|$`#|$c$f$j$nP%VPPP!v%Y%^%a%{&O%a&R&U&X&_&b%aP&e&{&e'O'RPP']'a'g'm's'y(XPPPPPPPP(_)e*X+c,VUaObcR#e!c!{ROPQSTUXY_bcdehknrtvz!O!U!W!_!b!c!f!h!k!l!s!u!|#Q#R#S#W#c#k#p#x#{$Z$]QmPR!qnqfPQThknrtv!k!l!s!u#R#k#pR!gdR!ieTlPnTjPnSiPnSqQvQ{TQ!mkQ!trQ!vtR#y#RR!nkTsQvR!wt!RWOSUXY_bcz!O!U!W!_!b!c!|#Q#S#W#c#x#{$Z$]RySR#t!|R|TR|UQ!PUR#|#SR#z#RR#z#SyZOSU_bcz!O!_!b!c!|#Q#S#W#c#x#{$Z$]R!VXR!XYa]O^abc!a!c!eT!da!eQnPR!rnQvQR!{vQ!}yR#u!}Q#T|R#}#TW^Obc!cS!^^!aT!aa!eQ!eaR#f!eW`Obc!cQxSS}U#SQ!`_Q#PzQ#V!OQ#b!_Q#d!bQ#s!|Q#w#QQ$P#WQ$V#cQ$Y#xQ$[#{Q$a$ZR$b$]xZOSU_bcz!O!_!b!c!|#Q#S#W#c#x#{$Z$]Q!VXQ!XYQ#[!UR#]!W!QWOSUXY_bcz!O!U!W!_!b!c!|#Q#S#W#c#x#{$Z$]pfPQThknrtv!k!l!s!u#R#k#pQ!gdQ!ieQ#g!fR#h!hSgPn^pQTkrtv#RQ!jhQ#i!kQ#j!lQ#n!sQ#o!uQ$W#kR$X#pQuQR!zv",
+    nodeNames: "\u26A0 DirectiveEnd DocEnd - - ? ? ? Literal QuotedLiteral Anchor Alias Tag BlockLiteralContent Comment Stream BOM Document ] [ FlowSequence Item Tagged Anchored Anchored Tagged FlowMapping Pair Key : Pair , } { FlowMapping Pair Pair BlockSequence Item Item BlockMapping Pair Pair Key Pair Pair BlockLiteral BlockLiteralHeader Tagged Anchored Anchored Tagged Directive DirectiveName DirectiveContent Document",
+    maxTerm: 74,
+    context: indentation2,
+    nodeProps: [
+      ["isolate", -3, 8, 9, 14, ""],
+      ["openedBy", 18, "[", 32, "{"],
+      ["closedBy", 19, "]", 33, "}"]
+    ],
+    propSources: [yamlHighlighting],
+    skippedNodes: [0],
+    repeatNodeCount: 6,
+    tokenData: "-Y~RnOX#PXY$QYZ$]Z]#P]^$]^p#Ppq$Qqs#Pst$btu#Puv$yv|#P|}&e}![#P![!]'O!]!`#P!`!a'i!a!}#P!}#O*g#O#P#P#P#Q+Q#Q#o#P#o#p+k#p#q'i#q#r,U#r;'S#P;'S;=`#z<%l?HT#P?HT?HU,o?HUO#PQ#UU!WQOY#PZp#Ppq#hq;'S#P;'S;=`#z<%lO#PQ#kTOY#PZs#Pt;'S#P;'S;=`#z<%lO#PQ#}P;=`<%l#P~$VQ!f~XY$Qpq$Q~$bO!g~~$gS^~OY$bZ;'S$b;'S;=`$s<%lO$b~$vP;=`<%l$bR%OX!WQOX%kXY#PZ]%k]^#P^p%kpq#hq;'S%k;'S;=`&_<%lO%kR%rX!WQ!VPOX%kXY#PZ]%k]^#P^p%kpq#hq;'S%k;'S;=`&_<%lO%kR&bP;=`<%l%kR&lUoP!WQOY#PZp#Ppq#hq;'S#P;'S;=`#z<%lO#PR'VUmP!WQOY#PZp#Ppq#hq;'S#P;'S;=`#z<%lO#PR'p[!PP!WQOY#PZp#Ppq#hq{#P{|(f|}#P}!O(f!O!R#P!R![)p![;'S#P;'S;=`#z<%lO#PR(mW!PP!WQOY#PZp#Ppq#hq!R#P!R![)V![;'S#P;'S;=`#z<%lO#PR)^U!PP!WQOY#PZp#Ppq#hq;'S#P;'S;=`#z<%lO#PR)wY!PP!WQOY#PZp#Ppq#hq{#P{|)V|}#P}!O)V!O;'S#P;'S;=`#z<%lO#PR*nUcP!WQOY#PZp#Ppq#hq;'S#P;'S;=`#z<%lO#PR+XUbP!WQOY#PZp#Ppq#hq;'S#P;'S;=`#z<%lO#PR+rUqP!WQOY#PZp#Ppq#hq;'S#P;'S;=`#z<%lO#PR,]UpP!WQOY#PZp#Ppq#hq;'S#P;'S;=`#z<%lO#PR,vU`P!WQOY#PZp#Ppq#hq;'S#P;'S;=`#z<%lO#P",
+    tokenizers: [newlines2, blockMark, literals, blockLiteral, 0, 1],
+    topRules: { "Stream": [0, 15] },
+    tokenPrec: 0
+  });
+
+  // node_modules/@codemirror/lang-yaml/dist/index.js
+  var parser8 = /* @__PURE__ */ LRParser.deserialize({
+    version: 14,
+    states: "!vOQOPOOO]OPO'#C_OhOPO'#C^OOOO'#Cc'#CcOpOPO'#CaQOOOOOO{OPOOOOOO'#Cb'#CbO!WOPO'#C`O!`OPO,58xOOOO-E6a-E6aOOOO-E6`-E6`OOOO'#C_'#C_OOOO1G.d1G.d",
+    stateData: "!h~OXPOYROWTP~OWVXXRXYRX~OYVOXSP~OXROYROWTX~OXROYROWTP~OYVOXSX~OX[O~OXY~",
+    goto: "vWPPX[beioRUOQQOR]XRXQTTOUQWQRZWSSOURYS",
+    nodeNames: "\u26A0 Document Frontmatter DashLine FrontmatterContent Body",
+    maxTerm: 10,
+    skippedNodes: [0],
+    repeatNodeCount: 2,
+    tokenData: "$z~RXOYnYZ!^Z]n]^!^^}n}!O!i!O;'Sn;'S;=`!c<%lOn~qXOYnYZ!^Z]n]^!^^;'Sn;'S;=`!c<%l~n~On~~!^~!cOY~~!fP;=`<%ln~!lZOYnYZ!^Z]n]^!^^}n}!O#_!O;'Sn;'S;=`!c<%l~n~On~~!^~#bZOYnYZ!^Z]n]^!^^}n}!O$T!O;'Sn;'S;=`!c<%l~n~On~~!^~$WXOYnYZ$sZ]n]^$s^;'Sn;'S;=`!c<%l~n~On~~$s~$zOX~Y~",
+    tokenizers: [0],
+    topRules: { "Document": [0, 1] },
+    tokenPrec: 67
+  });
+  var yamlLanguage = /* @__PURE__ */ LRLanguage.define({
+    name: "yaml",
+    parser: /* @__PURE__ */ parser7.configure({
+      props: [
+        /* @__PURE__ */ indentNodeProp.add({
+          Stream: (cx) => {
+            for (let before = cx.node.resolve(cx.pos, -1); before && before.to >= cx.pos; before = before.parent) {
+              if (before.name == "BlockLiteralContent" && before.from < before.to)
+                return cx.baseIndentFor(before);
+              if (before.name == "BlockLiteral")
+                return cx.baseIndentFor(before) + cx.unit;
+              if (before.name == "BlockSequence" || before.name == "BlockMapping")
+                return cx.column(before.firstChild.from, 1);
+              if (before.name == "QuotedLiteral")
+                return null;
+              if (before.name == "Literal") {
+                let col = cx.column(before.from, 1);
+                if (col == cx.lineIndent(before.from, 1))
+                  return col;
+                if (before.to > cx.pos)
+                  return null;
+              }
+            }
+            return null;
+          },
+          FlowMapping: /* @__PURE__ */ delimitedIndent({ closing: "}" }),
+          FlowSequence: /* @__PURE__ */ delimitedIndent({ closing: "]" })
+        }),
+        /* @__PURE__ */ foldNodeProp.add({
+          "FlowMapping FlowSequence": foldInside,
+          "Item Pair BlockLiteral": (node, state) => ({ from: state.doc.lineAt(node.from).to, to: node.to })
+        })
+      ]
+    }),
+    languageData: {
+      commentTokens: { line: "#" },
+      indentOnInput: /^\s*[\]\}]$/
+    }
+  });
+  var frontmatterLanguage = /* @__PURE__ */ LRLanguage.define({
+    name: "yaml-frontmatter",
+    parser: /* @__PURE__ */ parser8.configure({
+      props: [/* @__PURE__ */ styleTags({ DashLine: tags.meta })]
+    })
+  });
+
+  // src/editor/markdown/markdownBlocks.ts
+  var { shell } = require_shell();
+  var shellLanguage = StreamLanguage.define(shell);
+  var yamlScalar = Tag.define();
+  var yamlCodeLanguage = yamlLanguage.configure({ props: [styleTags({
+    Literal: yamlScalar,
+    "Key/Literal": tags.definition(tags.propertyName)
+  })] });
+  var codeLanguageAliases = {
+    javascript: javascriptLanguage,
+    js: javascriptLanguage,
+    nodejs: javascriptLanguage,
+    typescript: typescriptLanguage,
+    ts: typescriptLanguage,
+    json: jsonLanguage,
+    bash: shellLanguage,
+    sh: shellLanguage,
+    shell: shellLanguage,
+    python: pythonLanguage,
+    py: pythonLanguage,
+    yaml: yamlCodeLanguage,
+    yml: yamlCodeLanguage
+  };
+  function markdownCodeLanguages(info) {
+    return codeLanguageAliases[info.trim().split(/\s/u, 1)[0].toLowerCase()] ?? null;
+  }
+  var markdownBlockLanguageExtensions = {
+    wrap: parseMixed((node) => node.name === "MarkdownFrontmatter" ? {
+      parser: yamlCodeLanguage.parser,
+      overlay: (child) => child.name === "MarkdownFrontmatterContent",
+      bracketed: true
+    } : null)
+  };
+  var codeHighlighter = tagHighlighter([
+    { tag: yamlScalar, class: "mlrt-markdown-block-token-scalar" },
+    { tag: tags.comment, class: "mlrt-markdown-block-token-comment" },
+    { tag: [tags.number, tags.bool, tags.null, tags.atom], class: "mlrt-markdown-block-token-constant" },
+    { tag: [tags.typeName, tags.className, tags.namespace, tags.definitionKeyword], class: "mlrt-markdown-block-token-declaration" },
+    { tag: [tags.keyword, tags.operatorKeyword, tags.modifier], class: "mlrt-markdown-block-token-keyword" },
+    { tag: [tags.string, tags.special(tags.string)], class: "mlrt-markdown-block-token-string" },
+    { tag: [tags.variableName, tags.propertyName, tags.attributeName, tags.function(tags.variableName)], class: "mlrt-markdown-block-token-variable" },
+    { tag: [tags.tagName, tags.regexp], class: "mlrt-markdown-block-token-tag" },
+    { tag: [tags.punctuation, tags.meta], class: "mlrt-markdown-block-token-punctuation" }
+  ]);
+  function overlaps2(a, b) {
+    return a.from < b.to && a.to > b.from;
+  }
+  function unprotected(range, protectedRanges) {
+    let result = [range];
+    for (const protectedRange of protectedRanges) {
+      const next2 = [];
+      for (const item of result) {
+        if (!overlaps2(item, protectedRange)) next2.push(item);
+        else {
+          if (item.from < protectedRange.from) next2.push({ from: item.from, to: protectedRange.from });
+          if (item.to > protectedRange.to) next2.push({ from: protectedRange.to, to: item.to });
+        }
+      }
+      result = next2;
+    }
+    return result;
+  }
+  function classifyMarkdownBlocks(source, tree, protectedRanges = [], visibleRanges = [{ from: 0, to: source.length }]) {
+    const rows = /* @__PURE__ */ new Map();
+    const marks2 = [];
+    const markKeys = /* @__PURE__ */ new Set();
+    const codeContents = [];
+    const seenBlocks = /* @__PURE__ */ new Set();
+    const addMark = (range, classes) => {
+      for (const window2 of visibleRanges) {
+        const visible = { from: Math.max(range.from, window2.from), to: Math.min(range.to, window2.to) };
+        if (visible.from >= visible.to) continue;
+        for (const safe of unprotected(visible, protectedRanges)) {
+          for (let from = safe.from; from < safe.to; ) {
+            const line = source.lineAt(from);
+            const to = Math.min(line.to, safe.to);
+            const key = `${from}:${to}:${classes}`;
+            if (from < to && !markKeys.has(key)) {
+              markKeys.add(key);
+              marks2.push({ from, to, classes });
+            }
+            from = line.to + 1;
+          }
+        }
+      }
+    };
+    const addRows = (node, visit) => {
+      const firstLine = source.lineAt(node.from).from;
+      const lastLine = source.lineAt(Math.max(node.from, node.to - 1)).from;
+      for (const window2 of visibleRanges) {
+        if (!overlaps2(node, window2)) continue;
+        const first = source.lineAt(Math.max(node.from, window2.from)).number;
+        const last = source.lineAt(Math.max(node.from, Math.min(node.to, window2.to) - 1)).number;
+        for (let number2 = first; number2 <= last; number2++) {
+          const line = source.line(number2);
+          if (protectedRanges.some((range) => range.from <= line.to && range.to > line.from)) continue;
+          let row = rows.get(line.from);
+          if (!row) rows.set(line.from, row = { quote: false, alertDepth: -1, start: false, end: false });
+          visit(row, line.from);
+          if (node.name === "FencedCode" || node.name === "MarkdownFrontmatter") {
+            if (line.from === firstLine) row.start = true;
+            const closing = node.lastChild;
+            if (closing && /^(CodeMark|MarkdownFrontmatterMark)$/u.test(closing.name) && closing.from > node.from && line.from === lastLine) row.end = true;
+          }
+        }
+      }
+    };
+    for (const window2 of visibleRanges) {
+      if (window2.from >= window2.to) continue;
+      tree.iterate({ from: window2.from, to: window2.to, enter(reference2) {
+        const node = reference2.node;
+        if (node.name === "Blockquote") {
+          const key = `quote:${node.from}:${node.to}`;
+          if (seenBlocks.has(key)) return;
+          seenBlocks.add(key);
+          const alert = markdownAlertForQuote(source, node);
+          let depth = 0;
+          for (let parent = node.parent; parent; parent = parent.parent) if (parent.name === "Blockquote") depth++;
+          addRows(node, (row) => {
+            row.quote = true;
+            if (alert && depth >= row.alertDepth) {
+              row.alert = alert.type;
+              row.alertDepth = depth;
+            }
+          });
+          if (alert) addMark(alert, `mlrt-markdown-block-alert-label mlrt-markdown-block-alert-${alert.type}`);
+        } else if (node.name === "FencedCode" || node.name === "CodeBlock" || node.name === "MarkdownFrontmatter") {
+          const key = `code:${node.from}:${node.to}`;
+          if (seenBlocks.has(key)) return false;
+          seenBlocks.add(key);
+          const kind = node.name === "MarkdownFrontmatter" ? "frontmatter" : "code";
+          addRows(node, (row) => {
+            row.code = kind;
+          });
+          for (let child = node.firstChild; child; child = child.nextSibling) {
+            if (child.name === "CodeText" || child.name === "MarkdownFrontmatterContent") {
+              codeContents.push({ from: child.from, to: child.to });
+              addMark(child, "mlrt-markdown-block-code-source");
+            } else if (child.name === "CodeMark" || child.name === "MarkdownFrontmatterMark") {
+              addMark(child, "mlrt-markdown-block-delimiter");
+            } else if (child.name === "CodeInfo") {
+              addMark(child, "mlrt-markdown-block-info");
+            }
+          }
+          return false;
+        }
+      } });
+    }
+    for (const window2 of visibleRanges) {
+      if (!codeContents.some((range) => overlaps2(range, window2))) continue;
+      highlightTree(tree, codeHighlighter, (from, to, classes) => {
+        if (classes === "mlrt-markdown-block-token-scalar") {
+          const node = tree.resolveInner(from, 1);
+          const value = node.from === from && node.to === to ? source.sliceString(from, to).trim() : "";
+          const constant = /^(?:~|null|true|false|[-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:e[-+]?[0-9]+)?|[-+]?0o[0-7]+|[-+]?0x[\da-f]+|[-+]?\.inf|\.nan)$/iu.test(value);
+          classes = `mlrt-markdown-block-token-${constant ? "constant" : "string"}`;
+        }
+        for (const content2 of codeContents) {
+          const range = { from: Math.max(from, content2.from), to: Math.min(to, content2.to) };
+          if (range.from < range.to) addMark(range, classes);
+        }
+      }, window2.from, window2.to);
+    }
+    return {
+      rows: Array.from(rows, ([from, row]) => {
+        const classes = [];
+        if (row.quote) classes.push("mlrt-markdown-block-quote");
+        if (row.alert) classes.push("mlrt-markdown-block-alert", `mlrt-markdown-block-alert-${row.alert}`);
+        if (row.code) classes.push("mlrt-markdown-block-code", ...row.code === "frontmatter" ? ["mlrt-markdown-block-frontmatter"] : []);
+        if (row.start) classes.push("mlrt-markdown-block-start");
+        if (row.end) classes.push("mlrt-markdown-block-end");
+        return { from, classes: classes.join(" ") };
+      }).sort((a, b) => a.from - b.from),
+      marks: marks2.sort((a, b) => a.from - b.from || a.to - b.to)
+    };
+  }
+  var refreshBlocks = StateEffect.define();
+  var MarkdownBlockView = class {
+    constructor(view2) {
+      this.view = view2;
+      view2.dom.ownerDocument.addEventListener("visibilitychange", this.visibilityChanged);
+      this.rebuild();
+      queueMicrotask(() => this.refresh());
+    }
+    view;
+    decorations = Decoration.none;
+    tree = null;
+    windows = "";
+    composing = false;
+    destroyed = false;
+    failed = false;
+    dirty = true;
+    visibilityChanged = () => {
+      if (!this.view.dom.ownerDocument.hidden) this.refresh();
+    };
+    refresh() {
+      if (this.destroyed || this.failed || this.view.dom.ownerDocument.hidden) return;
+      this.view.dispatch({ effects: refreshBlocks.of(null) });
+    }
+    update(update) {
+      if (this.failed) return;
+      if (this.composing || this.view.compositionStarted || this.view.dom.ownerDocument.hidden) {
+        this.decorations = this.decorations.map(update.changes);
+        this.dirty ||= update.docChanged || update.viewportChanged;
+        return;
+      }
+      const windows2 = this.readyWindows().map((range) => `${range.from}:${range.to}`).join(",");
+      if (this.dirty || update.docChanged || update.viewportChanged || this.tree !== syntaxTree(update.state) || this.windows !== windows2 || update.transactions.some((transaction) => transaction.effects.some((effect) => effect.is(refreshBlocks)))) {
+        this.rebuild();
+      }
+    }
+    readyWindows() {
+      return this.view.visibleRanges.filter((range) => syntaxTreeAvailable(this.view.state, range.to));
+    }
+    rebuild() {
+      if (this.destroyed || this.failed || this.view.dom.ownerDocument.hidden) return;
+      try {
+        this.tree = syntaxTree(this.view.state);
+        const windows2 = this.readyWindows();
+        this.windows = windows2.map((range) => `${range.from}:${range.to}`).join(",");
+        const projection = classifyMarkdownBlocks(this.view.state.doc, this.tree, getParsedTables(this.view.state.doc), windows2);
+        const ranges = projection.rows.map((row) => Decoration.line({ class: row.classes }).range(row.from));
+        ranges.push(...projection.marks.map((mark) => Decoration.mark({ class: mark.classes }).range(mark.from, mark.to)));
+        this.decorations = Decoration.set(ranges, true);
+        this.dirty = false;
+      } catch {
+        this.failed = true;
+        this.decorations = Decoration.none;
+        console.warn("Markdown block rendering disabled for this view after a presentation failure.");
+      }
+    }
+    compositionStart() {
+      this.composing = true;
+    }
+    compositionEnd() {
+      this.composing = false;
+      this.dirty = true;
+      queueMicrotask(() => this.refresh());
+    }
+    destroy() {
+      this.destroyed = true;
+      this.view.dom.ownerDocument.removeEventListener("visibilitychange", this.visibilityChanged);
+    }
+  };
+  var blockPlugin = ViewPlugin.fromClass(MarkdownBlockView, {
+    decorations: (plugin) => plugin.decorations,
+    eventHandlers: {
+      compositionstart() {
+        this.compositionStart();
+        return false;
+      },
+      compositionend() {
+        this.compositionEnd();
+        return false;
+      }
+    }
+  });
+  function createMarkdownBlockExtensions() {
+    return blockPlugin;
+  }
+
+  // src/editor/markdown/markdownWikiSyntax.ts
+  var markdownWikiExtension = {
+    defineNodes: ["WikiLink", "WikiEmbed", "WikiMark", "WikiTarget", "WikiLabel"],
+    parseInline: [{
+      name: "WikiLink",
+      before: "Link",
+      parse(context, next2, position) {
+        const embed = next2 === 33 && context.char(position + 1) === 91;
+        const start = position + (embed ? 1 : 0);
+        if (context.char(start) !== 91 || context.char(start + 1) !== 91) return -1;
+        let separator = -1, end = -1;
+        for (let i2 = start + 2; i2 < context.end; i2++) {
+          const ch = context.char(i2);
+          if (ch === 10 || ch === 13 || ch === 91) return -1;
+          if (ch === 92) {
+            i2++;
+            continue;
+          }
+          if (ch === 124 && separator < 0) separator = i2;
+          if (ch === 93 && context.char(i2 + 1) === 93) {
+            end = i2;
+            break;
+          }
+        }
+        if (end < 0 || !context.slice(start + 2, separator < 0 ? end : separator).trim()) return -1;
+        const children = [
+          context.elt("WikiMark", position, start + 2),
+          context.elt("WikiTarget", start + 2, separator < 0 ? end : separator)
+        ];
+        if (separator >= 0) children.push(
+          context.elt("WikiMark", separator, separator + 1),
+          context.elt("WikiLabel", separator + 1, end)
+        );
+        children.push(context.elt("WikiMark", end, end + 2));
+        return context.addElement(context.elt(embed ? "WikiEmbed" : "WikiLink", position, end + 2, children));
+      }
+    }]
+  };
+
+  // src/editor/markdown/markdownSyntax.ts
+  var markdownParserExtensions = [
+    Strikethrough,
+    TaskList,
+    Autolink,
+    markdownFrontmatterParserExtension,
+    markdownWikiExtension
+  ];
+  var markdownRenderingParser = parser.configure(markdownParserExtensions);
+  function slice(source, from, to) {
+    return typeof source === "string" ? source.slice(from, to) : source.sliceString(from, to);
+  }
+  function markdownRangesOverlap(a, b) {
+    return a.from < b.to && a.to > b.from;
+  }
+  function protectedMarker(marker, protectedRanges) {
+    return protectedRanges.some((range) => markdownRangesOverlap(marker, range));
+  }
+  function protectedPosition(position, protectedRanges) {
+    return protectedRanges.some((range) => range.from <= position && position < range.to);
+  }
+  function taskForItem(source, item) {
+    let paragraph2 = null;
+    for (let child = item.firstChild; child; child = child.nextSibling) {
+      if (child.name === "Paragraph" || child.name === "Task") {
+        paragraph2 = child;
+        break;
+      }
+    }
+    if (!paragraph2 || paragraph2.to - paragraph2.from < 3) {
+      return null;
+    }
+    const from = paragraph2.from;
+    const token = slice(source, from, from + 3);
+    if (token !== "[ ]" && token !== "[x]" && token !== "[X]") {
+      return null;
+    }
+    const following = slice(source, from + 3, Math.min(source.length, from + 4));
+    if (following && !/\s/u.test(following)) {
+      return null;
+    }
+    return {
+      kind: "task",
+      from,
+      to: from + 3,
+      source: token,
+      checkFrom: from + 1,
+      checked: token !== "[ ]",
+      itemFrom: item.from,
+      itemTo: item.to,
+      label: slice(source, from + 3, Math.min(paragraph2.to, from + 163)).split(/\r?\n/u, 1)[0].trim() || "Task"
+    };
+  }
+  function classifyMarkdownMarkers(source, tree, protectedRanges = [], visibleRanges = [{ from: 0, to: source.length }]) {
+    const markers = [];
+    const seen = /* @__PURE__ */ new Set();
+    const add2 = (marker, window2) => {
+      if (!markdownRangesOverlap(marker, window2) || protectedMarker(marker, protectedRanges)) {
+        return;
+      }
+      const key = `${marker.kind}:${marker.from}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        markers.push(marker);
+      }
+    };
+    for (const window2 of visibleRanges) {
+      if (window2.from >= window2.to) {
+        continue;
+      }
+      tree.iterate({
+        from: Math.max(0, window2.from),
+        to: Math.min(source.length, window2.to),
+        enter(reference2) {
+          const node = reference2.node;
+          if (literalNodeNames.has(node.name)) {
+            return false;
+          }
+          if (node.name === "ListItem") {
+            const task = taskForItem(source, node);
+            if (task) {
+              add2(task, window2);
+            }
+          } else if (node.name === "ListMark" && node.parent?.parent?.name === "BulletList") {
+            const token = slice(source, node.from, node.to);
+            if (token === "-" || token === "+" || token === "*") {
+              add2({ kind: "bullet", from: node.from, to: node.to, source: token }, window2);
+            }
+          } else if (node.name === "HorizontalRule") {
+            const token = slice(source, node.from, node.to).replace(/[\t ]+$/u, "");
+            if (token && !/[\r\n]/u.test(token)) {
+              add2({
+                kind: "rule",
+                from: node.from,
+                to: node.from + token.length,
+                source: token
+              }, window2);
+            }
+          }
+        }
+      });
+    }
+    return markers.sort((a, b) => a.from - b.from || a.to - b.to);
+  }
+  var literalNodeNames = /* @__PURE__ */ new Set([
+    "FencedCode",
+    "CodeBlock",
+    "InlineCode",
+    "HTMLBlock",
+    "HTMLTag",
+    "Comment",
+    "MarkdownFrontmatter"
+  ]);
+  function positionAfterLeadingIndent(source, position) {
+    for (let offset = position - 1; offset >= 0; offset--) {
+      const character2 = slice(source, offset, offset + 1);
+      if (character2 === "\n" || character2 === "\r") break;
+      if (character2 !== " " && character2 !== "	") return position;
+    }
+    let next2 = position;
+    while (next2 < source.length && /[\t ]/u.test(slice(source, next2, next2 + 1))) next2++;
+    const character = slice(source, next2, next2 + 1);
+    return character && character !== "\n" && character !== "\r" ? next2 : position;
+  }
+  function enclosingItem(tree, position) {
+    for (const side of [1, -1]) {
+      for (let node = tree.resolveInner(position, side); node; node = node.parent) {
+        if (literalNodeNames.has(node.name)) {
+          return null;
+        }
+        if (node.name === "ListItem") {
+          return node;
+        }
+      }
+    }
+    return null;
+  }
+  function findTaskAtCaret(source, tree, position, protectedRanges = []) {
+    if (!Number.isInteger(position) || position < 0 || position > source.length || position > tree.length || protectedPosition(position, protectedRanges)) {
+      return null;
+    }
+    const syntaxPosition = positionAfterLeadingIndent(source, position);
+    if (protectedPosition(syntaxPosition, protectedRanges)) return null;
+    const item = enclosingItem(tree, syntaxPosition);
+    const task = item && taskForItem(source, item);
+    return task && !protectedMarker(task, protectedRanges) ? task : null;
+  }
+  function planTaskToggle(source, tree, markerFrom, protectedRanges = []) {
+    const task = findTaskAtCaret(source, tree, markerFrom, protectedRanges);
+    if (!task || task.from !== markerFrom) {
+      return null;
+    }
+    return {
+      from: task.checkFrom,
+      to: task.checkFrom + 1,
+      insert: task.checked ? " " : "x"
+    };
+  }
+
+  // src/editor/markdown/markdownRendering.ts
+  var markdownRenderingCompartment = new Compartment();
+  var markdownTaskChangeAnnotation = Annotation.define();
+  var taskActionGuards = /* @__PURE__ */ new WeakMap();
+  var actionNotifiers = /* @__PURE__ */ new WeakMap();
+  function setMarkdownActionNotifier(view2, notify) {
+    actionNotifiers.set(view2, notify);
+  }
+  function setMarkdownTaskActionGuard(view2, guard) {
+    taskActionGuards.set(view2, guard);
+  }
+  function refreshMarkdownTaskAvailability(view2) {
+    view2.plugin(markerPlugin)?.refresh();
+  }
+  var optionsFacet = Facet.define({
+    combine: (values2) => values2[0] ?? { enabled: false, screenReaderOptimized: false, readOnly: false }
+  });
+  var editingOwners = /* @__PURE__ */ new WeakMap();
+  var editingOwnerTracker = ViewPlugin.fromClass(class {
+    constructor(view2) {
+      this.view = view2;
+      this.recordTarget(view2.dom.ownerDocument.activeElement);
+      view2.dom.addEventListener("focusin", this.record, true);
+    }
+    view;
+    record = (event) => this.recordTarget(event.target);
+    recordTarget(target) {
+      if (!(target instanceof Element) || !this.view.dom.contains(target)) return;
+      if (target.closest(".mlrt-table-widget")) editingOwners.set(this.view, "table");
+      else if (target === this.view.contentDOM || target.closest(".mlrt-markdown-task-control")) {
+        editingOwners.set(this.view, "source");
+      }
+    }
+    destroy() {
+      this.view.dom.removeEventListener("focusin", this.record, true);
+      editingOwners.delete(this.view);
+    }
+  });
+  function createMarkdownRenderingExtensions(options) {
+    return [optionsFacet.of(options), editingOwnerTracker, options.enabled ? [
+      createMarkdownListEditing(options.readOnly),
+      markdown({ extensions: [markdownParserExtensions, markdownBlockLanguageExtensions], codeLanguages: markdownCodeLanguages }),
+      createMarkdownPresentationExtensions(),
+      createMarkdownBlockExtensions(),
+      createMarkdownLivePreviewExtensions(options.screenReaderOptimized),
+      markerPlugin
+    ] : markdown()];
+  }
+  function canAct(view2) {
+    const options = view2.state.facet(optionsFacet);
+    const plugin = view2.plugin(markerPlugin);
+    return options.enabled && !options.readOnly && !view2.state.readOnly && !!plugin && !plugin.failed && !view2.compositionStarted && !view2.composing && !plugin.composing && (taskActionGuards.get(view2)?.() ?? true);
+  }
+  function taskAtContext(view2) {
+    const selection = view2.state.selection;
+    const projection = getDocumentSelectionProjection(view2.dom.ownerDocument, selection.main);
+    if (selection.ranges.length !== 1 || !selection.main.empty || projection && projection.anchor !== projection.head) return null;
+    if (view2.dom.ownerDocument.activeElement?.closest(".mlrt-table-cell") || view2.plugin(markerPlugin)?.lastEditingOwner === "table") return null;
+    const focused = view2.plugin(markerPlugin)?.focusedFrom;
+    if (!syntaxTreeAvailable(view2.state, focused ?? selection.main.head)) return null;
+    return findTaskAtCaret(
+      view2.state.doc,
+      syntaxTree(view2.state),
+      focused ?? selection.main.head,
+      getParsedTables(view2.state.doc)
+    );
+  }
+  function toggleMarkdownTask(view2) {
+    if (!canAct(view2)) return false;
+    const marker = taskAtContext(view2);
+    return marker ? toggleAt(view2, marker.from) : false;
+  }
+  function canToggleMarkdownTask(view2) {
+    return canAct(view2) && taskAtContext(view2) !== null;
+  }
+  function markdownTaskContextActions(view2, event) {
+    if (!canAct(view2) || view2.state.selection.ranges.length !== 1 || !view2.state.selection.main.empty || event.target instanceof Element && event.target.closest(".mlrt-table-widget")) return [];
+    const projection = getDocumentSelectionProjection(view2.dom.ownerDocument);
+    if (projection && (projection.anchor !== projection.head || projection.tableRegions.length > 0)) return [];
+    const position = view2.posAtCoords({ x: event.clientX, y: event.clientY });
+    if (position === null || !syntaxTreeAvailable(view2.state, position) || !findTaskAtCaret(view2.state.doc, syntaxTree(view2.state), position, getParsedTables(view2.state.doc))) return [];
+    view2.dispatch({ selection: EditorSelection.cursor(position) });
+    view2.focus();
+    return [
+      { label: "Toggle Task Checkbox", run: () => {
+        toggleMarkdownTask(view2);
+      } },
+      { label: "Focus Task Checkbox", run: () => {
+        if (!focusMarkdownTask(view2)) explainTaskFocusFallback(view2);
+      } }
+    ];
+  }
+  function explainTaskFocusFallback(view2) {
+    actionNotifiers.get(view2)?.(canToggleMarkdownTask(view2) ? "A checkbox cannot be focused here. Use Toggle Task Checkbox at Caret." : "Place a single caret in an editable task to focus its checkbox.");
+  }
+  function toggleAt(view2, from) {
+    if (!canAct(view2)) return false;
+    const edit2 = planTaskToggle(view2.state.doc, syntaxTree(view2.state), from, getParsedTables(view2.state.doc));
+    if (!edit2) return false;
+    const projection = getDocumentSelectionProjection(view2.dom.ownerDocument, view2.state.selection.main);
+    view2.dispatch({
+      changes: edit2,
+      selection: view2.state.selection,
+      annotations: [
+        markdownTaskChangeAnnotation.of(true),
+        ...projection ? [documentSelectionProjectionTransaction.of(true)] : []
+      ],
+      userEvent: "input.task"
+    });
+    return true;
+  }
+  function focusMarkdownTask(view2) {
+    if (!canAct(view2)) return false;
+    const marker = taskAtContext(view2);
+    const plugin = view2.plugin(markerPlugin);
+    if (!marker || !plugin || view2.state.facet(optionsFacet).screenReaderOptimized) return false;
+    plugin.bookmark = view2.state.selection.main.head;
+    plugin.focusedFrom = marker.from;
+    plugin.wantsFocus = true;
+    view2.dispatch({ effects: EditorView.scrollIntoView(marker.from) });
+    plugin.refresh();
+    return true;
+  }
+  function invalidateMarkdownTaskContext(view2) {
+    view2.plugin(markerPlugin)?.invalidateContext();
+  }
+  var TaskControl = class extends WidgetType {
+    constructor(marker, size, disabled) {
+      super();
+      this.marker = marker;
+      this.size = size;
+      this.disabled = disabled;
+    }
+    marker;
+    size;
+    disabled;
+    eq(other) {
+      return this.marker.from === other.marker.from && this.marker.checked === other.marker.checked && this.marker.label === other.marker.label && this.size.width === other.size.width && this.size.height === other.size.height && this.disabled === other.disabled;
+    }
+    toDOM() {
+      const element = document.createElement("span");
+      element.className = "mlrt-markdown-task-anchor";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.tabIndex = -1;
+      button.className = "mlrt-markdown-task-control";
+      button.setAttribute("role", "checkbox");
+      element.append(button);
+      this.updateDOM(element);
+      return element;
+    }
+    updateDOM(element) {
+      const button = element.firstElementChild;
+      button.dataset.markdownTaskFrom = String(this.marker.from);
+      button.setAttribute("aria-label", this.marker.label || "Task");
+      button.setAttribute("aria-checked", String(this.marker.checked));
+      button.setAttribute("aria-disabled", String(this.disabled));
+      button.title = "Toggle task \xB7 Command Palette: Toggle Task Checkbox at Caret";
+      button.style.width = `${this.size.width}px`;
+      button.style.height = `${this.size.height}px`;
+      return true;
+    }
+    ignoreEvent(event) {
+      return event.type === "selectionchange";
+    }
+  };
+  var MarkerView = class {
+    constructor(view2) {
+      this.view = view2;
+      this.tree = syntaxTree(view2.state);
+      try {
+        view2.dom.ownerDocument.addEventListener("selectionchange", this.preserveControlSelection, true);
+        this.observer = new ResizeObserver(() => this.invalidateMetrics());
+        this.observer.observe(view2.scrollDOM);
+        this.metricObserver = new MutationObserver(() => this.invalidateMetrics());
+        this.metricObserver.observe(view2.dom.ownerDocument.documentElement, { attributes: true, attributeFilter: ["style", "class"] });
+        this.metricObserver.observe(view2.dom.ownerDocument.body, { attributes: true, attributeFilter: ["style", "class"] });
+        this.classify();
+        this.schedule();
+        queueMicrotask(() => {
+          if (this.destroyed || this.failed) return;
+          try {
+            this.classify();
+            this.refresh();
+          } catch {
+            this.fail();
+            this.refresh();
+          }
+        });
+      } catch {
+        this.fail();
+      }
+    }
+    view;
+    decorations = Decoration.none;
+    markers = [];
+    sizes = /* @__PURE__ */ new Map();
+    tree;
+    focusedFrom = null;
+    bookmark = null;
+    wantsFocus = false;
+    composing = false;
+    failed = false;
+    destroyed = false;
+    get lastEditingOwner() {
+      return editingOwners.get(this.view) ?? "source";
+    }
+    scheduled = false;
+    classifiedWindows = "";
+    metricSignature = "";
+    focusedSize = null;
+    observer = null;
+    metricObserver = null;
+    pointer = null;
+    preserveControlSelection = (event) => {
+      if (this.pointer && !this.pointer.dragged && !this.composing && this.view.state.selection === this.pointer.selection) event.stopImmediatePropagation();
+    };
+    update(update) {
+      if (this.failed) return;
+      try {
+        if (update.docChanged) {
+          this.pointer = null;
+          if (this.focusedFrom !== null) this.focusedFrom = update.changes.mapPos(this.focusedFrom);
+          if (this.bookmark !== null) this.bookmark = update.changes.mapPos(this.bookmark);
+        }
+        if (this.composing || update.view.compositionStarted) {
+          this.decorations = this.decorations.map(update.changes);
+          return;
+        }
+        if (!update.view.inView || update.view.dom.ownerDocument.hidden) {
+          this.decorations = this.decorations.map(update.changes);
+          this.classifiedWindows = "hidden";
+          return;
+        }
+        const nextTree = syntaxTree(update.state);
+        if (update.docChanged || update.viewportChanged || nextTree !== this.tree || this.classifiedWindows !== this.readyWindows().map((range) => `${range.from}:${range.to}`).join(",")) {
+          this.tree = nextTree;
+          this.sizes.clear();
+          this.classify();
+        }
+        if (update.selectionSet && this.focusedFrom !== null && !this.ownsControlFocus()) {
+          this.focusedFrom = null;
+          this.bookmark = null;
+        }
+        this.build();
+        this.schedule();
+      } catch {
+        this.fail();
+      }
+    }
+    classify() {
+      const windows2 = this.readyWindows();
+      this.classifiedWindows = windows2.map((range) => `${range.from}:${range.to}`).join(",");
+      this.markers = classifyMarkdownMarkers(
+        this.view.state.doc,
+        this.tree,
+        getParsedTables(this.view.state.doc),
+        windows2
+      );
+    }
+    readyWindows() {
+      return this.view.visibleRanges.filter((range) => syntaxTreeAvailable(this.view.state, range.to));
+    }
+    key(marker) {
+      return `${marker.from}:${marker.to}:${marker.source}`;
+    }
+    literal(marker) {
+      const view2 = this.view;
+      if (view2.state.facet(optionsFacet).screenReaderOptimized) return true;
+      const selection = view2.state.selection;
+      const projected = getDocumentSelectionProjection(view2.dom.ownerDocument, selection.main);
+      if (projected && projected.anchor !== projected.head && Math.min(projected.anchor, projected.head) < marker.to && Math.max(projected.anchor, projected.head) > marker.from) return true;
+      for (const range of selection.ranges) {
+        if (!range.empty && range.from < marker.to && range.to > marker.from) return true;
+        if (range.empty && view2.hasFocus && range.head >= marker.from && range.head <= marker.to && this.focusedFrom !== marker.from) return true;
+      }
+      return false;
+    }
+    build() {
+      const ranges = [];
+      let retainedFocus = false;
+      for (const marker of this.markers) {
+        const size = this.sizes.get(this.key(marker)) ?? (marker.kind === "task" && marker.from === this.focusedFrom ? this.focusedSize : null);
+        if (!size || this.literal(marker)) continue;
+        if (marker.kind === "bullet" && this.markers.some((task) => task.kind === "task" && this.view.state.doc.lineAt(task.from).number === this.view.state.doc.lineAt(marker.from).number)) {
+          ranges.push(Decoration.mark({ class: "mlrt-markdown-marker mlrt-markdown-task-list-prefix", attributes: { "aria-hidden": "true" } }).range(marker.from, marker.to));
+          continue;
+        }
+        if (marker.kind === "rule") {
+          ranges.push(Decoration.line({ class: "mlrt-markdown-rule-row" }).range(this.view.state.doc.lineAt(marker.from).from));
+        }
+        const attributes = { "aria-hidden": "true" };
+        ranges.push(Decoration.mark({ class: `mlrt-markdown-marker mlrt-markdown-${marker.kind}`, attributes }).range(marker.from, marker.to));
+        if (marker.kind === "task") {
+          const textEnd = this.view.state.doc.lineAt(marker.from).to;
+          if (marker.checked && marker.to < textEnd) ranges.push(Decoration.mark({ class: "mlrt-markdown-task-complete" }).range(marker.to, textEnd));
+          ranges.push(Decoration.widget({ widget: new TaskControl(
+            marker,
+            size,
+            !canAct(this.view) || !this.sizes.has(this.key(marker))
+          ), side: -1 }).range(marker.from));
+          retainedFocus ||= this.focusedFrom === marker.from;
+          if (this.focusedFrom === marker.from) this.focusedSize = size;
+        }
+      }
+      if (this.focusedFrom !== null && !retainedFocus && !this.wantsFocus) this.releaseFocus();
+      this.decorations = Decoration.set(ranges, true);
+    }
+    invalidateMetrics() {
+      if (this.destroyed || this.composing || this.view.compositionStarted) return;
+      this.schedule();
+    }
+    refresh() {
+      if (this.destroyed || this.failed) return;
+      this.view.dispatch({});
+      this.schedule();
+    }
+    schedule() {
+      if (this.scheduled || this.failed || this.destroyed || this.composing || this.view.compositionStarted || !this.view.inView || this.view.dom.ownerDocument.hidden) return;
+      this.scheduled = true;
+      this.view.requestMeasure({
+        key: this,
+        read: () => {
+          try {
+            const style = this.view.dom.ownerDocument.defaultView.getComputedStyle(this.view.contentDOM);
+            const metricSignature = [
+              style.fontFamily,
+              style.fontSize,
+              style.fontWeight,
+              style.fontStyle,
+              style.lineHeight,
+              style.letterSpacing,
+              style.fontFeatureSettings,
+              style.fontVariationSettings,
+              style.whiteSpace,
+              style.direction,
+              this.view.scrollDOM.clientWidth,
+              this.view.dom.ownerDocument.defaultView.devicePixelRatio
+            ].join("|");
+            const sameMetrics = metricSignature === this.metricSignature;
+            const result = /* @__PURE__ */ new Map();
+            for (const marker of this.markers) {
+              const cached = sameMetrics ? this.sizes.get(this.key(marker)) : void 0;
+              if (cached) {
+                result.set(this.key(marker), cached);
+                continue;
+              }
+              const line = this.view.state.doc.lineAt(marker.from);
+              if (marker.to > line.to || this.view.bidiSpans(line).some((span) => span.level % 2)) continue;
+              const start = this.view.domAtPos(marker.from, 1);
+              const end = this.view.domAtPos(marker.to, -1);
+              const range = this.view.dom.ownerDocument.createRange();
+              range.setStart(start.node, start.offset);
+              range.setEnd(end.node, end.offset);
+              const boxes = Array.from(range.getClientRects()).filter((box) => box.width > 0);
+              const a = this.view.coordsAtPos(marker.from, 1);
+              const b = this.view.coordsAtPos(marker.to, -1);
+              if (!a || !b || boxes.length === 0 || boxes.some((box) => Math.abs(box.top - boxes[0].top) > 0.5) || Math.abs(a.top - b.top) > 0.5) continue;
+              const width = b.left - a.left;
+              if (width > 0 && Number.isFinite(width)) result.set(this.key(marker), { width, height: this.view.defaultLineHeight });
+            }
+            return { sizes: result, metricSignature };
+          } catch {
+            return null;
+          }
+        },
+        write: (measurement) => {
+          this.scheduled = false;
+          if (this.destroyed || this.composing || this.view.compositionStarted) return;
+          if (!measurement) {
+            this.fail();
+            queueMicrotask(() => {
+              if (!this.destroyed) this.view.dispatch({});
+            });
+            return;
+          }
+          const { sizes, metricSignature } = measurement;
+          this.metricSignature = metricSignature;
+          const changed = sizes.size !== this.sizes.size || [...sizes].some(([key, size]) => {
+            const previous = this.sizes.get(key);
+            return !previous || Math.abs(previous.width - size.width) > 0.01 || Math.abs(previous.height - size.height) > 0.01;
+          });
+          this.sizes = sizes;
+          const focused = this.markers.find((marker) => marker.from === this.focusedFrom && marker.kind === "task");
+          const focusedGeometryRejected = !!focused && !sizes.has(this.key(focused));
+          if (focusedGeometryRejected) this.focusedSize = null;
+          if (changed || this.wantsFocus || focusedGeometryRejected) queueMicrotask(() => {
+            if (this.destroyed || this.failed || this.composing || this.view.compositionStarted) return;
+            this.view.dispatch({});
+            if (this.wantsFocus) {
+              const control = this.view.dom.querySelector(`[data-markdown-task-from="${this.focusedFrom}"]`);
+              this.wantsFocus = false;
+              if (control) control.focus({ preventScroll: true });
+              else {
+                this.focusedFrom = null;
+                this.bookmark = null;
+                explainTaskFocusFallback(this.view);
+              }
+            }
+          });
+        }
+      });
+    }
+    ownsControlFocus() {
+      const active = this.view.dom.ownerDocument.activeElement;
+      return !!active && this.view.dom.contains(active) && active.matches(".mlrt-markdown-task-control");
+    }
+    releaseFocus() {
+      const owned = this.ownsControlFocus();
+      const originalOwner = this.view.dom.ownerDocument.activeElement;
+      const bookmark = this.bookmark;
+      const selection = this.view.state.selection;
+      this.focusedFrom = null;
+      this.bookmark = null;
+      this.wantsFocus = false;
+      this.focusedSize = null;
+      if (owned) queueMicrotask(() => {
+        const doc2 = this.view.dom.ownerDocument;
+        if (!this.view.dom.isConnected || !doc2.hasFocus() || doc2.activeElement !== originalOwner && doc2.activeElement !== doc2.body) return;
+        const plugin = this.view.plugin(markerPlugin);
+        if (plugin?.focusedFrom !== null && plugin?.focusedFrom !== void 0) return;
+        const currentSelection = this.view.state.selection;
+        const restoredSelection = taskFocusReturnSelection(
+          this.view.state.doc,
+          selection,
+          currentSelection,
+          bookmark,
+          getParsedTables(this.view.state.doc)
+        );
+        if (restoredSelection !== currentSelection) this.view.dispatch({ selection: restoredSelection });
+        this.view.focus();
+      });
+    }
+    pointerDown(event) {
+      const control = event.target.closest(".mlrt-markdown-task-control");
+      if (!control || !isMarkdownTaskPointerActivation(event)) return false;
+      event.preventDefault();
+      this.pointer = {
+        from: Number(control.dataset.markdownTaskFrom),
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        owner: this.view.dom.ownerDocument.activeElement,
+        selection: this.view.state.selection,
+        dragged: false
+      };
+      control.setPointerCapture(event.pointerId);
+      return true;
+    }
+    pointerMove(event) {
+      const pointer = this.pointer;
+      if (!pointer || pointer.pointerId !== event.pointerId || !event.isPrimary || Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) <= 3) return false;
+      if (!pointer.dragged) {
+        const handoff = new CustomEvent(MARKDOWN_MARKER_DRAG_EVENT, {
+          bubbles: true,
+          cancelable: true,
+          detail: { anchor: pointer.from, pointerEvent: event }
+        });
+        if (!this.view.dom.dispatchEvent(handoff)) {
+          this.pointer = null;
+          return true;
+        }
+      }
+      pointer.dragged = true;
+      const head = this.view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (head !== null) this.view.dispatch({ selection: { anchor: pointer.from, head } });
+      this.view.focus();
+      return true;
+    }
+    pointerUp(event) {
+      const pointer = this.pointer;
+      if (!pointer || pointer.pointerId !== event.pointerId || !event.isPrimary) return false;
+      this.pointer = null;
+      event.preventDefault();
+      if (!pointer.dragged && pointer.selection === this.view.state.selection && this.controlGeometryReady(pointer.from) && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) <= 3) {
+        toggleAt(this.view, pointer.from);
+        if (pointer.owner instanceof HTMLElement && pointer.owner.isConnected) pointer.owner.focus({ preventScroll: true });
+      }
+      return true;
+    }
+    invalidateContext() {
+      this.pointer = null;
+      this.releaseFocus();
+    }
+    cancelPointer() {
+      this.pointer = null;
+    }
+    controlGeometryReady(from) {
+      const marker = this.markers.find((candidate) => candidate.kind === "task" && candidate.from === from);
+      return !!marker && this.sizes.has(this.key(marker));
+    }
+    compositionStart() {
+      this.composing = true;
+      this.pointer = null;
+      for (const control of Array.from(this.view.dom.querySelectorAll(".mlrt-markdown-task-control"))) {
+        control.setAttribute("aria-disabled", "true");
+      }
+    }
+    keyDown(event) {
+      const control = event.target.closest(".mlrt-markdown-task-control");
+      if (!control) return false;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.releaseFocus();
+        return true;
+      }
+      if (event.key === " " && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        event.preventDefault();
+        const from = Number(control.dataset.markdownTaskFrom);
+        if (this.controlGeometryReady(from)) toggleAt(this.view, from);
+        return true;
+      }
+      return false;
+    }
+    fail() {
+      this.failed = true;
+      this.releaseFocus();
+      this.decorations = Decoration.none;
+      this.markers = [];
+      this.sizes.clear();
+      console.warn("Markdown rendering disabled for this view after a presentation failure.");
+    }
+    destroy() {
+      this.destroyed = true;
+      this.observer?.disconnect();
+      this.metricObserver?.disconnect();
+      this.view.dom.ownerDocument.removeEventListener("selectionchange", this.preserveControlSelection, true);
+      this.releaseFocus();
+      this.sizes.clear();
+      this.markers = [];
+    }
+  };
+  var markerPlugin = ViewPlugin.fromClass(MarkerView, {
+    decorations: (plugin) => plugin.decorations,
+    eventHandlers: {
+      pointerdown(event) {
+        return this.pointerDown(event);
+      },
+      pointermove(event) {
+        return this.pointerMove(event);
+      },
+      pointerup(event) {
+        return this.pointerUp(event);
+      },
+      pointercancel() {
+        this.cancelPointer();
+        return false;
+      },
+      lostpointercapture() {
+        this.cancelPointer();
+        return false;
+      },
+      keydown(event) {
+        return this.keyDown(event);
+      },
+      compositionstart() {
+        this.compositionStart();
+        return false;
+      },
+      compositionend() {
+        this.composing = false;
+        queueMicrotask(() => this.refresh());
+        return false;
+      },
+      focusout() {
+        queueMicrotask(() => {
+          if (!this.destroyed && !this.view.dom.ownerDocument.activeElement?.matches(".mlrt-markdown-task-control")) {
+            this.focusedFrom = null;
+            this.bookmark = null;
+            this.refresh();
+          }
+        });
+        return false;
+      }
+    }
+  });
 
   // node_modules/dompurify/dist/purify.es.mjs
   function _arrayLikeToArray(r, a) {
@@ -27385,14 +33194,14 @@
     arrayReplaceAt: () => arrayReplaceAt,
     asciiTrim: () => asciiTrim,
     assign: () => assign,
-    escapeHtml: () => escapeHtml,
+    escapeHtml: () => escapeHtml2,
     escapeRE: () => escapeRE,
     fromCodePoint: () => fromCodePoint3,
     has: () => has,
     isMdAsciiPunct: () => isMdAsciiPunct,
     isPunctChar: () => isPunctChar,
     isPunctCharCode: () => isPunctCharCode,
-    isSpace: () => isSpace,
+    isSpace: () => isSpace2,
     isString: () => isString,
     isValidEntityCode: () => isValidEntityCode,
     isWhiteSpace: () => isWhiteSpace,
@@ -27725,10 +33534,10 @@
         this.hostname = this.hostname.substr(1, this.hostname.length - 2);
       }
     }
-    const hash2 = rest.indexOf("#");
-    if (hash2 !== -1) {
-      this.hash = rest.substr(hash2);
-      rest = rest.slice(0, hash2);
+    const hash3 = rest.indexOf("#");
+    if (hash3 !== -1) {
+      this.hash = rest.substr(hash3);
+      rest = rest.slice(0, hash3);
     }
     const qm = rest.indexOf("?");
     if (qm !== -1) {
@@ -28401,7 +34210,7 @@
   function replaceUnsafeChar(ch) {
     return HTML_REPLACEMENTS[ch];
   }
-  function escapeHtml(str) {
+  function escapeHtml2(str) {
     if (HTML_ESCAPE_TEST_RE.test(str)) {
       return str.replace(HTML_ESCAPE_REPLACE_RE, replaceUnsafeChar);
     }
@@ -28411,7 +34220,7 @@
   function escapeRE(str) {
     return str.replace(REGEXP_ESCAPE_RE, "\\$&");
   }
-  function isSpace(code3) {
+  function isSpace2(code3) {
     switch (code3) {
       case 9:
       case 32:
@@ -28691,11 +34500,11 @@
   var default_rules = {};
   default_rules.code_inline = function(tokens, idx, options, env, slf) {
     const token = tokens[idx];
-    return "<code" + slf.renderAttrs(token) + ">" + escapeHtml(token.content) + "</code>";
+    return "<code" + slf.renderAttrs(token) + ">" + escapeHtml2(token.content) + "</code>";
   };
   default_rules.code_block = function(tokens, idx, options, env, slf) {
     const token = tokens[idx];
-    return "<pre" + slf.renderAttrs(token) + "><code>" + escapeHtml(tokens[idx].content) + "</code></pre>\n";
+    return "<pre" + slf.renderAttrs(token) + "><code>" + escapeHtml2(tokens[idx].content) + "</code></pre>\n";
   };
   default_rules.fence = function(tokens, idx, options, env, slf) {
     const token = tokens[idx];
@@ -28709,9 +34518,9 @@
     }
     let highlighted;
     if (options.highlight) {
-      highlighted = options.highlight(token.content, langName, langAttrs) || escapeHtml(token.content);
+      highlighted = options.highlight(token.content, langName, langAttrs) || escapeHtml2(token.content);
     } else {
-      highlighted = escapeHtml(token.content);
+      highlighted = escapeHtml2(token.content);
     }
     if (highlighted.indexOf("<pre") === 0) {
       return highlighted + "\n";
@@ -28746,7 +34555,7 @@
     return options.breaks ? options.xhtmlOut ? "<br />\n" : "<br>\n" : "\n";
   };
   default_rules.text = function(tokens, idx) {
-    return escapeHtml(tokens[idx].content);
+    return escapeHtml2(tokens[idx].content);
   };
   default_rules.html_block = function(tokens, idx) {
     return tokens[idx].content;
@@ -28764,7 +34573,7 @@
     }
     result = "";
     for (i2 = 0, l = token.attrs.length; i2 < l; i2++) {
-      result += " " + escapeHtml(token.attrs[i2][0]) + '="' + escapeHtml(token.attrs[i2][1]) + '"';
+      result += " " + escapeHtml2(token.attrs[i2][0]) + '="' + escapeHtml2(token.attrs[i2][1]) + '"';
     }
     return result;
   };
@@ -29497,11 +35306,11 @@
     this.parentType = "root";
     this.level = 0;
     const s = this.src;
-    for (let start = 0, pos = 0, indent = 0, offset = 0, len = s.length, indent_found = false; pos < len; pos++) {
+    for (let start = 0, pos = 0, indent2 = 0, offset = 0, len = s.length, indent_found = false; pos < len; pos++) {
       const ch = s.charCodeAt(pos);
       if (!indent_found) {
-        if (isSpace(ch)) {
-          indent++;
+        if (isSpace2(ch)) {
+          indent2++;
           if (ch === 9) {
             offset += 4 - offset % 4;
           } else {
@@ -29518,11 +35327,11 @@
         }
         this.bMarks.push(start);
         this.eMarks.push(pos);
-        this.tShift.push(indent);
+        this.tShift.push(indent2);
         this.sCount.push(offset);
         this.bsCount.push(0);
         indent_found = false;
-        indent = 0;
+        indent2 = 0;
         offset = 0;
         start = pos + 1;
       }
@@ -29557,7 +35366,7 @@
   StateBlock.prototype.skipSpaces = function skipSpaces(pos) {
     for (let max = this.src.length; pos < max; pos++) {
       const ch = this.src.charCodeAt(pos);
-      if (!isSpace(ch)) {
+      if (!isSpace2(ch)) {
         break;
       }
     }
@@ -29568,7 +35377,7 @@
       return pos;
     }
     while (pos > min) {
-      if (!isSpace(this.src.charCodeAt(--pos))) {
+      if (!isSpace2(this.src.charCodeAt(--pos))) {
         return pos + 1;
       }
     }
@@ -29593,7 +35402,7 @@
     }
     return pos;
   };
-  StateBlock.prototype.getLines = function getLines(begin, end, indent, keepLastLF) {
+  StateBlock.prototype.getLines = function getLines(begin, end, indent2, keepLastLF) {
     if (begin >= end) {
       return "";
     }
@@ -29608,9 +35417,9 @@
       } else {
         last = this.eMarks[line];
       }
-      while (first < last && lineIndent < indent) {
+      while (first < last && lineIndent < indent2) {
         const ch = this.src.charCodeAt(first);
-        if (isSpace(ch)) {
+        if (isSpace2(ch)) {
           if (ch === 9) {
             lineIndent += 4 - (lineIndent + this.bsCount[line]) % 4;
           } else {
@@ -29623,8 +35432,8 @@
         }
         first++;
       }
-      if (lineIndent > indent) {
-        queue[i2] = new Array(lineIndent - indent + 1).join(" ") + this.src.slice(first, last);
+      if (lineIndent > indent2) {
+        queue[i2] = new Array(lineIndent - indent2 + 1).join(" ") + this.src.slice(first, last);
       } else {
         queue[i2] = this.src.slice(first, last);
       }
@@ -29690,15 +35499,15 @@
       return false;
     }
     const secondCh = state.src.charCodeAt(pos++);
-    if (secondCh !== 124 && secondCh !== 45 && secondCh !== 58 && !isSpace(secondCh)) {
+    if (secondCh !== 124 && secondCh !== 45 && secondCh !== 58 && !isSpace2(secondCh)) {
       return false;
     }
-    if (firstCh === 45 && isSpace(secondCh)) {
+    if (firstCh === 45 && isSpace2(secondCh)) {
       return false;
     }
     while (pos < state.eMarks[nextLine]) {
       const ch = state.src.charCodeAt(pos);
-      if (ch !== 124 && ch !== 45 && ch !== 58 && !isSpace(ch)) {
+      if (ch !== 124 && ch !== 45 && ch !== 58 && !isSpace2(ch)) {
         return false;
       }
       pos++;
@@ -29975,7 +35784,7 @@
         state.bMarks[nextLine] = pos;
         while (pos < max) {
           const ch = state.src.charCodeAt(pos);
-          if (isSpace(ch)) {
+          if (isSpace2(ch)) {
             if (ch === 9) {
               offset += 4 - (offset + state.bsCount[nextLine] + (adjustTab ? 1 : 0)) % 4;
             } else {
@@ -30058,7 +35867,7 @@
     let cnt = 1;
     while (pos < max) {
       const ch = state.src.charCodeAt(pos++);
-      if (ch !== marker && !isSpace(ch)) {
+      if (ch !== marker && !isSpace2(ch)) {
         return false;
       }
       if (ch === marker) {
@@ -30088,7 +35897,7 @@
     }
     if (pos < max) {
       const ch = state.src.charCodeAt(pos);
-      if (!isSpace(ch)) {
+      if (!isSpace2(ch)) {
         return -1;
       }
     }
@@ -30123,7 +35932,7 @@
     }
     if (pos < max) {
       ch = state.src.charCodeAt(pos);
-      if (!isSpace(ch)) {
+      if (!isSpace2(ch)) {
         return -1;
       }
     }
@@ -30217,7 +36026,7 @@
       if (indentAfterMarker > 4) {
         indentAfterMarker = 1;
       }
-      const indent = initial + indentAfterMarker;
+      const indent2 = initial + indentAfterMarker;
       token = state.push("list_item_open", "li", 1);
       token.markup = String.fromCharCode(markerCharCode);
       const itemLines = [nextLine, 0];
@@ -30230,7 +36039,7 @@
       const oldSCount = state.sCount[nextLine];
       const oldListIndent = state.listIndent;
       state.listIndent = state.blkIndent;
-      state.blkIndent = indent;
+      state.blkIndent = indent2;
       state.tight = true;
       state.tShift[nextLine] = contentStart - state.bMarks[nextLine];
       state.sCount[nextLine] = offset;
@@ -30386,7 +36195,7 @@
           max = str.length;
           nextLine++;
         }
-      } else if (isSpace(ch)) {
+      } else if (isSpace2(ch)) {
       } else {
         break;
       }
@@ -30412,7 +36221,7 @@
           max = str.length;
           nextLine++;
         }
-      } else if (isSpace(ch)) {
+      } else if (isSpace2(ch)) {
       } else {
         break;
       }
@@ -30438,7 +36247,7 @@
     }
     while (pos < max) {
       const ch = str.charCodeAt(pos);
-      if (!isSpace(ch)) {
+      if (!isSpace2(ch)) {
         break;
       }
       pos++;
@@ -30450,7 +36259,7 @@
         nextLine = destEndLineNo;
         while (pos < max) {
           const ch = str.charCodeAt(pos);
-          if (!isSpace(ch)) {
+          if (!isSpace2(ch)) {
             break;
           }
           pos++;
@@ -30638,7 +36447,7 @@
       level++;
       ch = state.src.charCodeAt(++pos);
     }
-    if (level > 6 || pos < max && !isSpace(ch)) {
+    if (level > 6 || pos < max && !isSpace2(ch)) {
       return false;
     }
     if (silent) {
@@ -30646,7 +36455,7 @@
     }
     max = state.skipSpacesBack(max, pos);
     const tmp = state.skipCharsBack(max, 35, pos);
-    if (tmp > pos && isSpace(state.src.charCodeAt(tmp - 1))) {
+    if (tmp > pos && isSpace2(state.src.charCodeAt(tmp - 1))) {
       max = tmp;
     }
     state.line = startLine + 1;
@@ -31020,7 +36829,7 @@
   }
 
   // node_modules/markdown-it/lib/rules_inline/newline.mjs
-  function newline3(state, silent) {
+  function newline4(state, silent) {
     let pos = state.pos;
     if (state.src.charCodeAt(pos) !== 10) {
       return false;
@@ -31043,7 +36852,7 @@
       }
     }
     pos++;
-    while (pos < max && isSpace(state.src.charCodeAt(pos))) {
+    while (pos < max && isSpace2(state.src.charCodeAt(pos))) {
       pos++;
     }
     state.pos = pos;
@@ -31072,7 +36881,7 @@
       pos++;
       while (pos < max) {
         ch1 = state.src.charCodeAt(pos);
-        if (!isSpace(ch1)) break;
+        if (!isSpace2(ch1)) break;
         pos++;
       }
       state.pos = pos;
@@ -31362,7 +37171,7 @@
       pos++;
       for (; pos < max; pos++) {
         code3 = state.src.charCodeAt(pos);
-        if (!isSpace(code3) && code3 !== 10) {
+        if (!isSpace2(code3) && code3 !== 10) {
           break;
         }
       }
@@ -31381,7 +37190,7 @@
         start = pos;
         for (; pos < max; pos++) {
           code3 = state.src.charCodeAt(pos);
-          if (!isSpace(code3) && code3 !== 10) {
+          if (!isSpace2(code3) && code3 !== 10) {
             break;
           }
         }
@@ -31391,7 +37200,7 @@
           pos = res.pos;
           for (; pos < max; pos++) {
             code3 = state.src.charCodeAt(pos);
-            if (!isSpace(code3) && code3 !== 10) {
+            if (!isSpace2(code3) && code3 !== 10) {
               break;
             }
           }
@@ -31469,7 +37278,7 @@
       pos++;
       for (; pos < max; pos++) {
         code3 = state.src.charCodeAt(pos);
-        if (!isSpace(code3) && code3 !== 10) {
+        if (!isSpace2(code3) && code3 !== 10) {
           break;
         }
       }
@@ -31489,7 +37298,7 @@
       start = pos;
       for (; pos < max; pos++) {
         code3 = state.src.charCodeAt(pos);
-        if (!isSpace(code3) && code3 !== 10) {
+        if (!isSpace2(code3) && code3 !== 10) {
           break;
         }
       }
@@ -31499,7 +37308,7 @@
         pos = res.pos;
         for (; pos < max; pos++) {
           code3 = state.src.charCodeAt(pos);
-          if (!isSpace(code3) && code3 !== 10) {
+          if (!isSpace2(code3) && code3 !== 10) {
             break;
           }
         }
@@ -31789,7 +37598,7 @@
   var _rules3 = [
     ["text", text2],
     ["linkify", linkify2],
-    ["newline", newline3],
+    ["newline", newline4],
     ["escape", escape2],
     ["backticks", backtick],
     ["strikethrough", strikethrough_default.tokenize],
@@ -33654,1786 +39463,6 @@
     ]);
   }
 
-  // src/shared/clipboardModel.ts
-  var MLRT_CLIPBOARD_MIME = "application/x-markdown-live-editor+json";
-  var MLRT_CLIPBOARD_VERSION = 1;
-  var VALID_ALIGNMENTS = /* @__PURE__ */ new Set([
-    "left",
-    "center",
-    "right"
-  ]);
-  function normalizeCellText(value) {
-    return value.replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ");
-  }
-  function validateClipboardPayload(value) {
-    if (!isRecord(value) || value.version !== MLRT_CLIPBOARD_VERSION) {
-      return null;
-    }
-    if (typeof value.sourceDocument !== "string") {
-      return null;
-    }
-    const cutToken = value.cutToken === void 0 || typeof value.cutToken === "string" ? value.cutToken : null;
-    if (cutToken === null) {
-      return null;
-    }
-    if (value.kind === "document") {
-      if (typeof value.markdown !== "string") {
-        return null;
-      }
-      return {
-        version: MLRT_CLIPBOARD_VERSION,
-        kind: "document",
-        sourceDocument: value.sourceDocument,
-        markdown: normalizeCellText(value.markdown),
-        ...cutToken ? { cutToken } : {}
-      };
-    }
-    if (value.kind !== "grid" || !Array.isArray(value.rows) || value.rows.length === 0 || !Array.isArray(value.alignments) || typeof value.includesHeader !== "boolean" || value.exactMarkdown !== void 0 && typeof value.exactMarkdown !== "string") {
-      return null;
-    }
-    const width = Array.isArray(value.rows[0]) ? value.rows[0].length : 0;
-    if (width === 0) {
-      return null;
-    }
-    const rows = [];
-    for (const candidateRow of value.rows) {
-      if (!Array.isArray(candidateRow) || candidateRow.length !== width) {
-        return null;
-      }
-      const row = [];
-      for (const candidateCell of candidateRow) {
-        if (!isRecord(candidateCell) || typeof candidateCell.text !== "string" || candidateCell.markdown !== void 0 && typeof candidateCell.markdown !== "string") {
-          return null;
-        }
-        const text3 = normalizeCellText(candidateCell.text);
-        const markdown2 = candidateCell.markdown;
-        row.push({
-          text: text3,
-          ...typeof markdown2 === "string" && isSafeRawCellSource(markdown2, text3) ? { markdown: markdown2 } : {}
-        });
-      }
-      rows.push(row);
-    }
-    const alignments = [];
-    for (let column = 0; column < width; column++) {
-      const alignment = value.alignments[column];
-      alignments.push(
-        typeof alignment === "string" && VALID_ALIGNMENTS.has(alignment) ? alignment : "left"
-      );
-    }
-    return {
-      version: MLRT_CLIPBOARD_VERSION,
-      kind: "grid",
-      sourceDocument: value.sourceDocument,
-      rows,
-      alignments,
-      includesHeader: value.includesHeader,
-      ...typeof value.exactMarkdown === "string" ? { exactMarkdown: normalizeCellText(value.exactMarkdown) } : {},
-      ...cutToken ? { cutToken } : {}
-    };
-  }
-  function parseClipboardPayload(text3) {
-    try {
-      return validateClipboardPayload(JSON.parse(text3));
-    } catch {
-      return null;
-    }
-  }
-  function serializeDelimitedGrid(rows, delimiter2) {
-    return rows.map((row) => row.map((value) => quoteDelimited(value, delimiter2)).join(delimiter2)).join("\r\n");
-  }
-  function parseDelimitedGrid(input, delimiter2) {
-    const text3 = normalizeCellText(input);
-    const rows = [];
-    let row = [];
-    let field = "";
-    let quoted = false;
-    for (let index = 0; index < text3.length; index++) {
-      const character = text3[index];
-      if (quoted) {
-        if (character === '"') {
-          if (text3[index + 1] === '"') {
-            field += '"';
-            index++;
-          } else {
-            quoted = false;
-          }
-        } else {
-          field += character;
-        }
-        continue;
-      }
-      if (character === '"' && field.length === 0) {
-        quoted = true;
-        continue;
-      }
-      if (character === delimiter2) {
-        row.push(field);
-        field = "";
-        continue;
-      }
-      if (character === "\n") {
-        row.push(field);
-        rows.push(row);
-        row = [];
-        field = "";
-        continue;
-      }
-      field += character;
-    }
-    if (quoted) {
-      return null;
-    }
-    row.push(field);
-    rows.push(row);
-    if (rows.length > 1 && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === "" && text3.endsWith("\n")) {
-      rows.pop();
-    }
-    const width = Math.max(...rows.map((candidate) => candidate.length));
-    return rows.map((candidate) => [
-      ...candidate,
-      ...Array.from({ length: width - candidate.length }, () => "")
-    ]);
-  }
-  function gridToMarkdown(rows, alignments = []) {
-    if (rows.length === 0 || rows[0].length === 0) {
-      return "";
-    }
-    const width = rows[0].length;
-    const sourceRows = rows.map(
-      (row) => `|${Array.from(
-        { length: width },
-        (_, column) => ensureTableCellSeparatorSafe(sourceCellForMarkdown(row[column]))
-      ).join("|")}|`
-    );
-    const delimiter2 = `|${Array.from(
-      { length: width },
-      (_, column) => alignmentDelimiter(alignments[column] ?? "left")
-    ).join("|")}|`;
-    return [sourceRows[0], delimiter2, ...sourceRows.slice(1)].join("\n");
-  }
-  function gridPlainTextForCopy(payload, mode) {
-    if (mode === "plain") {
-      return serializeDelimitedGrid(
-        payload.rows.map((row) => row.map((cell2) => cell2.text)),
-        "	"
-      );
-    }
-    return payload.exactMarkdown ?? gridToMarkdown(payload.rows, payload.alignments);
-  }
-  function importedMarkdownToTableCellSource(value) {
-    return normalizeCellText(value).replace(/\|/g, "&#124;").replace(/\n/g, "<br>");
-  }
-  function gridToHtml(rows, options = {}) {
-    const alignments = options.alignments ?? [];
-    const metadata = options.embeddedPayload ? `<meta name="mlrt-clipboard" content="${escapeHtmlAttribute(options.embeddedPayload)}">` : "";
-    const body = rows.map((row, rowIndex) => {
-      const tagName = rowIndex === 0 && options.headerRow !== false ? "th" : "td";
-      return `<tr>${row.map((cell2, column) => {
-        const alignment = alignments[column] ?? "left";
-        const style = `text-align:${alignment};border:1px solid #000000;padding:2px 6px;vertical-align:top;white-space:pre-wrap`;
-        const content2 = options.htmlCells?.[rowIndex]?.[column] !== void 0 ? options.htmlCells[rowIndex][column] : cellTextToHtml(cell2.text);
-        return `<${tagName} style="${style}">${content2}</${tagName}>`;
-      }).join("")}</tr>`;
-    }).join("");
-    return `${metadata}<table style="border-collapse:collapse">${body}</table>`;
-  }
-  function tableRectanglePayload(table2, rectangle, sourceDocument, cutToken) {
-    const rows = tableDataRows(table2);
-    const selected = rows.slice(rectangle.top, rectangle.bottom + 1).map((row) => row.slice(rectangle.left, rectangle.right + 1));
-    const fullTable = rectangle.top === 0 && rectangle.bottom === rows.length - 1 && rectangle.left === 0 && rectangle.right === table2.columnCount - 1;
-    return {
-      version: MLRT_CLIPBOARD_VERSION,
-      kind: "grid",
-      sourceDocument,
-      rows: selected,
-      alignments: table2.alignments.slice(rectangle.left, rectangle.right + 1),
-      includesHeader: rectangle.top === 0,
-      ...fullTable ? { exactMarkdown: tableSourceText(table2) } : {},
-      ...cutToken ? { cutToken } : {}
-    };
-  }
-  function resolveGridPasteRows(source, destination) {
-    if (source.length === 0 || source[0]?.length === 0) {
-      return null;
-    }
-    const sourceHeight = source.length;
-    const sourceWidth = source[0].length;
-    if (source.some((row) => row.length !== sourceWidth)) {
-      return null;
-    }
-    const destinationHeight = destination.bottom - destination.top + 1;
-    const destinationWidth = destination.right - destination.left + 1;
-    const isSingleAnchor = destinationHeight === 1 && destinationWidth === 1;
-    if (isSingleAnchor) {
-      return source.map((row) => row.map(cloneCell));
-    }
-    if (destinationHeight % sourceHeight !== 0 || destinationWidth % sourceWidth !== 0) {
-      return null;
-    }
-    return Array.from(
-      { length: destinationHeight },
-      (_, row) => Array.from(
-        { length: destinationWidth },
-        (_2, column) => cloneCell(source[row % sourceHeight][column % sourceWidth])
-      )
-    );
-  }
-  function buildGridPasteEdit(table2, plan) {
-    const sourceHeight = plan.rows.length;
-    const sourceWidth = plan.rows[0]?.length ?? 0;
-    const requiredRows = Math.max(
-      table2.body.length + 1,
-      plan.destination.top + sourceHeight
-    );
-    const requiredColumns = Math.max(
-      table2.columnCount,
-      plan.destination.left + sourceWidth
-    );
-    const dataRows = [table2.header, ...table2.body];
-    const rawRows = Array.from(
-      { length: requiredRows },
-      (_, rowIndex) => Array.from(
-        { length: requiredColumns },
-        (_2, column) => existingRawCell(dataRows[rowIndex], column)
-      )
-    );
-    for (let row = 0; row < sourceHeight; row++) {
-      for (let column = 0; column < sourceWidth; column++) {
-        const targetRow = plan.destination.top + row;
-        const targetColumn = plan.destination.left + column;
-        const sourceCell = plan.rows[row][column];
-        const existingRaw = rawRows[targetRow][targetColumn];
-        rawRows[targetRow][targetColumn] = sourceCell.markdown ?? formatDisplayCellForDestination(sourceCell.text, existingRaw);
-      }
-    }
-    const delimiterRaw = Array.from({ length: requiredColumns }, (_, column) => {
-      if (column < table2.columnCount) {
-        return table2.delimiter.cells[column]?.raw ?? " --- ";
-      }
-      const sourceColumn = column - plan.destination.left;
-      const alignment = plan.sourceAlignments?.[sourceColumn] ?? "left";
-      return alignmentDelimiter(alignment);
-    });
-    const lines = [rawRows[0], delimiterRaw, ...rawRows.slice(1)].map(
-      (rawCells) => `|${rawCells.map(ensureTableCellSeparatorSafe).join("|")}|`
-    );
-    return {
-      from: table2.from,
-      to: table2.to,
-      insert: lines.join(tableLineSeparator(table2))
-    };
-  }
-  function buildGridClearEdit(table2, rectangle) {
-    const rows = Array.from(
-      { length: rectangle.bottom - rectangle.top + 1 },
-      () => Array.from(
-        { length: rectangle.right - rectangle.left + 1 },
-        () => ({ text: "" })
-      )
-    );
-    return buildGridPasteEdit(table2, { rows, destination: rectangle });
-  }
-  function tableDataRows(table2) {
-    return [table2.header, ...table2.body].map(
-      (row) => Array.from({ length: table2.columnCount }, (_, column) => ({
-        text: markdownCellToDisplayText(row.cells[column]?.raw ?? ""),
-        markdown: row.cells[column]?.raw ?? "  "
-      }))
-    );
-  }
-  function tableSourceText(table2) {
-    return [table2.header, table2.delimiter, ...table2.body].map((row) => row.text).join(tableLineSeparator(table2));
-  }
-  function existingRawCell(row, column) {
-    return row?.cells[column]?.raw ?? "  ";
-  }
-  function formatDisplayCellForDestination(text3, raw) {
-    const { leadingWhitespace, trailingWhitespace } = getCellPaddingWhitespace(raw);
-    const leading = leadingWhitespace || " ";
-    const trailing = trailingWhitespace || " ";
-    return `${leading}${formatMarkdownCell(normalizeCellText(text3), {
-      trim: false
-    })}${trailing}`;
-  }
-  function sourceCellForMarkdown(cell2) {
-    if (cell2?.markdown && isSafeRawCellSource(cell2.markdown, cell2.text)) {
-      return cell2.markdown;
-    }
-    return ` ${formatMarkdownCell(cell2?.text ?? "", { trim: false })} `;
-  }
-  function isSafeRawCellSource(raw, text3) {
-    return !/[\r\n]/.test(raw) && !raw.includes("|") && markdownCellToDisplayText(raw) === text3;
-  }
-  function alignmentDelimiter(alignment) {
-    if (alignment === "center") {
-      return " :---: ";
-    }
-    if (alignment === "right") {
-      return " ---: ";
-    }
-    return " --- ";
-  }
-  function tableLineSeparator(table2) {
-    return table2.delimiter.from - table2.header.to === 2 ? "\r\n" : "\n";
-  }
-  function quoteDelimited(value, delimiter2) {
-    const normalized = normalizeCellText(value);
-    if (normalized.includes(delimiter2) || normalized.includes('"') || normalized.includes("\n")) {
-      return `"${normalized.replace(/"/g, '""')}"`;
-    }
-    return normalized;
-  }
-  function cellTextToHtml(value) {
-    return escapeHtml2(normalizeCellText(value)).replace(/\n/g, "<br>");
-  }
-  function escapeHtml2(value) {
-    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-  }
-  function escapeHtmlAttribute(value) {
-    return escapeHtml2(value).replace(/\r?\n/g, "&#10;");
-  }
-  function cloneCell(cell2) {
-    return { text: cell2.text, ...cell2.markdown ? { markdown: cell2.markdown } : {} };
-  }
-  function isRecord(value) {
-    return Boolean(value) && typeof value === "object";
-  }
-
-  // src/editor/dragPosition.ts
-  function editorDragPosition(view2, clientX, clientY) {
-    const editorRect = view2.dom.getBoundingClientRect();
-    if (clientY < editorRect.top) {
-      return 0;
-    }
-    if (clientY > editorRect.bottom) {
-      return view2.state.doc.length;
-    }
-    const contentRect = view2.contentDOM.getBoundingClientRect();
-    const horizontalRect = contentRect.width > 1 ? contentRect : editorRect;
-    if (horizontalRect.width <= 1) {
-      return null;
-    }
-    const clampedX = Math.max(
-      horizontalRect.left + 0.5,
-      Math.min(clientX, horizontalRect.right - 0.5)
-    );
-    return view2.posAtCoords({ x: clampedX, y: clientY });
-  }
-
-  // src/editor/documentSelectionState.ts
-  var projections = /* @__PURE__ */ new WeakMap();
-  var documentSelectionProjectionTransaction = Annotation.define();
-  function setDocumentSelectionProjection(doc2, projection) {
-    projections.set(doc2, {
-      anchor: projection.anchor,
-      head: projection.head,
-      tableRegions: projection.tableRegions.map(normalizeRegion)
-    });
-  }
-  function getDocumentSelectionProjection(doc2, selection) {
-    const projection = projections.get(doc2) ?? null;
-    if (projection && selection && (projection.anchor !== selection.anchor || projection.head !== selection.head)) {
-      projections.delete(doc2);
-      return null;
-    }
-    return projection ? {
-      anchor: projection.anchor,
-      head: projection.head,
-      tableRegions: projection.tableRegions.map((region) => ({ ...region }))
-    } : null;
-  }
-  function clearDocumentSelectionProjection(doc2) {
-    projections.delete(doc2);
-  }
-  function documentSelectionProjectionsEqual(left, right) {
-    if (left === right) {
-      return true;
-    }
-    if (!left || !right || left.anchor !== right.anchor || left.head !== right.head || left.tableRegions.length !== right.tableRegions.length) {
-      return false;
-    }
-    return left.tableRegions.every((region, index) => {
-      const candidate = right.tableRegions[index];
-      return candidate !== void 0 && region.tableFrom === candidate.tableFrom && region.top === candidate.top && region.bottom === candidate.bottom && region.left === candidate.left && region.right === candidate.right;
-    });
-  }
-  function proseToTableRectangle(direction, cell2, dimensions) {
-    const address = clampCell(cell2, dimensions);
-    if (direction === "forward") {
-      return {
-        top: 0,
-        bottom: address.row,
-        left: 0,
-        right: address.column
-      };
-    }
-    return {
-      top: address.row,
-      bottom: Math.max(0, dimensions.rowCount - 1),
-      left: address.column,
-      right: Math.max(0, dimensions.columnCount - 1)
-    };
-  }
-  function tableToProseRectangle(direction, anchor, dimensions) {
-    const address = clampCell(anchor, dimensions);
-    return direction === "above" ? {
-      top: 0,
-      bottom: address.row,
-      left: 0,
-      right: Math.max(0, dimensions.columnCount - 1)
-    } : {
-      top: address.row,
-      bottom: Math.max(0, dimensions.rowCount - 1),
-      left: 0,
-      right: Math.max(0, dimensions.columnCount - 1)
-    };
-  }
-  function fullTableRectangle(dimensions) {
-    return {
-      top: 0,
-      bottom: Math.max(0, dimensions.rowCount - 1),
-      left: 0,
-      right: Math.max(0, dimensions.columnCount - 1)
-    };
-  }
-  function normalizeRegion(region) {
-    return {
-      tableFrom: region.tableFrom,
-      top: Math.min(region.top, region.bottom),
-      bottom: Math.max(region.top, region.bottom),
-      left: Math.min(region.left, region.right),
-      right: Math.max(region.left, region.right)
-    };
-  }
-  function clampCell(cell2, dimensions) {
-    return {
-      row: Math.max(0, Math.min(dimensions.rowCount - 1, cell2.row)),
-      column: Math.max(0, Math.min(dimensions.columnCount - 1, cell2.column))
-    };
-  }
-
-  // src/editor/clipboardCutState.ts
-  var pendingCuts = /* @__PURE__ */ new WeakMap();
-  function getPendingClipboardCut(doc2) {
-    return pendingCuts.get(doc2) ?? null;
-  }
-  function setPendingClipboardCut(doc2, pending) {
-    clearPendingClipboardCut(doc2);
-    pendingCuts.set(doc2, pending);
-  }
-  function clearPendingClipboardCut(doc2) {
-    pendingCuts.delete(doc2);
-    doc2.querySelectorAll(".mlrt-table-cut-source-pending").forEach((wrapper) => wrapper.classList.remove("mlrt-table-cut-source-pending"));
-    doc2.querySelectorAll(".mlrt-table-cut-source").forEach(
-      (cell2) => cell2.classList.remove(
-        "mlrt-table-cut-source",
-        "mlrt-table-cut-source-top",
-        "mlrt-table-cut-source-right",
-        "mlrt-table-cut-source-bottom",
-        "mlrt-table-cut-source-left"
-      )
-    );
-  }
-
-  // src/editor/tableBoundaryInput.ts
-  function planVisibleTableBoundary(doc2, table2, side) {
-    if (side === "before") {
-      return table2.from === 0 ? {
-        anchor: 0,
-        change: { from: 0, to: 0, insert: "\n" }
-      } : { anchor: positionBeforeTable(table2) };
-    }
-    if (table2.to === doc2.length) {
-      return {
-        anchor: table2.to + 1,
-        change: { from: table2.to, to: table2.to, insert: "\n" }
-      };
-    }
-    return { anchor: positionAfterTable(doc2, table2) };
-  }
-  function selectVisibleTableBoundary(view2, table2, side) {
-    const latestTable = getParsedTables(view2.state.doc).find(
-      (candidate) => candidate.from === table2.from
-    ) ?? table2;
-    const plan = planVisibleTableBoundary(view2.state.doc, latestTable, side);
-    if (plan.change) {
-      view2.dispatch({
-        changes: plan.change,
-        selection: EditorSelection.cursor(
-          plan.anchor,
-          side === "before" ? -1 : 1
-        ),
-        annotations: allowTableSourceChange.of(true),
-        scrollIntoView: true,
-        userEvent: "input.type"
-      });
-    } else {
-      view2.dispatch({
-        selection: EditorSelection.cursor(
-          plan.anchor,
-          side === "before" ? -1 : 1
-        ),
-        scrollIntoView: true
-      });
-    }
-    return plan.anchor;
-  }
-  function createTableBoundaryInputHandler() {
-    return EditorView.inputHandler.of((view2, from, to, text3) => {
-      if (from !== to || text3.length === 0) {
-        return false;
-      }
-      const table2 = getParsedTables(view2.state.doc).find(
-        (candidate) => candidate.from === 0 && from === candidate.from || candidate.to === view2.state.doc.length && from === candidate.to
-      );
-      if (!table2) {
-        return false;
-      }
-      const insertingBefore = table2.from === 0 && from === table2.from;
-      const insert2 = insertingBefore ? text3.endsWith("\n") ? text3 : `${text3}
-` : text3.startsWith("\n") ? text3 : `
-${text3}`;
-      const anchor = insertingBefore ? from + insert2.length - 1 : from + insert2.length;
-      view2.dispatch({
-        changes: { from, to, insert: insert2 },
-        selection: EditorSelection.cursor(anchor, insertingBefore ? -1 : 1),
-        annotations: allowTableSourceChange.of(true),
-        scrollIntoView: true,
-        userEvent: "input.type"
-      });
-      return true;
-    });
-  }
-
-  // src/editor/table/tableRangeSelection.ts
-  var TABLE_SELECTION_CHANGE_EVENT = "mlrt:table-selection-change";
-  var TABLE_SELECTION_CLEAR_EVENT = "mlrt:table-selection-clear";
-  var TABLE_CUT_CANCEL_EVENT = "mlrt:table-cut-cancel";
-  var states = /* @__PURE__ */ new WeakMap();
-  function bindTableRangeSelection(wrapper, view2, table2) {
-    wrapper.tabIndex = -1;
-    wrapper.setAttribute("role", "group");
-    wrapper.setAttribute("aria-label", "Markdown table cell selection");
-    let suppressNativeMouseDrag = false;
-    let lastDocumentDragRange = null;
-    let lastDocumentDragProjection = null;
-    let lastDocumentDragDocument = null;
-    let pointerCaptureId = null;
-    let pointerCaptureGeneration = null;
-    let ownsPointerCapture = false;
-    let pointerCleanupTimer = null;
-    let gestureGeneration = 0;
-    let activeGestureGeneration = null;
-    const currentTable = () => getTableWidgetTable(wrapper) ?? table2;
-    stateFor(wrapper.ownerDocument).view = view2;
-    const onPointerDown = (event) => {
-      const start = tableSelectionStart(wrapper, event);
-      if (!start) {
-        return;
-      }
-      if (event.button !== 0) {
-        if (event.button === 2) {
-          event.preventDefault();
-        }
-        return;
-      }
-      if (!event.isPrimary) {
-        return;
-      }
-      const address = addressFromCell(start.cell);
-      if (!address) {
-        return;
-      }
-      const state = stateFor(wrapper.ownerDocument);
-      state.pointerCleanup?.();
-      if (!view2.state.selection.main.empty) {
-        view2.dispatch({
-          selection: EditorSelection.cursor(positionBeforeTable(currentTable()), 1)
-        });
-      }
-      clearDocumentSelectionProjection(wrapper.ownerDocument);
-      if (event.shiftKey) {
-        const current = getTableRangeSelection(wrapper.ownerDocument);
-        const focusedCell = findCell(wrapper.ownerDocument.activeElement);
-        const focusedAddress = focusedCell && wrapper.contains(focusedCell) ? addressFromCell(focusedCell) : null;
-        const rawAnchor = current?.wrapper === wrapper ? current.anchor : focusedAddress ?? address;
-        const anchor = start.mode === "row" ? { row: rawAnchor.row, column: 0 } : rawAnchor;
-        const head = start.mode === "row" ? { row: address.row, column: currentTable().columnCount - 1 } : address;
-        event.preventDefault();
-        setTableRangeSelection(wrapper, currentTable().from, anchor, head, true);
-        return;
-      }
-      state.pointerAnchor = address;
-      state.pointerAnchorMode = start.mode;
-      state.pointerId = event.pointerId;
-      state.pointerCrossedCells = false;
-      activeGestureGeneration = ++gestureGeneration;
-      suppressNativeMouseDrag = start.mode === "row";
-      lastDocumentDragRange = null;
-      lastDocumentDragProjection = null;
-      lastDocumentDragDocument = null;
-      wrapper.ownerDocument.addEventListener("pointermove", onPointerMove, true);
-      wrapper.ownerDocument.addEventListener("pointerup", onPointerUp, true);
-      wrapper.ownerDocument.addEventListener("pointercancel", onPointerUp, true);
-      wrapper.ownerDocument.addEventListener("mousemove", onMouseMove, true);
-      wrapper.ownerDocument.addEventListener("mouseup", onMouseUp, true);
-      wrapper.ownerDocument.addEventListener("click", onClickAfterDrag, true);
-      state.pointerCleanup = removeDocumentPointerListeners;
-      if (state.selection?.wrapper === wrapper) {
-        clearTableRangeSelection(wrapper.ownerDocument);
-      }
-      if (start.mode === "row") {
-        event.preventDefault();
-        clearNativeSelection(wrapper.ownerDocument);
-        setTableRangeSelection(
-          wrapper,
-          currentTable().from,
-          address,
-          { row: address.row, column: currentTable().columnCount - 1 },
-          true
-        );
-      }
-    };
-    const claimPointerCapture = (event) => {
-      if (!("pointerId" in event)) {
-        return;
-      }
-      const state = stateFor(wrapper.ownerDocument);
-      if (state.pointerCleanup !== removeDocumentPointerListeners || state.pointerId !== event.pointerId || ownsPointerCapture) {
-        return;
-      }
-      try {
-        if (!wrapper.hasPointerCapture(event.pointerId)) {
-          wrapper.setPointerCapture(event.pointerId);
-        }
-        ownsPointerCapture = wrapper.hasPointerCapture(event.pointerId);
-        pointerCaptureId = ownsPointerCapture ? event.pointerId : null;
-        pointerCaptureGeneration = ownsPointerCapture ? activeGestureGeneration : null;
-      } catch {
-      }
-    };
-    const updateDragSelection = (event) => {
-      const state = stateFor(wrapper.ownerDocument);
-      if ("pointerId" in event && state.pointerId !== -1 && state.pointerId !== event.pointerId || !state.pointerAnchor || (event.buttons & 1) === 0) {
-        return;
-      }
-      const target = wrapper.ownerDocument.elementFromPoint(
-        event.clientX,
-        event.clientY
-      );
-      const cell2 = findCell(target);
-      if (cell2 && wrapper.contains(cell2)) {
-        const rawAddress = addressFromCell(cell2);
-        const address = rawAddress && state.pointerAnchorMode === "row" ? {
-          row: rawAddress.row,
-          column: currentTable().columnCount - 1
-        } : rawAddress;
-        if (!address) {
-          return;
-        }
-        if (sameAddress(address, state.pointerAnchor) && !state.pointerCrossedCells && !lastDocumentDragRange) {
-          return;
-        }
-        state.pointerCrossedCells = true;
-        suppressNativeMouseDrag = true;
-        claimPointerCapture(event);
-        event.preventDefault();
-        event.stopPropagation();
-        const currentSelection = getTableRangeSelection(
-          wrapper.ownerDocument
-        );
-        const selectionUnchanged = Boolean(
-          currentSelection?.wrapper === wrapper && sameAddress(currentSelection.anchor, state.pointerAnchor) && sameAddress(currentSelection.head, address) && lastDocumentDragRange === null
-        );
-        lastDocumentDragRange = null;
-        lastDocumentDragProjection = null;
-        lastDocumentDragDocument = null;
-        clearDocumentSelectionProjection(wrapper.ownerDocument);
-        if (!selectionUnchanged) {
-          setTableRangeSelection(
-            wrapper,
-            currentTable().from,
-            state.pointerAnchor,
-            address,
-            true
-          );
-        }
-        return;
-      }
-      const latestTable = currentTable();
-      const tableRect = wrapper.querySelector(".mlrt-table")?.getBoundingClientRect() ?? wrapper.getBoundingClientRect();
-      if (event.clientY >= tableRect.top && event.clientY <= tableRect.bottom) {
-        const clampedCell = nearestCellInWrapper(
-          wrapper,
-          event.clientX,
-          event.clientY
-        );
-        const address = clampedCell ? addressFromCell(clampedCell) : null;
-        if (address) {
-          const selectionHead = state.pointerAnchorMode === "row" ? {
-            row: address.row,
-            column: latestTable.columnCount - 1
-          } : address;
-          state.pointerCrossedCells = true;
-          suppressNativeMouseDrag = true;
-          claimPointerCapture(event);
-          event.preventDefault();
-          event.stopPropagation();
-          const currentSelection = getTableRangeSelection(
-            wrapper.ownerDocument
-          );
-          const selectionUnchanged = Boolean(
-            currentSelection?.wrapper === wrapper && sameAddress(currentSelection.anchor, state.pointerAnchor) && sameAddress(currentSelection.head, selectionHead) && lastDocumentDragRange === null
-          );
-          lastDocumentDragRange = null;
-          lastDocumentDragProjection = null;
-          lastDocumentDragDocument = null;
-          clearDocumentSelectionProjection(wrapper.ownerDocument);
-          if (!selectionUnchanged) {
-            setTableRangeSelection(
-              wrapper,
-              latestTable.from,
-              state.pointerAnchor,
-              selectionHead,
-              true
-            );
-          }
-        }
-        return;
-      }
-      const tableFrom = Number(wrapper.dataset.srcFrom ?? latestTable.from);
-      const parsedTables = getParsedTables(view2.state.doc);
-      const parsedTable = parsedTables.find(
-        (candidate) => candidate.from === tableFrom
-      );
-      const tableTo = parsedTable?.to ?? tableFrom + (latestTable.to - latestTable.from);
-      const movingBeforeTable = event.clientY < tableRect.top;
-      const movingAfterTable = event.clientY > tableRect.bottom;
-      if (!movingBeforeTable && !movingAfterTable) {
-        return;
-      }
-      const selectionTarget = cell2 ? { cell: cell2, rowSelection: false } : documentTargetAtPoint(
-        wrapper.ownerDocument,
-        event.clientX,
-        event.clientY,
-        wrapper
-      );
-      const targetCell = selectionTarget?.cell ?? null;
-      let documentPosition = null;
-      let targetTable = null;
-      let targetAddress = null;
-      if (targetCell) {
-        const targetFrom = Number(targetCell.dataset.tableFrom ?? "NaN");
-        targetTable = parsedTables.find(
-          (candidate) => candidate.from === targetFrom
-        ) ?? null;
-        const rawTargetAddress = addressFromCell(targetCell);
-        targetAddress = rawTargetAddress && selectionTarget?.rowSelection ? {
-          row: rawTargetAddress.row,
-          column: movingAfterTable ? (targetTable?.columnCount ?? 1) - 1 : 0
-        } : rawTargetAddress;
-        if (targetTable && targetAddress) {
-          const sourceSpan = renderedCellSpan(targetCell, targetTable);
-          documentPosition = movingAfterTable ? sourceSpan?.to ?? targetTable.to : sourceSpan?.from ?? targetTable.from;
-        }
-      }
-      if (documentPosition === null) {
-        documentPosition = editorDragPosition(
-          view2,
-          event.clientX,
-          event.clientY
-        );
-      }
-      if (documentPosition === null) {
-        return;
-      }
-      state.pointerCrossedCells = true;
-      suppressNativeMouseDrag = true;
-      claimPointerCapture(event);
-      event.preventDefault();
-      event.stopPropagation();
-      clearTableRangeSelection(wrapper.ownerDocument);
-      if (!view2.hasFocus) {
-        view2.focus();
-      }
-      clearNativeSelection(wrapper.ownerDocument);
-      const anchorPosition = movingBeforeTable ? tableTo : tableFrom;
-      const nextRange = {
-        anchor: anchorPosition,
-        head: documentPosition
-      };
-      const nextProjection = {
-        ...nextRange,
-        tableRegions: regionsForTableToDocument(
-          parsedTables,
-          parsedTable ?? latestTable,
-          state.pointerAnchor,
-          movingBeforeTable ? "above" : "below",
-          documentPosition,
-          targetTable,
-          targetAddress
-        )
-      };
-      publishDocumentDragSelection(nextRange, nextProjection);
-    };
-    const publishDocumentDragSelection = (range, projection) => {
-      const currentRange = view2.state.selection.main;
-      const currentProjection = getDocumentSelectionProjection(
-        wrapper.ownerDocument,
-        currentRange
-      );
-      const rangeChanged = currentRange.anchor !== range.anchor || currentRange.head !== range.head;
-      const projectionChanged = !documentSelectionProjectionsEqual(
-        currentProjection,
-        projection
-      );
-      lastDocumentDragRange = range;
-      lastDocumentDragProjection = projection;
-      lastDocumentDragDocument = view2.state.doc;
-      setDocumentSelectionProjection(wrapper.ownerDocument, projection);
-      if (!rangeChanged && !projectionChanged) {
-        return;
-      }
-      view2.dispatch({
-        selection: EditorSelection.range(range.anchor, range.head),
-        scrollIntoView: true,
-        annotations: documentSelectionProjectionTransaction.of(true)
-      });
-    };
-    const onPointerMove = (event) => {
-      const state = stateFor(wrapper.ownerDocument);
-      if (state.pointerCleanup !== removeDocumentPointerListeners) {
-        return;
-      }
-      if (ownsPointerCapture && pointerCaptureId !== null && pointerCaptureGeneration === activeGestureGeneration && !wrapper.hasPointerCapture(pointerCaptureId)) {
-        finishDocumentPointerGesture(true, activeGestureGeneration);
-        return;
-      }
-      updateDragSelection(event);
-    };
-    const onPointerUp = (event) => {
-      const state = stateFor(wrapper.ownerDocument);
-      if (state.pointerId !== event.pointerId) {
-        return;
-      }
-      state.pointerAnchor = null;
-      state.pointerAnchorMode = null;
-      state.pointerId = null;
-      state.pointerCrossedCells = false;
-      if (suppressNativeMouseDrag) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      const generation = activeGestureGeneration;
-      queueMicrotask(() => restoreLastDocumentDragRange(generation));
-      schedulePointerCleanup();
-    };
-    const onMouseMove = (event) => {
-      const state = stateFor(wrapper.ownerDocument);
-      if (state.pointerAnchor && (event.buttons & 1) !== 0) {
-        updateDragSelection(event);
-      }
-      if (suppressNativeMouseDrag) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-    const onMouseUp = (event) => {
-      const state = stateFor(wrapper.ownerDocument);
-      if (suppressNativeMouseDrag) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      if (state.pointerId === -1) {
-        state.pointerAnchor = null;
-        state.pointerAnchorMode = null;
-        state.pointerId = null;
-        state.pointerCrossedCells = false;
-        schedulePointerCleanup();
-      }
-      const generation = activeGestureGeneration;
-      queueMicrotask(() => restoreLastDocumentDragRange(generation));
-    };
-    const onClickAfterDrag = (event) => {
-      if (!suppressNativeMouseDrag) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      suppressNativeMouseDrag = false;
-    };
-    const restoreLastDocumentDragRange = (expectedGeneration = activeGestureGeneration) => {
-      if (expectedGeneration === null || expectedGeneration !== activeGestureGeneration || !lastDocumentDragRange) {
-        return;
-      }
-      restoreDocumentDragRange(
-        lastDocumentDragRange,
-        lastDocumentDragProjection,
-        lastDocumentDragDocument
-      );
-    };
-    const restoreDocumentDragRange = (range, projection, documentSnapshot) => {
-      if (!view2.dom.isConnected || view2.dom.ownerDocument !== wrapper.ownerDocument || documentSnapshot === null || view2.state.doc !== documentSnapshot) {
-        return;
-      }
-      const documentLength = view2.state.doc.length;
-      const clampedRange = {
-        anchor: Math.max(0, Math.min(documentLength, range.anchor)),
-        head: Math.max(0, Math.min(documentLength, range.head))
-      };
-      const clampedProjection = projection ? { ...projection, ...clampedRange } : null;
-      if (clampedProjection) {
-        setDocumentSelectionProjection(
-          wrapper.ownerDocument,
-          clampedProjection
-        );
-      }
-      view2.dispatch({
-        selection: EditorSelection.range(
-          clampedRange.anchor,
-          clampedRange.head
-        ),
-        ...clampedProjection ? {
-          annotations: documentSelectionProjectionTransaction.of(true)
-        } : {}
-      });
-    };
-    const schedulePointerCleanup = () => {
-      const generation = activeGestureGeneration;
-      if (generation === null) {
-        return;
-      }
-      if (pointerCleanupTimer !== null) {
-        clearTimeout(pointerCleanupTimer);
-      }
-      const timer = setTimeout(() => {
-        if (pointerCleanupTimer !== timer) {
-          return;
-        }
-        pointerCleanupTimer = null;
-        if (activeGestureGeneration !== generation) {
-          return;
-        }
-        finishDocumentPointerGesture(true, generation);
-      }, 0);
-      pointerCleanupTimer = timer;
-    };
-    const onMouseDown = (event) => {
-      const state = stateFor(wrapper.ownerDocument);
-      if (event.button !== 0) {
-        return;
-      }
-      if (state.pointerAnchor) {
-        if (state.pointerId !== -1) {
-          if (state.pointerAnchorMode === "row") {
-            event.preventDefault();
-            clearNativeSelection(wrapper.ownerDocument);
-          }
-          return;
-        }
-        state.pointerCleanup?.();
-      }
-      const start = tableSelectionStart(wrapper, event);
-      const address = start ? addressFromCell(start.cell) : null;
-      if (!address) {
-        return;
-      }
-      state.pointerAnchor = address;
-      state.pointerAnchorMode = start?.mode ?? "cell";
-      state.pointerId = -1;
-      state.pointerCrossedCells = false;
-      activeGestureGeneration = ++gestureGeneration;
-      suppressNativeMouseDrag = start?.mode === "row";
-      lastDocumentDragRange = null;
-      lastDocumentDragProjection = null;
-      lastDocumentDragDocument = null;
-      if (!view2.state.selection.main.empty) {
-        view2.dispatch({
-          selection: EditorSelection.cursor(positionBeforeTable(currentTable()), 1)
-        });
-      }
-      clearDocumentSelectionProjection(wrapper.ownerDocument);
-      wrapper.ownerDocument.addEventListener("mousemove", onMouseMove, true);
-      wrapper.ownerDocument.addEventListener("mouseup", onMouseUp, true);
-      wrapper.ownerDocument.addEventListener("click", onClickAfterDrag, true);
-      state.pointerCleanup = removeDocumentPointerListeners;
-      if (state.selection?.wrapper === wrapper) {
-        clearTableRangeSelection(wrapper.ownerDocument);
-      }
-      if (start?.mode === "row") {
-        event.preventDefault();
-        clearNativeSelection(wrapper.ownerDocument);
-        setTableRangeSelection(
-          wrapper,
-          currentTable().from,
-          address,
-          { row: address.row, column: currentTable().columnCount - 1 },
-          true
-        );
-      }
-    };
-    const removeDocumentPointerListeners = () => {
-      finishDocumentPointerGesture(true, activeGestureGeneration);
-    };
-    const finishDocumentPointerGesture = (restoreFinalRange, expectedGeneration) => {
-      const state = stateFor(wrapper.ownerDocument);
-      const ownsGesture = expectedGeneration !== null && expectedGeneration === activeGestureGeneration && state.pointerCleanup === removeDocumentPointerListeners;
-      const finalRange = ownsGesture && restoreFinalRange ? lastDocumentDragRange : null;
-      const finalProjection = ownsGesture && restoreFinalRange ? lastDocumentDragProjection : null;
-      const finalDocument = ownsGesture && restoreFinalRange ? lastDocumentDragDocument : null;
-      const capturedPointerId = pointerCaptureId;
-      if (pointerCleanupTimer !== null) {
-        clearTimeout(pointerCleanupTimer);
-        pointerCleanupTimer = null;
-      }
-      pointerCaptureId = null;
-      pointerCaptureGeneration = null;
-      ownsPointerCapture = false;
-      wrapper.ownerDocument.removeEventListener("pointermove", onPointerMove, true);
-      wrapper.ownerDocument.removeEventListener("pointerup", onPointerUp, true);
-      wrapper.ownerDocument.removeEventListener("pointercancel", onPointerUp, true);
-      wrapper.ownerDocument.removeEventListener("mousemove", onMouseMove, true);
-      wrapper.ownerDocument.removeEventListener("mouseup", onMouseUp, true);
-      wrapper.ownerDocument.removeEventListener("click", onClickAfterDrag, true);
-      suppressNativeMouseDrag = false;
-      lastDocumentDragRange = null;
-      lastDocumentDragProjection = null;
-      lastDocumentDragDocument = null;
-      if (ownsGesture) {
-        state.pointerAnchor = null;
-        state.pointerAnchorMode = null;
-        state.pointerId = null;
-        state.pointerCrossedCells = false;
-        state.pointerCleanup = null;
-        activeGestureGeneration = null;
-      }
-      if (capturedPointerId !== null && wrapper.hasPointerCapture(capturedPointerId)) {
-        try {
-          wrapper.releasePointerCapture(capturedPointerId);
-        } catch {
-        }
-      }
-      if (finalRange) {
-        clearNativeSelection(wrapper.ownerDocument);
-        restoreDocumentDragRange(finalRange, finalProjection, finalDocument);
-      }
-    };
-    const onLostPointerCapture = (event) => {
-      const state = stateFor(wrapper.ownerDocument);
-      if (event.pointerId !== pointerCaptureId || pointerCaptureGeneration !== activeGestureGeneration || state.pointerCleanup !== removeDocumentPointerListeners) {
-        return;
-      }
-      if (wrapper.hasPointerCapture(event.pointerId)) {
-        return;
-      }
-      if (state.pointerId === null) {
-        pointerCaptureId = null;
-        pointerCaptureGeneration = null;
-        ownsPointerCapture = false;
-        return;
-      }
-      finishDocumentPointerGesture(true, activeGestureGeneration);
-    };
-    const onWindowBlur = () => {
-      const state = stateFor(wrapper.ownerDocument);
-      if (state.pointerCleanup === removeDocumentPointerListeners) {
-        finishDocumentPointerGesture(true, activeGestureGeneration);
-      }
-    };
-    const onFocusIn = (event) => {
-      const cell2 = findCell(event.target);
-      if (cell2 && wrapper.contains(cell2)) {
-        if (!view2.state.selection.main.empty) {
-          const latestTable = currentTable();
-          view2.dispatch({
-            selection: EditorSelection.cursor(positionBeforeTable(latestTable), 1)
-          });
-        }
-        clearDocumentSelectionProjection(wrapper.ownerDocument);
-        clearTableRangeSelection(wrapper.ownerDocument);
-      }
-    };
-    const onDocumentSelectionPointerDown = (event) => {
-      if (event.button !== 0) {
-        return;
-      }
-      if (event.target instanceof Element && event.target.closest(".mlrt-clipboard-menu")) {
-        return;
-      }
-      const selection = getTableRangeSelection(wrapper.ownerDocument);
-      if (selection?.wrapper === wrapper && event.target instanceof Node && !wrapper.contains(event.target)) {
-        clearTableRangeSelection(wrapper.ownerDocument);
-      }
-    };
-    const onKeyDown = (event) => {
-      const activeCell = findCell(event.target);
-      if (activeCell && wrapper.contains(activeCell)) {
-        const latestTable2 = currentTable();
-        if (event.key === "Escape") {
-          const address = addressFromCell(activeCell);
-          if (!address) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          activeCell.blur();
-          setTableRangeSelection(
-            wrapper,
-            Number(wrapper.dataset.srcFrom ?? latestTable2.from),
-            address,
-            address,
-            true
-          );
-          return;
-        }
-        if (isSelectAll(event)) {
-          handleCellSelectAll(event, wrapper, latestTable2, activeCell);
-        }
-        return;
-      }
-      const selection = getTableRangeSelection(wrapper.ownerDocument);
-      if (!selection || selection.wrapper !== wrapper) {
-        return;
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (selection.pendingCutToken || getPendingClipboardCut(wrapper.ownerDocument)?.kind === "table") {
-          wrapper.dispatchEvent(
-            new CustomEvent(TABLE_CUT_CANCEL_EVENT, { bubbles: true })
-          );
-        } else {
-          const target = cellFromAddress(wrapper, selection.head);
-          clearTableRangeSelection(wrapper.ownerDocument);
-          if (target) {
-            focusCellAtEnd(target);
-          }
-        }
-        return;
-      }
-      const latestTable = currentTable();
-      if (isSelectAll(event)) {
-        event.preventDefault();
-        event.stopPropagation();
-        const rectangle = selectionRectangle(selection);
-        const rowCount = latestTable.body.length + 1;
-        if (rectangle.top === 0 && rectangle.bottom === rowCount - 1 && rectangle.left === 0 && rectangle.right === latestTable.columnCount - 1) {
-          clearTableRangeSelection(wrapper.ownerDocument);
-          view2.focus();
-          view2.dispatch({
-            selection: EditorSelection.range(0, view2.state.doc.length),
-            scrollIntoView: true
-          });
-        } else {
-          setTableRangeSelection(
-            wrapper,
-            selection.tableFrom,
-            { row: 0, column: 0 },
-            { row: rowCount - 1, column: latestTable.columnCount - 1 },
-            true
-          );
-        }
-        return;
-      }
-      if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "Tab") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (event.key === "Tab") {
-          const nextHead2 = tabDestination(
-            selection.head,
-            latestTable,
-            event.shiftKey
-          );
-          if (nextHead2) {
-            setTableRangeSelection(
-              wrapper,
-              latestTable.from,
-              nextHead2,
-              nextHead2,
-              true
-            );
-          } else {
-            clearTableRangeSelection(wrapper.ownerDocument);
-            view2.focus();
-            selectVisibleTableBoundary(
-              view2,
-              latestTable,
-              event.shiftKey ? "before" : "after"
-            );
-          }
-          return;
-        }
-        if (isPlainKey(event) && (event.key === "ArrowUp" && selection.head.row === 0 || event.key === "ArrowDown" && selection.head.row === latestTable.body.length)) {
-          clearTableRangeSelection(wrapper.ownerDocument);
-          view2.focus();
-          selectVisibleTableBoundary(
-            view2,
-            latestTable,
-            event.key === "ArrowUp" ? "before" : "after"
-          );
-          return;
-        }
-        const delta = keyDelta(event);
-        const nextHead = clampAddress(
-          {
-            row: selection.head.row + delta.row,
-            column: selection.head.column + delta.column
-          },
-          latestTable
-        );
-        const nextAnchor = event.shiftKey ? selection.anchor : nextHead;
-        setTableRangeSelection(
-          wrapper,
-          selection.tableFrom,
-          nextAnchor,
-          nextHead,
-          true
-        );
-        return;
-      }
-      if (event.key === "Enter" || event.key === "F2") {
-        event.preventDefault();
-        event.stopPropagation();
-        const target = cellFromAddress(wrapper, selection.head);
-        clearTableRangeSelection(wrapper.ownerDocument);
-        if (target) {
-          focusCellAtEnd(target);
-        }
-        return;
-      }
-      if (event.key === "Backspace" || event.key === "Delete") {
-        event.preventDefault();
-        event.stopPropagation();
-        wrapper.dispatchEvent(
-          new CustomEvent(TABLE_SELECTION_CLEAR_EVENT, { bubbles: true })
-        );
-        return;
-      }
-      if (isPrintableKey(event)) {
-        const target = cellFromAddress(wrapper, selection.head);
-        event.preventDefault();
-        event.stopPropagation();
-        clearTableRangeSelection(wrapper.ownerDocument);
-        if (target) {
-          target.focus();
-          const nativeSelection = wrapper.ownerDocument.defaultView?.getSelection();
-          const range = wrapper.ownerDocument.createRange();
-          range.selectNodeContents(target);
-          nativeSelection?.removeAllRanges();
-          nativeSelection?.addRange(range);
-          wrapper.ownerDocument.execCommand("insertText", false, event.key);
-        }
-      }
-    };
-    wrapper.addEventListener("pointerdown", onPointerDown);
-    wrapper.addEventListener("lostpointercapture", onLostPointerCapture, true);
-    wrapper.addEventListener("mousedown", onMouseDown);
-    wrapper.addEventListener("focusin", onFocusIn);
-    wrapper.addEventListener("keydown", onKeyDown);
-    wrapper.ownerDocument.addEventListener(
-      "pointerdown",
-      onDocumentSelectionPointerDown,
-      true
-    );
-    wrapper.ownerDocument.defaultView?.addEventListener("blur", onWindowBlur);
-    restoreSelectionClasses(wrapper);
-    return () => {
-      wrapper.removeEventListener("pointerdown", onPointerDown);
-      wrapper.removeEventListener(
-        "lostpointercapture",
-        onLostPointerCapture,
-        true
-      );
-      wrapper.removeEventListener("mousedown", onMouseDown);
-      finishDocumentPointerGesture(false, activeGestureGeneration);
-      wrapper.removeEventListener("focusin", onFocusIn);
-      wrapper.removeEventListener("keydown", onKeyDown);
-      wrapper.ownerDocument.removeEventListener(
-        "pointerdown",
-        onDocumentSelectionPointerDown,
-        true
-      );
-      wrapper.ownerDocument.defaultView?.removeEventListener(
-        "blur",
-        onWindowBlur
-      );
-    };
-  }
-  function getTableRangeSelection(doc2) {
-    const documentState = states.get(doc2);
-    const state = documentState?.selection ?? null;
-    if (state && !state.wrapper.isConnected) {
-      const replacement = Array.from(
-        doc2.querySelectorAll(".mlrt-table-widget")
-      ).find(
-        (candidate) => Number(candidate.dataset.srcFrom ?? "-1") === state.tableFrom
-      );
-      if (replacement) {
-        state.wrapper = replacement;
-        if (!tableSelectionFitsWrapper(state, replacement)) {
-          discardStaleTableSelection(documentState, state);
-          return null;
-        }
-        applySelectionClasses(state);
-        return state;
-      }
-      discardStaleTableSelection(documentState, state);
-      return null;
-    }
-    if (state) {
-      const currentFrom = Number(state.wrapper.dataset.srcFrom ?? "NaN");
-      if (Number.isFinite(currentFrom)) {
-        state.tableFrom = currentFrom;
-      }
-      if (!tableSelectionFitsWrapper(state, state.wrapper)) {
-        discardStaleTableSelection(documentState, state);
-        return null;
-      }
-    }
-    return state;
-  }
-  function setTableRangeSelection(wrapper, tableFrom, anchor, head, focusWrapper) {
-    const doc2 = wrapper.ownerDocument;
-    const state = stateFor(doc2);
-    const activeView = state.view;
-    if (activeView && !activeView.state.selection.main.empty) {
-      const activeTable = getTableWidgetTable(wrapper);
-      activeView.dispatch({
-        selection: EditorSelection.cursor(
-          activeTable ? positionBeforeTable(activeTable) : tableFrom,
-          1
-        )
-      });
-    }
-    clearDocumentSelectionProjection(doc2);
-    if (state.selection?.wrapper !== wrapper) {
-      clearSelectionClasses(state.selection?.wrapper);
-    }
-    const selection = {
-      version: MLRT_CLIPBOARD_VERSION,
-      wrapper,
-      tableFrom,
-      anchor,
-      head
-    };
-    state.selection = selection;
-    applySelectionClasses(selection);
-    clearNativeSelection(doc2);
-    if (focusWrapper) {
-      wrapper.focus({ preventScroll: true });
-    }
-    dispatchSelectionChange(wrapper);
-    return selection;
-  }
-  function selectTableRow(wrapper, tableFrom, row, columnCount) {
-    setTableRangeSelection(
-      wrapper,
-      tableFrom,
-      { row, column: 0 },
-      { row, column: Math.max(0, columnCount - 1) },
-      true
-    );
-  }
-  function selectTableColumn(wrapper, tableFrom, column, rowCount) {
-    setTableRangeSelection(
-      wrapper,
-      tableFrom,
-      { row: 0, column },
-      { row: Math.max(0, rowCount - 1), column },
-      true
-    );
-  }
-  function selectionRectangle(selection) {
-    return {
-      top: Math.min(selection.anchor.row, selection.head.row),
-      bottom: Math.max(selection.anchor.row, selection.head.row),
-      left: Math.min(selection.anchor.column, selection.head.column),
-      right: Math.max(selection.anchor.column, selection.head.column)
-    };
-  }
-  function isCellInSelection(selection, address) {
-    const rectangle = selectionRectangle(selection);
-    return address.row >= rectangle.top && address.row <= rectangle.bottom && address.column >= rectangle.left && address.column <= rectangle.right;
-  }
-  function clearTableRangeSelection(doc2) {
-    const state = states.get(doc2);
-    if (!state?.selection) {
-      return;
-    }
-    const wrapper = state.selection.wrapper;
-    clearSelectionClasses(wrapper);
-    state.selection = null;
-    dispatchSelectionChange(wrapper);
-  }
-  function setPendingCutToken(doc2, token) {
-    const selection = getTableRangeSelection(doc2);
-    if (!selection) {
-      return;
-    }
-    selection.pendingCutToken = token;
-    applySelectionClasses(selection);
-    dispatchSelectionChange(selection.wrapper);
-  }
-  function ensureContextCellSelection(wrapper, tableFrom, cell2) {
-    const address = addressFromCell(cell2);
-    if (!address) {
-      return null;
-    }
-    const current = getTableRangeSelection(wrapper.ownerDocument);
-    if (current?.wrapper === wrapper && isCellInSelection(current, address)) {
-      return current;
-    }
-    return setTableRangeSelection(wrapper, tableFrom, address, address, false);
-  }
-  function addressFromCell(cell2) {
-    const rowKind = cell2.dataset.rowKind;
-    const rowIndex = Number(cell2.dataset.rowIndex ?? "0");
-    const column = Number(cell2.dataset.column ?? "0");
-    if (rowKind !== "header" && rowKind !== "body" || !Number.isInteger(rowIndex) || rowIndex < 0 || !Number.isInteger(column) || column < 0) {
-      return null;
-    }
-    return { row: rowKind === "header" ? 0 : rowIndex + 1, column };
-  }
-  function cellFromAddress(wrapper, address) {
-    const rowKind = address.row === 0 ? "header" : "body";
-    const rowIndex = address.row === 0 ? 0 : address.row - 1;
-    return wrapper.querySelector(
-      `${TABLE_CELL_SELECTOR}[data-row-kind="${rowKind}"][data-row-index="${rowIndex}"][data-column="${address.column}"]`
-    );
-  }
-  function handleCellSelectAll(event, wrapper, table2, activeCell) {
-    const selection = wrapper.ownerDocument.defaultView?.getSelection();
-    const valueLength = readCellDisplayValue(activeCell).length;
-    const selectedLength = selection?.toString().replace(/\u00a0/g, " ").length ?? 0;
-    if (selectedLength < valueLength) {
-      event.preventDefault();
-      event.stopPropagation();
-      const range = wrapper.ownerDocument.createRange();
-      range.selectNodeContents(activeCell);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    activeCell.blur();
-    setTableRangeSelection(
-      wrapper,
-      Number(wrapper.dataset.srcFrom ?? table2.from),
-      { row: 0, column: 0 },
-      { row: table2.body.length, column: table2.columnCount - 1 },
-      true
-    );
-  }
-  function applySelectionClasses(selection) {
-    const rectangle = selectionRectangle(selection);
-    const selectedRowCount = rectangle.bottom - rectangle.top + 1;
-    const selectedColumnCount = rectangle.right - rectangle.left + 1;
-    selection.wrapper.classList.remove("mlrt-document-selection-mode");
-    selection.wrapper.classList.add("mlrt-table-selection-mode");
-    selection.wrapper.setAttribute(
-      "aria-label",
-      `${selectedRowCount} by ${selectedColumnCount} table cell selection`
-    );
-    selection.wrapper.classList.toggle(
-      "mlrt-table-cut-pending",
-      Boolean(selection.pendingCutToken)
-    );
-    selection.wrapper.querySelectorAll(TABLE_CELL_SELECTOR).forEach((cell2) => {
-      const address = addressFromCell(cell2);
-      const selected = Boolean(
-        address && address.row >= rectangle.top && address.row <= rectangle.bottom && address.column >= rectangle.left && address.column <= rectangle.right
-      );
-      cell2.classList.toggle("mlrt-table-cell-selected", selected);
-      cell2.classList.toggle(
-        "mlrt-table-selection-top",
-        selected && Boolean(address && address.row === rectangle.top)
-      );
-      cell2.classList.toggle(
-        "mlrt-table-selection-bottom",
-        selected && Boolean(address && address.row === rectangle.bottom)
-      );
-      cell2.classList.toggle(
-        "mlrt-table-selection-left",
-        selected && Boolean(address && address.column === rectangle.left)
-      );
-      cell2.classList.toggle(
-        "mlrt-table-selection-right",
-        selected && Boolean(address && address.column === rectangle.right)
-      );
-      cell2.classList.toggle(
-        "mlrt-table-cell-selection-head",
-        selected && Boolean(address && sameAddress(address, selection.head))
-      );
-    });
-    syncTableSelectionOverlay(selection.wrapper);
-  }
-  function restoreSelectionClasses(wrapper) {
-    const selection = states.get(wrapper.ownerDocument)?.selection;
-    if (selection && selection.tableFrom === Number(wrapper.dataset.srcFrom ?? "-1")) {
-      selection.wrapper = wrapper;
-      if (!tableSelectionFitsWrapper(selection, wrapper)) {
-        discardStaleTableSelection(
-          states.get(wrapper.ownerDocument),
-          selection
-        );
-        return;
-      }
-      applySelectionClasses(selection);
-    }
-  }
-  function tableSelectionFitsWrapper(selection, wrapper) {
-    return Boolean(
-      cellFromAddress(wrapper, selection.anchor) && cellFromAddress(wrapper, selection.head)
-    );
-  }
-  function discardStaleTableSelection(documentState, selection) {
-    clearSelectionClasses(selection.wrapper);
-    if (documentState?.selection === selection) {
-      documentState.selection = null;
-    }
-    if (selection.wrapper.isConnected) {
-      dispatchSelectionChange(selection.wrapper);
-    }
-  }
-  function clearSelectionClasses(wrapper) {
-    if (!wrapper) {
-      return;
-    }
-    wrapper.classList.remove(
-      "mlrt-table-selection-mode",
-      "mlrt-table-cut-pending"
-    );
-    wrapper.setAttribute("aria-label", "Markdown table cell selection");
-    wrapper.querySelectorAll(TABLE_CELL_SELECTOR).forEach((cell2) => {
-      cell2.classList.remove(
-        "mlrt-table-cell-selected",
-        "mlrt-table-cell-selection-head",
-        "mlrt-table-selection-top",
-        "mlrt-table-selection-bottom",
-        "mlrt-table-selection-left",
-        "mlrt-table-selection-right"
-      );
-    });
-    syncTableSelectionOverlay(wrapper);
-  }
-  function dispatchSelectionChange(wrapper) {
-    wrapper.dispatchEvent(
-      new CustomEvent(TABLE_SELECTION_CHANGE_EVENT, { bubbles: true })
-    );
-  }
-  function stateFor(doc2) {
-    const current = states.get(doc2);
-    if (current) {
-      return current;
-    }
-    const state = {
-      selection: null,
-      pointerAnchor: null,
-      pointerAnchorMode: null,
-      pointerId: null,
-      pointerCrossedCells: false,
-      pointerCleanup: null,
-      view: null
-    };
-    states.set(doc2, state);
-    return state;
-  }
-  function tableDimensions(table2) {
-    return {
-      rowCount: table2.body.length + 1,
-      columnCount: table2.columnCount
-    };
-  }
-  function regionsForTableToDocument(tables2, sourceTable, sourceAnchor, direction, documentPosition, targetTable, targetAddress) {
-    const forward = direction === "below";
-    const regions = [
-      {
-        tableFrom: sourceTable.from,
-        ...tableToProseRectangle(
-          direction,
-          sourceAnchor,
-          tableDimensions(sourceTable)
-        )
-      }
-    ];
-    for (const table2 of tables2) {
-      if (table2.from === sourceTable.from || table2.from === targetTable?.from) {
-        continue;
-      }
-      const between = forward ? table2.from > sourceTable.from && table2.from < documentPosition : table2.from < sourceTable.from && table2.to > documentPosition;
-      if (between) {
-        regions.push({
-          tableFrom: table2.from,
-          ...fullTableRectangle(tableDimensions(table2))
-        });
-      }
-    }
-    if (targetTable && targetAddress && targetTable.from !== sourceTable.from) {
-      regions.push({
-        tableFrom: targetTable.from,
-        ...proseToTableRectangle(
-          forward ? "forward" : "backward",
-          targetAddress,
-          tableDimensions(targetTable)
-        )
-      });
-    }
-    return regions;
-  }
-  function documentTargetAtPoint(doc2, clientX, clientY, excludedWrapper) {
-    const direct = findCell(doc2.elementFromPoint(clientX, clientY));
-    if (direct && !excludedWrapper.contains(direct)) {
-      return { cell: direct, rowSelection: false };
-    }
-    const wrapper = Array.from(
-      doc2.querySelectorAll(".mlrt-table-widget")
-    ).find((candidate) => {
-      if (candidate === excludedWrapper) {
-        return false;
-      }
-      const rect = candidate.querySelector(".mlrt-table")?.getBoundingClientRect() ?? candidate.getBoundingClientRect();
-      return clientY >= rect.top && clientY <= rect.bottom;
-    });
-    if (!wrapper) {
-      return null;
-    }
-    const sourceLine = Array.from(
-      wrapper.querySelectorAll(".mlrt-table-source-line")
-    ).find((candidate) => {
-      const rect = candidate.getBoundingClientRect();
-      return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
-    });
-    const rowCell = sourceLine?.parentElement?.querySelector(
-      TABLE_CELL_SELECTOR
-    );
-    if (rowCell) {
-      return { cell: rowCell, rowSelection: true };
-    }
-    const nearest = nearestCellInWrapper(wrapper, clientX, clientY);
-    return nearest ? { cell: nearest, rowSelection: false } : null;
-  }
-  function nearestCellInWrapper(wrapper, clientX, clientY) {
-    const cells = Array.from(
-      wrapper.querySelectorAll(TABLE_CELL_SELECTOR)
-    );
-    if (cells.length === 0) {
-      return null;
-    }
-    return cells.reduce((nearest, candidate) => {
-      const distance = distanceToRect(
-        candidate.getBoundingClientRect(),
-        clientX,
-        clientY
-      );
-      const nearestDistance = distanceToRect(
-        nearest.getBoundingClientRect(),
-        clientX,
-        clientY
-      );
-      return distance < nearestDistance ? candidate : nearest;
-    });
-  }
-  function tableSelectionStart(wrapper, event) {
-    const directCell = findCell(event.target);
-    if (directCell && wrapper.contains(directCell)) {
-      return { cell: directCell, mode: "cell" };
-    }
-    if (event.target instanceof Element && event.target.closest(
-      "button, input, select, textarea, a, .mlrt-table-structure-menu, .mlrt-table-scrollbar"
-    )) {
-      return null;
-    }
-    const table2 = wrapper.querySelector(".mlrt-table");
-    if (!table2) {
-      return null;
-    }
-    const tableRect = table2.getBoundingClientRect();
-    if (event.clientX < tableRect.left || event.clientX > tableRect.right || event.clientY < tableRect.top || event.clientY > tableRect.bottom) {
-      return null;
-    }
-    const sourceLine = Array.from(
-      wrapper.querySelectorAll(".mlrt-table-source-line")
-    ).find((candidate) => {
-      const rect = candidate.getBoundingClientRect();
-      return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
-    });
-    const rowCell = sourceLine?.parentElement?.querySelector(
-      TABLE_CELL_SELECTOR
-    );
-    if (rowCell) {
-      return { cell: rowCell, mode: "row" };
-    }
-    const nearest = nearestCellInWrapper(wrapper, event.clientX, event.clientY);
-    return nearest ? { cell: nearest, mode: "cell" } : null;
-  }
-  function distanceToRect(rect, clientX, clientY) {
-    const dx = Math.max(rect.left - clientX, 0, clientX - rect.right);
-    const dy = Math.max(rect.top - clientY, 0, clientY - rect.bottom);
-    return dx * dx + dy * dy;
-  }
-  function renderedCellSpan(cell2, table2) {
-    const directFrom = Number(cell2.dataset.sourceFrom ?? "NaN");
-    const directTo = Number(cell2.dataset.sourceTo ?? "NaN");
-    if (Number.isFinite(directFrom) && Number.isFinite(directTo)) {
-      return { from: directFrom, to: Math.max(directFrom + 1, directTo) };
-    }
-    const row = cell2.dataset.rowKind === "header" ? table2.header : table2.body[Number(cell2.dataset.rowIndex ?? "0")];
-    return row ? { from: row.from, to: Math.max(row.from + 1, row.to) } : null;
-  }
-  function clearNativeSelection(doc2) {
-    doc2.defaultView?.getSelection()?.removeAllRanges();
-  }
-  function clampAddress(address, table2) {
-    return {
-      row: Math.max(0, Math.min(table2.body.length, address.row)),
-      column: Math.max(0, Math.min(table2.columnCount - 1, address.column))
-    };
-  }
-  function keyDelta(event) {
-    if (event.key === "ArrowUp") {
-      return { row: -1, column: 0 };
-    }
-    if (event.key === "ArrowDown") {
-      return { row: 1, column: 0 };
-    }
-    if (event.key === "ArrowLeft") {
-      return { row: 0, column: -1 };
-    }
-    return { row: 0, column: 1 };
-  }
-  function tabDestination(address, table2, reverse) {
-    const lastRow = table2.body.length;
-    const lastColumn = table2.columnCount - 1;
-    if (reverse) {
-      if (address.column > 0) {
-        return { row: address.row, column: address.column - 1 };
-      }
-      return address.row > 0 ? { row: address.row - 1, column: lastColumn } : null;
-    }
-    if (address.column < lastColumn) {
-      return { row: address.row, column: address.column + 1 };
-    }
-    return address.row < lastRow ? { row: address.row + 1, column: 0 } : null;
-  }
-  function isSelectAll(event) {
-    const ownerDocument = event.target instanceof Node ? event.target.ownerDocument : null;
-    const platform = ownerDocument?.defaultView?.navigator.platform ?? "";
-    const isApplePlatform = /Mac|iPhone|iPad|iPod/i.test(platform);
-    const primaryModifier = isApplePlatform ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
-    return primaryModifier && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "a";
-  }
-  function isPlainKey(event) {
-    return !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
-  }
-  function isPrintableKey(event) {
-    return event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey;
-  }
-  function sameAddress(left, right) {
-    return left.row === right.row && left.column === right.column;
-  }
-
   // src/editor/officeClipboardHtml.ts
   var OFFICE_RICH_CELL_ALLOWED_TAGS = [
     "a",
@@ -35559,11 +39588,11 @@ ${text3}`;
       const clone2 = item.cloneNode(true);
       clone2.querySelectorAll(":scope > ul, :scope > ol").forEach((nested) => nested.remove());
       const itemLines = visibleNodeText(clone2).split("\n").map((line) => line.trim()).filter(Boolean);
-      const indent = "\xA0".repeat(depth * 4);
+      const indent2 = "\xA0".repeat(depth * 4);
       const marker = ordered ? smartOrderedMarker(value, list2.getAttribute("type")) : SMART_UNORDERED_MARKERS[depth % SMART_UNORDERED_MARKERS.length];
-      lines.push(`${indent}${marker} ${itemLines[0] ?? ""}`.trimEnd());
+      lines.push(`${indent2}${marker} ${itemLines[0] ?? ""}`.trimEnd());
       for (const continuation of itemLines.slice(1)) {
-        lines.push(`${indent}\xA0\xA0${continuation}`);
+        lines.push(`${indent2}\xA0\xA0${continuation}`);
       }
       for (const nested of Array.from(item.children)) {
         if (nested instanceof HTMLElement && isList2(nested)) {
@@ -35682,7 +39711,7 @@ ${text3}`;
       );
     });
   }
-  function installDocumentClipboard(root2, view2) {
+  function installDocumentClipboard(root2, view2, contextActions) {
     const doc2 = root2.ownerDocument;
     let mixedDragAnchor = null;
     let mixedDragRange = null;
@@ -35840,16 +39869,14 @@ ${text3}`;
       }
     };
     const onContextMenu = (event) => {
-      if (!root2.contains(event.target) || !shouldPreserveContextSelection(event)) {
-        return;
-      }
-      const range = atomicDocumentSelection(view2);
-      if (!range) {
-        return;
-      }
+      if (!root2.contains(event.target)) return;
+      const preservesSelection = shouldPreserveContextSelection(event);
+      if (!preservesSelection && (findCell(event.target) || !view2.state.selection.main.empty)) return;
+      const extraActions = preservesSelection ? [] : contextActions?.(event) ?? [];
+      if (!atomicDocumentSelection(view2) && extraActions.length === 0) return;
       event.preventDefault();
       event.stopPropagation();
-      showDocumentMenu(doc2, view2, event.clientX, event.clientY);
+      showDocumentMenu(doc2, view2, event.clientX, event.clientY, extraActions);
     };
     const shouldPreserveContextSelection = (event) => {
       const range = view2.state.selection.main;
@@ -35876,18 +39903,21 @@ ${text3}`;
         }
         return;
       }
-      if (event.button !== 0 || findCell(event.target) || event.target instanceof Element && Boolean(event.target.closest(".mlrt-table-widget"))) {
+      if (event.button !== 0 || isMarkdownTaskPointerActivation(event) || findCell(event.target) || event.target instanceof Element && Boolean(event.target.closest(".mlrt-table-widget"))) {
         return;
       }
       const anchor = editorDragPosition(view2, event.clientX, event.clientY);
       if (anchor === null) {
         return;
       }
+      beginMixedDrag(anchor, event.pointerId);
+    };
+    const beginMixedDrag = (anchor, pointerId) => {
       mixedDragAnchor = anchor;
       mixedDragRange = null;
       mixedDragProjection = null;
       mixedDragActive = false;
-      mixedDragPointerId = event.pointerId;
+      mixedDragPointerId = pointerId;
       mixedDragOwnsPointerCapture = false;
       mixedDragGeneration += 1;
       mixedDragDocument = view2.state.doc;
@@ -35899,6 +39929,27 @@ ${text3}`;
       doc2.addEventListener("mousemove", onMixedMouseMove, true);
       doc2.addEventListener("mouseup", onMixedMouseUp, true);
       doc2.addEventListener("click", onMixedClick, true);
+    };
+    const onMarkdownMarkerDrag = (event) => {
+      const detail = event.detail;
+      if (documentClipboardDisposed || event.target !== view2.dom || !detail || !Number.isInteger(detail.anchor) || detail.anchor < 0 || detail.anchor > view2.state.doc.length) {
+        return;
+      }
+      const pointer = detail.pointerEvent;
+      if (!pointer || !pointer.isPrimary || (pointer.buttons & 1) === 0 || pointer.ctrlKey || pointer.metaKey || pointer.altKey || pointer.shiftKey || !Number.isInteger(pointer.pointerId) || getParsedTables(view2.state.doc).some((table2) => detail.anchor >= table2.from && detail.anchor < table2.to)) {
+        return;
+      }
+      if (mixedDragPointerId !== null) finishMixedDrag(false);
+      clearTableRangeSelection(doc2);
+      beginMixedDrag(detail.anchor, pointer.pointerId);
+      mixedDragActive = true;
+      try {
+        root2.setPointerCapture(pointer.pointerId);
+        mixedDragOwnsPointerCapture = root2.hasPointerCapture(pointer.pointerId);
+      } catch {
+      }
+      updateMixedDrag(pointer);
+      event.preventDefault();
     };
     const onRootMouseDown = (event) => {
       if (event.button === 2 && shouldPreserveContextSelection(event)) {
@@ -36178,6 +40229,7 @@ ${text3}`;
     doc2.addEventListener("keydown", onKeyDown);
     root2.addEventListener("contextmenu", onContextMenu, true);
     root2.addEventListener("pointerdown", onRootPointerDown, true);
+    root2.addEventListener(MARKDOWN_MARKER_DRAG_EVENT, onMarkdownMarkerDrag);
     root2.addEventListener("lostpointercapture", onLostPointerCapture, true);
     root2.addEventListener("mousedown", onRootMouseDown, true);
     doc2.defaultView?.addEventListener("blur", onWindowBlur);
@@ -36190,6 +40242,7 @@ ${text3}`;
       doc2.removeEventListener("keydown", onKeyDown);
       root2.removeEventListener("contextmenu", onContextMenu, true);
       root2.removeEventListener("pointerdown", onRootPointerDown, true);
+      root2.removeEventListener(MARKDOWN_MARKER_DRAG_EVENT, onMarkdownMarkerDrag);
       root2.removeEventListener("lostpointercapture", onLostPointerCapture, true);
       root2.removeEventListener("mousedown", onRootMouseDown, true);
       doc2.defaultView?.removeEventListener("blur", onWindowBlur);
@@ -36797,10 +40850,10 @@ ${text3}`;
     };
   }
   function readTransferType(transfer, type, preserveEmpty = false) {
-    const available = Array.from(transfer.types).some(
+    const available2 = Array.from(transfer.types).some(
       (candidate) => candidate.toLowerCase() === type.toLowerCase()
     );
-    if (!available) {
+    if (!available2) {
       return void 0;
     }
     const value = transfer.getData(type);
@@ -37144,15 +41197,15 @@ ${replacement}
     return true;
   }
   function dispatchCompositeSelectionReplacement(view2, projection, markdown2, userEvent) {
-    const edits = compositeSelectionChanges(view2, projection).map((edit) => ({
-      ...edit
+    const edits = compositeSelectionChanges(view2, projection).map((edit2) => ({
+      ...edit2
     }));
     if (edits.length === 0) {
       return false;
     }
     const anchor = projection.anchor;
     let insertionEdit = edits.find(
-      (edit) => anchor === edit.from || anchor === edit.to
+      (edit2) => anchor === edit2.from || anchor === edit2.to
     );
     let insertionOffset = markdown2.length;
     if (!insertionEdit) {
@@ -37188,9 +41241,9 @@ ${replacement}
     });
     return true;
   }
-  function editRewritesTable(view2, edit) {
+  function editRewritesTable(view2, edit2) {
     return getParsedTables(view2.state.doc).some(
-      (table2) => edit.from === table2.from && edit.to === table2.to
+      (table2) => edit2.from === table2.from && edit2.to === table2.to
     );
   }
   function joinMarkdownAtBlockBoundary(left, right) {
@@ -37269,7 +41322,7 @@ ${replacement}
     const changeSpecs = [
       sourceEdit,
       { from: destination.from, to: destination.to, insert: markdown2 }
-    ].sort((left, right) => left.from - right.from).map((edit) => ({ from: edit.from, to: edit.to, insert: edit.insert }));
+    ].sort((left, right) => left.from - right.from).map((edit2) => ({ from: edit2.from, to: edit2.to, insert: edit2.insert }));
     const changes = view2.state.changes(changeSpecs);
     const insertionFrom = changes.mapPos(destination.from, -1);
     view2.dispatch({
@@ -37323,12 +41376,12 @@ ${replacement}
     }
     return { from, to, empty: false };
   }
-  function showDocumentMenu(doc2, view2, clientX, clientY) {
+  function showDocumentMenu(doc2, view2, clientX, clientY, extraActions = []) {
     documentMenuClosers.get(doc2)?.();
     const menu = doc2.createElement("div");
     menu.className = "mlrt-clipboard-menu mlrt-document-clipboard-menu";
     menu.setAttribute("role", "menu");
-    menu.setAttribute("aria-label", "Document clipboard actions");
+    menu.setAttribute("aria-label", "Document actions");
     const close = (restoreFocus = false) => {
       menu.remove();
       doc2.removeEventListener("pointerdown", closeOnOutsidePointer, true);
@@ -37392,16 +41445,19 @@ ${replacement}
       });
       menu.append(item);
     };
-    add2("Cut / Move within document", () => {
-      if (!doc2.execCommand("cut")) {
-        announce(doc2, "Cut failed. Use Cmd/Ctrl+X.");
-      }
-    });
-    ["smart", "rich", "plain", "markdown"].forEach(
-      (mode) => add2(`Copy ${capitalize(mode)}`, () => {
-        void copyDocumentThroughMenu(doc2, view2, mode);
-      })
-    );
+    extraActions.forEach((action) => add2(action.label, action.run));
+    if (!view2.state.selection.main.empty) {
+      add2("Cut / Move within document", () => {
+        if (!doc2.execCommand("cut")) {
+          announce(doc2, "Cut failed. Use Cmd/Ctrl+X.");
+        }
+      });
+      ["smart", "rich", "plain", "markdown"].forEach(
+        (mode) => add2(`Copy ${capitalize(mode)}`, () => {
+          void copyDocumentThroughMenu(doc2, view2, mode);
+        })
+      );
+    }
     ["auto", "rich", "plain", "markdown"].forEach(
       (mode) => add2(`Paste ${capitalize(mode)}`, () => {
         armedDocumentPasteMode = mode;
@@ -38508,7 +42564,7 @@ ${replacement}
       dispatchSelection(view2, options.selectionAnchor);
       return;
     }
-    const edit = formatTableCellSourceEdit(
+    const edit2 = formatTableCellSourceEdit(
       sourceRow,
       table2.columnCount,
       column,
@@ -38522,20 +42578,20 @@ ${replacement}
           rowKind,
           rowIndex,
           column,
-          from: edit.from,
-          to: edit.to,
-          insertLength: edit.insert.length,
+          from: edit2.from,
+          to: edit2.to,
+          insertLength: edit2.insert.length,
           valueLength: value.length,
           restoreCaretOffset: finalSourceStep.restoreCaretOffset
         }
       })
     );
-    const selectionAnchor = options.selectionAnchor === void 0 ? void 0 : mapPositionThroughCellEdit(options.selectionAnchor, edit);
+    const selectionAnchor = options.selectionAnchor === void 0 ? void 0 : mapPositionThroughCellEdit(options.selectionAnchor, edit2);
     view2.dispatch({
       changes: {
-        from: edit.from,
-        to: edit.to,
-        insert: edit.insert
+        from: edit2.from,
+        to: edit2.to,
+        insert: edit2.insert
       },
       selection: selectionAnchor === void 0 ? void 0 : EditorSelection.cursor(selectionAnchor, 1),
       annotations: [
@@ -38581,7 +42637,7 @@ ${replacement}
       caretOffset + Math.max(0, originalValue.length - value.length)
     );
     const currentRowText = readCurrentSourceRowText(view2, sourceRow);
-    const edit = formatLiveTableCellSourceEdit(
+    const edit2 = formatLiveTableCellSourceEdit(
       view2,
       sourceRow,
       table2.columnCount,
@@ -38593,8 +42649,8 @@ ${replacement}
       rowKind,
       rowIndex,
       column,
-      from: edit.from,
-      to: edit.to,
+      from: edit2.from,
+      to: edit2.to,
       restoreCaretOffset
     };
     view2.dom.dispatchEvent(
@@ -38602,7 +42658,7 @@ ${replacement}
         bubbles: true,
         detail: {
           ...restore,
-          insertLength: edit.insert.length,
+          insertLength: edit2.insert.length,
           valueLength: value.length
         }
       })
@@ -38611,7 +42667,7 @@ ${replacement}
       table2,
       rowKind,
       rowIndex,
-      edit,
+      edit2,
       currentRowText
     );
     const wrapper = cell2.closest(".mlrt-table-widget");
@@ -38621,17 +42677,17 @@ ${replacement}
     preserveTableForLiveEdit(table2.from);
     view2.dispatch({
       changes: {
-        from: edit.from,
-        to: edit.to,
-        insert: edit.insert
+        from: edit2.from,
+        to: edit2.to,
+        insert: edit2.insert
       },
       annotations: [
         allowTableSourceChange.of(true),
         tableCellLiveEditAnnotation.of({
           change: {
-            from: edit.from,
-            to: edit.to,
-            text: edit.insert
+            from: edit2.from,
+            to: edit2.to,
+            text: edit2.insert
           },
           restore
         })
@@ -38686,14 +42742,14 @@ ${replacement}
       return void 0;
     }
   }
-  function updateTableSourceAfterCellEdit(table2, rowKind, rowIndex, edit, currentRowText) {
+  function updateTableSourceAfterCellEdit(table2, rowKind, rowIndex, edit2, currentRowText) {
     const sourceRow = rowKind === "header" ? table2.header : table2.body[rowIndex];
     if (!sourceRow) {
       return;
     }
     const previousRowText = currentRowText ?? sourceRow.text;
     const previousRowLength = previousRowText.length;
-    const nextRowText = `${previousRowText.slice(0, edit.from - sourceRow.from)}${edit.insert}${previousRowText.slice(edit.to - sourceRow.from)}`;
+    const nextRowText = `${previousRowText.slice(0, edit2.from - sourceRow.from)}${edit2.insert}${previousRowText.slice(edit2.to - sourceRow.from)}`;
     const delta = nextRowText.length - previousRowLength;
     table2.to += delta;
     const nextSourceRow = parseMarkdownTableRow(
@@ -38777,14 +42833,14 @@ ${replacement}
       scrollIntoView: true
     });
   }
-  function mapPositionThroughCellEdit(position, edit) {
-    if (position <= edit.from) {
+  function mapPositionThroughCellEdit(position, edit2) {
+    if (position <= edit2.from) {
       return position;
     }
-    if (position <= edit.to) {
-      return edit.from + edit.insert.length;
+    if (position <= edit2.to) {
+      return edit2.from + edit2.insert.length;
     }
-    return position + edit.insert.length - (edit.to - edit.from);
+    return position + edit2.insert.length - (edit2.to - edit2.from);
   }
   function resolveRelativeCell(cell2, delta) {
     const cells = Array.from(
@@ -38819,17 +42875,17 @@ ${replacement}
       column: next2.dataset.column ?? "0"
     };
   }
-  function focusCellAfterRender(tableFrom, target, vertical, horizontalPlacement = "end") {
+  function focusCellAfterRender(tableFrom, target, vertical2, horizontalPlacement = "end") {
     const focusTarget = () => {
       const cell2 = queryCell2(tableFrom, target);
       if (!cell2) {
         return false;
       }
-      if (vertical) {
+      if (vertical2) {
         focusCellAtVerticalEdge(
           cell2,
-          vertical.rowDelta,
-          vertical.preferredX
+          vertical2.rowDelta,
+          vertical2.preferredX
         );
       } else if (horizontalPlacement === "start") {
         focusCellAtStart(cell2);
@@ -39154,14 +43210,14 @@ ${replacement}
     };
     const applyStructureEdit = (makeEdit, makeFocusTarget) => {
       const current = currentTable();
-      const edit = makeEdit(current);
+      const edit2 = makeEdit(current);
       closeMenu();
-      if (!edit) {
+      if (!edit2) {
         return;
       }
       const focusTarget = makeFocusTarget(current);
       view2.dispatch({
-        changes: { from: edit.from, to: edit.to, insert: edit.insert },
+        changes: { from: edit2.from, to: edit2.to, insert: edit2.insert },
         annotations: [allowTableSourceChange.of(true)],
         userEvent: "input"
       });
@@ -39651,9 +43707,9 @@ ${replacement}
     dots.className = "mlrt-table-indicator-dots";
     dots.setAttribute("aria-hidden", "true");
     for (let index = 0; index < 3; index++) {
-      const dot2 = doc2.createElement("span");
-      dot2.className = "mlrt-table-indicator-dot";
-      dots.append(dot2);
+      const dot3 = doc2.createElement("span");
+      dot3.className = "mlrt-table-indicator-dot";
+      dots.append(dot3);
     }
     button.append(dots);
     return button;
@@ -40313,7 +44369,7 @@ ${replacement}
     }
     const sourceEdit = buildGridClearEdit(sourceTable, pendingCut.rectangle);
     const destinationEdit = buildGridPasteEdit(destinationTable, safeTargetPlan);
-    const changeSpecs = [sourceEdit, destinationEdit].sort((left, right) => left.from - right.from).map((edit) => ({ from: edit.from, to: edit.to, insert: edit.insert }));
+    const changeSpecs = [sourceEdit, destinationEdit].sort((left, right) => left.from - right.from).map((edit2) => ({ from: edit2.from, to: edit2.to, insert: edit2.insert }));
     const changes = view2.state.changes(changeSpecs);
     const destinationTableFrom = changes.mapPos(destinationTable.from, -1);
     view2.dispatch({
@@ -40337,7 +44393,7 @@ ${replacement}
     const changeSpecs = [
       { from: pendingCut.from, to: pendingCut.to, insert: "" },
       destinationEdit
-    ].sort((left, right) => left.from - right.from).map((edit) => ({ from: edit.from, to: edit.to, insert: edit.insert }));
+    ].sort((left, right) => left.from - right.from).map((edit2) => ({ from: edit2.from, to: edit2.to, insert: edit2.insert }));
     const changes = view2.state.changes(changeSpecs);
     const destinationTableFrom = changes.mapPos(destinationTable.from, -1);
     view2.dispatch({
@@ -40360,7 +44416,7 @@ ${replacement}
       return null;
     }
     const destinationEdit = buildGridPasteEdit(destinationTable, targetPlan);
-    const changeSpecs = [...pendingCut.changes, destinationEdit].map((edit) => ({ from: edit.from, to: edit.to, insert: edit.insert })).sort((left, right) => left.from - right.from || left.to - right.to);
+    const changeSpecs = [...pendingCut.changes, destinationEdit].map((edit2) => ({ from: edit2.from, to: edit2.to, insert: edit2.insert })).sort((left, right) => left.from - right.from || left.to - right.to);
     for (let index = 1; index < changeSpecs.length; index++) {
       if (changeSpecs[index - 1].to > changeSpecs[index].from) {
         return null;
@@ -40378,12 +44434,12 @@ ${replacement}
     });
     return destinationTableFrom;
   }
-  function dispatchTableEdit(view2, edit) {
-    if (view2.state.doc.sliceString(edit.from, edit.to) === edit.insert) {
+  function dispatchTableEdit(view2, edit2) {
+    if (view2.state.doc.sliceString(edit2.from, edit2.to) === edit2.insert) {
       return;
     }
     view2.dispatch({
-      changes: { from: edit.from, to: edit.to, insert: edit.insert },
+      changes: { from: edit2.from, to: edit2.to, insert: edit2.insert },
       annotations: [
         allowTableSourceChange.of(true),
         Transaction.addToHistory.of(true)
@@ -40586,10 +44642,10 @@ ${replacement}
     };
   }
   function readDataTransferType(transfer, type, preserveEmpty = false) {
-    const available = Array.from(transfer.types).some(
+    const available2 = Array.from(transfer.types).some(
       (candidate) => candidate.toLowerCase() === type.toLowerCase()
     );
-    if (!available) {
+    if (!available2) {
       return void 0;
     }
     const value = transfer.getData(type);
@@ -41504,10 +45560,8 @@ ${replacement}
   function createLiveEditorExtensions(options) {
     const tableHeightEstimateMetrics = createTableHeightEstimateMetrics();
     return [
-      // CodeMirror owns the undo history so ⌘Z coalesces typing into
-      // word/whitespace groups and stops at the initially loaded document,
-      // matching the stock VS Code editor. Undo/redo are dispatched locally
-      // (see installEditorCommandBridge) rather than delegated to the host.
+      // Keep CodeMirror history mapping available; the webview command bridge
+      // routes undo/redo through the authoritative VS Code document history.
       history(),
       createEditorTheme(),
       createTableBoundaryArrowNavigation(),
@@ -41525,7 +45579,9 @@ ${replacement}
       createTableSourceSelectionGuard({
         tableCellSelector: TABLE_CELL_SELECTOR
       }),
-      markdown(),
+      markdownRenderingCompartment.of(createMarkdownRenderingExtensions(
+        options.markdownRendering ?? { enabled: true, screenReaderOptimized: false, readOnly: false }
+      )),
       lineWrappingCompartment.of(
         options.lineWrapping ? EditorView.lineWrapping : []
       ),
@@ -41534,6 +45590,313 @@ ${replacement}
       ),
       createTableDecorations(tableHeightEstimateMetrics)
     ];
+  }
+
+  // src/shared/markdownLinkValidation.ts
+  var markdownUtils = new lib_default("zero").utils;
+  var literalNodes = /* @__PURE__ */ new Set(["FencedCode", "CodeBlock", "InlineCode", "HTMLBlock", "HTMLTag", "Comment", "MarkdownFrontmatter"]);
+  var slice2 = (source, from, to) => typeof source === "string" ? source.slice(from, to) : source.sliceString(from, to);
+  var overlaps3 = (a, b) => a.from < b.to && b.from < a.to;
+  var protectedLink = (link2, ranges) => ranges.some((range) => overlaps3(link2, range));
+  function destinationText(source, node) {
+    let value = slice2(source, node.from, node.to);
+    if (value.startsWith("<") && value.endsWith(">")) value = value.slice(1, -1);
+    return markdownUtils.unescapeAll(value);
+  }
+  function labelText(source, node) {
+    return slice2(source, node.from + 1, node.to - 1);
+  }
+  var definitionsByTree = /* @__PURE__ */ new WeakMap();
+  function referenceDefinitions(source, tree, protectedRanges) {
+    const cached = definitionsByTree.get(tree);
+    if (cached?.source === source && cached.protectedRanges === protectedRanges) return cached.definitions;
+    const definitions = /* @__PURE__ */ new Map();
+    tree.iterate({ enter(reference2) {
+      const node = reference2.node;
+      if (literalNodes.has(node.name) || protectedLink(node, protectedRanges) && node.name === "LinkReference") return false;
+      if (node.name !== "LinkReference") return;
+      const label = node.getChild("LinkLabel");
+      const url = node.getChild("URL");
+      if (!label || !url) return false;
+      const normalized = markdownUtils.normalizeReference(labelText(source, label));
+      if (!definitions.has(normalized)) definitions.set(normalized, destinationText(source, url));
+      return false;
+    } });
+    definitionsByTree.set(tree, { source, protectedRanges, definitions });
+    return definitions;
+  }
+  function linkFromNode(source, tree, node, protectedRanges) {
+    if (protectedLink(node, protectedRanges)) return null;
+    if (node.name === "WikiLink") {
+      const target = node.getChild("WikiTarget");
+      return target ? { from: node.from, to: node.to, destination: slice2(source, target.from, target.to).trim(), kind: "wiki" } : null;
+    }
+    if (node.name === "Link") {
+      const url = node.getChild("URL");
+      if (url) return { from: node.from, to: node.to, destination: destinationText(source, url), kind: "link" };
+      if (tree.length < source.length) return null;
+      const explicitLabel = node.getChild("LinkLabel");
+      const marks2 = node.getChildren("LinkMark");
+      const closingLabelMark = marks2.find((mark) => slice2(source, mark.from, mark.to) === "]");
+      if (!closingLabelMark) return null;
+      const visibleLabel = slice2(source, node.from + 1, closingLabelMark.from);
+      const label = explicitLabel && explicitLabel.to - explicitLabel.from > 2 ? labelText(source, explicitLabel) : visibleLabel;
+      const destination = referenceDefinitions(source, tree, protectedRanges).get(markdownUtils.normalizeReference(label));
+      return destination === void 0 ? null : { from: node.from, to: node.to, destination, kind: "reference" };
+    }
+    if (node.name === "Autolink" || node.name === "URL") {
+      const url = node.name === "Autolink" ? node.getChild("URL") : node;
+      if (!url) return null;
+      let destination = node.name === "URL" && node.parent?.name === "LinkReference" ? destinationText(source, url) : slice2(source, url.from, url.to);
+      if (/^www\./i.test(destination)) destination = `http://${destination}`;
+      else if (!/^[a-z][a-z\d+.-]*:/i.test(destination) && destination.includes("@")) destination = `mailto:${destination}`;
+      return { from: node.from, to: node.to, destination, kind: "autolink" };
+    }
+    return null;
+  }
+  function findMarkdownLinkAt(source, tree, position, protectedRanges = []) {
+    if (!Number.isInteger(position) || position < 0 || position > source.length || position > tree.length || protectedRanges.some((range) => range.from <= position && position < range.to)) return null;
+    for (const side of [1, -1]) {
+      let candidate = null;
+      for (let node = tree.resolveInner(position, side); node; node = node.parent) {
+        if (literalNodes.has(node.name)) return null;
+        if (node.name === "Image" || node.name === "WikiEmbed") {
+          candidate = null;
+          continue;
+        }
+        if (node.name === "Link" || node.name === "Autolink" || node.name === "WikiLink") candidate = node;
+        else if (node.name === "URL" && !candidate) candidate = node;
+      }
+      if (candidate) return linkFromNode(source, tree, candidate, protectedRanges);
+    }
+    return null;
+  }
+  function resolveMarkdownLinkDestination(destination, documentUri) {
+    const rejected = (reason) => ({ ok: false, reason });
+    if (!destination || /[\u0000-\u001f\u007f]/u.test(destination)) return rejected("This link has an empty or invalid destination.");
+    const drivePath = /^[a-z]:[\\/]/i.test(destination);
+    const scheme = /^([a-z][a-z\d+.-]*):/i.exec(destination)?.[1].toLowerCase();
+    if (scheme && !drivePath) {
+      if (scheme !== "http" && scheme !== "https" && scheme !== "mailto") return rejected("Only HTTP, HTTPS, mailto and document paths can be opened.");
+      try {
+        const uri = new URL(destination.replace(/\\/g, "%5C"));
+        if ((scheme === "http" || scheme === "https") && !uri.hostname) return rejected("This link has no host name.");
+        return { ok: true, kind: "external", uri: uri.href };
+      } catch {
+        return rejected("This link is not a valid URI.");
+      }
+    }
+    if (!documentUri) return rejected("Save this document before opening relative document links.");
+    try {
+      const base3 = new URL(documentUri);
+      if (base3.protocol === "untitled:" || !base3.pathname.startsWith("/")) return rejected("Save this document before opening document links.");
+      if (/^[\\/]{2}/u.test(destination)) return rejected("Network paths cannot change the document's authority.");
+      if (drivePath && (base3.protocol !== "file:" || base3.host)) return rejected("Drive paths require a local file document.");
+      const path = base3.protocol === "file:" ? destination.replace(/\\/g, "/") : destination;
+      const resolved = drivePath ? new URL(`file:///${path}`) : new URL(path, base3);
+      if (resolved.protocol !== base3.protocol || resolved.host !== base3.host) return rejected("This path changes the document's URI scheme or authority.");
+      const fragment = resolved.hash ? decodeURIComponent(resolved.hash.slice(1)) : void 0;
+      resolved.hash = "";
+      return { ok: true, kind: "document", uri: resolved.href, ...fragment ? { fragment } : {} };
+    } catch {
+      return rejected("This document path could not be resolved.");
+    }
+  }
+  function resolveMarkdownSourceLink(link2, documentUri) {
+    if (link2.kind !== "wiki") return resolveMarkdownLinkDestination(link2.destination, documentUri);
+    const [file, ...heading3] = link2.destination.split("#");
+    if (/^[a-z][a-z\d+.-]*:/i.test(file) || /^[\\/]{2}/u.test(file)) {
+      return { ok: false, reason: "Wikilinks must name a note or a document path." };
+    }
+    const note = file && !/\.[^./\\]+$/u.test(file) ? `${file}.md` : file;
+    const encoded = note.split("/").map((part) => encodeURIComponent(part)).join("/");
+    return resolveMarkdownLinkDestination(encoded + (heading3.length ? `#${encodeURIComponent(heading3.join("#"))}` : ""), documentUri);
+  }
+
+  // src/editor/markdown/markdownLinks.ts
+  var configuration = Facet.define({ combine: (values2) => values2[0] ?? null });
+  var sourceEditingOwners = /* @__PURE__ */ new WeakMap();
+  var markdownLinksCompartment = new Compartment();
+  function isMarkdownLinkModifier(event, options) {
+    if (event.shiftKey || event.getModifierState?.("AltGraph")) return false;
+    if (options.multiCursorModifier === "ctrlCmd") return event.altKey && !event.ctrlKey && !event.metaKey;
+    return options.isMac ? event.metaKey && !event.ctrlKey && !event.altKey : event.ctrlKey && !event.metaKey && !event.altKey;
+  }
+  function safeSelection(view2) {
+    const selection = view2.state.selection;
+    const projection = getDocumentSelectionProjection(view2.dom.ownerDocument, selection.main);
+    return selection.ranges.length === 1 && selection.main.empty && (!projection || projection.anchor === projection.head) && view2.plugin(linkPlugin)?.sourceOwnsContext !== false && !view2.dom.ownerDocument.activeElement?.closest(".mlrt-table-cell, .mlrt-markdown-task-control");
+  }
+  function available(view2) {
+    return configurationValue(view2)?.options.enabled === true && safeSelection(view2) && !view2.compositionStarted && !view2.composing && !view2.plugin(linkPlugin)?.composing;
+  }
+  var configurationValue = (view2) => view2.state.facet(configuration);
+  function sourceLink(view2, position) {
+    const link2 = findMarkdownLinkAt(view2.state.doc, syntaxTree(view2.state), position, getParsedTables(view2.state.doc));
+    return link2 && syntaxTreeAvailable(view2.state, link2.to) ? link2 : null;
+  }
+  function markdownLinkDiagnostics(view2, x, y) {
+    const position = view2.posAtCoords({ x, y });
+    const link2 = position === null ? null : sourceLink(view2, position);
+    return {
+      available: available(view2),
+      owner: view2.plugin(linkPlugin)?.sourceOwnsContext,
+      position,
+      link: link2,
+      resting: link2 ? isMarkdownPreviewActive(view2, link2) : null
+    };
+  }
+  function openMarkdownLinkAtCaret(view2) {
+    if (!available(view2)) return false;
+    const link2 = sourceLink(view2, view2.state.selection.main.head);
+    if (!link2) return false;
+    configurationValue(view2)?.post({ from: link2.from, to: link2.to, activation: "command" });
+    return true;
+  }
+  var LinkInteraction = class {
+    constructor(view2) {
+      this.view = view2;
+      this.sourceOwnsContext = sourceEditingOwners.get(view2) ?? true;
+      this.recordEditingOwner(view2.dom.ownerDocument.activeElement);
+      view2.dom.ownerDocument.addEventListener("focusin", this.onFocus, true);
+    }
+    view;
+    decorations = Decoration.none;
+    composing = false;
+    sourceOwnsContext = true;
+    hover = null;
+    pointer = null;
+    lastPoint = null;
+    onFocus = (event) => this.recordEditingOwner(event.target);
+    recordEditingOwner(target) {
+      if (!(target instanceof Element)) return;
+      if (target.closest(".mlrt-table-widget, .mlrt-markdown-task-control")) this.sourceOwnsContext = false;
+      else if (this.view.contentDOM.contains(target)) this.sourceOwnsContext = true;
+      else return;
+      sourceEditingOwners.set(this.view, this.sourceOwnsContext);
+    }
+    update(update) {
+      if (update.docChanged || update.selectionSet || update.viewportChanged || update.startState.facet(configuration) !== update.state.facet(configuration) || !configurationValue(this.view)?.options.enabled) {
+        this.pointer = null;
+        this.hover = null;
+      }
+      this.decorations = this.hover ? Decoration.set([Decoration.mark({ class: "mlrt-markdown-link-actionable-hover" }).range(this.hover.from, this.hover.to)]) : Decoration.none;
+    }
+    atPoint(event, point) {
+      if (!available(this.view) || !(point.target instanceof Element) || !this.view.dom.contains(point.target) || point.target.closest(".mlrt-table-widget, .mlrt-markdown-task-control")) return null;
+      const settings = configurationValue(this.view)?.options;
+      if (!settings) return null;
+      const position = this.view.posAtCoords(point);
+      if (position === null) return null;
+      const link2 = sourceLink(this.view, position);
+      if (!link2 || !resolveMarkdownSourceLink(link2, settings.documentUri).ok) return null;
+      const unmodified = !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && !event.getModifierState?.("AltGraph");
+      if (!isMarkdownLinkModifier(event, settings) && !(unmodified && isMarkdownPreviewActive(this.view, link2))) return null;
+      const start = this.view.domAtPos(link2.from);
+      const end = this.view.domAtPos(link2.to);
+      const range = this.view.dom.ownerDocument.createRange();
+      try {
+        range.setStart(start.node, start.offset);
+        range.setEnd(end.node, end.offset);
+        return Array.from(range.getClientRects()).some((rect) => rect.width > 0 && rect.height > 0 && point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom) ? link2 : null;
+      } catch {
+        return null;
+      }
+    }
+    setHover(link2) {
+      if (this.hover?.from === link2?.from && this.hover?.to === link2?.to) return;
+      this.hover = link2;
+      this.view.dispatch({});
+    }
+    move(event) {
+      this.lastPoint = { x: event.clientX, y: event.clientY, target: event.target };
+      if (this.pointer && (Math.hypot(event.clientX - this.pointer.x, event.clientY - this.pointer.y) > 3 || event.buttons !== 1)) {
+        this.pointer.dragged = true;
+      }
+      this.setHover(this.atPoint(event, this.lastPoint));
+      return false;
+    }
+    down(event) {
+      this.pointer = null;
+      this.recordEditingOwner(event.target);
+      if (event.button !== 0 || !event.isPrimary) return false;
+      const link2 = this.atPoint(event, { x: event.clientX, y: event.clientY, target: event.target });
+      if (!link2) return false;
+      this.pointer = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        link: link2,
+        doc: this.view.state.doc,
+        selection: this.view.state.selection,
+        dragged: false
+      };
+      event.preventDefault();
+      return true;
+    }
+    up(event) {
+      const pointer = this.pointer;
+      this.pointer = null;
+      if (!pointer || pointer.dragged || event.button !== 0 || !event.isPrimary || event.pointerId !== pointer.id || Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 3 || pointer.doc !== this.view.state.doc || pointer.selection !== this.view.state.selection) return false;
+      const link2 = this.atPoint(event, { x: event.clientX, y: event.clientY, target: event.target });
+      if (!link2 || link2.from !== pointer.link.from || link2.to !== pointer.link.to || link2.destination !== pointer.link.destination) return false;
+      event.preventDefault();
+      configurationValue(this.view)?.post({ from: link2.from, to: link2.to, activation: "pointer" });
+      return true;
+    }
+    cancel() {
+      this.pointer = null;
+      this.setHover(null);
+    }
+    modifier(event) {
+      this.pointer = null;
+      this.setHover(this.lastPoint ? this.atPoint(event, this.lastPoint) : null);
+    }
+    leave() {
+      this.lastPoint = null;
+      this.cancel();
+    }
+    destroy() {
+      this.pointer = null;
+      this.hover = null;
+      this.view.dom.ownerDocument.removeEventListener("focusin", this.onFocus, true);
+    }
+  };
+  var linkPlugin = ViewPlugin.fromClass(LinkInteraction, {
+    decorations: (plugin) => plugin.decorations,
+    eventHandlers: {
+      pointermove(event) {
+        return this.move(event);
+      },
+      pointerdown(event) {
+        return this.down(event);
+      },
+      pointerup(event) {
+        return this.up(event);
+      },
+      pointercancel() {
+        this.cancel();
+      },
+      pointerleave() {
+        this.leave();
+      },
+      keydown(event) {
+        this.modifier(event);
+      },
+      keyup(event) {
+        this.modifier(event);
+      },
+      compositionstart() {
+        this.composing = true;
+        this.cancel();
+      },
+      compositionend() {
+        this.composing = false;
+      }
+    }
+  });
+  function createMarkdownLinkExtensions(options, post) {
+    return [configuration.of({ options, post }), linkPlugin];
   }
 
   // src/shared/documentChangeMapping.ts
@@ -41553,6 +45916,7 @@ ${replacement}
   var view;
   var lastTableCellCommit = null;
   var nextWebviewChangeId = 1;
+  var nextMarkdownLinkRequestId = 1;
   var hostDocumentApplyToken = 0;
   var editorCompositionActive = false;
   var pendingEditorComposition = null;
@@ -41560,6 +45924,7 @@ ${replacement}
   var deferredHostDocumentDuringEditorComposition = null;
   var pendingEditorCommandsAfterComposition = [];
   var editorOptions = readEditorOptions();
+  var appliedMarkdownRenderingOptions = effectiveMarkdownRenderingOptions(editorOptions);
   var pendingWebviewEchoes = [];
   var pendingHostUndoFocusStack = [];
   var MAX_PENDING_HOST_UNDO_FOCUS = 200;
@@ -41573,7 +45938,10 @@ ${replacement}
     }
   };
   try {
-    const editorExtensions = createLiveEditorExtensions(editorOptions);
+    const editorExtensions = createLiveEditorExtensions({
+      ...editorOptions,
+      markdownRendering: appliedMarkdownRenderingOptions
+    });
     const initialDocument = readInitialDocument();
     app.replaceChildren();
     app.className = "mlrt-editor-shell";
@@ -41586,6 +45954,10 @@ ${replacement}
         doc: initialDocument,
         extensions: [
           ...editorExtensions,
+          markdownLinksCompartment.of(createMarkdownLinkExtensions(
+            { ...editorOptions.markdownLinks, enabled: editorOptions.markdownRendering.enabled },
+            postMarkdownLinkIntent
+          )),
           EditorView.updateListener.of((update) => {
             if (update.docChanged && getPendingClipboardCut(update.view.dom.ownerDocument)) {
               clearPendingClipboardCut(update.view.dom.ownerDocument);
@@ -41595,7 +45967,8 @@ ${replacement}
             const projectionAuthoredSelection = update.transactions.some(
               (transaction) => transaction.annotation(documentSelectionProjectionTransaction) === true
             );
-            if (update.docChanged || update.selectionSet && !projectionAuthoredSelection) {
+            const taskPreservesProjection = projectionAuthoredSelection && update.transactions.length === 1 && update.transactions[0].annotation(markdownTaskChangeAnnotation) === true;
+            if (update.docChanged && !taskPreservesProjection || update.selectionSet && !projectionAuthoredSelection) {
               clearDocumentSelectionProjection(update.view.dom.ownerDocument);
             }
             if (update.selectionSet || update.focusChanged || update.docChanged || update.viewportChanged) {
@@ -41621,13 +45994,50 @@ ${replacement}
       })
     });
     window.__MLRT_EDITOR_VIEW__ = view;
+    window.__MLRT_TEST_LIVE_PREVIEW__ = (x, y) => {
+      if (!debugEnabled) return null;
+      const next2 = view.moveVertically(view.state.selection.main, false);
+      return {
+        hasFocus: view.hasFocus,
+        composing: view.compositionStarted,
+        next: next2.head,
+        list: markdownListLine(view.state.doc, syntaxTree(view.state), next2.head),
+        preview: view.state.field(markdownPreviewField, false)?.focused,
+        link: x === void 0 || y === void 0 ? null : markdownLinkDiagnostics(view, x, y)
+      };
+    };
+    window.__MLRT_TEST_MARKDOWN_PARSE__ = (force = false) => {
+      if (!debugEnabled) return null;
+      if (force) forceParsing(view, view.state.doc.length, 25);
+      return {
+        treeLength: syntaxTree(view.state).length,
+        documentLength: view.state.doc.length,
+        fullReady: syntaxTreeAvailable(view.state, view.state.doc.length),
+        viewportReady: view.visibleRanges.every((range) => syntaxTreeAvailable(view.state, range.to))
+      };
+    };
+    setMarkdownTaskActionGuard(
+      view,
+      () => !editorCompositionActive && pendingEditorComposition === null && deferredHostDocumentDuringEditorComposition === null && pendingEditorCommandsAfterComposition.length === 0
+    );
+    setMarkdownActionNotifier(view, (message) => announce(document, message));
     installEditorCompositionBatching(view);
     applyDocumentEditorOptions(editorOptions);
     updateStatus(initialDocument, "embedded");
     installEditorCommandBridge(app);
-    installDocumentClipboard(app, view);
+    installDocumentClipboard(app, view, (event) => markdownTaskContextActions(view, event));
     syncDocumentRangeSelection(view);
     installCursorDebugListeners(app);
+    const accessibilityObserver = new MutationObserver(() => {
+      updateEditorOptions(editorOptions);
+    });
+    accessibilityObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+    window.addEventListener("unload", () => accessibilityObserver.disconnect(), {
+      once: true
+    });
     view.dom.addEventListener("mlrt:open-clipboard-settings", () => {
       vscode.postMessage({ type: "openClipboardSettings" });
     });
@@ -41637,6 +46047,22 @@ ${replacement}
   }
   window.addEventListener("message", (event) => {
     const message = event.data;
+    if (message && typeof message === "object" && "type" in message && message.type === "markdownLinkCommand" && "action" in message && message.action === "open") {
+      if (editorCompositionActive || view.compositionStarted || pendingEditorComposition || deferredHostDocumentDuringEditorComposition || !openMarkdownLinkAtCaret(view)) {
+        announce(document, "Place a single caret in a Markdown link to open it after editing finishes.");
+      }
+      return;
+    }
+    if (isHostMarkdownTaskCommandMessage(message)) {
+      if (!editorCompositionActive && !view.compositionStarted && !deferredHostDocumentDuringEditorComposition) {
+        if (message.action === "toggle") {
+          toggleMarkdownTask(view);
+        } else {
+          if (!focusMarkdownTask(view)) explainTaskFocusFallback(view);
+        }
+      }
+      return;
+    }
     if (isHostSetEditorOptionsMessage(message)) {
       updateEditorOptions(message.editorOptions);
       return;
@@ -41662,6 +46088,7 @@ ${replacement}
         if (!matched) {
           pendingWebviewEchoes.length = 0;
           pendingHostUndoFocusStack.length = 0;
+          invalidateMarkdownTaskContext(view);
           const mismatchSource = `host revision ${message.revision} authoritative mismatch`;
           if (!reconcileEditorCompositionWithHostDocument(
             message.text,
@@ -41681,6 +46108,7 @@ ${replacement}
     if (message.source === "webviewReject") {
       pendingWebviewEchoes.length = 0;
       pendingHostUndoFocusStack.length = 0;
+      invalidateMarkdownTaskContext(view);
       const rejectionSource = `host revision ${message.revision} rejected stale change`;
       if (!reconcileEditorCompositionWithHostDocument(
         message.text,
@@ -41691,6 +46119,7 @@ ${replacement}
       return;
     }
     const source = `host revision ${message.revision}`;
+    invalidateMarkdownTaskContext(view);
     if (reconcileEditorCompositionWithHostDocument(message.text, source)) {
       return;
     }
@@ -41871,6 +46300,22 @@ ${replacement}
       baseRevision: hostRevision
     });
   }
+  function postMarkdownLinkIntent(intent) {
+    if (editorCompositionActive || view.compositionStarted || view.composing || deferredHostDocumentDuringEditorComposition || !editorOptions.markdownRendering.enabled) return;
+    const intentDocument = view.state.doc;
+    cancelEditorCompositionFlush();
+    flushEditorComposition();
+    flushPendingEditorCommandsAfterComposition();
+    if (view.state.doc !== intentDocument || pendingEditorComposition || deferredHostDocumentDuringEditorComposition || pendingEditorCommandsAfterComposition.length) return;
+    postMutationToHost({
+      type: "openMarkdownLink",
+      sessionToken: editorOptions.clipboardDocumentToken,
+      requestId: nextMarkdownLinkRequestId++,
+      beforeText: intentDocument.toString(),
+      baseRevision: hostRevision,
+      ...intent
+    });
+  }
   function postMutationToHost(message) {
     if (window.__MLRT_TEST_HOST_ISOLATED__) {
       recordDebug("suppress-test-host-mutation", {
@@ -41970,12 +46415,18 @@ ${replacement}
   function readEditorOptions() {
     const options = window.__MLRT_EDITOR_OPTIONS__;
     const defaults = {
+      markdownLinks: { documentUri: null, multiCursorModifier: "alt", isMac: false },
       lineWrapping: true,
       scrollBeyondLastLine: true,
       clipboardDocumentToken: createClipboardDocumentToken(),
       defaultCopyMode: "smart",
       defaultPasteMode: "auto",
-      tableNavigationModifierKey: DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY
+      tableNavigationModifierKey: DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY,
+      markdownRendering: {
+        enabled: true,
+        screenReaderOptimized: false,
+        readOnly: false
+      }
     };
     if (!options || typeof options !== "object") {
       return defaults;
@@ -41988,7 +46439,9 @@ ${replacement}
         clipboardDocumentToken: optionRecord.clipboardDocumentToken,
         defaultCopyMode: optionRecord.defaultCopyMode,
         defaultPasteMode: optionRecord.defaultPasteMode,
-        tableNavigationModifierKey: optionRecord.tableNavigationModifierKey
+        tableNavigationModifierKey: optionRecord.tableNavigationModifierKey,
+        markdownRendering: optionRecord.markdownRendering,
+        markdownLinks: optionRecord.markdownLinks
       },
       defaults
     );
@@ -41997,7 +46450,14 @@ ${replacement}
     const record = value && typeof value === "object" ? value : {};
     const defaultCopyMode = record.defaultCopyMode;
     const defaultPasteMode = record.defaultPasteMode;
+    const markdownLinks = record.markdownLinks && typeof record.markdownLinks === "object" ? record.markdownLinks : {};
+    const markdownRendering = record.markdownRendering && typeof record.markdownRendering === "object" ? record.markdownRendering : {};
     return {
+      markdownLinks: {
+        documentUri: markdownLinks.documentUri === null || typeof markdownLinks.documentUri === "string" ? markdownLinks.documentUri : fallback.markdownLinks.documentUri,
+        multiCursorModifier: markdownLinks.multiCursorModifier === "alt" || markdownLinks.multiCursorModifier === "ctrlCmd" ? markdownLinks.multiCursorModifier : fallback.markdownLinks.multiCursorModifier,
+        isMac: typeof markdownLinks.isMac === "boolean" ? markdownLinks.isMac : fallback.markdownLinks.isMac
+      },
       lineWrapping: typeof record.lineWrapping === "boolean" ? record.lineWrapping : fallback.lineWrapping,
       scrollBeyondLastLine: typeof record.scrollBeyondLastLine === "boolean" ? record.scrollBeyondLastLine : fallback.scrollBeyondLastLine,
       clipboardDocumentToken: typeof record.clipboardDocumentToken === "string" && record.clipboardDocumentToken.length > 0 ? record.clipboardDocumentToken : fallback.clipboardDocumentToken,
@@ -42006,7 +46466,18 @@ ${replacement}
       tableNavigationModifierKey: normalizeTableNavigationModifierKey(
         record.tableNavigationModifierKey,
         fallback.tableNavigationModifierKey
-      )
+      ),
+      markdownRendering: {
+        enabled: typeof markdownRendering.enabled === "boolean" ? markdownRendering.enabled : fallback.markdownRendering.enabled,
+        screenReaderOptimized: typeof markdownRendering.screenReaderOptimized === "boolean" ? markdownRendering.screenReaderOptimized : fallback.markdownRendering.screenReaderOptimized,
+        readOnly: typeof markdownRendering.readOnly === "boolean" ? markdownRendering.readOnly : fallback.markdownRendering.readOnly
+      }
+    };
+  }
+  function effectiveMarkdownRenderingOptions(options) {
+    return {
+      ...options.markdownRendering,
+      screenReaderOptimized: options.markdownRendering.screenReaderOptimized || document.body.classList.contains("vscode-using-screen-reader")
     };
   }
   function applyClipboardOptions(options) {
@@ -42024,11 +46495,25 @@ ${replacement}
   }
   function updateEditorOptions(value) {
     const nextOptions = normalizeEditorOptions(value, editorOptions);
+    const linksChanged = nextOptions.markdownRendering.enabled !== editorOptions.markdownRendering.enabled || nextOptions.markdownLinks.documentUri !== editorOptions.markdownLinks.documentUri || nextOptions.markdownLinks.multiCursorModifier !== editorOptions.markdownLinks.multiCursorModifier || nextOptions.markdownLinks.isMac !== editorOptions.markdownLinks.isMac;
     const lineWrappingChanged = nextOptions.lineWrapping !== editorOptions.lineWrapping;
     const tableNavigationModifierChanged = nextOptions.tableNavigationModifierKey !== editorOptions.tableNavigationModifierKey;
     editorOptions = nextOptions;
     applyDocumentEditorOptions(editorOptions);
     const effects = [];
+    if (linksChanged) effects.push(markdownLinksCompartment.reconfigure(createMarkdownLinkExtensions(
+      { ...editorOptions.markdownLinks, enabled: editorOptions.markdownRendering.enabled },
+      postMarkdownLinkIntent
+    )));
+    const markdownOptions = effectiveMarkdownRenderingOptions(editorOptions);
+    if (markdownOptions.enabled !== appliedMarkdownRenderingOptions.enabled || markdownOptions.screenReaderOptimized !== appliedMarkdownRenderingOptions.screenReaderOptimized || markdownOptions.readOnly !== appliedMarkdownRenderingOptions.readOnly) {
+      appliedMarkdownRenderingOptions = markdownOptions;
+      effects.push(
+        markdownRenderingCompartment.reconfigure(
+          createMarkdownRenderingExtensions(markdownOptions)
+        )
+      );
+    }
     if (lineWrappingChanged) {
       effects.push(
         lineWrappingCompartment.reconfigure(
@@ -42127,7 +46612,10 @@ ${replacement}
       update.changes,
       update.startState.doc.toString(),
       update.state.doc.toString(),
-      commitSequence
+      commitSequence,
+      update.transactions.some(
+        (transaction) => transaction.annotation(markdownTaskChangeAnnotation) === true
+      )
     );
   }
   function scheduleEditorCompositionFlush() {
@@ -42176,6 +46664,7 @@ ${replacement}
       finalText
     );
     if (changes.empty) {
+      refreshMarkdownTaskAvailability(view);
       return;
     }
     pushPendingHostUndoFocus({
@@ -42186,6 +46675,7 @@ ${replacement}
       }
     });
     postDocumentChanges(changes, composition.beforeText, finalText);
+    refreshMarkdownTaskAvailability(view);
   }
   function flushPendingEditorCommandsAfterComposition() {
     if (pendingEditorCommandsAfterComposition.length === 0) {
@@ -42291,7 +46781,7 @@ ${replacement}
     }
     return true;
   }
-  function postDocumentChanges(changes, beforeText, text3, commitSequence) {
+  function postDocumentChanges(changes, beforeText, text3, commitSequence, markdownTaskToggle = false) {
     const documentChanges = [];
     changes.iterChanges((from, to, _fromB, _toB, inserted) => {
       documentChanges.push({
@@ -42318,7 +46808,8 @@ ${replacement}
       beforeText,
       changes: documentChanges,
       changeGroups: commitSequence?.steps.map((step) => [step.change]),
-      baseRevision: hostRevision
+      baseRevision: hostRevision,
+      sourceAction: markdownTaskToggle ? "markdownTaskToggle" : void 0
     });
   }
   function installCursorDebugListeners(root2) {
@@ -42483,12 +46974,27 @@ ${String(error2)}`;
     const record = message;
     return record.type === "setEditorOptions" && isEditorOptions(record.editorOptions);
   }
+  function isHostMarkdownTaskCommandMessage(message) {
+    if (!message || typeof message !== "object") {
+      return false;
+    }
+    const record = message;
+    return record.type === "markdownTaskCommand" && (record.action === "toggle" || record.action === "focus");
+  }
   function isEditorOptions(value) {
     if (!value || typeof value !== "object") {
       return false;
     }
     const record = value;
-    return typeof record.lineWrapping === "boolean" && typeof record.scrollBeyondLastLine === "boolean" && typeof record.clipboardDocumentToken === "string" && record.clipboardDocumentToken.length > 0 && (record.defaultCopyMode === "smart" || record.defaultCopyMode === "rich" || record.defaultCopyMode === "plain" || record.defaultCopyMode === "markdown") && (record.defaultPasteMode === "auto" || record.defaultPasteMode === "rich" || record.defaultPasteMode === "plain" || record.defaultPasteMode === "markdown") && normalizeTableNavigationModifierKey(record.tableNavigationModifierKey) === record.tableNavigationModifierKey;
+    const markdownRendering = record.markdownRendering;
+    return (markdownRendering === void 0 || isMarkdownRenderingOptions(markdownRendering)) && typeof record.lineWrapping === "boolean" && typeof record.scrollBeyondLastLine === "boolean" && typeof record.clipboardDocumentToken === "string" && record.clipboardDocumentToken.length > 0 && (record.defaultCopyMode === "smart" || record.defaultCopyMode === "rich" || record.defaultCopyMode === "plain" || record.defaultCopyMode === "markdown") && (record.defaultPasteMode === "auto" || record.defaultPasteMode === "rich" || record.defaultPasteMode === "plain" || record.defaultPasteMode === "markdown") && normalizeTableNavigationModifierKey(record.tableNavigationModifierKey) === record.tableNavigationModifierKey;
+  }
+  function isMarkdownRenderingOptions(value) {
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+    const record = value;
+    return typeof record.enabled === "boolean" && typeof record.screenReaderOptimized === "boolean" && typeof record.readOnly === "boolean";
   }
   function isTableCellCommitDetail(detail) {
     if (!detail || typeof detail !== "object") {

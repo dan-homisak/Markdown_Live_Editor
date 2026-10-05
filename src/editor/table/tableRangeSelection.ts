@@ -1,6 +1,7 @@
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { editorDragPosition } from "../dragPosition";
+import { isMarkdownTaskPointerActivation } from "../markdown/markdownPointer";
 import {
   clearDocumentSelectionProjection,
   documentSelectionProjectionsEqual,
@@ -63,6 +64,12 @@ interface SelectionDocumentState {
 }
 
 const states = new WeakMap<Document, SelectionDocumentState>();
+
+/** Presentation effects must not restore native ranges during a table drag. */
+export function isTablePointerSelectionActive(doc: Document): boolean {
+  const state = states.get(doc);
+  return !!state?.pointerAnchor && state.pointerCrossedCells;
+}
 
 export function bindTableRangeSelection(
   wrapper: HTMLElement,
@@ -780,7 +787,7 @@ export function bindTableRangeSelection(
   };
 
   const onDocumentSelectionPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0) {
+    if (event.button !== 0 || isMarkdownTaskPointerActivation(event)) {
       return;
     }
     // Clipboard menus live under document.body rather than inside the table

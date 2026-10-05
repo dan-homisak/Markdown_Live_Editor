@@ -1,0 +1,829 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-h5MsuS",
+  "port": 65437,
+  "checks": [
+    {
+      "name": "default-enabled literal source, parser frontmatter, HTML and image isolation",
+      "pass": true,
+      "detail": {
+        "enabled": true,
+        "frontmatter": 6,
+        "htmlMounted": 0,
+        "remoteImages": 0,
+        "sourceLength": 1354
+      }
+    },
+    {
+      "name": "nested semantic properties keep normal metrics and exact source",
+      "pass": true,
+      "detail": {
+        "Important": {
+          "position": 80,
+          "text": "I",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-heading mlrt-markdown-bold",
+          "line": "## **Important** [deployment](./LinkedTarget.md \"title\") `settings` ##",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "700",
+          "fontStyle": "normal",
+          "color": "rgb(77, 170, 252)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 106.82500457763672,
+          "y": 133.10000610351562,
+          "height": 16
+        },
+        "deployment": {
+          "position": 93,
+          "text": "d",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-link mlrt-markdown-bold",
+          "line": "## **Important** [deployment](./LinkedTarget.md \"title\") `settings` ##",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "700",
+          "fontStyle": "normal",
+          "color": "rgb(77, 170, 252)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 206.91250610351562,
+          "y": 133.10000610351562,
+          "height": 16
+        },
+        "settings": {
+          "position": 133,
+          "text": "s",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-code mlrt-markdown-code-font mlrt-markdown-inline-code",
+          "line": "## **Important** [deployment](./LinkedTarget.md \"title\") `settings` ##",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "400",
+          "fontStyle": "normal",
+          "color": "rgb(208, 208, 208)",
+          "background": "rgba(60, 60, 60, 0.18)",
+          "decoration": "none",
+          "x": 514.8375244140625,
+          "y": 133.10000610351562,
+          "height": 16
+        },
+        "Setext": {
+          "position": 146,
+          "text": "S",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-heading mlrt-markdown-bold",
+          "line": "Setext *heading*",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "700",
+          "fontStyle": "normal",
+          "color": "rgb(77, 170, 252)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 68.32500457763672,
+          "y": 152,
+          "height": 16
+        },
+        "heading": {
+          "position": 154,
+          "text": "h",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-heading mlrt-markdown-bold mlrt-markdown-italic",
+          "line": "Setext *heading*",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "700",
+          "fontStyle": "italic",
+          "color": "rgb(77, 170, 252)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 129.91250610351562,
+          "y": 152,
+          "height": 16
+        },
+        "bold": {
+          "position": 176,
+          "text": "b",
+          "classes": "mlrt-markdown-source mlrt-markdown-bold",
+          "line": "Plain **bold**, *italic*, ***both***, ~~strike *nested*~~ and `  exact  `.",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "700",
+          "fontStyle": "normal",
+          "color": "rgb(204, 204, 204)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 129.91250610351562,
+          "y": 208.6999969482422,
+          "height": 16
+        },
+        "italic": {
+          "position": 185,
+          "text": "i",
+          "classes": "mlrt-markdown-source mlrt-markdown-italic",
+          "line": "Plain **bold**, *italic*, ***both***, ~~strike *nested*~~ and `  exact  `.",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "400",
+          "fontStyle": "italic",
+          "color": "rgb(204, 204, 204)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 199.21250915527344,
+          "y": 208.6999969482422,
+          "height": 16
+        },
+        "both": {
+          "position": 197,
+          "text": "b",
+          "classes": "mlrt-markdown-source mlrt-markdown-bold mlrt-markdown-italic",
+          "line": "Plain **bold**, *italic*, ***both***, ~~strike *nested*~~ and `  exact  `.",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "700",
+          "fontStyle": "italic",
+          "color": "rgb(204, 204, 204)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 291.6000061035156,
+          "y": 208.6999969482422,
+          "height": 16
+        },
+        "nested": {
+          "position": 216,
+          "text": "n",
+          "classes": "mlrt-markdown-source mlrt-markdown-italic mlrt-markdown-strike",
+          "line": "Plain **bold**, *italic*, ***both***, ~~strike *nested*~~ and `  exact  `.",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "400",
+          "fontStyle": "italic",
+          "color": "rgb(204, 204, 204)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "line-through",
+          "x": 437.88751220703125,
+          "y": 208.6999969482422,
+          "height": 16
+        },
+        "  exact  ": {
+          "position": 231,
+          "text": " ",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-code mlrt-markdown-code-font mlrt-markdown-inline-code",
+          "line": "Plain **bold**, *italic*, ***both***, ~~strike *nested*~~ and `  exact  `.",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "400",
+          "fontStyle": "normal",
+          "color": "rgb(208, 208, 208)",
+          "background": "rgba(60, 60, 60, 0.18)",
+          "decoration": "none",
+          "x": 553.3624877929688,
+          "y": 208.6999969482422,
+          "height": 16
+        },
+        "span": {
+          "position": 252,
+          "text": "s",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-tag mlrt-markdown-code-font",
+          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">**prose**</span> <!-- source comment -->",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "400",
+          "fontStyle": "normal",
+          "color": "rgb(126, 231, 135)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 137.6125030517578,
+          "y": 227.60000610351562,
+          "height": 16
+        },
+        "title=": {
+          "position": 257,
+          "text": "t",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-variable mlrt-markdown-code-font",
+          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">**prose**</span> <!-- source comment -->",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "400",
+          "fontStyle": "normal",
+          "color": "rgb(255, 166, 87)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 176.1125030517578,
+          "y": 227.60000610351562,
+          "height": 16
+        },
+        "prose": {
+          "position": 303,
+          "text": "p",
+          "classes": "mlrt-markdown-source mlrt-markdown-bold",
+          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">**prose**</span> <!-- source comment -->",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "700",
+          "fontStyle": "normal",
+          "color": "rgb(204, 204, 204)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 530.2250366210938,
+          "y": 227.60000610351562,
+          "height": 16
+        },
+        "source comment": {
+          "position": 323,
+          "text": "s",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-comment",
+          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">**prose**</span> <!-- source comment -->",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "400",
+          "fontStyle": "normal",
+          "color": "rgb(145, 152, 161)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 684.1875,
+          "y": 227.60000610351562,
+          "height": 16
+        }
+      }
+    },
+    {
+      "name": "recovery switch retains source row positions and table DOM",
+      "pass": true,
+      "detail": {
+        "sourceRows": 4,
+        "maxYDelta": 0,
+        "tableRetained": true
+      }
+    },
+    {
+      "name": "quote guides and five alert labels occupy source rows",
+      "pass": true,
+      "detail": {
+        "quotes": 13,
+        "labels": [
+          {
+            "text": "[!NOTE]",
+            "weight": "600",
+            "lineHeight": "18.9px",
+            "color": "rgb(89, 164, 249)",
+            "edge": "rgb(89, 164, 249) 2px 0px 0px 0px inset"
+          },
+          {
+            "text": "[!TIP]",
+            "weight": "600",
+            "lineHeight": "18.9px",
+            "color": "rgb(115, 201, 145)",
+            "edge": "rgb(115, 201, 145) 2px 0px 0px 0px inset"
+          },
+          {
+            "text": "[!IMPORTANT]",
+            "weight": "600",
+            "lineHeight": "18.9px",
+            "color": "rgb(77, 170, 252)",
+            "edge": "rgb(77, 170, 252) 2px 0px 0px 0px inset"
+          },
+          {
+            "text": "[!WARNING]",
+            "weight": "600",
+            "lineHeight": "18.9px",
+            "color": "rgb(204, 167, 0)",
+            "edge": "rgb(204, 167, 0) 2px 0px 0px 0px inset"
+          },
+          {
+            "text": "[!CAUTION]",
+            "weight": "600",
+            "lineHeight": "18.9px",
+            "color": "rgb(204, 204, 204)",
+            "edge": "rgb(204, 204, 204) 2px 0px 0px 0px inset"
+          }
+        ],
+        "guides": [
+          "rgb(97, 97, 97) 1px 0px 0px 0px inset",
+          "rgb(97, 97, 97) 1px 0px 0px 0px inset",
+          "rgb(97, 97, 97) 1px 0px 0px 0px inset",
+          "rgb(89, 164, 249) 2px 0px 0px 0px inset",
+          "rgb(89, 164, 249) 2px 0px 0px 0px inset",
+          "rgb(115, 201, 145) 2px 0px 0px 0px inset",
+          "rgb(115, 201, 145) 2px 0px 0px 0px inset",
+          "rgb(77, 170, 252) 2px 0px 0px 0px inset",
+          "rgb(77, 170, 252) 2px 0px 0px 0px inset",
+          "rgb(204, 167, 0) 2px 0px 0px 0px inset",
+          "rgb(204, 167, 0) 2px 0px 0px 0px inset",
+          "rgb(204, 204, 204) 2px 0px 0px 0px inset",
+          "rgb(204, 204, 204) 2px 0px 0px 0px inset"
+        ]
+      }
+    },
+    {
+      "name": "all bundled code languages, blank rows and unknown fallback",
+      "pass": true,
+      "detail": {
+        "languages": [
+          {
+            "language": "javascript",
+            "value": {
+              "position": 825,
+              "text": "c",
+              "classes": "mlrt-markdown-block-token-declaration",
+              "line": "const jsValue = \"string\";",
+              "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "lineHeight": "18.9px",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "color": "rgb(210, 168, 255)",
+              "background": "rgba(0, 0, 0, 0)",
+              "decoration": "none",
+              "x": 68.32500457763672,
+              "y": 661,
+              "height": 16
+            },
+            "tokens": [
+              {
+                "text": "const",
+                "classes": "mlrt-markdown-block-token-declaration"
+              },
+              {
+                "text": "jsValue",
+                "classes": "mlrt-markdown-block-token-variable"
+              },
+              {
+                "text": "\"string\"",
+                "classes": "mlrt-markdown-block-token-string"
+              },
+              {
+                "text": ";",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              }
+            ]
+          },
+          {
+            "language": "typescript",
+            "value": {
+              "position": 893,
+              "text": "c",
+              "classes": "mlrt-markdown-block-token-declaration",
+              "line": "const tsValue: number = 12;",
+              "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "lineHeight": "18.9px",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "color": "rgb(210, 168, 255)",
+              "background": "rgba(0, 0, 0, 0)",
+              "decoration": "none",
+              "x": 68.32500457763672,
+              "y": 660.7999877929688,
+              "height": 16
+            },
+            "tokens": [
+              {
+                "text": "const",
+                "classes": "mlrt-markdown-block-token-declaration"
+              },
+              {
+                "text": "tsValue",
+                "classes": "mlrt-markdown-block-token-variable"
+              },
+              {
+                "text": ":",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              },
+              {
+                "text": "number",
+                "classes": "mlrt-markdown-block-token-declaration"
+              },
+              {
+                "text": "12",
+                "classes": "mlrt-markdown-block-token-constant"
+              },
+              {
+                "text": ";",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              }
+            ]
+          },
+          {
+            "language": "json",
+            "value": {
+              "position": 934,
+              "text": "{",
+              "classes": "mlrt-markdown-block-token-punctuation",
+              "line": "{ \"jsonKey\": true, \"count\": 12 }",
+              "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "lineHeight": "18.9px",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "color": "rgb(145, 152, 161)",
+              "background": "rgba(0, 0, 0, 0)",
+              "decoration": "none",
+              "x": 68.32500457763672,
+              "y": 661.2000122070312,
+              "height": 16
+            },
+            "tokens": [
+              {
+                "text": "{",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              },
+              {
+                "text": "\"jsonKey\"",
+                "classes": "mlrt-markdown-block-token-variable"
+              },
+              {
+                "text": ":",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              },
+              {
+                "text": "true",
+                "classes": "mlrt-markdown-block-token-constant"
+              },
+              {
+                "text": ",",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              },
+              {
+                "text": "\"count\"",
+                "classes": "mlrt-markdown-block-token-variable"
+              },
+              {
+                "text": ":",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              },
+              {
+                "text": "12",
+                "classes": "mlrt-markdown-block-token-constant"
+              },
+              {
+                "text": "}",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              }
+            ]
+          },
+          {
+            "language": "shell",
+            "value": {
+              "position": 996,
+              "text": "e",
+              "classes": "mlrt-markdown-block-token-variable",
+              "line": "echo \"$HOME\"",
+              "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "lineHeight": "18.9px",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "color": "rgb(255, 166, 87)",
+              "background": "rgba(0, 0, 0, 0)",
+              "decoration": "none",
+              "x": 68.32500457763672,
+              "y": 661.2999877929688,
+              "height": 16
+            },
+            "tokens": [
+              {
+                "text": "echo",
+                "classes": "mlrt-markdown-block-token-variable"
+              },
+              {
+                "text": "\"",
+                "classes": "mlrt-markdown-block-token-string"
+              },
+              {
+                "text": "$HOME",
+                "classes": "mlrt-markdown-block-token-variable"
+              },
+              {
+                "text": "\"",
+                "classes": "mlrt-markdown-block-token-string"
+              }
+            ]
+          },
+          {
+            "language": "python",
+            "value": {
+              "position": 1024,
+              "text": "d",
+              "classes": "mlrt-markdown-block-token-declaration",
+              "line": "def python_value():",
+              "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "lineHeight": "18.9px",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "color": "rgb(210, 168, 255)",
+              "background": "rgba(0, 0, 0, 0)",
+              "decoration": "none",
+              "x": 68.32500457763672,
+              "y": 660.9000244140625,
+              "height": 16
+            },
+            "tokens": [
+              {
+                "text": "def",
+                "classes": "mlrt-markdown-block-token-declaration"
+              },
+              {
+                "text": "python_value",
+                "classes": "mlrt-markdown-block-token-variable"
+              },
+              {
+                "text": "(",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              },
+              {
+                "text": ")",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              }
+            ]
+          },
+          {
+            "language": "yaml",
+            "value": {
+              "position": 1076,
+              "text": "y",
+              "classes": "mlrt-markdown-block-token-variable",
+              "line": "yaml_key: \"quoted\"",
+              "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "lineHeight": "18.9px",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "color": "rgb(255, 166, 87)",
+              "background": "rgba(0, 0, 0, 0)",
+              "decoration": "none",
+              "x": 68.32500457763672,
+              "y": 661,
+              "height": 16
+            },
+            "tokens": [
+              {
+                "text": "yaml_key",
+                "classes": "mlrt-markdown-block-token-variable"
+              },
+              {
+                "text": ":",
+                "classes": "mlrt-markdown-block-token-punctuation"
+              },
+              {
+                "text": "\"quoted\"",
+                "classes": "mlrt-markdown-block-token-string"
+              }
+            ]
+          },
+          {
+            "language": "unknown",
+            "value": {
+              "position": 1125,
+              "text": "*",
+              "classes": "mlrt-markdown-block-code-source",
+              "line": "**unknown language stays code**",
+              "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "lineHeight": "18.9px",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "color": "rgb(204, 204, 204)",
+              "background": "rgba(0, 0, 0, 0)",
+              "decoration": "none",
+              "x": 68.32500457763672,
+              "y": 661.1000366210938,
+              "height": 16
+            },
+            "tokens": []
+          },
+          {
+            "language": "indented",
+            "value": {
+              "position": 1166,
+              "text": "i",
+              "classes": "mlrt-markdown-block-code-source",
+              "line": "    indented **literal**",
+              "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "lineHeight": "18.9px",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "color": "rgb(204, 204, 204)",
+              "background": "rgba(0, 0, 0, 0)",
+              "decoration": "none",
+              "x": 99.125,
+              "y": 661,
+              "height": 16
+            },
+            "tokens": []
+          }
+        ],
+        "blankRows": 1
+      }
+    },
+    {
+      "name": "table source remains exclusively owned across all styling paths",
+      "pass": true,
+      "detail": {
+        "tables": 1,
+        "semanticDescendants": 0,
+        "text": "76**Header**Content78[link](./LinkedTarget.md)<b>Table HTML</b>"
+      }
+    },
+    {
+      "name": "light, dark, high contrast recolor without source or table remount",
+      "pass": true,
+      "detail": [
+        {
+          "kind": "vscode-light",
+          "sourceRetained": true,
+          "tableRetained": true,
+          "foreground": "rgba(59, 59, 59, 1)",
+          "codeFill": "rgba(248, 248, 248, 0.22)",
+          "outline": "none"
+        },
+        {
+          "kind": "vscode-high-contrast",
+          "sourceRetained": true,
+          "tableRetained": true,
+          "foreground": "rgba(255, 255, 255, 1)",
+          "codeFill": "rgba(0, 0, 0, 0)",
+          "outline": "inset 0 0 0 1px rgba(255, 255, 255, 1)"
+        },
+        {
+          "kind": "vscode-dark",
+          "sourceRetained": true,
+          "tableRetained": true,
+          "foreground": "rgba(204, 204, 204, 1)",
+          "codeFill": "rgba(43, 43, 43, 0.22)",
+          "outline": "none"
+        }
+      ]
+    },
+    {
+      "name": "forced-colors source and code outline remain visible",
+      "pass": true,
+      "detail": {
+        "value": {
+          "position": 133,
+          "text": "s",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-code mlrt-markdown-code-font mlrt-markdown-inline-code",
+          "line": "## **Important** [deployment](./LinkedTarget.md \"title\") `settings` ##",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "400",
+          "fontStyle": "normal",
+          "color": "rgb(255, 255, 255)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 514.8375244140625,
+          "y": 133.10000610351562,
+          "height": 16
+        },
+        "outline": {
+          "style": "solid",
+          "width": "0.8px",
+          "color": "rgb(255, 255, 255)",
+          "expected": "0.8px"
+        },
+        "emulated": true
+      }
+    },
+    {
+      "name": "modifier hover is actionable only for validated destinations",
+      "pass": true,
+      "detail": {
+        "valid": "[Local target](./LinkedTarget.md)",
+        "unsupported": "",
+        "struck": {
+          "position": 570,
+          "text": "s",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-link mlrt-markdown-strike",
+          "line": "~~[struck link](./LinkedTarget.md)~~",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "400",
+          "fontStyle": "normal",
+          "color": "rgb(77, 170, 252)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "underline line-through",
+          "x": 91.42500305175781,
+          "y": 322.1000061035156,
+          "height": 16
+        }
+      }
+    },
+    {
+      "name": "task source context menu provides a validated toggle",
+      "pass": true,
+      "detail": {
+        "labels": [
+          "Toggle Task Checkbox",
+          "Focus Task Checkbox",
+          "Paste Auto",
+          "Paste Rich",
+          "Paste Plain",
+          "Paste Markdown",
+          "Clipboard Settings…"
+        ],
+        "toggledSourceCharacterOnly": true,
+        "hostUndo": true
+      }
+    },
+    {
+      "name": "literal accessibility mode explains unavailable generated focus",
+      "pass": true,
+      "detail": {
+        "explanation": "A checkbox cannot be focused here. Use Toggle Task Checkbox at Caret.",
+        "sourceUnchanged": true
+      }
+    },
+    {
+      "name": "disabled source focus tracking preserves newer table ownership",
+      "pass": true,
+      "detail": {
+        "parked": {
+          "selection": 611,
+          "active": "BODY"
+        },
+        "tableOwnershipRetained": true,
+        "intentionalSourceCommand": true
+      }
+    },
+    {
+      "name": "host command rejects command URI and opens a temporary local document",
+      "pass": true,
+      "detail": {
+        "titles": [
+          "MarkdownRelease.md",
+          "LinkedTarget.md"
+        ],
+        "sourceUnchanged": true
+      }
+    },
+    {
+      "name": "standard fixture readable screenshots preserve complete host source",
+      "pass": true,
+      "detail": {
+        "sourceLength": 9317,
+        "captured": [
+          "# Standard Markdown Fixture",
+          "## Emphasis",
+          "## Blockquotes",
+          "## Code Blocks",
+          "## Tables"
+        ]
+      }
+    }
+  ],
+  "environment": {
+    "stock": {
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "19px",
+      "dpr": 1.25,
+      "width": 1204,
+      "height": 804
+    }
+  },
+  "limitations": [
+    "OS IME and an actual screen reader are not exercised by this automated script.",
+    "Forced colors uses Chromium emulation, not a changed Windows system theme."
+  ],
+  "finalSourceMatches": true,
+  "console": [],
+  "passed": true
+}

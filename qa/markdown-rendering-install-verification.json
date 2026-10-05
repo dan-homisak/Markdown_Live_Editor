@@ -1,0 +1,39 @@
+{
+  "verifiedAt": "2026-10-05T02:23:31.064Z",
+  "version": "0.1.174",
+  "installedDirectory": "C:\\Users\\thema\\.vscode\\extensions\\dan-homisak.markdown-live-render-tables-0.1.174",
+  "markdownRenderingEnabledByDefault": true,
+  "files": [
+    {
+      "file": "media/liveEditor.js",
+      "repositorySha256": "27f70d793853d336504b8cab2d7d5b216f54485010d56ef95b7917a27e581111",
+      "installedSha256": "27f70d793853d336504b8cab2d7d5b216f54485010d56ef95b7917a27e581111"
+    },
+    {
+      "file": "media/liveEditor.css",
+      "repositorySha256": "b0884edb84375ea3ccbcb63dcc013d8e5c29f75d85de2aeb6e2cdbe45246fef8",
+      "installedSha256": "b0884edb84375ea3ccbcb63dcc013d8e5c29f75d85de2aeb6e2cdbe45246fef8"
+    },
+    {
+      "file": "media/markdownPresentation.css",
+      "repositorySha256": "fb27bec1c4557c03f523cc4a401fc35ee119b9b326b426f48aa01114a5b028ef",
+      "installedSha256": "fb27bec1c4557c03f523cc4a401fc35ee119b9b326b426f48aa01114a5b028ef"
+    },
+    {
+      "file": "media/markdownBlocks.css",
+      "repositorySha256": "f4485a8051e28411b4a96c1ef4b7e3103c69aa308408f1efeb317440a4aab0a4",
+      "installedSha256": "f4485a8051e28411b4a96c1ef4b7e3103c69aa308408f1efeb317440a4aab0a4"
+    },
+    {
+      "file": "dist/extension.js",
+      "repositorySha256": "5a60e521f98a7fa290bdeb0b30496200a0cb7f8f773dc4f886b6e8124b1287db",
+      "installedSha256": "5a60e521f98a7fa290bdeb0b30496200a0cb7f8f773dc4f886b6e8124b1287db"
+    },
+    {
+      "file": "THIRD_PARTY_NOTICES.md",
+      "repositorySha256": "3671aa1781bda0a211c7f9a981437212e1870b126d1f21d0d448af7e8301702c",
+      "installedSha256": "3671aa1781bda0a211c7f9a981437212e1870b126d1f21d0d448af7e8301702c"
+    }
+  ],
+  "allHashesMatch": true
+}

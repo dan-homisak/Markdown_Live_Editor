@@ -1,0 +1,11 @@
+Release EDH port 50960; profile C:\Users\thema\AppData\Local\Temp\mlrt-release-edh-QP4eTn
+PASS live preview: resting syntax is removed, properties and semantic content render {"visible":"PropertiestitleLive previewtagsnotes · editorLive previewPlain bold, italic, strike and inline code.Local target and Wiki alias.- Parent  - Child    - GrandchildAfter list- [ ] Open task- [x] Done task✓ A useful calloutStyled content.▸ⓘ Folded titlejsCopyconst answer = 42;// exact code32AB34**Table bold**valueResting caret.","sourceExact":true}
+PASS live preview: caret and selection reveal only the active formatting {"observations":["**bold**","*italic*","`inline code`","[Local target](./LinkedTarget.md)","[[LinkedTarget|Wiki alias]]"]}
+PASS live preview: property editing reveals exact YAML then restores the property view {"sourceExact":true}
+PASS live preview: code language, copy button, and fence reveal {"language":"js","clipboard":"const answer = 42;\r\n// exact code\r\n","sourceExact":true}
+PASS live preview: Obsidian task treatment and expandable callouts {"radius":"3px","fill":"rgb(0, 120, 212)","prefixes":2}
+PASS live preview: smart vertical caret, list nesting, continuation and host Undo {"clampedToText":true,"nesting":true,"taskContinuation":true,"hostUndo":true}
+PASS live preview: table ownership and recovery survive syntax concealment {"tableRetained":true,"recovery":true}
+PASS live preview: plain click opens a rendered Markdown link and wiki command resolves a note {"plainClick":true,"wikiAlias":true}
+PASS live preview: actual user fixture remains exact and renders without literal formatting {"sourceLength":9317,"sourceExact":true}
+Saved qa/edh-markdown-release-results-live-preview.json; 9/9 checks passed.

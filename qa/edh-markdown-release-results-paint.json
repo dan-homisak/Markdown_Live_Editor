@@ -1,0 +1,344 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-tjtOqt",
+  "port": 56113,
+  "checks": [
+    {
+      "name": "forced-colors source and code outline remain visible",
+      "pass": true,
+      "detail": {
+        "value": {
+          "position": 133,
+          "text": "s",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-code mlrt-markdown-code-font mlrt-markdown-inline-code",
+          "line": "## **Important** [deployment](./LinkedTarget.md \"title\") `settings` ##",
+          "lineClasses": "cm-line",
+          "fontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "lineHeight": "18.9px",
+          "fontWeight": "400",
+          "fontStyle": "normal",
+          "color": "rgb(255, 255, 255)",
+          "background": "rgba(0, 0, 0, 0)",
+          "decoration": "none",
+          "x": 514.8375244140625,
+          "y": 133.10000610351562,
+          "height": 16
+        },
+        "outline": {
+          "style": "solid",
+          "width": "0.8px",
+          "color": "rgb(255, 255, 255)",
+          "expected": "0.8px"
+        },
+        "blockEdges": {
+          "quote": {
+            "left": "0.8px",
+            "top": "0px",
+            "bottom": "0px",
+            "style": "solid",
+            "pointerEvents": "none",
+            "rowBorder": "0px"
+          },
+          "start": {
+            "left": "0px",
+            "top": "0.8px",
+            "bottom": "0px",
+            "style": "solid",
+            "pointerEvents": "none",
+            "rowBorder": "0px"
+          },
+          "end": {
+            "left": "0px",
+            "top": "0px",
+            "bottom": "0.8px",
+            "style": "solid",
+            "pointerEvents": "none",
+            "rowBorder": "0px"
+          }
+        },
+        "emulated": true
+      }
+    },
+    {
+      "name": "actual code token foreground wins identical-range source wrappers",
+      "pass": true,
+      "detail": [
+        {
+          "needle": "// javascript comment",
+          "actual": {
+            "position": 855,
+            "text": "j",
+            "classes": "mlrt-markdown-block-token-comment",
+            "line": "// javascript comment",
+            "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+            "fontSize": "14px",
+            "fontFamily": "Consolas, \"Courier New\", monospace",
+            "lineHeight": "18.9px",
+            "fontWeight": "400",
+            "fontStyle": "normal",
+            "color": "rgb(145, 152, 161)",
+            "background": "rgba(0, 0, 0, 0)",
+            "decoration": "none",
+            "x": 91.4124984741211,
+            "y": 0.4000000059604645,
+            "height": 16
+          },
+          "expected": "rgb(145, 152, 161)"
+        },
+        {
+          "needle": "# shell comment",
+          "actual": {
+            "position": 983,
+            "text": "h",
+            "classes": "mlrt-markdown-block-code-source",
+            "line": "# shell comment",
+            "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+            "fontSize": "14px",
+            "fontFamily": "Consolas, \"Courier New\", monospace",
+            "lineHeight": "18.9px",
+            "fontWeight": "400",
+            "fontStyle": "normal",
+            "color": "rgb(145, 152, 161)",
+            "background": "rgba(0, 0, 0, 0)",
+            "decoration": "none",
+            "x": 91.4124984741211,
+            "y": 0.800000011920929,
+            "height": 16.000001907348633
+          },
+          "expected": "rgb(145, 152, 161)"
+        },
+        {
+          "needle": "# metadata comment",
+          "actual": {
+            "position": 54,
+            "text": "e",
+            "classes": "mlrt-markdown-block-token-comment",
+            "line": "# metadata comment",
+            "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code mlrt-markdown-block-frontmatter",
+            "fontSize": "14px",
+            "fontFamily": "Consolas, \"Courier New\", monospace",
+            "lineHeight": "18.9px",
+            "fontWeight": "400",
+            "fontStyle": "normal",
+            "color": "rgb(145, 152, 161)",
+            "background": "rgba(0, 0, 0, 0)",
+            "decoration": "none",
+            "x": 91.4124984741211,
+            "y": 0.4000000059604645,
+            "height": 16
+          },
+          "expected": "rgb(145, 152, 161)"
+        }
+      ]
+    },
+    {
+      "name": "actual rendered performance and host acknowledgement samples",
+      "pass": true,
+      "detail": {
+        "fixtures": [
+          {
+            "lineCount": 10000,
+            "enabled": false,
+            "classes": {
+              "localEdit": {
+                "count": 160,
+                "p50Ms": 18,
+                "p95Ms": 18.3,
+                "maxMs": 29,
+                "totalMs": 2876.4
+              },
+              "structuralEdit": {
+                "count": 40,
+                "p50Ms": 18.1,
+                "p95Ms": 30.3,
+                "maxMs": 36.3,
+                "totalMs": 847.8
+              },
+              "selection": {
+                "count": 100,
+                "p50Ms": 18.1,
+                "p95Ms": 18.2,
+                "maxMs": 18.3,
+                "totalMs": 1794.1
+              },
+              "scroll": {
+                "count": 100,
+                "p50Ms": 12,
+                "p95Ms": 13.4,
+                "maxMs": 15.4,
+                "totalMs": 1166.6
+              }
+            }
+          },
+          {
+            "lineCount": 10000,
+            "enabled": true,
+            "classes": {
+              "localEdit": {
+                "count": 160,
+                "p50Ms": 18,
+                "p95Ms": 18.2,
+                "maxMs": 24.1,
+                "totalMs": 2872.6
+              },
+              "structuralEdit": {
+                "count": 40,
+                "p50Ms": 18.3,
+                "p95Ms": 36.3,
+                "maxMs": 41.3,
+                "totalMs": 973.1
+              },
+              "selection": {
+                "count": 100,
+                "p50Ms": 18,
+                "p95Ms": 18.3,
+                "maxMs": 18.3,
+                "totalMs": 1790.8
+              },
+              "scroll": {
+                "count": 100,
+                "p50Ms": 14.8,
+                "p95Ms": 21.9,
+                "maxMs": 23.6,
+                "totalMs": 1498.2
+              }
+            }
+          },
+          {
+            "lineCount": 100000,
+            "enabled": false,
+            "classes": {
+              "localEdit": {
+                "count": 160,
+                "p50Ms": 48.3,
+                "p95Ms": 58.3,
+                "maxMs": 84.8,
+                "totalMs": 7867.5
+              },
+              "structuralEdit": {
+                "count": 40,
+                "p50Ms": 54.5,
+                "p95Ms": 60.7,
+                "maxMs": 67.1,
+                "totalMs": 2234.8
+              },
+              "selection": {
+                "count": 100,
+                "p50Ms": 18.1,
+                "p95Ms": 18.3,
+                "maxMs": 18.3,
+                "totalMs": 1790.9
+              },
+              "scroll": {
+                "count": 100,
+                "p50Ms": 11.4,
+                "p95Ms": 13,
+                "maxMs": 17.1,
+                "totalMs": 1139.9
+              }
+            }
+          },
+          {
+            "lineCount": 100000,
+            "enabled": true,
+            "classes": {
+              "localEdit": {
+                "count": 160,
+                "p50Ms": 54.4,
+                "p95Ms": 54.6,
+                "maxMs": 84.8,
+                "totalMs": 8594.7
+              },
+              "structuralEdit": {
+                "count": 40,
+                "p50Ms": 60.4,
+                "p95Ms": 71.3,
+                "maxMs": 75.6,
+                "totalMs": 2354.2
+              },
+              "selection": {
+                "count": 100,
+                "p50Ms": 18,
+                "p95Ms": 18.3,
+                "maxMs": 18.3,
+                "totalMs": 1788.9
+              },
+              "scroll": {
+                "count": 100,
+                "p50Ms": 16.9,
+                "p95Ms": 25.7,
+                "maxMs": 43.8,
+                "totalMs": 1771.6
+              }
+            }
+          }
+        ],
+        "acknowledgedEdits": {
+          "count": 20,
+          "p50Ms": 2.7,
+          "p95Ms": 3.8,
+          "maxMs": 11.5,
+          "totalMs": 63.8
+        }
+      }
+    }
+  ],
+  "environment": {
+    "stock": {
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "19px",
+      "dpr": 1.25,
+      "width": 1204,
+      "height": 804
+    }
+  },
+  "limitations": [
+    "OS IME and an actual screen reader are not exercised by this automated script.",
+    "Forced colors uses Chromium emulation, not a changed Windows system theme."
+  ],
+  "finalSourceMatches": true,
+  "console": [
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times"
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times"
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times"
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times"
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times"
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times"
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times"
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times"
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times"
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times"
+    }
+  ],
+  "passed": false
+}

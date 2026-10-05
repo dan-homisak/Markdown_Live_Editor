@@ -1,0 +1,2456 @@
+Using Electron DevTools port 9738
+Saved qa\edh-stock.png
+STOCK METRICS: {
+  hasMonaco: true,
+  editor: {
+    left: 52.79999923706055,
+    right: 902.7999992370605,
+    top: 90.80000305175781,
+    bottom: 770.8000030517578,
+    width: 850,
+    height: 680
+  },
+  margin: {
+    left: 52.79999923706055,
+    right: 120.79999923706055,
+    top: 90.80000305175781,
+    bottom: 1416.8000030517578,
+    width: 68,
+    height: 1326
+  },
+  content: {
+    left: 120.80000305175781,
+    right: 902.8000030517578,
+    top: 90.80000305175781,
+    bottom: 770.8000030517578,
+    width: 782,
+    height: 680
+  },
+  firstLine: {
+    left: 120.80000305175781,
+    right: 822.8000030517578,
+    top: 90.80000305175781,
+    bottom: 109.80000305175781,
+    width: 702,
+    height: 19
+  },
+  firstLineText: {
+    left: 120.80000305175781,
+    right: 251.66250610351562,
+    top: 91.5999984741211,
+    bottom: 107.5999984741211,
+    width: 130.8625030517578,
+    height: 16
+  },
+  firstLineNumber: {
+    left: 71.80000305175781,
+    right: 94.80000305175781,
+    top: 90.80000305175781,
+    bottom: 109.80000305175781,
+    width: 23,
+    height: 19
+  },
+  firstLineNumberText: {
+    left: 87.0999984741211,
+    right: 94.80000305175781,
+    top: 91.5999984741211,
+    bottom: 107.5999984741211,
+    width: 7.700004577636719,
+    height: 16
+  },
+  activeLine: {
+    left: 120.80000305175781,
+    right: 822.8000030517578,
+    top: 90.80000305175781,
+    bottom: 109.80000305175781,
+    width: 702,
+    height: 19
+  },
+  activeLineMargin: null,
+  activeLineMarginBackground: null,
+  firstLineFontFamily: 'Consolas, "Courier New", monospace',
+  firstLineFontSize: '14px',
+  firstLineLineHeight: '19px'
+}
+Saved qa\edh-live.png
+Webview-ish targets: [
+  'vscode-webview://0ek8tcooep9d4dcq3il3mh25dlgbbpik0ju9nhh7s0udnegf8h4h/index.html?id=3a003d32-fc6e-4d38-9e1a-b15de4150f8b&parentId=1&origin=c5b85b33-be7d-4f30-a9c7-297be220fb7d&swVersion=6&extensionId=dan-homisak.markdown-live-render-tables&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app',
+  'vscode-webview://0ek8tcooep9d4dcq3il3mh25dlgbbpik0ju9nhh7s0udnegf8h4h/service-worker.js?v=6&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&remoteAuthority=&platform=electron'
+]
+LIVE METRICS: {
+  url: 'vscode-webview://0ek8tcooep9d4dcq3il3mh25dlgbbpik0ju9nhh7s0udnegf8h4h/index.html',
+  devicePixelRatio: 1.25,
+  visualViewportScale: 1,
+  tableZoom: '1',
+  editorZoom: '1',
+  tableBorderCollapse: 'separate',
+  tableBorderSpacing: '0px',
+  borderReferences: {
+    '0': { authoredWidth: '0px', borders: [Object], box: [Object] },
+    '1': { authoredWidth: '1px', borders: [Object], box: [Object] },
+    '2': { authoredWidth: '2px', borders: [Object], box: [Object] }
+  },
+  tableBorderCells: [
+    {
+      rowKind: 'header',
+      rowIndex: '0',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'header',
+      rowIndex: '0',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '0',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '0',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'header',
+      rowIndex: '0',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'header',
+      rowIndex: '0',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'header',
+      rowIndex: '0',
+      column: 2,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '0',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '0',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '0',
+      column: 2,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '1',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '1',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '1',
+      column: 2,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '2',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '2',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '2',
+      column: 2,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '3',
+      column: 0,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '3',
+      column: 1,
+      borders: [Object],
+      styles: [Object]
+    },
+    {
+      rowKind: 'body',
+      rowIndex: '3',
+      column: 2,
+      borders: [Object],
+      styles: [Object]
+    }
+  ],
+  tableGutterBorders: [
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    { top: '0px', right: '0px', bottom: '0px', left: '0px' }
+  ],
+  scrollerClientWidth: 835,
+  scrollerScrollWidth: 835,
+  overflow: false,
+  scroller: {
+    left: 0,
+    right: 850.4000244140625,
+    top: 0,
+    bottom: 681.6000366210938,
+    width: 850.4000244140625,
+    height: 681.6000366210938
+  },
+  gutter: {
+    left: 0,
+    right: 68.32500457763672,
+    top: 0,
+    bottom: 1292.9000244140625,
+    width: 68.32500457763672,
+    height: 1292.9000244140625
+  },
+  lineNumber: {
+    left: 19.23750114440918,
+    right: 68.32500267028809,
+    top: 0,
+    bottom: 18.899999618530273,
+    width: 49.087501525878906,
+    height: 18.899999618530273
+  },
+  lineNumberText: {
+    left: 34.625,
+    right: 42.32500076293945,
+    top: 0.800000011920929,
+    bottom: 16.80000191926956,
+    width: 7.700000762939453,
+    height: 16.000001907348633
+  },
+  line: {
+    left: 68.32500457763672,
+    right: 809.3250045776367,
+    top: 0,
+    bottom: 18.899999618530273,
+    width: 741,
+    height: 18.899999618530273
+  },
+  lineText: {
+    left: 68.32500457763672,
+    right: 199.18749237060547,
+    top: 0.800000011920929,
+    bottom: 16.80000191926956,
+    width: 130.86248779296875,
+    height: 16.000001907348633
+  },
+  activeLine: {
+    left: 68.32500457763672,
+    right: 809.3250045776367,
+    top: 0,
+    bottom: 18.899999618530273,
+    width: 741,
+    height: 18.899999618530273
+  },
+  activeLineGutter: {
+    left: 19.23750114440918,
+    right: 68.32500267028809,
+    top: 0,
+    bottom: 18.899999618530273,
+    width: 49.087501525878906,
+    height: 18.899999618530273
+  },
+  activeLineGutterBackground: 'rgba(0, 0, 0, 0)',
+  tableScroll: {
+    left: 0.32500001788139343,
+    right: 809.3250000178814,
+    top: 226.8000030517578,
+    bottom: 323.7000045776367,
+    width: 809,
+    height: 96.9000015258789
+  },
+  tableScrollClientWidth: 809,
+  tableScrollScrollWidth: 809,
+  tableScrollOverflow: false,
+  tableScrollLeft: 0,
+  tableScrollbar: { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 },
+  tableScrollbarHidden: true,
+  table: {
+    left: 0.32500001788139343,
+    right: 803.4125244319439,
+    top: 226.8000030517578,
+    bottom: 323.7000045776367,
+    width: 803.0875244140625,
+    height: 96.9000015258789
+  },
+  sourceLine: {
+    left: 0.32500001788139343,
+    right: 68.3250000178814,
+    top: 226.8000030517578,
+    bottom: 247.3000030517578,
+    width: 68,
+    height: 20.5
+  },
+  sourceLineText: {
+    left: 26.92500114440918,
+    right: 42.32500076293945,
+    top: 227.60000610351562,
+    bottom: 243.60000610351562,
+    width: 15.399999618530273,
+    height: 16
+  },
+  tableCell: {
+    left: 68.32500457763672,
+    right: 118.35000610351562,
+    top: 226.8000030517578,
+    bottom: 247.3000030517578,
+    width: 50.025001525878906,
+    height: 20.5
+  },
+  tableCellText: {
+    left: 76.8125,
+    right: 99.9124984741211,
+    top: 228.40000915527344,
+    bottom: 244.40000915527344,
+    width: 23.099998474121094,
+    height: 16
+  },
+  headerCellBorders: { top: '0.8px', right: '0.8px', bottom: '0.8px', left: '0.8px' },
+  bodyCellBorders: { top: '0px', right: '0.8px', bottom: '0.8px', left: '0.8px' },
+  tableSourceLineNumber: 13,
+  lineFontFamily: 'Consolas, "Courier New", monospace',
+  lineFontSize: '14px',
+  lineLineHeight: '18.9px',
+  cssLiveGutterWidth: '68px'
+}
+BORDER REFERENCES: {"devicePixelRatio":1.25,"visualViewportScale":1,"references":{"0":{"authoredWidth":"0px","borders":{"top":"0px","right":"0px","bottom":"0px","left":"0px"},"box":{"left":-10000,"right":-9900,"top":0,"bottom":100,"width":100,"height":100}},"1":{"authoredWidth":"1px","borders":{"top":"0.8px","right":"0.8px","bottom":"0.8px","left":"0.8px"},"box":{"left":-10000,"right":-9898.400001525879,"top":0,"bottom":101.5999984741211,"width":101.5999984741211,"height":101.5999984741211}},"2":{"authoredWidth":"2px","borders":{"top":"1.6px","right":"1.6px","bottom":"1.6px","left":"1.6px"},"box":{"left":-10000,"right":-9896.799995422363,"top":0,"bottom":103.20000457763672,"width":103.20000457763672,"height":103.20000457763672}}}}
+TABLE BORDER CHECKS: { cells: 19, gutters: 7, failures: [] }
+PIXEL CHECKS: [
+  {
+    name: 'gutter width',
+    expected: 68,
+    actual: 68.32500457763672,
+    delta: 0.32500457763671875,
+    pass: true
+  },
+  {
+    name: 'content left',
+    expected: 120.80000305175781,
+    actual: 121.12500381469727,
+    delta: 0.3250007629394531,
+    pass: true
+  },
+  {
+    name: 'first glyph left',
+    expected: 120.80000305175781,
+    actual: 121.12500381469727,
+    delta: 0.3250007629394531,
+    pass: true
+  },
+  {
+    name: 'line-number glyph right',
+    expected: 94.80000305175781,
+    actual: 95.125,
+    delta: 0.3249969482421875,
+    pass: true
+  },
+  {
+    name: 'table content left',
+    expected: 120.80000305175781,
+    actual: 121.12500381469727,
+    delta: 0.3250007629394531,
+    pass: true
+  },
+  { name: 'font size', expected: 14, actual: 14, delta: 0, pass: true },
+  {
+    name: 'line height',
+    expected: 19,
+    actual: 18.9,
+    delta: 0.10000000000000142,
+    pass: true
+  },
+  {
+    name: 'right padding',
+    expected: 26,
+    actual: 25.67499542236328,
+    delta: 0.32500457763671875,
+    pass: true
+  },
+  {
+    name: 'table top rhythm',
+    expected: 226.79999999999998,
+    actual: 226.8000030517578,
+    delta: 0.0000030517578295530257,
+    pass: true
+  }
+]
+DOCUMENT END SCROLL CHECK: {
+  ok: true,
+  clientHeight: 682,
+  scrollHeight: 1294,
+  scrollTop: 612,
+  maxScrollTop: 612,
+  finalLineViewportTop: 0,
+  finalCaretViewportTop: 0.800000011920929,
+  lineHeight: 18.9,
+  paddingBottom: 662.7
+}
+Saved qa\edh-scroll-beyond-last-line.png
+TABLE GUTTER ALIGNMENT CHECK: {
+  ok: true,
+  table: {
+    top: 226.8000030517578,
+    bottom: 323.7000045776367,
+    height: 96.9000015258789,
+    left: 0.32500001788139343,
+    right: 803.4125244319439,
+    width: 803.0875244140625
+  },
+  nativeRowsInTableBand: [],
+  visibleNativeTexts: [
+    '1',  '2',  '3',  '4',  '5',
+    '6',  '7',  '8',  '9',  '10',
+    '11', '12', '16', '17', '18',
+    '19', '20', '21', '28', '29',
+    '30', '31', '32'
+  ],
+  nativeNumbersStrictlyIncrease: true,
+  nativeRowsForReplacedTableSource: [],
+  legacyHiddenSourceElementCount: 0,
+  tableSourceLineCount: 7,
+  tableSourceLineTexts: [
+    '13', '15',
+    '22', '24',
+    '25', '26',
+    '27'
+  ]
+}
+MIXED TYPED REPLACEMENT/UNDO CHECK: {
+  ok: true,
+  docChanged: true,
+  insertedExactlyOnce: true,
+  selectedProseRemoved: true,
+  targetTableRemains: true,
+  selectedCellsCleared: true,
+  unselectedTestPreserved: true,
+  unselectedCellsUnchanged: true,
+  composing: false,
+  selectionCollapsed: true,
+  projectionCleared: true,
+  restoredDoc: true,
+  oneUndoRestoredSource: true,
+  composedTextRemoved: true,
+  originalTableRestored: true,
+  selectedProseRestored: true,
+  beforeLength: 572,
+  afterUndoLength: 572,
+  firstDifference: 572,
+  beforeDifferenceContext: ' | test |\n\n26\n\nmore test here\n',
+  afterDifferenceContext: ' | test |\n\n26\n\nmore test here\n'
+}
+MIXED IME IMMEDIATE-UNDO RACE CHECK: {
+  ok: true,
+  oneUndoRestoredSource: true,
+  composedTextRemoved: true,
+  originalTableRestored: true,
+  selectedProseRestored: true,
+  beforeLength: 572,
+  afterUndoLength: 572,
+  firstDifference: 572,
+  beforeDifferenceContext: ' | test |\n\n26\n\nmore test here\n',
+  afterDifferenceContext: ' | test |\n\n26\n\nmore test here\n',
+  selectionCollapsed: true,
+  restoredDoc: true
+}
+MIXED IME QUEUED-COMMAND FIFO CHECK: {
+  ok: true,
+  commands: [ 'redo', 'undo' ],
+  deferredCommands: [ 'redo' ],
+  compositionPublished: true,
+  sourceRestored: true,
+  compositionTextRemoved: true,
+  composing: false
+}
+MIXED IME REPLACEMENT/UNDO CHECK: {
+  ok: true,
+  docChanged: true,
+  insertedExactlyOnce: true,
+  selectedProseRemoved: true,
+  targetTableRemains: true,
+  selectedCellsCleared: true,
+  unselectedTestPreserved: true,
+  unselectedCellsUnchanged: true,
+  composing: false,
+  selectionCollapsed: true,
+  projectionCleared: true,
+  restoredDoc: true,
+  oneUndoRestoredSource: true,
+  composedTextRemoved: true,
+  originalTableRestored: true,
+  selectedProseRestored: true,
+  beforeLength: 572,
+  afterUndoLength: 572,
+  firstDifference: 572,
+  beforeDifferenceContext: ' | test |\n\n26\n\nmore test here\n',
+  afterDifferenceContext: ' | test |\n\n26\n\nmore test here\n',
+  firstCompositionSnapshot: {
+    ok: true,
+    composing: true,
+    currentCandidateExactlyOnce: true,
+    selectedProseRemoved: true,
+    previousCandidateAbsent: true,
+    selectedCellsCleared: true,
+    unselectedCellsUnchanged: true,
+    projectionCleared: true,
+    targetTableParses: true
+  },
+  secondCompositionSnapshot: {
+    ok: true,
+    composing: true,
+    currentCandidateExactlyOnce: true,
+    selectedProseRemoved: true,
+    previousCandidateAbsent: true,
+    selectedCellsCleared: true,
+    unselectedCellsUnchanged: true,
+    projectionCleared: true,
+    targetTableParses: true
+  }
+}
+SYNTHETIC HOST TEST ISOLATION ENABLED: {
+  ok: true,
+  isolated: true,
+  resyncPending: false,
+  matchesFixture: true,
+  documentLength: 572
+}
+Saved qa\edh-prose-character-selection.png
+Saved qa\edh-prose-character-selection-unfocused.png
+Saved qa\edh-prose-multiline-selection.png
+Saved qa\edh-prose-blank-line-selection.png
+PROSE CHARACTER SELECTION CHECK: passed
+CELL FOCUS SELECTION ISOLATION CHECK: {
+  ok: true,
+  editorSelectionEmpty: true,
+  activeIsCell: true,
+  nativeSelectionCollapsed: true,
+  nativeCaretInsideCell: true,
+  documentSelectedCells: 0,
+  tableSelectedCells: 0,
+  proseSelectionMarks: 0,
+  overlayCount: 0
+}
+Saved qa\edh-cell-character-selection.png
+SAME-CELL NATIVE CHARACTER SELECTION CHECK: {
+  ok: true,
+  selectedText: 'ort cel',
+  nativeSelectionCollapsed: false,
+  nativeRangeInsideCell: true,
+  activeIsCell: true,
+  editorSelectionEmpty: true,
+  tableSelectedCells: 0,
+  documentSelectedCells: 0,
+  proseSelectionMarks: 0,
+  overlayCount: 0,
+  nativeSelectionBackground: 'rgba(0, 120, 212, 0.86)',
+  nativeSelectionForeground: 'rgb(237, 237, 237)',
+  selectionAccent: '#0078d4'
+}
+TABLE RESPONSIVE SCROLL CHECK: {
+  ok: true,
+  scrollerClientWidth: 835,
+  scrollerScrollWidth: 835,
+  editorOverflow: false,
+  scroller: {
+    left: 0,
+    right: 850.4000244140625,
+    top: 0,
+    bottom: 681.6000366210938,
+    width: 850.4000244140625,
+    height: 681.6000366210938
+  },
+  tableScrollClientWidth: 360,
+  tableScrollScrollWidth: 803,
+  tableScrollOverflow: true,
+  tableScrollLeft: 443.20001220703125,
+  tableScroll: {
+    left: 0.32500001788139343,
+    right: 360.3250000178814,
+    top: 226.8000030517578,
+    bottom: 323.7000045776367,
+    width: 360,
+    height: 96.9000015258789
+  },
+  tableScrollbar: {
+    left: 68.32500457763672,
+    right: 809.3250045776367,
+    top: 323.70001220703125,
+    bottom: 331.70001220703125,
+    width: 741,
+    height: 8
+  },
+  tableScrollbarHidden: false,
+  sourceLineBeforeScroll: {
+    left: 0.32500001788139343,
+    right: 68.3250000178814,
+    top: 226.8000030517578,
+    bottom: 247.3000030517578,
+    width: 68,
+    height: 20.5
+  },
+  sourceLineAfterScroll: {
+    left: 0.32500001788139343,
+    right: 68.3250000178814,
+    top: 226.8000030517578,
+    bottom: 247.3000030517578,
+    width: 68,
+    height: 20.5
+  },
+  tableCellBeforeScroll: {
+    left: 68.32500457763672,
+    right: 118.35000610351562,
+    top: 226.8000030517578,
+    bottom: 247.3000030517578,
+    width: 50.025001525878906,
+    height: 20.5
+  },
+  tableCellAfterScroll: {
+    left: -374.875,
+    right: -324.8499984741211,
+    top: 226.8000030517578,
+    bottom: 247.3000030517578,
+    width: 50.025001525878906,
+    height: 20.5
+  },
+  normalLineBefore: {
+    left: 68.32500457763672,
+    right: 809.3250045776367,
+    top: 0,
+    bottom: 18.899999618530273,
+    width: 741,
+    height: 18.899999618530273
+  }
+}
+Saved qa\edh-table-responsive-scroll.png
+TABLE LIVE RESIZE CHECK: {
+  ok: true,
+  beforeWidth: 338.6750183105469,
+  afterWidth: 615.7750244140625,
+  widthDelta: 277.1000061035156,
+  beforeTableWidth: 522.1375122070312,
+  afterTableWidth: 799.2374877929688,
+  tableWidthDelta: 277.0999755859375,
+  docChanged: true,
+  restoredDoc: true,
+  activeElementClass: 'mlrt-table-cell',
+  cellPreserved: true,
+  gutterPreserved: true
+}
+TABLE GUTTER STABILITY CHECK: {
+  ok: true,
+  docChanged: true,
+  restoredDoc: true,
+  beforeTexts: [
+    '1',  '2',  '3',  '4',  '5',
+    '6',  '7',  '8',  '9',  '10',
+    '11', '12', '16', '17', '18',
+    '19', '20', '21', '28', '29',
+    '30', '31', '32'
+  ],
+  afterTexts: [
+    '1',  '2',  '3',  '4',  '5',
+    '6',  '7',  '8',  '9',  '10',
+    '11', '12', '16', '17', '18',
+    '19', '20', '21', '28', '29',
+    '30', '31', '32'
+  ],
+  preservedVisibleRows: true,
+  childListMutations: 0,
+  visibleAttributeMutations: 2,
+  nativeRowsInTableBandAfter: []
+}
+TABLE RENDER STABILITY CHECK: {
+  ok: true,
+  docChanged: true,
+  restoredDoc: true,
+  beforeCellText: 'This is a very long cell intended to test wrapping behavior in table renderers. It includes **bold text**, `inline code`, a [link](https://example.com), and a long token: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz. Test edit. Another. This is another edit.',
+  afterCellText: 'This is a very long cell intended to test wrapping behavior in table renderers. It includes **bold text**, `inline code`, a [link](https://example.com), and a long token: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz. Test edit. Another. This is another edit.xyz',
+  widgetChildListMutations: 0,
+  cellChildListMutations: 0,
+  cellCharacterDataMutations: 3,
+  tableSourceLineChildListMutations: 0,
+  activeLineMutations: 0,
+  activeLineGutterMutations: 0,
+  cursorLayerChildListMutations: 0,
+  selectionLayerChildListMutations: 0,
+  scrollerScrollEvents: 0,
+  beforeEditorSelection: { ranges: [ [Object] ], main: 0 },
+  afterEditorSelection: { ranges: [ [Object] ], main: 0 },
+  beforeScrollTop: 0,
+  afterScrollTop: 0,
+  blankFrames: [],
+  frames: [
+    {
+      phase: 'sync-x',
+      sameWidget: true,
+      sameTable: true,
+      sameCell: true,
+      sameTableSourceLine: true,
+      activeIsCell: true,
+      cellTextLength: 295,
+      tableBox: [Object],
+      cellBox: [Object],
+      sourceLineBox: [Object],
+      editorSelection: [Object],
+      scrollTop: 0
+    },
+    {
+      phase: 'raf-x',
+      sameWidget: true,
+      sameTable: true,
+      sameCell: true,
+      sameTableSourceLine: true,
+      activeIsCell: true,
+      cellTextLength: 295,
+      tableBox: [Object],
+      cellBox: [Object],
+      sourceLineBox: [Object],
+      editorSelection: [Object],
+      scrollTop: 0
+    },
+    {
+      phase: 'sync-y',
+      sameWidget: true,
+      sameTable: true,
+      sameCell: true,
+      sameTableSourceLine: true,
+      activeIsCell: true,
+      cellTextLength: 296,
+      tableBox: [Object],
+      cellBox: [Object],
+      sourceLineBox: [Object],
+      editorSelection: [Object],
+      scrollTop: 0
+    },
+    {
+      phase: 'raf-y',
+      sameWidget: true,
+      sameTable: true,
+      sameCell: true,
+      sameTableSourceLine: true,
+      activeIsCell: true,
+      cellTextLength: 296,
+      tableBox: [Object],
+      cellBox: [Object],
+      sourceLineBox: [Object],
+      editorSelection: [Object],
+      scrollTop: 0
+    },
+    {
+      phase: 'sync-z',
+      sameWidget: true,
+      sameTable: true,
+      sameCell: true,
+      sameTableSourceLine: true,
+      activeIsCell: true,
+      cellTextLength: 297,
+      tableBox: [Object],
+      cellBox: [Object],
+      sourceLineBox: [Object],
+      editorSelection: [Object],
+      scrollTop: 0
+    },
+    {
+      phase: 'raf-z',
+      sameWidget: true,
+      sameTable: true,
+      sameCell: true,
+      sameTableSourceLine: true,
+      activeIsCell: true,
+      cellTextLength: 297,
+      tableBox: [Object],
+      cellBox: [Object],
+      sourceLineBox: [Object],
+      editorSelection: [Object],
+      scrollTop: 0
+    }
+  ]
+}
+TABLE STALE WEBVIEW ACK STABILITY CHECK: {
+  ok: true,
+  changeIds: [ 10, 11, 12 ],
+  textsAfterType: [
+    'short cell. This is resizing the cell nowa',
+    'short cell. This is resizing the cell nowab',
+    'short cell. This is resizing the cell nowabc'
+  ],
+  finalLocalText: 'short cell. This is resizing the cell nowabc',
+  finalLocalDocChanged: true,
+  afterFirstAckDocMatchesFinal: true,
+  afterSecondAckDocMatchesFinal: true,
+  afterFirstAckText: 'short cell. This is resizing the cell nowabc',
+  afterSecondAckText: 'short cell. This is resizing the cell nowabc',
+  afterSecondAckTextMatchesFinal: true,
+  sameWidget: true,
+  sameCell: true,
+  contentChildListMutations: 0,
+  widgetChildListMutations: 0,
+  gutterChildListMutations: 0,
+  restoredDoc: true
+}
+TABLE HOST SYNC STABILITY CHECK: {
+  ok: true,
+  docChangedBeforeSync: true,
+  restoredDoc: true,
+  sameWidget: true,
+  sameCell: true,
+  contentChildListMutations: 22,
+  widgetChildListMutations: 0,
+  gutterChildListMutations: 0
+}
+TABLE SEQUENTIAL CELL TO EDITOR TYPING CHECK: {
+  ok: true,
+  headerKeyTextAfterCells: 'KeyH',
+  keyTextAfterCells: 'ShortX',
+  valueTextAfterCells: 'short cell. This is resizing the cell now VALUE',
+  beforeValueSourceFrom: 480,
+  beforeValueSourceTo: 523,
+  beforeValueSourceText: ' short cell. This is resizing the cell now ',
+  beforeValueTrailingWhitespace: ' ',
+  beforeValueRowText: '| ShortX | short cell. This is resizing the cell now |  |',
+  headerTextAfterCells: '| KeyH | Value |  |',
+  rowTextAfterCells: '| ShortX | short cell. This is resizing the cell now VALUE |  |',
+  afterCellDocChanged: true,
+  execCommandResult: true,
+  activeBeforeOutsideType: 'cm-content cm-lineWrapping',
+  activeAfterOutsideType: 'cm-content cm-lineWrapping',
+  outsideBeforeNormalText: true,
+  tableContainsOutsideText: false,
+  headerKeyTextAfterOutside: 'KeyH',
+  keyTextAfterOutside: 'ShortX',
+  valueTextAfterOutside: 'short cell. This is resizing the cell now VALUE',
+  headerTextAfterOutside: '| KeyH | Value |  |',
+  rowTextAfterOutside: '| ShortX | short cell. This is resizing the cell now VALUE |  |',
+  restoredDoc: true
+}
+TABLE WHITESPACE DELETION CHECK: {
+  ok: true,
+  selectedN: true,
+  afterDeleteText: 'alpha ow',
+  sourceContainsExpected: true,
+  sourceContainsCollapsed: false,
+  restoredDoc: true
+}
+TABLE CELL EDIT SHORTCUTS CHECK: {
+  ok: true,
+  selectedForDelete: true,
+  undoDefaultAllowed: false,
+  shiftEnterDefaultAllowed: false,
+  beforeCellText: '\n',
+  afterDeleteText: 'bas',
+  afterUndoText: 'base',
+  undoSelectionCollapsed: true,
+  afterShiftEnterText: 'base\nnext',
+  hasLineBreak: true,
+  saveShortcutDefaultAllowed: true,
+  saveShortcutBubbled: true,
+  docChanged: true,
+  restoredDoc: true
+}
+TABLE CLIPBOARD SELECTION CHECK: {
+  ok: true,
+  escapedDefault: false,
+  singleSelected: 1,
+  rangeSelected: 2,
+  selectionSuppressesActiveLine: true,
+  selectedArrowUpEscaped: true,
+  selectedArrowDownEscaped: true,
+  outsideClickCleared: true,
+  wrapperFocused: true,
+  smartHasTabs: false,
+  smartHasPipes: true,
+  smartIsPipeMarkdown: true,
+  richIsPipeMarkdown: true,
+  richHasTabs: false,
+  plainHasTabs: true,
+  plainHasPipes: false,
+  smartHasHtmlTable: true,
+  hasPrivateData: true,
+  cutDidNotChangeSource: true,
+  hasPendingCutClass: true,
+  moveCompleted: true,
+  pasteApplied: true,
+  htmlPasteApplied: true,
+  hiddenOfficeTextExcluded: true,
+  richHtmlSpecialSourcePreserved: true,
+  richHtmlSpecialVisiblePreserved: true,
+  directHtmlBreakPaste: true,
+  restoredDoc: true,
+  multiCellCutSelectedCount: 2,
+  multiCellCutOverlayPreserved: true,
+  multiCellCutInteriorRailCount: 1,
+  multiCellCutGridVisible: true,
+  multiCellCutFrameDashed: true,
+  multiCellCutSourcePseudoSuppressed: true
+}
+TABLE NATIVE CELL COPY CHECK: {
+  ok: true,
+  browserSelectionText: 'N/A',
+  copyPrevented: true,
+  pastePrevented: true,
+  copiedPlain: 'N/A',
+  copiedHtml: '<span>N/A</span>',
+  pastedText: 'N/A',
+  pastedDoc: '| Source | Destination |\n| --- | --- |\n| N/A | untouched |\n| N/A | N/A |',
+  matchingHeight: true,
+  restoredDoc: true
+}
+Saved qa\edh-table-selection.png
+TABLE TRUSTED COPY CHECK: {
+  ok: true,
+  seen: true,
+  plainHasTabs: false,
+  plainHasPipes: true,
+  htmlHasTable: true,
+  hasPrivateData: true
+}
+TABLE CLIPBOARD MENU CHECK: {
+  ok: true,
+  hasMenu: true,
+  itemCount: 12,
+  hasCut: true,
+  hasSmartCopy: true,
+  hasMarkdownCopy: true,
+  hasAutoPaste: true,
+  hasMarkdownPaste: true,
+  hasSettings: true,
+  selectedBeforeRightClick: 2,
+  selectedAfterRightClick: 2
+}
+Saved qa\edh-table-clipboard-menu.png
+TABLE RICH COPY FALLBACK CHECK: {
+  ok: true,
+  writeCalls: 1,
+  types: [ 'text/plain', 'text/html' ],
+  optionalFormatsExcluded: true,
+  htmlHasTable: true,
+  htmlHasRichFormatting: true,
+  mixedLinkLabelPreserved: true,
+  mixedLinkIsInline: true,
+  mixedLinkTargetPreserved: true,
+  htmlHasAnchor: true,
+  plainHasTabs: false,
+  plainHasPipes: true,
+  status: 'Copied as Rich.'
+}
+TABLE MENU COPY CARRIER CHECK: {
+  ok: true,
+  selectedBefore: 2,
+  selectedAfter: 2,
+  carrierSelected: true,
+  carrierRemoved: true,
+  focusRestored: true,
+  eventPrevented: true,
+  carrierMatchesPlain: true,
+  plainHasPipeTable: true,
+  htmlHasTable: true,
+  hasPrivateData: true,
+  status: 'Copied as Smart.'
+}
+DEEP LIST RICH COPY CHECK: {
+  ok: true,
+  copyPrevented: true,
+  selectedCellCount: 1,
+  htmlHasOuterTable: true,
+  copiedCellFound: true,
+  richCellCount: 1,
+  richMaximumColumnCount: 1,
+  richHasSemanticList: true,
+  richListCount: 6,
+  richListItemCount: 6,
+  richMaximumListDepth: 6,
+  richHasExplicitListStyles: true,
+  richContainsAllLevels: true,
+  plainHasMarkdownList: true,
+  plainHasTabs: false,
+  smartCopyPrevented: true,
+  smartCellCount: 1,
+  smartMaximumColumnCount: 1,
+  smartHasNoSemanticList: true,
+  smartSameCellBreakCount: 5,
+  smartHasAllLevels: true,
+  smartHasIndentedMarkers: true,
+  smartPlainHasTabs: false,
+  richDocumentCopyPrevented: true,
+  richDocumentCellFound: true,
+  richDocumentHasSemanticList: true,
+  richDocumentListCount: 6,
+  richDocumentContainsAllLevels: true,
+  documentCopyPrevented: true,
+  documentSmartCellFound: true,
+  documentSmartHasNoSemanticList: true,
+  documentSmartSameCellBreakCount: 5,
+  restoredDoc: true
+}
+TABLE POINTER SELECTION STATE CHECK: {
+  ok: true,
+  editorSelectionEmpty: false,
+  anchor: 551,
+  head: 419,
+  selectedText: '20\n' +
+    '\n' +
+    '| Key | Value |  |\n' +
+    '|---|---| --- |\n' +
+    '|  |  |  |\n' +
+    '| Short | short cell. This is resizing the cell now |  |\n' +
+    '|  |  |  |\n' +
+    '|  |  | test |',
+  proseHeadEdgeDelta: 0,
+  proseHeadLineMarkCount: 1,
+  tableAddresses: [],
+  documentAddresses: [
+    '0:0', '0:1',
+    '0:2', '1:0',
+    '1:1', '1:2',
+    '2:0', '2:1',
+    '2:2'
+  ],
+  proseSelectionMarkCount: 1,
+  nativeSelectionCollapsed: true,
+  nativeSelectionInsideEditor: false,
+  nativeTableSelectionBackground: 'rgba(0, 0, 0, 0)',
+  activeIsCell: false,
+  overlapCellCount: 0,
+  overlayCount: 1,
+  legacyOutlineCount: 0,
+  wrapperOutlineStyle: 'none',
+  wrapperOutlineWidth: '2.4px',
+  selectedCellsHaveNoShadow: true,
+  selectedCellStylesMatch: true,
+  visibleFocusIndicatorCount: 0,
+  visibleStructureIndicatorCount: 0,
+  selectedCellsHaveNoVisiblePseudo: true,
+  overlayBoundsAligned: true,
+  frameStrokeIsWhite: false,
+  visibleCodeMirrorBoxCount: 0,
+  selectionStyle: {
+    backgroundColor: 'color(srgb 0.231373 0.611765 1 / 0.13)',
+    color: 'rgb(187, 190, 191)',
+    borderTopColor: 'rgba(0, 0, 0, 0)',
+    borderRightColor: 'rgba(0, 0, 0, 0)',
+    borderBottomColor: 'rgba(0, 0, 0, 0)',
+    borderLeftColor: 'rgba(0, 0, 0, 0)',
+    boxShadow: 'none',
+    gridStroke: 'color(srgb 0.133106 0.193498 0.255067)',
+    gridStrokeWidth: '1px',
+    frameStroke: 'color(srgb 0.231373 0.611765 1 / 0.84)',
+    frameStrokeWidth: '1px'
+  }
+}
+Saved qa\edh-table-pointer-selection.png
+Saved qa\edh-table-gutter-selection.png
+TABLE GUTTER/NEUTRAL SURFACE SELECTION CHECK: {
+  gutterClick: [ '2:0', '2:1', '2:2' ],
+  gutterInside: [
+    '2:0', '2:1',
+    '2:2', '3:0',
+    '3:1', '3:2',
+    '4:0', '4:1',
+    '4:2'
+  ],
+  gutterToProse: [
+    '0:0', '0:1',
+    '0:2', '1:0',
+    '1:1', '1:2',
+    '2:0', '2:1',
+    '2:2'
+  ],
+  proseToGutter: [
+    '0:0', '0:1',
+    '0:2', '1:0',
+    '1:1', '1:2',
+    '2:0', '2:1',
+    '2:2'
+  ],
+  cellToLeftMargin: [ '2:0', '2:1' ],
+  wrappedGutterClick: [ '1:0', '1:1' ]
+}
+Saved qa\edh-adjacent-blank-line-selection.png
+ADJACENT PROSE-SURFACE TO TABLE SELECTION CHECK: {
+  'line-number-gutter': {
+    anchor: 80,
+    head: 411,
+    selectedAddresses: [ '0:0', '0:1', '1:0', '1:1' ],
+    copiedPlain: '\n' +
+      '| Key | Value |\n' +
+      '|---|---|\n' +
+      '| Long | This is a very long cell intended to test wrapping behavior in table renderers. It includes **bold text**, `inline code`, a [link](https://example.com), and a long token: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz. Test edit. Another. This is another edit. |'
+  },
+  'blank-line': {
+    anchor: 80,
+    head: 411,
+    selectedAddresses: [ '0:0', '0:1', '1:0', '1:1' ],
+    copiedPlain: '\n' +
+      '| Key | Value |\n' +
+      '|---|---|\n' +
+      '| Long | This is a very long cell intended to test wrapping behavior in table renderers. It includes **bold text**, `inline code`, a [link](https://example.com), and a long token: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz. Test edit. Another. This is another edit. |'
+  },
+  'end-of-line-margin': {
+    anchor: 79,
+    head: 411,
+    selectedAddresses: [ '0:0', '0:1', '1:0', '1:1' ],
+    copiedPlain: '\n' +
+      '\n' +
+      '| Key | Value |\n' +
+      '|---|---|\n' +
+      '| Long | This is a very long cell intended to test wrapping behavior in table renderers. It includes **bold text**, `inline code`, a [link](https://example.com), and a long token: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz. Test edit. Another. This is another edit. |'
+  },
+  'prose-table-boundary': {
+    anchor: 80,
+    head: 411,
+    selectedAddresses: [ '0:0', '0:1', '1:0', '1:1' ],
+    copiedPlain: '\n' +
+      '| Key | Value |\n' +
+      '|---|---|\n' +
+      '| Long | This is a very long cell intended to test wrapping behavior in table renderers. It includes **bold text**, `inline code`, a [link](https://example.com), and a long token: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz. Test edit. Another. This is another edit. |'
+  }
+}
+TABLE DRAG OWNERSHIP LOSS/RECOVERY CHECK: {
+  ok: true,
+  capturedBefore: [ 1 ],
+  capturedAfter: [],
+  staleTargetFound: true,
+  addressesBefore: [ '2:0', '2:1', '3:0', '3:1' ],
+  selectionFinalized: true,
+  staleMoveIgnored: true,
+  recoverySelected: [ '2:0', '2:1', '3:0', '3:1' ]
+}
+TABLE MOUSE FALLBACK RECOVERY CHECK: {
+  ok: true,
+  firstAddresses: [ '2:0', '2:1', '3:0', '3:1' ],
+  secondAddresses: [ '0:1', '0:2', '1:1', '1:2' ],
+  finalAddresses: [ '0:1', '0:2', '1:1', '1:2' ],
+  editorSelectionEmpty: true
+}
+TABLE ACTIVE-DRAG DISPOSAL CHECK: {
+  ok: true,
+  dragWasActive: true,
+  replacementApplied: true,
+  wrapperDisconnected: true,
+  staleRangeNotRestored: true,
+  errors: [],
+  restoredDoc: true,
+  tableCountAfterRestore: 2
+}
+TABLE-ORIGIN ABOVE PLAIN PASTE CHECK: {
+  ok: true,
+  direction: 'above',
+  payloadKind: 'plain',
+  pastePrevented: true,
+  retainedTableParses: true,
+  selectedCellsCleared: true,
+  outsideCellsPreserved: true,
+  selectedProseRemoved: true,
+  markerIsSeparateBlock: true,
+  payloadAppearsExactlyOnce: true,
+  payloadOnAnchorSide: true,
+  wrapperCountDelta: 0,
+  pastedTableParses: true,
+  unsafeJoinAbsent: true,
+  projectionCleared: true,
+  restoredDoc: true
+}
+TABLE-ORIGIN BELOW PLAIN PASTE CHECK: {
+  ok: true,
+  direction: 'below',
+  payloadKind: 'plain',
+  pastePrevented: true,
+  retainedTableParses: true,
+  selectedCellsCleared: true,
+  outsideCellsPreserved: true,
+  selectedProseRemoved: true,
+  markerIsSeparateBlock: true,
+  payloadAppearsExactlyOnce: true,
+  payloadOnAnchorSide: true,
+  wrapperCountDelta: 0,
+  pastedTableParses: true,
+  unsafeJoinAbsent: true,
+  projectionCleared: true,
+  restoredDoc: true
+}
+TABLE-ORIGIN ABOVE TABLE PASTE CHECK: {
+  ok: true,
+  direction: 'above',
+  payloadKind: 'table',
+  pastePrevented: true,
+  retainedTableParses: true,
+  selectedCellsCleared: true,
+  outsideCellsPreserved: true,
+  selectedProseRemoved: true,
+  markerIsSeparateBlock: true,
+  payloadAppearsExactlyOnce: true,
+  payloadOnAnchorSide: true,
+  wrapperCountDelta: 1,
+  pastedTableParses: true,
+  unsafeJoinAbsent: true,
+  projectionCleared: true,
+  restoredDoc: true
+}
+TABLE-ORIGIN BELOW TABLE PASTE CHECK: {
+  ok: true,
+  direction: 'below',
+  payloadKind: 'table',
+  pastePrevented: true,
+  retainedTableParses: true,
+  selectedCellsCleared: true,
+  outsideCellsPreserved: true,
+  selectedProseRemoved: true,
+  markerIsSeparateBlock: true,
+  payloadAppearsExactlyOnce: true,
+  payloadOnAnchorSide: true,
+  wrapperCountDelta: 1,
+  pastedTableParses: true,
+  unsafeJoinAbsent: true,
+  projectionCleared: true,
+  restoredDoc: true
+}
+REVERSE DOCUMENT/TABLE DRAG CHECK: {
+  ok: true,
+  selectionEmpty: false,
+  anchor: 560,
+  head: 419,
+  selectedText: '20\n' +
+    '\n' +
+    '| Key | Value |  |\n' +
+    '|---|---| --- |\n' +
+    '|  |  |  |\n' +
+    '| Short | short cell. This is resizing the cell now |  |\n' +
+    '|  |  |  |\n' +
+    '|  |  | test |\n' +
+    '\n' +
+    '26\n' +
+    '\n' +
+    'mor',
+  proseHeadRightDelta: 15.40000057220459,
+  proseHeadEdgeDelta: 0,
+  proseHeadLineMarkCount: 1,
+  selectedCellCount: 15,
+  totalCellCount: 15,
+  selectedAddresses: [
+    '0:0', '0:1', '0:2',
+    '1:0', '1:1', '1:2',
+    '2:0', '2:1', '2:2',
+    '3:0', '3:1', '3:2',
+    '4:0', '4:1', '4:2'
+  ],
+  rectangularCellCount: 0,
+  nativeSelectionCollapsed: false,
+  nativeSelectionInsideEditor: true,
+  nativeTableSelectionBackground: 'rgba(0, 0, 0, 0)',
+  nativeProseSelectionBackground: 'rgba(0, 0, 0, 0)',
+  proseSelectionMarkCount: 3,
+  visibleCodeMirrorSelectionBoxCount: 0,
+  blanketProseLineCount: 0,
+  activeIsCell: false,
+  editorHasFocus: true,
+  activeElementClass: 'cm-content cm-lineWrapping',
+  overlayCount: 1,
+  overlayBoundsAligned: true,
+  selectedCellsHaveNoVisiblePseudo: true,
+  selectedCellStylesMatch: true,
+  visibleStructureIndicatorCount: 0,
+  selectionStyle: {
+    backgroundColor: 'color(srgb 0.231373 0.611765 1 / 0.13)',
+    color: 'rgb(187, 190, 191)',
+    borderTopColor: 'rgba(0, 0, 0, 0)',
+    borderRightColor: 'rgba(0, 0, 0, 0)',
+    borderBottomColor: 'rgba(0, 0, 0, 0)',
+    borderLeftColor: 'rgba(0, 0, 0, 0)',
+    boxShadow: 'none',
+    gridStroke: 'color(srgb 0.133106 0.193498 0.255067)',
+    gridStrokeWidth: '1px',
+    frameStroke: 'color(srgb 0.231373 0.611765 1 / 0.84)',
+    frameStrokeWidth: '1px'
+  }
+}
+TABLE CROSS-BOUNDARY DRAG CHECK: {
+  ok: true,
+  selectionEmpty: false,
+  selectionFrom: 81,
+  selectionTo: 464,
+  tableFrom: 81,
+  selectedDocumentCells: 6,
+  selectedByTable: [
+    { tableFrom: 81, addresses: [Array] },
+    { tableFrom: 423, addresses: [Array] }
+  ],
+  selectedDocumentTables: 2,
+  completelySelectedDocumentTables: 0,
+  documentSelectionOverlayCount: 2,
+  documentSelectionOverlaysComplete: true,
+  documentSelectionHasNoInsetShadows: true,
+  selectedRangeCells: 0,
+  selectionBoxCount: 0,
+  selectedProseLineCount: 6,
+  proseLinesWithSelectionBox: 0,
+  proseSelectionMarkCount: 2,
+  blanketProseLineCount: 0,
+  selectedProseTexts: [ '', '17', '', '', '20', '' ]
+}
+Saved qa\edh-table-document-drag.png
+DOCUMENT-TO-TABLE CELL DRAG CHECK: {
+  ok: true,
+  selectionEmpty: false,
+  anchor: 419,
+  head: 521,
+  selectedText: '20\n' +
+    '\n' +
+    '| Key | Value |  |\n' +
+    '|---|---| --- |\n' +
+    '|  |  |  |\n' +
+    '| Short | short cell. This is resizing the cell now ',
+  proseHeadRightDelta: null,
+  proseHeadEdgeDelta: null,
+  proseHeadLineMarkCount: 0,
+  selectedCellCount: 6,
+  totalCellCount: 15,
+  selectedAddresses: [ '0:0', '0:1', '1:0', '1:1', '2:0', '2:1' ],
+  rectangularCellCount: 0,
+  nativeSelectionCollapsed: false,
+  nativeSelectionInsideEditor: true,
+  nativeTableSelectionBackground: 'rgba(0, 0, 0, 0)',
+  nativeProseSelectionBackground: 'rgba(0, 0, 0, 0)',
+  proseSelectionMarkCount: 1,
+  visibleCodeMirrorSelectionBoxCount: 0,
+  blanketProseLineCount: 0,
+  activeIsCell: false,
+  editorHasFocus: true,
+  activeElementClass: 'cm-content cm-lineWrapping',
+  overlayCount: 1,
+  overlayBoundsAligned: true,
+  selectedCellsHaveNoVisiblePseudo: true,
+  selectedCellStylesMatch: true,
+  visibleStructureIndicatorCount: 0,
+  selectionStyle: {
+    backgroundColor: 'color(srgb 0.231373 0.611765 1 / 0.13)',
+    color: 'rgb(187, 190, 191)',
+    borderTopColor: 'rgba(0, 0, 0, 0)',
+    borderRightColor: 'rgba(0, 0, 0, 0)',
+    borderBottomColor: 'rgba(0, 0, 0, 0)',
+    borderLeftColor: 'rgba(0, 0, 0, 0)',
+    boxShadow: 'none',
+    gridStroke: 'color(srgb 0.133106 0.193498 0.255067)',
+    gridStrokeWidth: '1px',
+    frameStroke: 'color(srgb 0.231373 0.611765 1 / 0.84)',
+    frameStrokeWidth: '1px'
+  }
+}
+PARTIAL MIXED-SELECTION COPY CHECK: {
+  ok: true,
+  privateKind: 'document',
+  markdown: '20\n' +
+    '\n' +
+    '| Key | Value |\n' +
+    '| --- | --- |\n' +
+    '|  |  |\n' +
+    '| Short | short cell. This is resizing the cell now |',
+  plainHasSelectedShort: true,
+  plainHasTabs: false,
+  plainHasPipes: true,
+  htmlHasTable: true,
+  excludesUnselectedTest: true,
+  excludesUnselectedThirdColumn: true,
+  selectionStillPartial: true
+}
+Saved qa\edh-document-to-table-cells.png
+MIXED DOCUMENT/TABLE DELETE CHECK: {
+  ok: true,
+  docChanged: true,
+  targetTableRemains: true,
+  clearedVisibleCells: true,
+  firstTableRemains: true,
+  restoredDoc: true
+}
+FORWARD DOCUMENT/TABLE/DOCUMENT DRAG CHECK: {
+  ok: true,
+  selectionEmpty: false,
+  anchor: 419,
+  head: 560,
+  selectedText: '20\n' +
+    '\n' +
+    '| Key | Value |  |\n' +
+    '|---|---| --- |\n' +
+    '|  |  |  |\n' +
+    '| Short | short cell. This is resizing the cell now |  |\n' +
+    '|  |  |  |\n' +
+    '|  |  | test |\n' +
+    '\n' +
+    '26\n' +
+    '\n' +
+    'mor',
+  proseHeadRightDelta: 0.0000019073486328125,
+  proseHeadEdgeDelta: 0.0000019073486328125,
+  proseHeadLineMarkCount: 1,
+  selectedCellCount: 15,
+  totalCellCount: 15,
+  selectedAddresses: [
+    '0:0', '0:1', '0:2',
+    '1:0', '1:1', '1:2',
+    '2:0', '2:1', '2:2',
+    '3:0', '3:1', '3:2',
+    '4:0', '4:1', '4:2'
+  ],
+  rectangularCellCount: 0,
+  nativeSelectionCollapsed: false,
+  nativeSelectionInsideEditor: true,
+  nativeTableSelectionBackground: 'rgba(0, 0, 0, 0)',
+  nativeProseSelectionBackground: 'rgba(0, 0, 0, 0)',
+  proseSelectionMarkCount: 3,
+  visibleCodeMirrorSelectionBoxCount: 0,
+  blanketProseLineCount: 0,
+  activeIsCell: false,
+  editorHasFocus: true,
+  activeElementClass: 'cm-content cm-lineWrapping',
+  overlayCount: 1,
+  overlayBoundsAligned: true,
+  selectedCellsHaveNoVisiblePseudo: true,
+  selectedCellStylesMatch: true,
+  visibleStructureIndicatorCount: 0,
+  selectionStyle: {
+    backgroundColor: 'color(srgb 0.231373 0.611765 1 / 0.13)',
+    color: 'rgb(187, 190, 191)',
+    borderTopColor: 'rgba(0, 0, 0, 0)',
+    borderRightColor: 'rgba(0, 0, 0, 0)',
+    borderBottomColor: 'rgba(0, 0, 0, 0)',
+    borderLeftColor: 'rgba(0, 0, 0, 0)',
+    boxShadow: 'none',
+    gridStroke: 'color(srgb 0.133106 0.193498 0.255067)',
+    gridStrokeWidth: '1px',
+    frameStroke: 'color(srgb 0.231373 0.611765 1 / 0.84)',
+    frameStrokeWidth: '1px'
+  }
+}
+PARTIAL MIXED-SELECTION PASTE CHECK: {
+  ok: true,
+  pastePrevented: true,
+  insertedAtAnchor: true,
+  targetTableRemains: true,
+  clearedVisibleCells: true,
+  unselectedTestPreserved: true,
+  projectionCleared: true
+}
+PARTIAL MIXED CONTEXT-MENU ROUTING CHECK: {
+  ok: true,
+  selectedPointerPrevented: true,
+  selectedContextPrevented: true,
+  selectedDocumentMenuCount: 1,
+  selectedTableMenuCount: 0,
+  selectedProjectionPreserved: true,
+  unselectedPointerPrevented: true,
+  unselectedContextPrevented: true,
+  unselectedUsesTableMenu: true,
+  unselectedDidNotUseDocumentMenu: true,
+  unselectedCellSelected: true,
+  projectionCleared: true,
+  menuClosedBeforeRestore: true,
+  restoredDoc: true
+}
+Saved qa\edh-rapid-right-excursion-selection.png
+MIXED DRAG OWNERSHIP RECOVERY CHECK: {
+  ownershipLoss: {
+    ok: true,
+    capturedBefore: [ 1 ],
+    capturedAfter: [],
+    selectionPreserved: true,
+    dragPending: true,
+    selectedCellUserSelect: 'none',
+    nativeTableSelectionBackground: 'rgba(0, 0, 0, 0)',
+    addressesBefore: [ '0:0', '0:1', '1:0', '1:1', '2:0', '2:1' ]
+  },
+  successiveOwnership: {
+    ok: true,
+    afterStaleLoss: [ '0:0' ],
+    afterOldTimer: [ '0:0', '0:1', '1:0', '1:1', '2:0', '2:1' ],
+    afterRelease: [ '0:0', '0:1', '1:0', '1:1', '2:0', '2:1' ],
+    finalRange: { anchor: 419, head: 521 }
+  }
+}
+PARTIAL MIXED-SELECTION MOVE-TO-TABLE CHECK: {
+  ok: true,
+  payloadKind: 'document',
+  hasCutToken: true,
+  rejectedMoveKeptPending: true,
+  focusedDestinationHasNoRange: true,
+  focusedDestinationPastePrevented: true,
+  destinationContainsComposite: true,
+  destinationSiblingPreserved: true,
+  sourceCellsCleared: true,
+  sourceProseMoved: true,
+  sourceTableRemains: true,
+  unselectedTestPreserved: true,
+  pendingVisualCleared: true,
+  restoredDoc: true
+}
+DOCUMENT CLIPBOARD CHECK: {
+  ok: true,
+  selectedTableCellCount: 19,
+  documentContextMenuPreserved: true,
+  documentTextContextMenuPreserved: true,
+  smartHasHtmlTable: true,
+  smartUsesBlackBorders: true,
+  smartUsesDocumentLayout: true,
+  smartOnlyMarkdownTablesAreTables: true,
+  smartProseOutsideTables: true,
+  smartBlankLinesBetween17And20: 2,
+  smartPlainBlankLinesBetween17And20: 2,
+  smartContainsNestedList: true,
+  smartContainsRichCellMarkup: false,
+  richUsesDocumentLayout: true,
+  richUsesBlackBorders: true,
+  richPreservesSupportedFormatting: true,
+  richPreservesLinkLabel: true,
+  richUsesInlineLink: true,
+  richPreservesMixedLinkTarget: true,
+  smartPlainHasPipeTable: true,
+  richPlainHasPipeTable: true,
+  privateKind: 'document',
+  markdownHasPipeTable: true,
+  cutDeferred: true,
+  documentCutClass: true,
+  documentMoveCompleted: true,
+  importedHeading: true,
+  importedList: true,
+  importedTable: true,
+  importedSpecialSourcePreserved: true,
+  importedSpecialVisiblePreserved: true,
+  excelRoundTripNoRawHtml: true,
+  trailingBlankParagraphCount: 1,
+  trailingTableHasNoExtraParagraph: true,
+  restoredDoc: true
+}
+CLIPBOARD MOVE REGRESSION CHECK: {
+  ok: true,
+  editorOptionsMessageApplied: true,
+  documentSyncPreservesEditorOptions: true,
+  tablePlainCutHasPrivateData: true,
+  tablePlainCutMoves: true,
+  tableMarkdownCutHasPrivateData: true,
+  tableMarkdownCutMoves: true,
+  documentPlainCutHasPrivateData: true,
+  documentPlainCutMoves: true,
+  documentMarkdownCutHasPrivateData: true,
+  documentMarkdownCutMoves: true,
+  escapeAfterDestinationCanceled: true,
+  oversizedMoveRejected: true,
+  oversizedMoveKeepsPendingVisual: true,
+  tableToDocumentMoveCompleted: true,
+  tableToDocumentPreservedExactMarkdown: true,
+  focusedDocumentDestinationHasNoRange: true,
+  documentToTableMoveCompleted: true,
+  focusedDocumentPastePrevented: true,
+  focusedDocumentSiblingPreserved: true,
+  focusedDocumentPendingCleared: true,
+  tableMissingMimePreservesDocument: true,
+  documentMissingMimePreservesDocument: true,
+  documentMissingMimePreservesSelection: true,
+  documentMissingMimePastePrevented: true,
+  documentChangeCancelsPendingMove: true,
+  nativeSubstringContextCutWorks: true,
+  restoredDocument: true,
+  restoredCopyMode: true,
+  restoredPasteMode: true,
+  restoredLineWrapping: true,
+  restoredScrollBeyondLastLine: true
+}
+REAL HOST DOCUMENT RESYNCED: {
+  ok: true,
+  isolated: false,
+  resyncPending: false,
+  matchesFixture: true,
+  documentLength: 572
+}
+TABLE TRUSTED UNDO CHECK: {
+  ok: true,
+  afterUndoText: 'base',
+  selectionCollapsed: true,
+  beforeDocIncludesBase: true,
+  beforeDocIncludesBas: true,
+  afterDocIncludesBase: true,
+  afterDocIncludesBas: true,
+  afterDocMatchesBefore: true,
+  restoredDoc: false
+}
+TABLE HOST UNDO FOCUS CHECK: {
+  ok: true,
+  beforeText: 'short cell. This is resizing the cell now',
+  afterDeleteText: 'short cell. This is resizing the cell no',
+  docChangedOnCommit: true,
+  afterUndoDocMatches: true,
+  activeElementClass: 'mlrt-table-cell',
+  activeIsRestoredCell: true,
+  restoredText: 'short cell. This is resizing the cell now',
+  selectionCollapsed: true,
+  caretOffset: 41
+}
+TABLE HOST CHARACTER UNDO FOCUS CHECK: {
+  ok: true,
+  beforeText: 'short cell. This is resizing the cell now',
+  afterTypeText: 'short cell. This is resizing the cell nowabc',
+  textsAfterType: [
+    'short cell. This is resizing the cell nowa',
+    'short cell. This is resizing the cell nowab',
+    'short cell. This is resizing the cell nowabc'
+  ],
+  rowTextAfterType: [
+    '| Short | short cell. This is resizing the cell nowa |  |',
+    '| Short | short cell. This is resizing the cell nowab |  |',
+    '| Short | short cell. This is resizing the cell nowabc |  |'
+  ],
+  finalDocChanged: true,
+  sourceEditCount: 3,
+  afterFirstUndoText: 'short cell. This is resizing the cell nowab',
+  afterFirstUndoDocMatchesTarget: true,
+  afterFirstUndoRowText: '| Short | short cell. This is resizing the cell nowab |  |',
+  afterFirstUndoCaret: 43,
+  afterFirstUndoActive: true,
+  afterSecondUndoText: 'short cell. This is resizing the cell nowa',
+  afterSecondUndoDocMatchesTarget: true,
+  afterSecondUndoRowText: '| Short | short cell. This is resizing the cell nowa |  |',
+  afterSecondUndoCaret: 42,
+  afterSecondUndoActive: true,
+  afterThirdUndoText: 'short cell. This is resizing the cell now',
+  afterThirdUndoDocMatchesTarget: true,
+  afterThirdUndoRowText: '| Short | short cell. This is resizing the cell now |  |',
+  afterThirdUndoCaret: 41,
+  afterThirdUndoActive: true
+}
+TABLE THEN EDITOR UNDO FOCUS CHECK: {
+  ok: true,
+  beforeText: 'short cell. This is resizing the cell now',
+  afterDeleteText: 'short cell. This is resizing the cell no',
+  normalInsertFrom: 571,
+  afterNormalEditDocChanged: true,
+  afterNormalUndoDocMatches: true,
+  afterNormalUndoSelectionFrom: 571,
+  afterNormalUndoSelectionTo: 571,
+  afterFinalUndoDocMatches: true,
+  activeElementClass: 'mlrt-table-cell',
+  activeIsRestoredCell: true,
+  restoredText: 'short cell. This is resizing the cell now',
+  selectionCollapsed: true,
+  caretOffset: 41
+}
+TABLE GLOBAL UNDO BRIDGE CHECK: {
+  ok: true,
+  keyChanged: true,
+  valueChanged: true,
+  outsideExecResult: true,
+  outsideChanged: true,
+  undoOutsideMatched: true,
+  undoValueMatched: true,
+  undoKeyMatched: true,
+  afterUndoOutsideDocMatches: true,
+  afterUndoValueDocMatches: true,
+  afterUndoKeyDocMatches: true,
+  afterUndoOutsideStillHasOutside: false,
+  afterUndoOutsideEqualsBefore: false,
+  afterUndoValueStillHasKey: false,
+  afterUndoValueStillHasOutside: false,
+  afterUndoValueEqualsBefore: false,
+  afterUndoKeyStillHasKey: false,
+  afterUndoKeyStillHasOutside: false,
+  finalRestored: true
+}
+TABLE OUTSIDE TYPING FOCUS CHECK: {
+  ok: true,
+  beforeRowText: '|  |  |  |',
+  afterCellEditDocChanged: true,
+  activeBeforePointer: 'mlrt-table-cell',
+  activeAfterPointer: 'vscode-dark vscode-reduce-motion',
+  execResult: true,
+  outsideTextInserted: true,
+  tableContainsOutsideText: false,
+  afterOutsideRowText: '|  | F |  |',
+  restoredDoc: true
+}
+TABLE CELL FOCUS CHECK: {
+  activeElementClass: 'mlrt-table-cell',
+  editorHasTableFocusClass: true,
+  activeLineBackground: 'rgba(0, 0, 0, 0)',
+  emptyCell: true,
+  hasEmptyCaretSentinel: true,
+  selectionInsideEmptyCell: true,
+  caretColor: 'rgb(237, 237, 237)',
+  cellHeight: 20.5
+}
+Saved qa\edh-table-cell-focus.png
+TABLE SOURCE PROTECTION CHECK: {
+  ok: true,
+  docChanged: false,
+  containsBadWrite: false,
+  edgeDocChanged: false,
+  edgeContainsBadWrite: false,
+  selectionFrom: 413,
+  selectionTo: 413,
+  selectionInsideTable: false,
+  tableFrom: 81,
+  tableTo: 412
+}
+TABLE ENTER EXIT CHECK: {
+  activeElementClass: 'cm-content cm-lineWrapping',
+  activeLineGutterText: '16',
+  expectedActiveLineGutterText: '16',
+  activeLine: {
+    left: 68.32500457763672,
+    top: 323.70001220703125,
+    width: 741,
+    height: 18.899999618530273
+  },
+  table: {
+    left: 0.32500001788139343,
+    top: 226.8000030517578,
+    width: 803.0875244140625,
+    height: 96.9000015258789
+  },
+  lineHeight: 18.9,
+  cursor: {
+    left: 68.32500457763672,
+    top: 324.5,
+    width: 0.800000011920929,
+    height: 16
+  },
+  editorSelection: { ranges: [ [Object] ] }
+}
+Saved qa\edh-enter-after-table.png
+TABLE-ONLY ENTER EXIT CHECK: {
+  ok: true,
+  insertedSingleBoundaryNewline: true,
+  selectionAtDocumentEnd: true,
+  selectionOnBlankLine: true,
+  editorFocused: true,
+  caretVisible: true,
+  cursorInsideContent: true,
+  cursorContentLeftDelta: 0,
+  emptyLineOwnsOnlyBreak: true,
+  restoredDoc: true,
+  restoredSourceLines: [
+    { rowKind: 'header', sourceLine: '13', text: '13' },
+    { rowKind: 'body', sourceLine: '15', text: '15' }
+  ],
+  restoredSourceLinesMatch: true
+}
+EMPTY-LINE CURSOR CHECK: {
+  ok: true,
+  blankLineNumber: 2,
+  activeLineOnlyHasBreak: true,
+  cursorMarginLeft: '0px',
+  cursorDisplay: 'block',
+  cursorColor: 'rgb(187, 190, 191)',
+  cursorWidth: 0.800000011920929,
+  cursorHeight: 16,
+  cursorContentLeftDelta: 0,
+  activeLineBackground: 'color(srgb 0.11698 0.121451 0.125373)',
+  activeLineBackgroundWithStaleSuppressors: 'color(srgb 0.11698 0.121451 0.125373)',
+  configuredActiveLineBackground: '#242526',
+  editorClassName: 'cm-editor cm-focused ͼ1 ͼ2 ͼ4 ͼo mlrt-prose-cursor-focused mlrt-empty-line-cursor',
+  editorHasEmptyLineCursorClass: true,
+  editorHasProseCursorFocusedClass: true,
+  activeLineHasOwnedDecoration: true,
+  activeLineBackgroundImage: 'linear-gradient(rgb(36, 37, 38), rgb(36, 37, 38))',
+  pseudoContent: 'none',
+  activeLine: {
+    left: 68.32500457763672,
+    top: 18.899999618530273,
+    width: 741,
+    height: 18.899999618530273
+  },
+  focused: true
+}
+Saved qa\edh-empty-line-cursor.png
+TABLE ARROW NAVIGATION CHECK: {
+  ok: true,
+  fromBeforeDownPrevented: true,
+  fromBeforeTableLine: {
+    rowKind: 'header',
+    rowIndex: '0',
+    column: '0',
+    text: 'Key',
+    selectionAtStart: true,
+    selectionAtEnd: false,
+    selectionOnFirstVisualLine: true,
+    selectionOnLastVisualLine: true
+  },
+  fromAfterTableLine: {
+    rowKind: 'body',
+    rowIndex: '0',
+    column: '1',
+    text: 'This is a very long cell intended to test wrapping behavior in table renderers. It includes **bold text**, `inline code`, a [link](https://example.com), and a long token: abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz. Test edit. Another. This is another edit.',
+    selectionAtStart: false,
+    selectionAtEnd: false,
+    selectionOnFirstVisualLine: false,
+    selectionOnLastVisualLine: true
+  },
+  insideUpPrevented: true,
+  insideUpTextLength: 294,
+  insideUpLineHeight: '18.9px',
+  insideUpStartBox: { left: 657.1375122070312, top: 304.8000183105469 },
+  insideUpBox: { left: 595.5625, top: 285.8999938964844 },
+  insideUpMeasuredRows: [
+    {
+      top: 248.10000610351562,
+      height: 16,
+      left: 126.0374984741211,
+      right: 764.9249877929688,
+      candidateCount: 251,
+      firstOffset: 0,
+      lastOffset: 83
+    },
+    {
+      top: 267,
+      height: 16,
+      left: 126.0374984741211,
+      right: 749.5250244140625,
+      candidateCount: 245,
+      firstOffset: 83,
+      lastOffset: 164
+    },
+    {
+      top: 285.8999938964844,
+      height: 16,
+      left: 126.0374984741211,
+      right: 595.5750122070312,
+      candidateCount: 184,
+      firstOffset: 164,
+      lastOffset: 225
+    },
+    {
+      top: 304.8000183105469,
+      height: 16,
+      left: 126.0374984741211,
+      right: 657.1500244140625,
+      candidateCount: 208,
+      firstOffset: 225,
+      lastOffset: 294
+    }
+  ],
+  insideUpStartRow: 3,
+  insideUpClampedGoalX: 595.5750122070312,
+  insideUpNearestCaret: { x: 595.5750122070312, offset: 225, kind: 'glyph-end' },
+  insideUpClampedColumnDelta: 0.01251220703125,
+  nativeGoalResets: [
+    {
+      label: 'inside-up',
+      beforeOffset: 294,
+      afterOffset: 294,
+      pass: true
+    },
+    {
+      label: 'inside-down',
+      beforeOffset: 0,
+      afterOffset: 0,
+      pass: true
+    },
+    {
+      label: 'goal-through-short-line',
+      beforeOffset: 43,
+      afterOffset: 43,
+      pass: true
+    },
+    {
+      label: 'first-line-end-down',
+      beforeOffset: 46,
+      afterOffset: 46,
+      pass: true
+    },
+    {
+      label: 'last-line-end-up',
+      beforeOffset: 95,
+      afterOffset: 95,
+      pass: true
+    },
+    {
+      label: 'emoji-wrap',
+      beforeOffset: 0,
+      afterOffset: 0,
+      pass: true
+    },
+    {
+      label: 'exit-down',
+      beforeOffset: 294,
+      afterOffset: 294,
+      pass: true
+    }
+  ],
+  insideUpOffset: 225,
+  insideUpLineTops: [
+    248.10000610351562,
+    248.10000610351562,
+    267,
+    267,
+    285.8999938964844,
+    304.8000183105469
+  ],
+  insideUpVisualCaret: { active: false, left: '', top: '' },
+  insideUpColumnDelta: 61.57501220703125,
+  insideUpMovedOneVisualLine: true,
+  insideUpPreservedColumn: true,
+  stayedInCellAfterInsideUp: true,
+  insideDownPrevented: true,
+  stayedInCellAfterInsideDown: true,
+  goalFirstDownPrevented: true,
+  goalSecondDownPrevented: true,
+  goalStartBox: { left: 437.75, top: 248.10000610351562 },
+  goalShortLineBox: { left: 133.72500610351562, top: 267 },
+  goalThirdLineBox: { left: 437.75, top: 285.8999938964844 },
+  goalShortLineOffset: 48,
+  goalThirdLineOffset: 92,
+  goalColumnDelta: 0,
+  goalColumnPreserved: true,
+  goalOffsetsAreGraphemeBoundaries: true,
+  shortLineEndOffset: 48,
+  endOfFirstLineDownPrevented: true,
+  endOfFirstLineDownOffset: 48,
+  endOfFirstLineDownBox: { left: 133.72500610351562, top: 267 },
+  endOfLastLineUpPrevented: true,
+  endOfLastLineUpOffset: 48,
+  endOfLastLineUpBox: { left: 133.72500610351562, top: 267 },
+  shortLineEdgeNavigationCorrect: true,
+  emojiWrapBoundary: 86,
+  emojiCaretOffset: 86,
+  emojiWrapAffinityResolved: true,
+  emojiCaretIsGraphemeBoundary: true,
+  exitDownPrevented: true,
+  afterDownActiveClass: 'cm-content cm-lineWrapping',
+  afterDownGutterText: '16',
+  expectedAfterDownGutterText: '16',
+  afterDownSelectionHead: 413,
+  afterDownLineStart: 413,
+  docChanged: false
+}
+TABLE CROSS-ROW ARROW REGRESSION CHECK: {
+  ok: true,
+  sourceLine71Text: 'abcdefghijABCDEFGHIJ0123456789',
+  sourceLine72Text: 'x\nabcdefghijABCDEFGHIJ0123456789',
+  downPrevented: true,
+  afterDownSourceLine: '72',
+  afterDownOffset: 1,
+  upPrevented: true,
+  afterUpOffset: 1,
+  stayedInLine72Cell: true,
+  expectedShortLineEnd: 1,
+  downLandedAtShortLineEnd: true,
+  upLandedAtShortLineEnd: true,
+  restoredDoc: true
+}
+TABLE EXACT-FIXTURE ARROW REGRESSION CHECK: {
+  ok: true,
+  line71EndsWithUl: true,
+  line72ContainsBoldText: true,
+  naturalCellWidth: 327.125,
+  testedCellWidth: 327.125,
+  selectedForcedWidth: 260,
+  widthCases: [
+    {
+      forcedWidth: 260,
+      actualWidth: 327.125,
+      offset: 35,
+      beforeText: 'le cell with',
+      afterText: ' **bold text',
+      hasVisualCaretAffinity: false,
+      nativeCaretColor: 'rgb(237, 237, 237)',
+      visualCaret: [Object]
+    }
+  ],
+  upPrevented: true,
+  upSetupGoalReset: true,
+  beforeUp: {
+    offset: 150,
+    collapsedCaretRects: [ [Object] ],
+    beforeText: 'l></li></ul>',
+    afterText: '',
+    previousBox: {
+      left: 541.6875,
+      right: 549.4000244140625,
+      top: 389.20001220703125,
+      bottom: 405.20001220703125
+    },
+    nextBox: null,
+    lineTops: [ 332.5, 351.3999938964844, 370.3000183105469, 389.20001220703125 ],
+    lineBoxes: [ [Object], [Object], [Object], [Object] ],
+    hasVisualCaretAffinity: false,
+    nativeCaretColor: 'rgb(237, 237, 237)',
+    visualCaret: {
+      content: 'none',
+      left: 'auto',
+      top: 'auto',
+      width: 'auto',
+      height: 'auto',
+      backgroundColor: 'rgba(0, 0, 0, 0)'
+    },
+    cell: {
+      left: 233.8125,
+      right: 560.9375,
+      top: 331.70001220703125,
+      bottom: 408.10001373291016
+    }
+  },
+  afterUp: {
+    offset: 110,
+    collapsedCaretRects: [ [Object], [Object] ],
+    beforeText: 'l></li></ul>',
+    afterText: '</li></ul></',
+    previousBox: {
+      left: 510.8999938964844,
+      right: 518.6124877929688,
+      top: 370.3000183105469,
+      bottom: 386.3000183105469
+    },
+    nextBox: {
+      left: 241.5,
+      right: 249.1999969482422,
+      top: 389.20001220703125,
+      bottom: 405.20001220703125
+    },
+    lineTops: [ 332.5, 351.3999938964844, 370.3000183105469, 389.20001220703125 ],
+    lineBoxes: [ [Object], [Object], [Object], [Object] ],
+    hasVisualCaretAffinity: false,
+    nativeCaretColor: 'rgb(237, 237, 237)',
+    visualCaret: {
+      content: 'none',
+      left: 'auto',
+      top: 'auto',
+      width: 'auto',
+      height: 'auto',
+      backgroundColor: 'rgba(0, 0, 0, 0)'
+    },
+    cell: {
+      left: 233.8125,
+      right: 560.9375,
+      top: 331.70001220703125,
+      bottom: 408.10001373291016
+    }
+  },
+  upNativeVisualRow: {
+    originalOffset: 110,
+    startOffset: 74,
+    endOffset: 110,
+    containsOriginal: true,
+    selectedText: '5<ul><li>Level 6</li></ul></li></ul>',
+    rects: [ [Object] ]
+  },
+  stayedInLine71Cell: true,
+  downPrevented: true,
+  downSetupGoalReset: true,
+  beforeDown: {
+    offset: 150,
+    collapsedCaretRects: [ [Object] ],
+    beforeText: 'l></li></ul>',
+    afterText: '',
+    previousBox: {
+      left: 541.6875,
+      right: 549.4000244140625,
+      top: 389.20001220703125,
+      bottom: 405.20001220703125
+    },
+    nextBox: null,
+    lineTops: [ 332.5, 351.3999938964844, 370.3000183105469, 389.20001220703125 ],
+    lineBoxes: [ [Object], [Object], [Object], [Object] ],
+    hasVisualCaretAffinity: false,
+    nativeCaretColor: 'rgb(237, 237, 237)',
+    visualCaret: {
+      content: 'none',
+      left: 'auto',
+      top: 'auto',
+      width: 'auto',
+      height: 'auto',
+      backgroundColor: 'rgba(0, 0, 0, 0)'
+    },
+    cell: {
+      left: 233.8125,
+      right: 560.9375,
+      top: 331.70001220703125,
+      bottom: 408.10001373291016
+    }
+  },
+  afterDown: {
+    offset: 35,
+    collapsedCaretRects: [ [Object], [Object] ],
+    beforeText: 'le cell with',
+    afterText: ' **bold text',
+    previousBox: {
+      left: 503.20001220703125,
+      right: 510.9125061035156,
+      top: 408.8999938964844,
+      bottom: 424.8999938964844
+    },
+    nextBox: {
+      left: 510.9125061035156,
+      right: 518.6124877929688,
+      top: 408.8999938964844,
+      bottom: 424.8999938964844
+    },
+    lineTops: [
+      408.8999938964844,
+      427.8000183105469,
+      446.70001220703125,
+      465.6000061035156,
+      484.5,
+      503.3999938964844
+    ],
+    lineBoxes: [ [Object], [Object], [Object], [Object], [Object], [Object] ],
+    hasVisualCaretAffinity: false,
+    nativeCaretColor: 'rgb(237, 237, 237)',
+    visualCaret: {
+      content: 'none',
+      left: 'auto',
+      top: 'auto',
+      width: 'auto',
+      height: 'auto',
+      backgroundColor: 'rgba(0, 0, 0, 0)'
+    },
+    cell: {
+      left: 233.8125,
+      right: 560.9375,
+      top: 408.1000061035156,
+      bottom: 522.3000106811523
+    }
+  },
+  downNativeVisualRow: {
+    originalOffset: 35,
+    startOffset: 0,
+    endOffset: 36,
+    containsOriginal: true,
+    selectedText: 'This is a very long table cell with ',
+    rects: [ [Object], [Object] ]
+  },
+  enteredLine72Cell: true,
+  restoredDoc: true
+}
+TABLE SELECTION GEOMETRY CHECK: {
+  ok: true,
+  baseline: {
+    ok: true,
+    selectedCount: 6,
+    bounds: {
+      left: 68.32500457763672,
+      top: 20.5,
+      right: 737.9749908447266,
+      bottom: 98.50000381469727,
+      width: 669.6499862670898,
+      height: 78.00000381469727
+    },
+    overlayRect: {
+      left: 68.32500457763672,
+      top: 20.5,
+      right: 737.9750289916992,
+      bottom: 98.5,
+      width: 669.6500244140625,
+      height: 78
+    },
+    overlayBoundsAligned: true,
+    oneOverlay: true,
+    oneGrid: true,
+    oneFrame: true,
+    framePaintedLast: true,
+    frameStroke: 'color(srgb 0.231373 0.611765 1 / 0.84)',
+    frameStrokeWidth: '1px',
+    frameCoordinatesAligned: true,
+    bottomFrameClipClearance: 0.5000038146972656,
+    verticalRails: [ 57.725 ],
+    horizontalRails: [ 38.6, 58.3 ],
+    expectedVerticalRails: [ 57.724998474121094 ],
+    expectedHorizontalRails: [ 38.60000228881836, 58.30000305175781 ],
+    railsAligned: true,
+    railCount: 3,
+    railsTrimmedInsideFrame: true,
+    gridPath: 'M 57.725 1 V 77 M 1 38.6 H 668.65 M 1 58.3 H 668.65',
+    railEndpointsExact: true,
+    gridStrokeWidth: '1px',
+    gridStrokeLinecap: 'butt',
+    gridVectorEffect: 'non-scaling-stroke',
+    gridShapeRendering: 'crispedges',
+    frameStrokeLinejoin: 'miter',
+    frameVectorEffect: 'non-scaling-stroke',
+    frameShapeRendering: 'crispedges',
+    noCellInsetShadows: true,
+    selectedBordersTransparent: true,
+    edgeClasses: [
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-top mlrt-table-selection-left',
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-top mlrt-table-selection-right',
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-left',
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-right',
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-bottom mlrt-table-selection-left',
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-bottom mlrt-table-selection-right mlrt-table-cell-selection-head'
+    ]
+  },
+  restored: {
+    ok: true,
+    selectedCount: 6,
+    bounds: {
+      left: 68.32500457763672,
+      top: 20.5,
+      right: 737.9749908447266,
+      bottom: 98.50000381469727,
+      width: 669.6499862670898,
+      height: 78.00000381469727
+    },
+    overlayRect: {
+      left: 68.32500457763672,
+      top: 20.5,
+      right: 737.9750289916992,
+      bottom: 98.5,
+      width: 669.6500244140625,
+      height: 78
+    },
+    overlayBoundsAligned: true,
+    oneOverlay: true,
+    oneGrid: true,
+    oneFrame: true,
+    framePaintedLast: true,
+    frameStroke: 'color(srgb 0.231373 0.611765 1 / 0.84)',
+    frameStrokeWidth: '1px',
+    frameCoordinatesAligned: true,
+    bottomFrameClipClearance: 0.5000038146972656,
+    verticalRails: [ 57.725 ],
+    horizontalRails: [ 38.6, 58.3 ],
+    expectedVerticalRails: [ 57.724998474121094 ],
+    expectedHorizontalRails: [ 38.60000228881836, 58.30000305175781 ],
+    railsAligned: true,
+    railCount: 3,
+    railsTrimmedInsideFrame: true,
+    gridPath: 'M 57.725 1 V 77 M 1 38.6 H 668.65 M 1 58.3 H 668.65',
+    railEndpointsExact: true,
+    gridStrokeWidth: '1px',
+    gridStrokeLinecap: 'butt',
+    gridVectorEffect: 'non-scaling-stroke',
+    gridShapeRendering: 'crispedges',
+    frameStrokeLinejoin: 'miter',
+    frameVectorEffect: 'non-scaling-stroke',
+    frameShapeRendering: 'crispedges',
+    noCellInsetShadows: true,
+    selectedBordersTransparent: true,
+    edgeClasses: [
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-top mlrt-table-selection-left',
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-top mlrt-table-selection-right',
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-left',
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-right',
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-bottom mlrt-table-selection-left',
+      'mlrt-table-cell mlrt-table-cell-selected mlrt-table-selection-bottom mlrt-table-selection-right mlrt-table-cell-selection-head'
+    ]
+  },
+  restoredStable: true,
+  resizeCases: [
+    {
+      width: 500,
+      selectedHeight: 115.79999923706055,
+      selectedWidth: 319.42501068115234,
+      aligned: true,
+      alwaysAligned: true,
+      stable: true,
+      settleAttempts: 5,
+      railCount: 3,
+      selectedCount: 6
+    },
+    {
+      width: 360,
+      selectedHeight: 191.39999771118164,
+      selectedWidth: 180.875,
+      aligned: true,
+      alwaysAligned: true,
+      stable: true,
+      settleAttempts: 5,
+      railCount: 3,
+      selectedCount: 6
+    },
+    {
+      width: 480,
+      selectedHeight: 115.79999923706055,
+      selectedWidth: 300.18750762939453,
+      aligned: true,
+      alwaysAligned: true,
+      stable: true,
+      settleAttempts: 5,
+      railCount: 3,
+      selectedCount: 6
+    },
+    {
+      width: 340,
+      selectedHeight: 210.30000686645508,
+      selectedWidth: 161.6374969482422,
+      aligned: true,
+      alwaysAligned: true,
+      stable: true,
+      settleAttempts: 5,
+      railCount: 3,
+      selectedCount: 6
+    },
+    {
+      width: 500,
+      selectedHeight: 115.79999923706055,
+      selectedWidth: 319.42501068115234,
+      aligned: true,
+      alwaysAligned: true,
+      stable: true,
+      settleAttempts: 4,
+      railCount: 3,
+      selectedCount: 6
+    }
+  ],
+  horizontalScrollCase: {
+    ok: true,
+    overflowed: true,
+    scrolled: true,
+    geometryAligned: true,
+    sourceLineStayedSticky: true,
+    selectionIntersectsGutter: true,
+    gutterPaintsAboveSelection: true,
+    gutterBackgroundOpaque: true,
+    overlayZIndex: 2,
+    sourceZIndex: 3
+  },
+  repeatedResizeAligned: true,
+  resizeCausedRealReflow: true,
+  rightNeighborAligned: true,
+  bottomNeighborAligned: true
+}
+Saved qa\edh-table-selection-geometry.png
+DOCUMENT-END SELECTION BOUNDS CHECK: {
+  ok: true,
+  head: 25,
+  anchor: 6,
+  docLength: 25,
+  selectedText: 'beta gamma\nfinal yz',
+  finalLineBottom: 37.79999923706055,
+  maxMarkBottom: 37.78750038146973,
+  finalLineMarkCount: 1,
+  finalRightDelta: 0.0124969482421875,
+  blankLineSelectionCount: 0,
+  visibleCodeMirrorBoxCount: 0,
+  selectedCellCount: 0
+}
+Saved qa\edh-selection-document-end.png
+DOCUMENT-END TABLE SELECTION BOUNDS CHECK: {
+  ok: true,
+  anchor: 6,
+  head: 49,
+  docLength: 49,
+  selectedCellCount: 4,
+  totalCellCount: 4,
+  selectedBottom: 78,
+  finalTableBottom: 78,
+  overlayBottom: 78,
+  maxSelectionBottom: 78,
+  overlayBoundsFinalRow: true,
+  visibleCodeMirrorBoxCount: 0,
+  visibleStructureIndicatorCount: 0
+}
+Saved qa\edh-selection-document-end-table.png
+WRAPPED DOWNWARD SELECTION CHECK: {
+  ok: true,
+  anchor: 74,
+  head: 739,
+  selectedText: 'compatibility tests near its middle, followed by enough words to wrap across several visual rows in the live editor.\n' +
+    'Another fully selected prose line is also intentionally long so a downward drag must paint every wrapped fragment before it enters the rendered table below.\n' +
+    '\n' +
+    '| # | Feature | Markdown In Table Cell | Expected Renderer Behavior |\n' +
+    '| --- | --- | --- | --- |\n' +
+    '| 1 | Plain text | Regular text with numbers 12345 and punctuation. | Baseline cell rendering. |\n' +
+    '| 2 | Escaped characters | Not italic and not bold. | Escaped punctuation remains visible. |\n' +
+    '| 3 | Entities | Ampersand, less-than, and copyright. | Entities display consistently. |\n' +
+    '| 4 | Emphasis ',
+  selectedAddresses: [
+    '0:0', '0:1', '1:0',
+    '1:1', '2:0', '2:1',
+    '3:0', '3:1', '4:0',
+    '4:1'
+  ],
+  markCount: 2,
+  fragmentCount: 4,
+  wrapRowCount: 4,
+  fragmentRects: [
+    {
+      top: 37.8125,
+      bottom: 56.6875,
+      width: 377.1750183105469,
+      height: 18.875
+    },
+    {
+      top: 56.712501525878906,
+      bottom: 75.5875015258789,
+      width: 515.7250366210938,
+      height: 18.875
+    },
+    {
+      top: 75.61250305175781,
+      bottom: 94.48750305175781,
+      width: 700.4625244140625,
+      height: 18.875
+    },
+    {
+      top: 94.51250457763672,
+      bottom: 113.38750457763672,
+      width: 500.32501220703125,
+      height: 18.875
+    }
+  ],
+  directBackgrounds: [
+    'color(srgb 0 0.470588 0.831373 / 0.86)',
+    'color(srgb 0 0.470588 0.831373 / 0.86)'
+  ],
+  everyFragmentUsesDirectFill: true,
+  pseudoHighlightsDisabled: true,
+  visibleCodeMirrorBoxCount: 0,
+  overlayCount: 1
+}
+Saved qa\edh-wrapped-downward-selection.png
+MIXED IME/HOST CONFLICT RECONCILIATION CHECK: {
+  ok: true,
+  composing: false,
+  authoritativeTextApplied: false,
+  settled: '# HOST_AUTHORITATIVE\n\nremote edit\n',
+  authoritativeTextPreserved: true,
+  trailingCandidateAbsent: true,
+  projectionCleared: true,
+  restoredDoc: true
+}
+SHORTCUT TOGGLE CHECK: { hasMonaco: true }

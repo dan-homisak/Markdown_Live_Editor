@@ -1,0 +1,388 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-markdown-edh-qKGXvp",
+  "port": 9973,
+  "environment": {
+    "dpr": 1.25,
+    "width": 1204,
+    "height": 804,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.140.0 Chrome/150.0.7871.250 Electron/43.7.3 Safari/537.36",
+    "settings": {
+      "markdownLiveRenderTables.markdownRendering.enabled": true,
+      "markdownLiveRenderTables.debug": true,
+      "editor.fontFamily": "Consolas, 'Courier New', monospace",
+      "editor.fontSize": 14,
+      "editor.lineHeight": 0,
+      "editor.letterSpacing": 0,
+      "editor.wordWrap": "on",
+      "window.zoomLevel": 0,
+      "workbench.startupEditor": "none",
+      "workbench.colorTheme": "Default Dark Modern"
+    },
+    "live": {
+      "theme": "Dark Modern",
+      "themeKind": "vscode-dark",
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "18.9px",
+      "letterSpacing": "normal",
+      "viewport": 835,
+      "screenReader": false
+    }
+  },
+  "checks": [
+    {
+      "name": "rendering preserves source and isolates tables/code",
+      "pass": true,
+      "detail": {
+        "controls": 2,
+        "tableControls": 0,
+        "tables": 1,
+        "ackCount": 0
+      }
+    },
+    {
+      "name": "requested initial metrics are applied inside the real webview",
+      "pass": true,
+      "detail": {
+        "theme": "Dark Modern",
+        "themeKind": "vscode-dark",
+        "font": "Consolas, \"Courier New\", monospace",
+        "fontSize": "14px",
+        "lineHeight": "18.9px",
+        "letterSpacing": "normal",
+        "viewport": 835,
+        "screenReader": false
+      }
+    },
+    {
+      "name": "focused external prefix insertion returns to the mapped source bookmark",
+      "pass": true,
+      "detail": {
+        "externalFileWrite": true,
+        "prefixLength": 17,
+        "state": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 141,
+                "head": 141
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 2,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 297
+            },
+            {
+              "from": 361,
+              "to": 416
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "focused external task deletion returns to a valid source boundary",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    {\n+     anchor: 119,\n+     head: 119\n-     anchor: 116,\n-     head: 116\n    }\n  ]\n",
+      "state": {
+        "source": "Ordinary source before markers.\n\n- Bullet alpha and ordinary following text that should retain its exact placement.\n- [ ] Task alpha with enough following text to exercise source wrapping at narrow widths.\n- [X] Task beta\n  - Nested bullet\n\t- Tab nested bullet\n\n***\n\nAfter rule.\n\n| Marker | Content |\n| --- | --- |\n| - [ ] | Table stays owned |\n\n```md\n- [ ] Literal fenced task\n***\n```\n\nEnd source.\n",
+        "selection": {
+          "ranges": [
+            {
+              "anchor": 0,
+              "head": 0
+            }
+          ],
+          "main": 0
+        },
+        "active": "<div spellcheck=\"false\" autocorrect=\"off\" autocapitalize=\"off\" writingsuggestions=\"false\" translate=\"no\" contenteditable=\"true\" style=\"tab-size: 4;\" class=\"cm-c",
+        "markers": 8,
+        "controls": 2,
+        "options": {
+          "lineWrapping": true,
+          "scrollBeyondLastLine": true,
+          "clipboardDocumentToken": "7b1d482a-0b99-4dc4-9fd4-a49be7f84b95",
+          "markdownRendering": {
+            "enabled": true,
+            "screenReaderOptimized": false,
+            "readOnly": false
+          },
+          "tableNavigationModifierKey": "F2",
+          "defaultCopyMode": "smart",
+          "defaultPasteMode": "auto"
+        },
+        "plugins": [
+          {
+            "markers": 8,
+            "sizes": 8,
+            "decorations": 10,
+            "firstLiteral": false,
+            "scheduled": false,
+            "failed": false,
+            "destroyed": false,
+            "composing": false,
+            "viewComposing": false,
+            "compositionStarted": false,
+            "treeLength": 399,
+            "visibleRanges": [
+              {
+                "from": 0,
+                "to": 280
+              },
+              {
+                "from": 344,
+                "to": 399
+              }
+            ]
+          }
+        ],
+        "messages": [
+          {
+            "source": "host",
+            "revision": 3
+          },
+          {
+            "source": "host",
+            "revision": 4
+          },
+          {
+            "source": "host",
+            "revision": 5
+          }
+        ]
+      }
+    },
+    {
+      "name": "newer source range supersedes the focused checkbox bookmark on disable",
+      "pass": true,
+      "detail": {
+        "before": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 10,
+                "head": 20
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": false,
+          "documentFocus": true,
+          "active": "mlrt-markdown-task-control",
+          "controls": 2,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 280
+            },
+            {
+              "from": 344,
+              "to": 399
+            }
+          ]
+        },
+        "after": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 10,
+                "head": 20
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 0,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 280
+            },
+            {
+              "from": 344,
+              "to": 399
+            }
+          ]
+        },
+        "sourcePreserved": true
+      }
+    },
+    {
+      "name": "newer source range maps through external replacement without obsolete bookmark restoration",
+      "pass": true,
+      "detail": {
+        "externalFileWrite": true,
+        "before": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 10,
+                "head": 20
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": false,
+          "documentFocus": true,
+          "active": "mlrt-markdown-task-control",
+          "controls": 2,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 280
+            },
+            {
+              "from": 344,
+              "to": 399
+            }
+          ]
+        },
+        "after": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 27,
+                "head": 37
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 2,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 297
+            },
+            {
+              "from": 361,
+              "to": 416
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "focused checkbox viewport eviction releases focus without scrolling back",
+      "pass": true,
+      "detail": {
+        "fixtureTasks": 2002,
+        "before": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 124,
+                "head": 124
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 92,
+          "scrollTop": 3065.60009765625,
+          "visibleRanges": [
+            {
+              "from": 3115,
+              "to": 5414
+            }
+          ]
+        },
+        "after": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 124,
+                "head": 124
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 92,
+          "scrollTop": 3065.60009765625,
+          "visibleRanges": [
+            {
+              "from": 3115,
+              "to": 5414
+            }
+          ]
+        },
+        "projection": {
+          "oldControlConnected": false,
+          "oldControlPresent": false,
+          "markers": 184,
+          "sizes": 184,
+          "controls": 92
+        },
+        "sourcePreserved": true
+      }
+    },
+    {
+      "name": "host accessibility mode releases task focus and restores literal source",
+      "pass": true,
+      "detail": {
+        "actualHostSetting": true,
+        "actualScreenReader": false,
+        "state": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 124,
+                "head": 124
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 0,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 280
+            },
+            {
+              "from": 344,
+              "to": 399
+            }
+          ]
+        },
+        "sourcePreserved": true,
+        "tableDOMRetained": true
+      }
+    }
+  ],
+  "limitations": [
+    "No actual OS IME or screen reader was exercised by this script.",
+    "This focused prototype script does not replace the stock/live baseline gate or the complete release matrix."
+  ],
+  "finalSourceMatches": true,
+  "runtimeErrors": [],
+  "console": {
+    "expectedFaultWarnings": [],
+    "unexpected": []
+  },
+  "passed": false
+}

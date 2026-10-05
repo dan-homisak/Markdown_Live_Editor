@@ -1,11 +1,18 @@
 # Markdown Live Editor
 
-Markdown Live Editor is a Visual Studio Code extension that makes Markdown tables easier to work with. It presents tables as editable grids while keeping the rest of the document in familiar Markdown source form, combining structured table editing with the precision and portability of plain text.
+Markdown Live Editor provides Obsidian-style Live Preview inside VS Code, with editable tables. Formatting syntax disappears while reading and reappears when the caret enters the formatted text. Your document remains ordinary Markdown.
 
 Edits are written directly back to the underlying Markdown, so documents remain standard `.md` files that work with existing tools, version control, and publishing workflows.
 
 ## Highlights
 
+- Read rendered headings, emphasis, inline code, quotes, callouts, and YAML properties
+- Reveal exact Markdown syntax by moving the caret into the text
+- Nest and unnest lists with Tab/Shift+Tab, continue them with Enter, and navigate to item text with the arrow keys
+- Open rendered Markdown links and wikilinks, including heading/block targets
+- Highlight JavaScript, TypeScript, JSON, shell, Python, and YAML code without downloads
+- Copy code from a block's language toolbar
+- Toggle task checkboxes with one source edit and one Undo
 - Edit Markdown tables through a live, spreadsheet-like interface
 - Navigate cells by keyboard and create multiline cell content
 - Select individual cells, rows, columns, or rectangular ranges
@@ -43,6 +50,19 @@ The following settings are available in VS Code:
 - `markdownLiveRenderTables.clipboard.defaultCopyMode` - sets the default copy representation
 - `markdownLiveRenderTables.clipboard.defaultPasteMode` - sets the default paste interpretation
 - `markdownLiveRenderTables.debug` - enables diagnostic logging for development and troubleshooting
+- `markdownLiveRenderTables.markdownRendering.enabled` - enables live Markdown styling and actions; defaults to `true`
+
+Rendering is active whenever a document opens in the live editor. Existing windows may need **Developer: Reload Window** after installing an update. An explicit `false` setting continues to disable the feature; remove that override or set it to `true` to use the new rendering.
+
+Place the caret in a task and use **Markdown Live Editor: Toggle Task Checkbox at Caret** or **Focus Task Checkbox at Caret** in the Command Palette. These actions also appear in the task context menu. A focused checkbox supports Space to toggle and Escape to return to the caret. Editing a marker reveals its exact source characters.
+
+Click a rendered link to open it. Move the caret into a link to edit its original Markdown or `[[Note|Alias]]` syntax. While editing the link, Ctrl+click on Windows/Linux or Cmd+click on macOS opens it; use Alt+click when `editor.multiCursorModifier` is `ctrlCmd`. **Markdown Live Editor: Open Markdown Link at Caret** also works. Supported targets include HTTP, HTTPS, mailto, document paths, references, wikilinks, headings, and block IDs. Note names resolve beside the current file, then within its workspace; ambiguous matches prompt for a choice. Documents open at the target in VS Code.
+
+Headings, bold/italic/strike, inline code, links, quotes, callouts, code fences, and YAML properties render without inactive formatting syntax. Editing reveals the exact source. Code blocks show a language label and Copy button. Callouts support titles and `+`/`-` folding; clicking a property opens its original YAML for editing. Fenced code highlights `javascript/js/nodejs`, `typescript/ts`, `json`, `bash/sh/shell`, `python/py`, and `yaml/yml`; unknown languages remain plain code. HTML stays literal, and images/embedded notes are not fetched. YAML frontmatter requires opening and closing standalone `---` at the start of the document. Independently recognized tables retain their existing rendering and ownership.
+
+In lists, Up/Down avoids parking the caret in indentation before item text. Home goes to item text first, then source-line start. Tab/Shift+Tab and Ctrl/Cmd+]/[ nest or unnest an item and its descendants. Enter continues bullets, numbered items, and unchecked tasks; Enter on an empty item outdents or exits the list. Backspace at item-text start outdents or removes a top-level marker.
+
+Turning rendering off restores ordinary non-table presentation and base Markdown input while retaining table editing. Host accessibility mode uses literal markers and keeps the task toggle command available. Actual OS IME and screen-reader coverage is recorded separately from automation. See `LIVE_MARKDOWN_RENDERING_DESIGN_SPEC.md` for the current product contract and `qa/live-preview-2026-10-04.md` for verification and limits.
 
 ## Development
 
@@ -63,6 +83,8 @@ Run the automated test suite:
 ```sh
 npm test
 ```
+
+After compiling, run `node scripts/edh-markdown-rendering-check.mjs` for marker interactions and `node scripts/edh-markdown-release-check.mjs` for the complete rendering surface in isolated VS Code windows. The required `node scripts/edh-visual-check.mjs` remains the stock/live geometry and table regression check.
 
 Create a local VSIX package:
 

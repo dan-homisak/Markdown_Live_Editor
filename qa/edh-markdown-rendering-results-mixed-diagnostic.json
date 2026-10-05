@@ -1,0 +1,423 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-markdown-edh-ckTDcp",
+  "port": 9809,
+  "environment": {
+    "dpr": 1.25,
+    "width": 1204,
+    "height": 804,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.140.0 Chrome/150.0.7871.250 Electron/43.7.3 Safari/537.36",
+    "settings": {
+      "markdownLiveRenderTables.markdownRendering.enabled": true,
+      "markdownLiveRenderTables.debug": true,
+      "editor.fontFamily": "Consolas, 'Courier New', monospace",
+      "editor.fontSize": 14,
+      "editor.lineHeight": 0,
+      "editor.letterSpacing": 0,
+      "editor.wordWrap": "on",
+      "window.zoomLevel": 0,
+      "workbench.startupEditor": "none",
+      "workbench.colorTheme": "Default Dark Modern"
+    },
+    "live": {
+      "theme": "Dark Modern",
+      "themeKind": "vscode-dark",
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "18.9px",
+      "letterSpacing": "normal",
+      "viewport": 835,
+      "screenReader": false
+    }
+  },
+  "checks": [
+    {
+      "name": "rendering preserves source and isolates tables/code",
+      "pass": true,
+      "detail": {
+        "controls": 2,
+        "tableControls": 0,
+        "tables": 1,
+        "ackCount": 0
+      }
+    },
+    {
+      "name": "requested initial metrics are applied inside the real webview",
+      "pass": true,
+      "detail": {
+        "theme": "Dark Modern",
+        "themeKind": "vscode-dark",
+        "font": "Consolas, \"Courier New\", monospace",
+        "fontSize": "14px",
+        "lineHeight": "18.9px",
+        "letterSpacing": "normal",
+        "viewport": 835,
+        "screenReader": false
+      }
+    },
+    {
+      "name": "task outside a mixed prose/table selection preserves its endpoints and cells",
+      "pass": true,
+      "detail": {
+        "before": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 272,
+                "head": 323
+              }
+            ],
+            "main": 0
+          },
+          "rectangle": [],
+          "mixed": [
+            "body:0:0",
+            "header:0:0"
+          ],
+          "owner": "cm-content cm-lineWrapping"
+        },
+        "after": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 272,
+                "head": 323
+              }
+            ],
+            "main": 0
+          },
+          "rectangle": [],
+          "mixed": [
+            "body:0:0",
+            "header:0:0"
+          ],
+          "owner": "cm-content cm-lineWrapping"
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "No actual OS IME or screen reader was exercised by this script.",
+    "This focused prototype script does not replace the stock/live baseline gate or the complete release matrix."
+  ],
+  "mixedBaseline": [
+    {
+      "enabled": false,
+      "snapshots": [
+        {
+          "label": "established",
+          "cm": {
+            "selection": {
+              "ranges": [
+                {
+                  "anchor": 344,
+                  "head": 272
+                }
+              ],
+              "main": 0
+            },
+            "rectangle": [],
+            "mixed": [
+              "body:0:0",
+              "body:0:1",
+              "header:0:0",
+              "header:0:1"
+            ],
+            "owner": "cm-content cm-lineWrapping"
+          },
+          "native": {
+            "anchorOffset": 0,
+            "headOffset": 0
+          }
+        },
+        {
+          "label": "idle-before-shot",
+          "cm": {
+            "selection": {
+              "ranges": [
+                {
+                  "anchor": 344,
+                  "head": 272
+                }
+              ],
+              "main": 0
+            },
+            "rectangle": [],
+            "mixed": [
+              "body:0:0",
+              "body:0:1",
+              "header:0:0",
+              "header:0:1"
+            ],
+            "owner": "cm-content cm-lineWrapping"
+          },
+          "native": {
+            "anchorOffset": 0,
+            "headOffset": 0
+          }
+        },
+        {
+          "label": "immediate-after-shot",
+          "cm": {
+            "selection": {
+              "ranges": [
+                {
+                  "anchor": 344,
+                  "head": 272
+                }
+              ],
+              "main": 0
+            },
+            "rectangle": [],
+            "mixed": [
+              "body:0:0",
+              "body:0:1",
+              "header:0:0",
+              "header:0:1"
+            ],
+            "owner": "cm-content cm-lineWrapping"
+          },
+          "native": {
+            "anchorOffset": 0,
+            "headOffset": 0
+          }
+        },
+        {
+          "label": "idle-after-shot",
+          "cm": {
+            "selection": {
+              "ranges": [
+                {
+                  "anchor": 344,
+                  "head": 272
+                }
+              ],
+              "main": 0
+            },
+            "rectangle": [],
+            "mixed": [
+              "body:0:0",
+              "body:0:1",
+              "header:0:0",
+              "header:0:1"
+            ],
+            "owner": "cm-content cm-lineWrapping"
+          },
+          "native": {
+            "anchorOffset": 0,
+            "headOffset": 0
+          }
+        },
+        {
+          "label": "hover-only",
+          "cm": {
+            "selection": {
+              "ranges": [
+                {
+                  "anchor": 0,
+                  "head": 0
+                }
+              ],
+              "main": 0
+            },
+            "rectangle": [],
+            "mixed": [],
+            "owner": "cm-content cm-lineWrapping"
+          },
+          "native": {
+            "anchor": "#text",
+            "anchorClass": "cm-line cm-activeLine mlrt-prose-active-line",
+            "anchorText": "Ordinary source before markers.",
+            "anchorOffset": 0,
+            "head": "#text",
+            "headClass": "cm-line cm-activeLine mlrt-prose-active-line",
+            "headText": "Ordinary source before markers.",
+            "headOffset": 0
+          }
+        }
+      ],
+      "events": [
+        {
+          "time": 1791161465488,
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 344,
+                "head": 272
+              }
+            ],
+            "main": 0
+          },
+          "native": {
+            "anchorText": "Ordinary source before markers.",
+            "anchorOffset": 0,
+            "headText": "Ordinary source before markers.",
+            "headOffset": 0
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "snapshots": [
+        {
+          "label": "established",
+          "cm": {
+            "selection": {
+              "ranges": [
+                {
+                  "anchor": 344,
+                  "head": 272
+                }
+              ],
+              "main": 0
+            },
+            "rectangle": [],
+            "mixed": [
+              "body:0:0",
+              "body:0:1",
+              "header:0:0",
+              "header:0:1"
+            ],
+            "owner": "cm-content cm-lineWrapping"
+          },
+          "native": {
+            "anchorOffset": 0,
+            "headOffset": 0
+          }
+        },
+        {
+          "label": "idle-before-shot",
+          "cm": {
+            "selection": {
+              "ranges": [
+                {
+                  "anchor": 344,
+                  "head": 272
+                }
+              ],
+              "main": 0
+            },
+            "rectangle": [],
+            "mixed": [
+              "body:0:0",
+              "body:0:1",
+              "header:0:0",
+              "header:0:1"
+            ],
+            "owner": "cm-content cm-lineWrapping"
+          },
+          "native": {
+            "anchorOffset": 0,
+            "headOffset": 0
+          }
+        },
+        {
+          "label": "immediate-after-shot",
+          "cm": {
+            "selection": {
+              "ranges": [
+                {
+                  "anchor": 344,
+                  "head": 272
+                }
+              ],
+              "main": 0
+            },
+            "rectangle": [],
+            "mixed": [
+              "body:0:0",
+              "body:0:1",
+              "header:0:0",
+              "header:0:1"
+            ],
+            "owner": "cm-content cm-lineWrapping"
+          },
+          "native": {
+            "anchorOffset": 0,
+            "headOffset": 0
+          }
+        },
+        {
+          "label": "idle-after-shot",
+          "cm": {
+            "selection": {
+              "ranges": [
+                {
+                  "anchor": 344,
+                  "head": 272
+                }
+              ],
+              "main": 0
+            },
+            "rectangle": [],
+            "mixed": [
+              "body:0:0",
+              "body:0:1",
+              "header:0:0",
+              "header:0:1"
+            ],
+            "owner": "cm-content cm-lineWrapping"
+          },
+          "native": {
+            "anchorOffset": 0,
+            "headOffset": 0
+          }
+        },
+        {
+          "label": "hover-only",
+          "cm": {
+            "selection": {
+              "ranges": [
+                {
+                  "anchor": 0,
+                  "head": 0
+                }
+              ],
+              "main": 0
+            },
+            "rectangle": [],
+            "mixed": [],
+            "owner": "cm-content cm-lineWrapping"
+          },
+          "native": {
+            "anchor": "#text",
+            "anchorClass": "cm-line cm-activeLine mlrt-prose-active-line",
+            "anchorText": "Ordinary source before markers.",
+            "anchorOffset": 0,
+            "head": "#text",
+            "headClass": "cm-line cm-activeLine mlrt-prose-active-line",
+            "headText": "Ordinary source before markers.",
+            "headOffset": 0
+          }
+        }
+      ],
+      "events": [
+        {
+          "time": 1791161467894,
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 344,
+                "head": 272
+              }
+            ],
+            "main": 0
+          },
+          "native": {
+            "anchorText": "Ordinary source before markers.",
+            "anchorOffset": 0,
+            "headText": "Ordinary source before markers.",
+            "headOffset": 0
+          }
+        }
+      ]
+    }
+  ],
+  "finalSourceMatches": true,
+  "runtimeErrors": [],
+  "console": {
+    "expectedFaultWarnings": [],
+    "unexpected": []
+  },
+  "passed": true
+}

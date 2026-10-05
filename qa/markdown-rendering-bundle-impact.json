@@ -1,0 +1,581 @@
+{
+  "recordedAt": "2026-10-05T04:06:41.525Z",
+  "reproduction": "npm.cmd run compile && node scripts/record-markdown-bundle-impact.mjs",
+  "limitations": [
+    "Sizes describe the current unminified production bundles; gzip is an additional comparison metric, not VSIX compressed-size evidence.",
+    "Runtime disabling retains bundled code; it is a recovery behavior, not a download-size reduction.",
+    "Package byte contributions use esbuild bytesInOutput; shared runtime glue is not attributed and totals need not equal full bundle bytes.",
+    "The diff includes all working-tree changes since the recorded HEAD, not just highlighting or link actions."
+  ],
+  "bundles": {
+    "webview": {
+      "bytes": 1918472,
+      "gzipBytes": 475207,
+      "sha256": "6765ff3e86b530d0af68ae727efe85c8d3b32849458d83e83e4b658cdf34121a",
+      "diskMatchesGenerated": true,
+      "sourceMapBytes": 0
+    },
+    "extensionHost": {
+      "bytes": 440821,
+      "gzipBytes": 113232,
+      "sha256": "db7e7a47d0c47feab1cbd6659c97b16d488bf1f901d2e6fcb7fa881950dfb7bb",
+      "diskMatchesGenerated": true,
+      "sourceMapBytes": 830934
+    }
+  },
+  "baseline": {
+    "revision": "df3cd2244d9b112e09817653a6a16f60a7290424",
+    "webview": {
+      "kind": "Exact tracked HEAD media/liveEditor.js bytes",
+      "bytes": 1693451,
+      "gzipBytes": 412282,
+      "sha256": "d014897e062fa8b0ca466651e224637e762e75ea2a7febfb9d5fcb9f2afb8257"
+    },
+    "extensionHost": {
+      "kind": "HEAD extension.ts rebuilt with current installed dependencies and current shared imports; not a historical packaged byte-for-byte baseline",
+      "bytes": 31041,
+      "gzipBytes": 7582,
+      "sha256": "1ae22d04b13123178894ddc96c128ae3ee6aa0afe042b7198b77aadba79907d8"
+    }
+  },
+  "delta": {
+    "webview": {
+      "bytes": 225021,
+      "gzipBytes": 62925
+    },
+    "extensionHost": {
+      "bytes": 409780,
+      "gzipBytes": 105650
+    }
+  },
+  "newLanguageRoots": [
+    {
+      "name": "@codemirror/lang-javascript",
+      "version": "6.2.5",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-javascript",
+      "outputContributions": {
+        "webview": 12322,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-javascript/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/lang-json",
+      "version": "6.0.2",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-json",
+      "outputContributions": {
+        "webview": 565,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-json/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/lang-python",
+      "version": "6.2.1",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-python",
+      "outputContributions": {
+        "webview": 4197,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-python/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/lang-yaml",
+      "version": "6.1.3",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-yaml",
+      "outputContributions": {
+        "webview": 2705,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-yaml/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/legacy-modes",
+      "version": "6.5.4",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/legacy-modes",
+      "outputContributions": {
+        "webview": 6171,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/legacy-modes/LICENSE"
+      ]
+    }
+  ],
+  "bundledPackages": [
+    {
+      "name": "@codemirror/autocomplete",
+      "version": "6.20.3",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/autocomplete",
+      "outputContributions": {
+        "webview": 16866,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/autocomplete/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/commands",
+      "version": "6.10.4",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/commands",
+      "outputContributions": {
+        "webview": 11449,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/commands/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/lang-css",
+      "version": "6.3.1",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-css",
+      "outputContributions": {
+        "webview": 17546,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-css/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/lang-html",
+      "version": "6.4.11",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-html",
+      "outputContributions": {
+        "webview": 24626,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-html/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/lang-javascript",
+      "version": "6.2.5",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-javascript",
+      "outputContributions": {
+        "webview": 12322,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-javascript/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/lang-json",
+      "version": "6.0.2",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-json",
+      "outputContributions": {
+        "webview": 565,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-json/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/lang-markdown",
+      "version": "6.5.0",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-markdown",
+      "outputContributions": {
+        "webview": 17577,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-markdown/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/lang-python",
+      "version": "6.2.1",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-python",
+      "outputContributions": {
+        "webview": 4197,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-python/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/lang-yaml",
+      "version": "6.1.3",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/lang-yaml",
+      "outputContributions": {
+        "webview": 2705,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/lang-yaml/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/language",
+      "version": "6.12.4",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/language",
+      "outputContributions": {
+        "webview": 46216,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/language/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/legacy-modes",
+      "version": "6.5.4",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/legacy-modes",
+      "outputContributions": {
+        "webview": 6171,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/legacy-modes/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/state",
+      "version": "6.7.0",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/state",
+      "outputContributions": {
+        "webview": 119052,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/state/LICENSE"
+      ]
+    },
+    {
+      "name": "@codemirror/view",
+      "version": "6.43.4",
+      "license": "MIT",
+      "directory": "node_modules/@codemirror/view",
+      "outputContributions": {
+        "webview": 350892,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@codemirror/view/LICENSE"
+      ]
+    },
+    {
+      "name": "@lezer/common",
+      "version": "1.5.2",
+      "license": "MIT",
+      "directory": "node_modules/@lezer/common",
+      "outputContributions": {
+        "webview": 69072,
+        "extensionHost": 47000
+      },
+      "licenseFiles": [
+        "node_modules/@lezer/common/LICENSE"
+      ]
+    },
+    {
+      "name": "@lezer/css",
+      "version": "1.3.4",
+      "license": "MIT",
+      "directory": "node_modules/@lezer/css",
+      "outputContributions": {
+        "webview": 19763,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@lezer/css/LICENSE"
+      ]
+    },
+    {
+      "name": "@lezer/highlight",
+      "version": "1.2.3",
+      "license": "MIT",
+      "directory": "node_modules/@lezer/highlight",
+      "outputContributions": {
+        "webview": 21298,
+        "extensionHost": 16358
+      },
+      "licenseFiles": [
+        "node_modules/@lezer/highlight/LICENSE"
+      ]
+    },
+    {
+      "name": "@lezer/html",
+      "version": "1.3.13",
+      "license": "MIT",
+      "directory": "node_modules/@lezer/html",
+      "outputContributions": {
+        "webview": 21010,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@lezer/html/LICENSE"
+      ]
+    },
+    {
+      "name": "@lezer/javascript",
+      "version": "1.5.4",
+      "license": "MIT",
+      "directory": "node_modules/@lezer/javascript",
+      "outputContributions": {
+        "webview": 81040,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@lezer/javascript/LICENSE"
+      ]
+    },
+    {
+      "name": "@lezer/json",
+      "version": "1.0.3",
+      "license": "MIT",
+      "directory": "node_modules/@lezer/json",
+      "outputContributions": {
+        "webview": 1863,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@lezer/json/LICENSE"
+      ]
+    },
+    {
+      "name": "@lezer/lr",
+      "version": "1.4.10",
+      "license": "MIT",
+      "directory": "node_modules/@lezer/lr",
+      "outputContributions": {
+        "webview": 58767,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@lezer/lr/LICENSE"
+      ]
+    },
+    {
+      "name": "@lezer/markdown",
+      "version": "1.6.4",
+      "license": "MIT",
+      "directory": "node_modules/@lezer/markdown",
+      "outputContributions": {
+        "webview": 73721,
+        "extensionHost": 68088
+      },
+      "licenseFiles": [
+        "node_modules/@lezer/markdown/LICENSE"
+      ]
+    },
+    {
+      "name": "@lezer/python",
+      "version": "1.1.19",
+      "license": "MIT",
+      "directory": "node_modules/@lezer/python",
+      "outputContributions": {
+        "webview": 44630,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@lezer/python/LICENSE"
+      ]
+    },
+    {
+      "name": "@lezer/yaml",
+      "version": "1.0.4",
+      "license": "MIT",
+      "directory": "node_modules/@lezer/yaml",
+      "outputContributions": {
+        "webview": 17305,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@lezer/yaml/LICENSE"
+      ]
+    },
+    {
+      "name": "@marijn/find-cluster-break",
+      "version": "1.0.3",
+      "license": "MIT",
+      "directory": "node_modules/@marijn/find-cluster-break",
+      "outputContributions": {
+        "webview": 3737,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/@marijn/find-cluster-break/LICENSE"
+      ]
+    },
+    {
+      "name": "dompurify",
+      "version": "3.4.11",
+      "license": "(MPL-2.0 OR Apache-2.0)",
+      "directory": "node_modules/dompurify",
+      "outputContributions": {
+        "webview": 66709,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/dompurify/LICENSE",
+        "node_modules/dompurify/LICENSE-MPL"
+      ]
+    },
+    {
+      "name": "entities",
+      "version": "4.5.0",
+      "license": "BSD-2-Clause",
+      "directory": "node_modules/entities",
+      "outputContributions": {
+        "webview": 92316,
+        "extensionHost": 91316
+      },
+      "licenseFiles": [
+        "node_modules/entities/LICENSE"
+      ]
+    },
+    {
+      "name": "linkify-it",
+      "version": "5.0.2",
+      "license": "MIT",
+      "directory": "node_modules/linkify-it",
+      "outputContributions": {
+        "webview": 15818,
+        "extensionHost": 14968
+      },
+      "licenseFiles": [
+        "node_modules/linkify-it/LICENSE"
+      ]
+    },
+    {
+      "name": "markdown-it",
+      "version": "14.3.0",
+      "license": "MIT",
+      "directory": "node_modules/markdown-it",
+      "outputContributions": {
+        "webview": 117672,
+        "extensionHost": 109763
+      },
+      "licenseFiles": [
+        "node_modules/markdown-it/LICENSE"
+      ]
+    },
+    {
+      "name": "mdurl",
+      "version": "2.0.0",
+      "license": "MIT",
+      "directory": "node_modules/mdurl",
+      "outputContributions": {
+        "webview": 10816,
+        "extensionHost": 10030
+      },
+      "licenseFiles": [
+        "node_modules/mdurl/LICENSE"
+      ]
+    },
+    {
+      "name": "punycode.js",
+      "version": "2.3.1",
+      "license": "MIT",
+      "directory": "node_modules/punycode.js",
+      "outputContributions": {
+        "webview": 6955,
+        "extensionHost": 7516
+      },
+      "licenseFiles": [
+        "node_modules/punycode.js/LICENSE-MIT.txt"
+      ]
+    },
+    {
+      "name": "style-mod",
+      "version": "4.1.3",
+      "license": "MIT",
+      "directory": "node_modules/style-mod",
+      "outputContributions": {
+        "webview": 5448,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/style-mod/LICENSE"
+      ]
+    },
+    {
+      "name": "turndown",
+      "version": "7.2.4",
+      "license": "MIT",
+      "directory": "node_modules/turndown",
+      "outputContributions": {
+        "webview": 22857,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/turndown/LICENSE"
+      ]
+    },
+    {
+      "name": "turndown-plugin-gfm",
+      "version": "1.0.2",
+      "license": "MIT",
+      "directory": "node_modules/turndown-plugin-gfm",
+      "outputContributions": {
+        "webview": 3733,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/turndown-plugin-gfm/LICENSE"
+      ]
+    },
+    {
+      "name": "uc.micro",
+      "version": "2.1.0",
+      "license": "MIT",
+      "directory": "node_modules/uc.micro",
+      "outputContributions": {
+        "webview": 5399,
+        "extensionHost": 5369
+      },
+      "licenseFiles": [
+        "node_modules/uc.micro/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "w3c-keyname",
+      "version": "2.2.8",
+      "license": "MIT",
+      "directory": "node_modules/w3c-keyname",
+      "outputContributions": {
+        "webview": 2408,
+        "extensionHost": 0
+      },
+      "licenseFiles": [
+        "node_modules/w3c-keyname/LICENSE"
+      ]
+    }
+  ],
+  "notices": {
+    "path": "THIRD_PARTY_NOTICES.md",
+    "packageCount": 35,
+    "missingLicenseFiles": []
+  }
+}

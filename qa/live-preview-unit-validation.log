@@ -1,0 +1,50 @@
+
+> markdown-live-render-tables@0.1.174 pretest
+> npm run compile
+
+
+> markdown-live-render-tables@0.1.174 compile
+> tsc -p ./ && npm run bundle:webview && npm run bundle:extension
+
+
+> markdown-live-render-tables@0.1.174 bundle:webview
+> esbuild ./src/webview/liveEditor.ts --bundle --format=iife --platform=browser --target=es2022 --outfile=./media/liveEditor.js
+
+npm.cmd : 
+At line:2 char:1
++ npm.cmd test > qa/live-preview-unit-validation.log 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  media\liveEditor.js  1.8mb
+
+Done in 30ms
+
+> markdown-live-render-tables@0.1.174 bundle:extension
+> esbuild ./src/extension.ts --bundle --format=cjs --platform=node --target=node20 --external:vscode --sourcemap --outfile=./dist/extension.js
+
+
+  dist\extension.js      430.5kb
+  dist\extension.js.map  811.5kb
+
+Done in 15ms
+
+> markdown-live-render-tables@0.1.174 test
+> node ./dist/test/smoke.test.js && node ./dist/test/clipboard.test.js && node ./dist/test/selection.test.js && node ./dist/test/sourceProtection.test.js && node ./dist/test/tableCellInput.test.js && node ./dist/test/tableKeyboardNavigation.test.js && node ./dist/test/documentChangeValidation.test.js && node ./dist/test/tableParserReliability.test.js && node ./dist/test/tableEditingReliability.test.js && node ./dist/test/gutterFixture.test.js && node ./dist/test/markdownRendering.test.js && node ./dist/test/markdownPresentation.test.js && node ./dist/test/markdownBlocks.test.js && node ./dist/test/markdownLinks.test.js && node ./dist/test/markdownLivePreview.test.js && node scripts/check-extension-bundle.mjs && node scripts/check-markdown-host-lifecycle.mjs
+
+Markdown live editor smoke tests passed.
+clipboard model tests passed
+selection tests passed
+table cell input reliability tests passed
+table keyboard navigation configuration tests passed
+document change validation tests passed
+10,000-operation table editing reliability fuzz passed
+Gutter fixture contract passed: 10011 lines, 104 live tables.
+Markdown marker classification and task edit tests passed.
+Markdown readable-source presentation tests passed.
+Markdown block rendering tests passed.
+Markdown link checks passed: parser/reference resolution, URI allowlist, modifiers, originating session, queued edits, and async focus ownership.
+Live Preview projection, reveal, properties, code copy, and list edit plans passed.
+Extension host bundle loads without repository node_modules.
+Markdown host lifecycle checks passed: disposal, panel identity, permission ordering, and task query isolation.

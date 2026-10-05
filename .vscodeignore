@@ -15,5 +15,6 @@ package-lock.json
 *.vsix
 .gitignore
 npm-debug.log*
+debug.log
 yarn-debug.log*
 yarn-error.log*

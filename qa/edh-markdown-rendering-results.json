@@ -1,0 +1,878 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-markdown-edh-hukHXV",
+  "port": 9928,
+  "environment": {
+    "dpr": 1.25,
+    "width": 1204,
+    "height": 804,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.140.0 Chrome/150.0.7871.250 Electron/43.7.3 Safari/537.36",
+    "settings": {
+      "markdownLiveRenderTables.markdownRendering.enabled": true,
+      "markdownLiveRenderTables.debug": true,
+      "editor.fontFamily": "Consolas, 'Courier New', monospace",
+      "editor.fontSize": 14,
+      "editor.lineHeight": 0,
+      "editor.letterSpacing": 0,
+      "editor.wordWrap": "on",
+      "window.zoomLevel": 0,
+      "workbench.startupEditor": "none",
+      "workbench.colorTheme": "Default Dark Modern"
+    },
+    "live": {
+      "theme": "Dark Modern",
+      "themeKind": "vscode-dark",
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "18.9px",
+      "letterSpacing": "normal",
+      "viewport": 835,
+      "screenReader": false
+    }
+  },
+  "checks": [
+    {
+      "name": "rendering preserves source and isolates tables/code",
+      "pass": true,
+      "detail": {
+        "controls": 2,
+        "tableControls": 0,
+        "tables": 1,
+        "ackCount": 0
+      }
+    },
+    {
+      "name": "requested initial metrics are applied inside the real webview",
+      "pass": true,
+      "detail": {
+        "theme": "Dark Modern",
+        "themeKind": "vscode-dark",
+        "font": "Consolas, \"Courier New\", monospace",
+        "fontSize": "14px",
+        "lineHeight": "18.9px",
+        "letterSpacing": "normal",
+        "viewport": 835,
+        "screenReader": false
+      }
+    },
+    {
+      "name": "marker reveal retains actual following glyph boxes and document geometry",
+      "pass": true,
+      "detail": {
+        "before": {
+          "glyphs": [
+            {
+              "position": 35,
+              "x": 83.7125015258789,
+              "y": 38.60000228881836,
+              "width": 7.712501525878906,
+              "height": 16
+            },
+            {
+              "position": 122,
+              "x": 114.51250457763672,
+              "y": 57.5,
+              "width": 7.712493896484375,
+              "height": 16
+            },
+            {
+              "position": 212,
+              "x": 114.51250457763672,
+              "y": 76.4000015258789,
+              "width": 7.712493896484375,
+              "height": 16
+            },
+            {
+              "position": 226,
+              "x": 99.11250305175781,
+              "y": 95.30000305175781,
+              "width": 7.712501525878906,
+              "height": 16
+            },
+            {
+              "position": 243,
+              "x": 114.51250457763672,
+              "y": 114.20000457763672,
+              "width": 7.712493896484375,
+              "height": 15.999992370605469
+            },
+            {
+              "position": 267,
+              "x": 68.32500457763672,
+              "y": 189.8000030517578,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            {
+              "position": 387,
+              "x": 68.32500457763672,
+              "y": 381.20001220703125,
+              "width": 7.6999969482421875,
+              "height": 16
+            }
+          ],
+          "height": 1080.199993133545,
+          "scrollTop": 0,
+          "scrollWidth": 835,
+          "source": "Ordinary source before markers.\n\n- Bullet alpha and ordinary following text that should retain its exact placement.\n- [ ] Task alpha with enough following text to exercise source wrapping at narrow widths.\n- [X] Task beta\n  - Nested bullet\n\t- Tab nested bullet\n\n***\n\nAfter rule.\n\n| Marker | Content |\n| --- | --- |\n| - [ ] | Table stays owned |\n\n```md\n- [ ] Literal fenced task\n***\n```\n\nEnd source.\n",
+          "markerCount": 8,
+          "controls": 2
+        },
+        "wraps": [
+          {
+            "start": 35,
+            "rows": [
+              {
+                "from": 35,
+                "to": 115,
+                "x": 83.7125015258789,
+                "y": 38.60000228881836,
+                "right": 699.5125122070312
+              }
+            ]
+          },
+          {
+            "start": 122,
+            "rows": [
+              {
+                "from": 122,
+                "to": 205,
+                "x": 114.51250457763672,
+                "y": 57.5,
+                "right": 753.4000244140625
+              }
+            ]
+          },
+          {
+            "start": 212,
+            "rows": [
+              {
+                "from": 212,
+                "to": 221,
+                "x": 114.51250457763672,
+                "y": 76.4000015258789,
+                "right": 183.8000030517578
+              }
+            ]
+          },
+          {
+            "start": 226,
+            "rows": [
+              {
+                "from": 226,
+                "to": 239,
+                "x": 99.11250305175781,
+                "y": 95.30000305175781,
+                "right": 199.1875
+              }
+            ]
+          },
+          {
+            "start": 243,
+            "rows": [
+              {
+                "from": 243,
+                "to": 260,
+                "x": 114.51250457763672,
+                "y": 114.20000457763672,
+                "right": 245.3874969482422
+              }
+            ]
+          }
+        ],
+        "transitions": [
+          {
+            "anchor": 33,
+            "maxDelta": 0,
+            "maxWrapDelta": 0,
+            "markers": 7
+          },
+          {
+            "anchor": 118,
+            "maxDelta": 0.01250457763671875,
+            "maxWrapDelta": 0.01251220703125,
+            "markers": 7
+          },
+          {
+            "anchor": 208,
+            "maxDelta": 0.01250457763671875,
+            "maxWrapDelta": 0.01250457763671875,
+            "markers": 7
+          },
+          {
+            "anchor": 262,
+            "maxDelta": 0,
+            "maxWrapDelta": 0,
+            "markers": 7
+          },
+          {
+            "anchor": 224,
+            "maxDelta": 0,
+            "maxWrapDelta": 0,
+            "markers": 7
+          },
+          {
+            "anchor": 241,
+            "maxDelta": 0,
+            "maxWrapDelta": 0.0124969482421875,
+            "markers": 7
+          }
+        ]
+      }
+    },
+    {
+      "name": "ordinary arrow navigation exposes each task character",
+      "pass": true,
+      "detail": {
+        "right": [
+          118,
+          119,
+          120,
+          121,
+          122
+        ],
+        "left": [
+          121,
+          120,
+          119,
+          118,
+          117
+        ]
+      }
+    },
+    {
+      "name": "task marker Backspace edits one literal character and host Undo restores it",
+      "pass": true,
+      "detail": {
+        "deletedPosition": 120,
+        "undo": [
+          {
+            "source": "webviewAck",
+            "revision": 2
+          },
+          {
+            "source": "host",
+            "revision": 3
+          },
+          {
+            "source": "host",
+            "revision": 4
+          }
+        ]
+      }
+    },
+    {
+      "name": "trusted pointer task activation is one source edit and one real host Undo",
+      "pass": true,
+      "detail": {
+        "point": {
+          "x": 95.26874828338623,
+          "y": 66.15000057220459,
+          "width": 23.087499618530273,
+          "height": 18.899999618530273,
+          "hit": "<button type=\"button\" tabindex=\"-1\" class=\"mlrt-markdown-task-control\" role=\"checkbox\" data-markdown-task-from=\"118\" aria-label=\"Task alpha with enough following text to exercise s",
+          "disabled": "false"
+        },
+        "changedCodeUnit": 119,
+        "undo": [
+          {
+            "source": "webviewAck",
+            "revision": 5
+          },
+          {
+            "source": "host",
+            "revision": 6
+          },
+          {
+            "source": "host",
+            "revision": 7
+          }
+        ]
+      }
+    },
+    {
+      "name": "rapid toggles create two host Undo steps separate from preceding typing",
+      "pass": true,
+      "detail": {
+        "toggles": 2,
+        "undoSteps": 3,
+        "typingSeparate": true
+      }
+    },
+    {
+      "name": "task pointer activation preserves a rectangular table selection",
+      "pass": true,
+      "detail": {
+        "before": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 0,
+                "head": 0
+              }
+            ],
+            "main": 0
+          },
+          "rectangle": [
+            "body:0:0",
+            "body:0:1"
+          ],
+          "mixed": [],
+          "owner": "mlrt-table-widget mlrt-table-selection-mode"
+        },
+        "after": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 0,
+                "head": 0
+              }
+            ],
+            "main": 0
+          },
+          "rectangle": [
+            "body:0:0",
+            "body:0:1"
+          ],
+          "mixed": [],
+          "owner": "mlrt-table-widget mlrt-table-selection-mode"
+        },
+        "undone": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 0,
+                "head": 0
+              }
+            ],
+            "main": 0
+          },
+          "rectangle": [
+            "body:0:0",
+            "body:0:1"
+          ],
+          "mixed": [],
+          "owner": "mlrt-table-widget mlrt-table-selection-mode"
+        }
+      }
+    },
+    {
+      "name": "checkbox-origin drag hands selection through prose into the table",
+      "pass": true,
+      "detail": {
+        "selection": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 118,
+                "head": 343
+              }
+            ],
+            "main": 0
+          },
+          "rectangle": [],
+          "mixed": [
+            "body:0:0",
+            "body:0:1",
+            "header:0:0",
+            "header:0:1"
+          ],
+          "owner": "cm-content cm-lineWrapping"
+        },
+        "sourcePreserved": true,
+        "taskNotToggled": true
+      }
+    },
+    {
+      "name": "task outside a mixed prose/table selection preserves its endpoints and cells",
+      "pass": true,
+      "detail": {
+        "direction": "prose-to-table",
+        "before": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 272,
+                "head": 323
+              }
+            ],
+            "main": 0
+          },
+          "rectangle": [],
+          "mixed": [
+            "body:0:0",
+            "header:0:0"
+          ],
+          "owner": "cm-content cm-lineWrapping"
+        },
+        "atPress": {
+          "target": "mlrt-markdown-task-control",
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 272,
+                "head": 323
+              }
+            ],
+            "main": 0
+          },
+          "native": {
+            "anchorText": " rule.",
+            "anchorOffset": 0,
+            "headText": "",
+            "headOffset": 0
+          }
+        },
+        "after": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 272,
+                "head": 323
+              }
+            ],
+            "main": 0
+          },
+          "rectangle": [],
+          "mixed": [
+            "body:0:0",
+            "header:0:0"
+          ],
+          "owner": "cm-content cm-lineWrapping"
+        },
+        "undone": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 323,
+                "head": 323
+              }
+            ],
+            "main": 0
+          },
+          "rectangle": [],
+          "mixed": [],
+          "owner": "cm-content cm-lineWrapping"
+        },
+        "undoSelectionPolicy": "Existing host Undo restores a source caret; reconstruction of the mixed range is not asserted."
+      }
+    },
+    {
+      "name": "synthetic post-composition-end task action is rejected before host flush",
+      "pass": true,
+      "detail": {
+        "synthetic": true,
+        "realIME": false,
+        "nativeEnded": true,
+        "taskSuppressed": true
+      }
+    },
+    {
+      "name": "host Command Palette focuses task; Space toggles and Escape restores bookmark",
+      "pass": true,
+      "detail": {
+        "anchor": 127,
+        "undo": [
+          {
+            "source": "webviewAck",
+            "revision": 24
+          },
+          {
+            "source": "host",
+            "revision": 25
+          },
+          {
+            "source": "host",
+            "revision": 26
+          }
+        ]
+      }
+    },
+    {
+      "name": "recovery toggle restores parser and appearance without editing source",
+      "pass": true,
+      "detail": {
+        "sourcePreserved": true,
+        "tableDOMRetained": true,
+        "controlsRestored": true
+      }
+    },
+    {
+      "name": "disabling a keyboard-focused task releases to its source bookmark",
+      "pass": true,
+      "detail": {
+        "anchor": 124,
+        "sourcePreserved": true
+      }
+    },
+    {
+      "name": "focused external prefix insertion returns to the mapped source bookmark",
+      "pass": true,
+      "detail": {
+        "externalFileWrite": true,
+        "prefixLength": 17,
+        "state": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 141,
+                "head": 141
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 2,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 297
+            },
+            {
+              "from": 361,
+              "to": 416
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "focused external task deletion returns to a valid source boundary",
+      "pass": true,
+      "detail": {
+        "externalFileWrite": true,
+        "deleted": {
+          "from": 116,
+          "to": 206
+        },
+        "mappedBoundary": 119,
+        "state": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 119,
+                "head": 119
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 0,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 190
+            },
+            {
+              "from": 254,
+              "to": 309
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "newer source range supersedes the focused checkbox bookmark on disable",
+      "pass": true,
+      "detail": {
+        "before": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 10,
+                "head": 20
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": false,
+          "documentFocus": true,
+          "active": "mlrt-markdown-task-control",
+          "controls": 2,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 280
+            },
+            {
+              "from": 344,
+              "to": 399
+            }
+          ]
+        },
+        "after": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 10,
+                "head": 20
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 0,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 280
+            },
+            {
+              "from": 344,
+              "to": 399
+            }
+          ]
+        },
+        "sourcePreserved": true
+      }
+    },
+    {
+      "name": "newer source range maps through external replacement without obsolete bookmark restoration",
+      "pass": true,
+      "detail": {
+        "externalFileWrite": true,
+        "before": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 10,
+                "head": 20
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": false,
+          "documentFocus": true,
+          "active": "mlrt-markdown-task-control",
+          "controls": 2,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 280
+            },
+            {
+              "from": 344,
+              "to": 399
+            }
+          ]
+        },
+        "after": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 27,
+                "head": 37
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 2,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 297
+            },
+            {
+              "from": 361,
+              "to": 416
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "focused checkbox viewport eviction releases focus without scrolling back",
+      "pass": true,
+      "detail": {
+        "fixtureTasks": 2002,
+        "before": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 124,
+                "head": 124
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 92,
+          "scrollTop": 3065.60009765625,
+          "visibleRanges": [
+            {
+              "from": 3115,
+              "to": 5414
+            }
+          ]
+        },
+        "after": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 124,
+                "head": 124
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 92,
+          "scrollTop": 3065.60009765625,
+          "visibleRanges": [
+            {
+              "from": 3115,
+              "to": 5414
+            }
+          ]
+        },
+        "projection": {
+          "oldControlConnected": false,
+          "oldControlPresent": false,
+          "markers": 184,
+          "sizes": 184,
+          "controls": 92
+        },
+        "sourcePreserved": true
+      }
+    },
+    {
+      "name": "host accessibility mode releases task focus and restores literal source",
+      "pass": true,
+      "detail": {
+        "actualHostSetting": true,
+        "actualScreenReader": false,
+        "state": {
+          "selection": {
+            "ranges": [
+              {
+                "anchor": 124,
+                "head": 124
+              }
+            ],
+            "main": 0
+          },
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 0,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 280
+            },
+            {
+              "from": 344,
+              "to": 399
+            }
+          ]
+        },
+        "sourcePreserved": true,
+        "tableDOMRetained": true
+      }
+    },
+    {
+      "name": "Markdown Enter continuation stays usable with rendering on and off",
+      "pass": true,
+      "detail": [
+        {
+          "enabled": true,
+          "continued": true
+        },
+        {
+          "enabled": false,
+          "continued": true
+        }
+      ]
+    },
+    {
+      "name": "live light/high-contrast theme updates retain source and table DOM",
+      "pass": true,
+      "detail": {
+        "themes": [
+          {
+            "theme": "Light Modern",
+            "kind": "vscode-light",
+            "controls": 2
+          },
+          {
+            "theme": "Default High Contrast",
+            "kind": "vscode-high-contrast",
+            "controls": 2
+          },
+          {
+            "theme": "Dark Modern",
+            "kind": "vscode-dark",
+            "controls": 2
+          }
+        ],
+        "tableDOMRetained": true,
+        "sourcePreserved": true
+      }
+    },
+    {
+      "name": "unsafe bidi marker geometry releases a focused control to source",
+      "pass": true,
+      "detail": {
+        "bidiLevels": [
+          0,
+          1
+        ],
+        "expectedSourceEditOnly": true,
+        "bookmark": 124
+      }
+    },
+    {
+      "name": "host rejects a task after file becomes read-only",
+      "pass": true,
+      "detail": {
+        "readOnly": true,
+        "last": "webviewReject"
+      }
+    },
+    {
+      "name": "injected rendering update failure leaves editable source and protected tables",
+      "pass": true,
+      "detail": {
+        "fault": "classification update",
+        "sourceInputUsable": true,
+        "hostUndoUsable": true,
+        "tablesPreserved": true
+      }
+    }
+  ],
+  "limitations": [
+    "No actual OS IME or screen reader was exercised by this script.",
+    "These focused marker checks do not replace the stock/live baseline gate or the complete release matrix."
+  ],
+  "finalSourceMatches": true,
+  "runtimeErrors": [],
+  "console": {
+    "expectedFaultWarnings": [
+      {
+        "type": "warning",
+        "text": "Markdown rendering disabled for this view after a presentation failure."
+      }
+    ],
+    "unexpected": []
+  },
+  "passed": true
+}

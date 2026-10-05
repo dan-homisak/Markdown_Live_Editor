@@ -1,0 +1,448 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-RjnkOf",
+  "port": 56790,
+  "checks": [
+    {
+      "name": "actual rendered performance and host acknowledgement samples",
+      "pass": true,
+      "detail": {
+        "fixtures": [
+          {
+            "lineCount": 10000,
+            "enabled": false,
+            "classes": {
+              "scroll": {
+                "count": 100,
+                "p50Ms": 11.9,
+                "p95Ms": 13.7,
+                "maxMs": 15,
+                "totalMs": 1166.4
+              }
+            }
+          },
+          {
+            "lineCount": 10000,
+            "enabled": true,
+            "classes": {
+              "scroll": {
+                "count": 100,
+                "p50Ms": 14.3,
+                "p95Ms": 20.2,
+                "maxMs": 21.9,
+                "totalMs": 1487.2
+              }
+            }
+          },
+          {
+            "lineCount": 100000,
+            "enabled": false,
+            "classes": {
+              "scroll": {
+                "count": 100,
+                "p50Ms": 11.8,
+                "p95Ms": 12.7,
+                "maxMs": 27.3,
+                "totalMs": 1161.9
+              }
+            }
+          },
+          {
+            "lineCount": 100000,
+            "enabled": true,
+            "classes": {
+              "scroll": {
+                "count": 100,
+                "p50Ms": 17.2,
+                "p95Ms": 24.9,
+                "maxMs": 30.7,
+                "totalMs": 1765.9
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "environment": {
+    "stock": {
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "19px",
+      "dpr": 1.25,
+      "width": 1204,
+      "height": 804
+    }
+  },
+  "limitations": [
+    "OS IME and an actual screen reader are not exercised by this automated script.",
+    "Forced colors uses Chromium emulation, not a changed Windows system theme."
+  ],
+  "finalSourceMatches": true,
+  "console": [
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166447902.953,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "onScrollChanged",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 10505,
+          "columnNumber": 18
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 10496,
+          "columnNumber": 17
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166448273.687,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "onScrollChanged",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 10505,
+          "columnNumber": 18
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 10496,
+          "columnNumber": 17
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166454888.561,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11534,
+          "columnNumber": 74
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166455574.434,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11534,
+          "columnNumber": 74
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166457638.917,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "onScrollChanged",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 10505,
+          "columnNumber": 18
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 10496,
+          "columnNumber": 17
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166458132.96,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "onScrollChanged",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 10505,
+          "columnNumber": 18
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 10496,
+          "columnNumber": 17
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166464900.673,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11534,
+          "columnNumber": 74
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166465608.502,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11534,
+          "columnNumber": 74
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166475195.962,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11534,
+          "columnNumber": 74
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166475917.781,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11534,
+          "columnNumber": 74
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166485829.727,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11534,
+          "columnNumber": 74
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "text": "Measure loop restarted more than 5 times",
+      "timestamp": 1791166486539.442,
+      "stack": [
+        {
+          "functionName": "win.console.warn",
+          "scriptId": "13",
+          "url": "",
+          "lineNumber": 21,
+          "columnNumber": 17
+        },
+        {
+          "functionName": "measure",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11394,
+          "columnNumber": 20
+        },
+        {
+          "functionName": "",
+          "scriptId": "8",
+          "url": "",
+          "lineNumber": 11534,
+          "columnNumber": 74
+        }
+      ]
+    }
+  ],
+  "passed": false
+}

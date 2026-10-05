@@ -28,6 +28,11 @@ import {
 import { allowTableSourceChange } from "../shared/tableSourceProtection";
 import { editorDragPosition } from "./dragPosition";
 import {
+  isMarkdownTaskPointerActivation,
+  MARKDOWN_MARKER_DRAG_EVENT,
+  MarkdownMarkerDragDetail,
+} from "./markdown/markdownPointer";
+import {
   clearDocumentSelectionProjection,
   documentSelectionProjectionsEqual,
   documentSelectionProjectionTransaction,
@@ -125,6 +130,7 @@ export function createDocumentSelectionInputHandler(): Extension {
 export function installDocumentClipboard(
   root: HTMLElement,
   view: EditorView,
+  contextActions?: (event: MouseEvent) => readonly DocumentContextAction[],
 ): () => void {
   const doc = root.ownerDocument;
   let mixedDragAnchor: number | null = null;
@@ -316,19 +322,14 @@ export function installDocumentClipboard(
   };
 
   const onContextMenu = (event: MouseEvent): void => {
-    if (
-      !root.contains(event.target as Node) ||
-      !shouldPreserveContextSelection(event)
-    ) {
-      return;
-    }
-    const range = atomicDocumentSelection(view);
-    if (!range) {
-      return;
-    }
+    if (!root.contains(event.target as Node)) return;
+    const preservesSelection = shouldPreserveContextSelection(event);
+    if (!preservesSelection && (findCell(event.target) || !view.state.selection.main.empty)) return;
+    const extraActions = preservesSelection ? [] : contextActions?.(event) ?? [];
+    if (!atomicDocumentSelection(view) && extraActions.length === 0) return;
     event.preventDefault();
     event.stopPropagation();
-    showDocumentMenu(doc, view, event.clientX, event.clientY);
+    showDocumentMenu(doc, view, event.clientX, event.clientY, extraActions);
   };
 
   const shouldPreserveContextSelection = (event: MouseEvent): boolean => {
@@ -366,6 +367,7 @@ export function installDocumentClipboard(
     }
     if (
       event.button !== 0 ||
+      isMarkdownTaskPointerActivation(event) ||
       findCell(event.target) ||
       (event.target instanceof Element &&
         Boolean(event.target.closest(".mlrt-table-widget")))
@@ -380,11 +382,15 @@ export function installDocumentClipboard(
     if (anchor === null) {
       return;
     }
+    beginMixedDrag(anchor, event.pointerId);
+  };
+
+  const beginMixedDrag = (anchor: number, pointerId: number): void => {
     mixedDragAnchor = anchor;
     mixedDragRange = null;
     mixedDragProjection = null;
     mixedDragActive = false;
-    mixedDragPointerId = event.pointerId;
+    mixedDragPointerId = pointerId;
     mixedDragOwnsPointerCapture = false;
     mixedDragGeneration += 1;
     mixedDragDocument = view.state.doc;
@@ -396,6 +402,40 @@ export function installDocumentClipboard(
     doc.addEventListener("mousemove", onMixedMouseMove, true);
     doc.addEventListener("mouseup", onMixedMouseUp, true);
     doc.addEventListener("click", onMixedClick, true);
+  };
+
+  const onMarkdownMarkerDrag = (event: Event): void => {
+    const detail = (event as CustomEvent<MarkdownMarkerDragDetail>).detail;
+    if (
+      documentClipboardDisposed || event.target !== view.dom || !detail ||
+      !Number.isInteger(detail.anchor) || detail.anchor < 0 || detail.anchor > view.state.doc.length
+    ) {
+      return;
+    }
+    const pointer = detail.pointerEvent;
+    if (
+      !pointer || !pointer.isPrimary || (pointer.buttons & 1) === 0 ||
+      pointer.ctrlKey || pointer.metaKey || pointer.altKey || pointer.shiftKey ||
+      !Number.isInteger(pointer.pointerId) ||
+      getParsedTables(view.state.doc).some(table => detail.anchor >= table.from && detail.anchor < table.to)
+    ) {
+      return;
+    }
+    if (mixedDragPointerId !== null) finishMixedDrag(false);
+    // Pointerdown on a checkbox preserves its previous editing selection. Once
+    // that gesture becomes a drag, use the established source/table projection
+    // owner for the entire gesture, including its initial prose-only portion.
+    clearTableRangeSelection(doc);
+    beginMixedDrag(detail.anchor, pointer.pointerId);
+    mixedDragActive = true;
+    try {
+      root.setPointerCapture(pointer.pointerId);
+      mixedDragOwnsPointerCapture = root.hasPointerCapture(pointer.pointerId);
+    } catch {
+      // Document listeners still handle synthetic/released platform pointers.
+    }
+    updateMixedDrag(pointer);
+    event.preventDefault();
   };
 
   const onRootMouseDown = (event: MouseEvent): void => {
@@ -793,6 +833,7 @@ export function installDocumentClipboard(
   // document selection preserves the document selection and its operations.
   root.addEventListener("contextmenu", onContextMenu, true);
   root.addEventListener("pointerdown", onRootPointerDown, true);
+  root.addEventListener(MARKDOWN_MARKER_DRAG_EVENT, onMarkdownMarkerDrag);
   root.addEventListener("lostpointercapture", onLostPointerCapture, true);
   root.addEventListener("mousedown", onRootMouseDown, true);
   doc.defaultView?.addEventListener("blur", onWindowBlur);
@@ -805,6 +846,7 @@ export function installDocumentClipboard(
     doc.removeEventListener("keydown", onKeyDown);
     root.removeEventListener("contextmenu", onContextMenu, true);
     root.removeEventListener("pointerdown", onRootPointerDown, true);
+    root.removeEventListener(MARKDOWN_MARKER_DRAG_EVENT, onMarkdownMarkerDrag);
     root.removeEventListener("lostpointercapture", onLostPointerCapture, true);
     root.removeEventListener("mousedown", onRootMouseDown, true);
     doc.defaultView?.removeEventListener("blur", onWindowBlur);
@@ -2322,17 +2364,23 @@ function atomicDocumentSelection(
   return { from, to, empty: false };
 }
 
+export interface DocumentContextAction {
+  label: string;
+  run: () => void;
+}
+
 function showDocumentMenu(
   doc: Document,
   view: EditorView,
   clientX: number,
   clientY: number,
+  extraActions: readonly DocumentContextAction[] = [],
 ): void {
   documentMenuClosers.get(doc)?.();
   const menu = doc.createElement("div");
   menu.className = "mlrt-clipboard-menu mlrt-document-clipboard-menu";
   menu.setAttribute("role", "menu");
-  menu.setAttribute("aria-label", "Document clipboard actions");
+  menu.setAttribute("aria-label", "Document actions");
   const close = (restoreFocus = false): void => {
     menu.remove();
     doc.removeEventListener("pointerdown", closeOnOutsidePointer, true);
@@ -2398,6 +2446,8 @@ function showDocumentMenu(
     });
     menu.append(item);
   };
+  extraActions.forEach(action => add(action.label, action.run));
+  if (!view.state.selection.main.empty) {
   add("Cut / Move within document", () => {
     if (!doc.execCommand("cut")) {
       announce(doc, "Cut failed. Use Cmd/Ctrl+X.");
@@ -2409,6 +2459,7 @@ function showDocumentMenu(
         void copyDocumentThroughMenu(doc, view, mode);
       }),
   );
+  }
   (["auto", "rich", "plain", "markdown"] as ClipboardPasteMode[]).forEach(
     (mode) =>
       add(`Paste ${capitalize(mode)}`, () => {
@@ -2509,6 +2560,8 @@ async function writeDocumentAsyncClipboard(
   }
   await navigator.clipboard.write([new ClipboardItem(data)]);
 }
+
+export { announce as announceEditorStatus };
 
 function announce(doc: Document, message: string): void {
   let status = doc.querySelector<HTMLElement>(".mlrt-clipboard-status");

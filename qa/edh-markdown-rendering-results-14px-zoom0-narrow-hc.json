@@ -1,0 +1,258 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-markdown-edh-Lv8dSC",
+  "port": 9972,
+  "environment": {
+    "windowResizeUnavailable": "Error: {\"code\":-32601,\"message\":\"'Browser.getWindowForTarget' wasn't found\"}",
+    "widthMethod": "CodeMirror view width constrained to 450 CSS px inside unchanged workbench",
+    "dpr": 1.25,
+    "width": 1204,
+    "height": 804,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.140.0 Chrome/150.0.7871.250 Electron/43.7.3 Safari/537.36",
+    "settings": {
+      "markdownLiveRenderTables.markdownRendering.enabled": true,
+      "markdownLiveRenderTables.debug": true,
+      "editor.fontFamily": "Consolas, 'Courier New', monospace",
+      "editor.fontSize": 14,
+      "editor.lineHeight": 0,
+      "editor.letterSpacing": 0,
+      "editor.wordWrap": "on",
+      "window.zoomLevel": 0,
+      "workbench.startupEditor": "none",
+      "workbench.colorTheme": "Default High Contrast"
+    },
+    "live": {
+      "theme": "Default High Contrast",
+      "themeKind": "vscode-high-contrast",
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "18.9px",
+      "letterSpacing": "normal",
+      "viewport": 435,
+      "screenReader": false
+    }
+  },
+  "checks": [
+    {
+      "name": "rendering preserves source and isolates tables/code",
+      "pass": true,
+      "detail": {
+        "controls": 2,
+        "tableControls": 0,
+        "tables": 1,
+        "ackCount": 0
+      }
+    },
+    {
+      "name": "requested initial metrics are applied inside the real webview",
+      "pass": true,
+      "detail": {
+        "theme": "Default High Contrast",
+        "themeKind": "vscode-high-contrast",
+        "font": "Consolas, \"Courier New\", monospace",
+        "fontSize": "14px",
+        "lineHeight": "18.9px",
+        "letterSpacing": "normal",
+        "viewport": 435,
+        "screenReader": false
+      }
+    },
+    {
+      "name": "marker reveal retains actual following glyph boxes and document geometry",
+      "pass": true,
+      "detail": {
+        "before": {
+          "glyphs": [
+            {
+              "position": 35,
+              "x": 83.7125015258789,
+              "y": 38.60000228881836,
+              "width": 7.712501525878906,
+              "height": 16
+            },
+            {
+              "position": 122,
+              "x": 114.51250457763672,
+              "y": 76.4000015258789,
+              "width": 7.712493896484375,
+              "height": 16
+            },
+            {
+              "position": 212,
+              "x": 114.51250457763672,
+              "y": 133.10000610351562,
+              "width": 7.712493896484375,
+              "height": 16
+            },
+            {
+              "position": 226,
+              "x": 99.11250305175781,
+              "y": 152,
+              "width": 7.712501525878906,
+              "height": 16
+            },
+            {
+              "position": 243,
+              "x": 114.51250457763672,
+              "y": 170.90000915527344,
+              "width": 7.712493896484375,
+              "height": 16
+            },
+            {
+              "position": 267,
+              "x": 68.32500457763672,
+              "y": 246.5,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            {
+              "position": 387,
+              "x": 68.32500457763672,
+              "y": 437.8999938964844,
+              "width": 7.6999969482421875,
+              "height": 16
+            }
+          ],
+          "height": 1136.8999938964844,
+          "scrollTop": 0,
+          "scrollWidth": 435,
+          "source": "Ordinary source before markers.\n\n- Bullet alpha and ordinary following text that should retain its exact placement.\n- [ ] Task alpha with enough following text to exercise source wrapping at narrow widths.\n- [X] Task beta\n  - Nested bullet\n\t- Tab nested bullet\n\n***\n\nAfter rule.\n\n| Marker | Content |\n| --- | --- |\n| - [ ] | Table stays owned |\n\n```md\n- [ ] Literal fenced task\n***\n```\n\nEnd source.\n",
+          "markerCount": 8,
+          "controls": 2
+        },
+        "wraps": [
+          {
+            "start": 35,
+            "rows": [
+              {
+                "from": 35,
+                "to": 76,
+                "x": 83.7125015258789,
+                "y": 38.60000228881836,
+                "right": 399.3125
+              },
+              {
+                "from": 76,
+                "to": 115,
+                "x": 68.32500457763672,
+                "y": 57.5,
+                "right": 368.5249938964844
+              }
+            ]
+          },
+          {
+            "start": 122,
+            "rows": [
+              {
+                "from": 122,
+                "to": 160,
+                "x": 114.51250457763672,
+                "y": 76.4000015258789,
+                "right": 407.0249938964844
+              },
+              {
+                "from": 160,
+                "to": 198,
+                "x": 68.32500457763672,
+                "y": 95.30000305175781,
+                "right": 360.82501220703125
+              },
+              {
+                "from": 198,
+                "to": 205,
+                "x": 68.32500457763672,
+                "y": 114.20000457763672,
+                "right": 122.2125015258789
+              }
+            ]
+          },
+          {
+            "start": 212,
+            "rows": [
+              {
+                "from": 212,
+                "to": 221,
+                "x": 114.51250457763672,
+                "y": 133.10000610351562,
+                "right": 183.8000030517578
+              }
+            ]
+          },
+          {
+            "start": 226,
+            "rows": [
+              {
+                "from": 226,
+                "to": 239,
+                "x": 99.11250305175781,
+                "y": 152,
+                "right": 199.1875
+              }
+            ]
+          },
+          {
+            "start": 243,
+            "rows": [
+              {
+                "from": 243,
+                "to": 260,
+                "x": 114.51250457763672,
+                "y": 170.90000915527344,
+                "right": 245.3874969482422
+              }
+            ]
+          }
+        ],
+        "transitions": [
+          {
+            "anchor": 33,
+            "maxDelta": 0,
+            "maxWrapDelta": 0,
+            "markers": 7
+          },
+          {
+            "anchor": 118,
+            "maxDelta": 0.01250457763671875,
+            "maxWrapDelta": 0.01250457763671875,
+            "markers": 7
+          },
+          {
+            "anchor": 208,
+            "maxDelta": 0.01250457763671875,
+            "maxWrapDelta": 0.01250457763671875,
+            "markers": 7
+          },
+          {
+            "anchor": 262,
+            "maxDelta": 0,
+            "maxWrapDelta": 0,
+            "markers": 7
+          },
+          {
+            "anchor": 224,
+            "maxDelta": 0,
+            "maxWrapDelta": 0,
+            "markers": 7
+          },
+          {
+            "anchor": 241,
+            "maxDelta": 0,
+            "maxWrapDelta": 0.0124969482421875,
+            "markers": 7
+          }
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "No actual OS IME or screen reader was exercised by this script.",
+    "This focused prototype script does not replace the stock/live baseline gate or the complete release matrix.",
+    "Electron does not expose CDP Browser window bounds; narrow geometry constrains the editor view inside the existing workbench, not the OS window."
+  ],
+  "finalSourceMatches": true,
+  "runtimeErrors": [],
+  "console": {
+    "expectedFaultWarnings": [],
+    "unexpected": []
+  },
+  "passed": true
+}

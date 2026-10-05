@@ -1,0 +1,59 @@
+/* Literal-source semantic roles. No padding, font-size, line-height, margins,
+   whitespace normalization, or broad descendant rules belong in this layer. */
+.cm-editor {
+  --mlrt-markdown-foreground: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-background: transparent;
+  --mlrt-markdown-heading: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-link: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-destination: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-title: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-punctuation: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-inline-code-foreground: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-inline-code-background: transparent;
+  --mlrt-markdown-inline-code-outline: none;
+  --mlrt-markdown-code-foreground: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-code-background: transparent;
+  --mlrt-markdown-code-comment: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-code-constant: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-code-declaration: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-code-keyword: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-code-string: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-code-variable: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-code-tag: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-alert-note: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-alert-tip: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-alert-important: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-alert-warning: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-alert-caution: var(--vscode-editor-foreground, currentColor);
+}
+.cm-content .mlrt-markdown-role-heading { color: var(--mlrt-markdown-heading); }
+.cm-content .mlrt-markdown-role-punctuation { color: var(--mlrt-markdown-punctuation); }
+.cm-content .mlrt-markdown-role-link { color: var(--mlrt-markdown-link); }
+.cm-content .mlrt-markdown-role-destination { color: var(--mlrt-markdown-destination); }
+.cm-content .mlrt-markdown-role-title { color: var(--mlrt-markdown-title); }
+.cm-content .mlrt-markdown-role-code { color: var(--mlrt-markdown-inline-code-foreground); }
+.cm-content .mlrt-markdown-role-comment { color: var(--mlrt-markdown-code-comment); }
+.cm-content .mlrt-markdown-role-tag { color: var(--mlrt-markdown-code-tag); }
+.cm-content .mlrt-markdown-role-variable { color: var(--mlrt-markdown-code-variable); }
+.cm-content .mlrt-markdown-role-string { color: var(--mlrt-markdown-code-string); }
+.cm-content .mlrt-markdown-role-keyword { color: var(--mlrt-markdown-code-keyword); }
+.cm-content .mlrt-markdown-bold { font-weight: 700; }
+.cm-content .mlrt-markdown-italic { font-style: italic; }
+.cm-content .mlrt-markdown-strike { text-decoration-line: line-through; }
+.cm-content .mlrt-markdown-code-font { font-weight: var(--mlrt-editor-font-weight, normal); font-style: normal; }
+.cm-content .mlrt-markdown-inline-code {
+  background-color: var(--mlrt-markdown-inline-code-background);
+  box-shadow: var(--mlrt-markdown-inline-code-outline);
+  border-radius: 4px;
+}
+/* Added exclusively by the validated modifier-hover interaction owner. */
+.cm-content .mlrt-markdown-link-actionable-hover { text-decoration-line: underline; cursor: pointer; }
+.cm-content .mlrt-markdown-strike.mlrt-markdown-link-actionable-hover { text-decoration-line: line-through underline; }
+.cm-content .mlrt-markdown-link-actionable-hover .mlrt-markdown-strike,
+.cm-content .mlrt-markdown-strike .mlrt-markdown-link-actionable-hover { text-decoration-line: line-through underline; }
+@media (forced-colors: active) {
+  .cm-content .mlrt-markdown-source { color: CanvasText; }
+  .cm-content .mlrt-markdown-role-link,
+  .cm-content .mlrt-markdown-role-destination { color: LinkText; }
+  .cm-content .mlrt-markdown-inline-code { background: transparent; box-shadow: none; outline: 1px solid CanvasText; outline-offset: -1px; }
+}

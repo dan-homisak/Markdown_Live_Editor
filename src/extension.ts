@@ -6,6 +6,19 @@ import {
   normalizeDocumentText,
 } from "./shared/documentChangeMapping";
 import { validateDocumentChangeClaim } from "./shared/documentChangeValidation";
+import { parseMarkdownTables } from "./shared/tableModel";
+import {
+  findMarkdownLinkAt,
+  isMarkdownOpenLinkRequest,
+  MarkdownLinkResult,
+  MarkdownOpenLinkRequest,
+  resolveMarkdownSourceLink,
+  markdownFragmentOffset,
+} from "./shared/markdownLinkValidation";
+import {
+  markdownRenderingParser,
+  planTaskToggle,
+} from "./editor/markdown/markdownSyntax";
 import {
   DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY,
   normalizeTableNavigationModifierKey,
@@ -18,6 +31,7 @@ const DEFAULT_COPY_MODE_SETTING = "clipboard.defaultCopyMode";
 const DEFAULT_PASTE_MODE_SETTING = "clipboard.defaultPasteMode";
 const TABLE_NAVIGATION_MODIFIER_KEY_SETTING =
   "tableNavigation.modifierKey";
+const MARKDOWN_RENDERING_ENABLED_SETTING = "markdownRendering.enabled";
 const REOPEN_ACTIVE_EDITOR_WITH_COMMAND = "reopenActiveEditorWith";
 const DEFAULT_EDITOR_ID = "default";
 
@@ -53,6 +67,18 @@ export function activate(context: vscode.ExtensionContext): void {
         debugOutputChannel?.show(true);
       },
     ),
+    vscode.commands.registerCommand(
+      "markdownLiveRenderTables.toggleTaskCheckbox",
+      () => provider.runMarkdownTaskCommand("toggle"),
+    ),
+    vscode.commands.registerCommand(
+      "markdownLiveRenderTables.focusTaskCheckbox",
+      () => provider.runMarkdownTaskCommand("focus"),
+    ),
+    vscode.commands.registerCommand(
+      "markdownLiveRenderTables.openMarkdownLinkAtCaret",
+      () => provider.runMarkdownLinkCommand(),
+    ),
   );
 }
 
@@ -73,15 +99,69 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
     return this.panelsByDocument.get(uri.toString())?.viewColumn;
   }
 
-  public resolveCustomTextEditor(
+  public async runMarkdownTaskCommand(
+    action: HostMarkdownTaskCommandMessage["action"],
+  ): Promise<void> {
+    // The palette temporarily takes keyboard focus. The selected custom tab
+    // and its active panel still identify the invoking editing context; a
+    // previously active document alone is never enough to route an action.
+    const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+    if (
+      !(input instanceof vscode.TabInputCustom) ||
+      input.viewType !== LIVE_EDITOR_VIEW_TYPE
+    ) {
+      return;
+    }
+    const panel = this.panelsByDocument.get(input.uri.toString());
+    if (
+      !panel?.active ||
+      this.activeLiveDocumentUri?.toString() !== input.uri.toString()
+    ) {
+      return;
+    }
+    await panel.webview.postMessage({
+      type: "markdownTaskCommand",
+      action,
+    } satisfies HostMarkdownTaskCommandMessage);
+  }
+
+  public async runMarkdownLinkCommand(): Promise<void> {
+    const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+    if (!(input instanceof vscode.TabInputCustom) || input.viewType !== LIVE_EDITOR_VIEW_TYPE) return;
+    const panel = this.panelsByDocument.get(input.uri.toString());
+    if (!panel?.active || this.activeLiveDocumentUri?.toString() !== input.uri.toString()) return;
+    await panel.webview.postMessage({ type: "markdownLinkCommand", action: "open" });
+  }
+
+  public async resolveCustomTextEditor(
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel,
-  ): void {
+  ): Promise<void> {
     const webview = webviewPanel.webview;
     const scriptText = this.readMediaText("liveEditor.js");
-    const styleText = this.readMediaText("liveEditor.css");
+    const styleText = ["liveEditor.css", "markdownPresentation.css", "markdownBlocks.css"]
+      .filter(fileName => fs.existsSync(vscode.Uri.joinPath(this.context.extensionUri, "media", fileName).fsPath))
+      .map(fileName => this.readMediaText(fileName)).join("\n");
     const documentKey = document.uri.toString();
     const clipboardDocumentToken = randomUUID();
+    const disposables: vscode.Disposable[] = [];
+    let disposed = false;
+    let readOnlyQueryGeneration = 0;
+    // Remote/filesystem permission queries can outlive an editor opened and
+    // immediately closed. Install disposal before the first asynchronous read.
+    disposables.push(webviewPanel.onDidDispose(() => {
+      disposed = true;
+      readOnlyQueryGeneration++;
+      if (this.panelsByDocument.get(documentKey) === webviewPanel) {
+        this.panelsByDocument.delete(documentKey);
+        if (this.activeLiveDocumentUri?.toString() === documentKey) {
+          this.activeLiveDocumentUri = undefined;
+        }
+      }
+      vscode.Disposable.from(...disposables).dispose();
+    }));
+    let knownReadOnly = await isDocumentKnownReadOnly(document.uri);
+    if (disposed || document.isClosed) return;
 
     this.panelsByDocument.set(documentKey, webviewPanel);
     if (webviewPanel.active) {
@@ -99,6 +179,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
     let applyingFromWebview = false;
     let applyQueue: Promise<void> = Promise.resolve();
     let documentRevision = 0;
+    let lastMarkdownLinkRequestId = 0;
     // Once a claim is rejected, every message sent before the webview receives
     // that rejection belongs to the invalidated optimistic branch. The
     // webview intentionally clears all of those pending echoes; this floor
@@ -109,6 +190,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
       source: HostSetDocumentMessage["source"] = "host",
       ackId?: number,
     ): number => {
+      if (disposed || document.isClosed) return documentRevision;
       documentRevision++;
       const text = normalizeDocumentText(document.getText());
       void webview.postMessage({
@@ -119,6 +201,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
         editorOptions: getEditorOptions(
           document.uri,
           clipboardDocumentToken,
+          knownReadOnly,
         ),
         source,
         ackId,
@@ -134,13 +217,27 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
     };
 
     const postEditorOptions = (): void => {
+      if (disposed || document.isClosed) return;
       void webview.postMessage({
         type: "setEditorOptions",
         editorOptions: getEditorOptions(
           document.uri,
           clipboardDocumentToken,
+          knownReadOnly,
         ),
       } satisfies HostSetEditorOptionsMessage);
+    };
+
+    const refreshReadOnly = async (): Promise<boolean> => {
+      const generation = ++readOnlyQueryGeneration;
+      const nextReadOnly = await isDocumentKnownReadOnly(document.uri);
+      if (!disposed && !document.isClosed && generation === readOnlyQueryGeneration && nextReadOnly !== knownReadOnly) {
+        knownReadOnly = nextReadOnly;
+        postEditorOptions();
+      }
+      // A queued action validates its own query result. A concurrent older
+      // ready/activation query must not change that decision via shared state.
+      return nextReadOnly;
     };
 
     const applyFromWebview = (message: ChangeMessage): void => {
@@ -162,6 +259,18 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
             );
             rejectWebviewChange(message.changeId);
             return;
+          }
+          if (message.sourceAction === "markdownTaskToggle") {
+            if (disposed || document.isClosed) return;
+            const taskReadOnly = await refreshReadOnly();
+            if (disposed || document.isClosed) return;
+            if (taskReadOnly || !isSingleTaskToggleClaim(message)) {
+              logDebug(
+                `reject task change ${message.changeId ?? "unknown"}: ${taskReadOnly ? "read-only document" : "invalid task edit"}`,
+              );
+              rejectWebviewChange(message.changeId);
+              return;
+            }
           }
           const authoritativeBeforeText = normalizeDocumentText(
             document.getText(),
@@ -275,7 +384,105 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
         });
     };
 
-    const disposables: vscode.Disposable[] = [];
+    const isInvokingPanelActive = (): boolean => {
+      const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+      return !disposed && !document.isClosed && webviewPanel.active &&
+        this.panelsByDocument.get(documentKey) === webviewPanel &&
+        this.activeLiveDocumentUri?.toString() === documentKey &&
+        input instanceof vscode.TabInputCustom && input.viewType === LIVE_EDITOR_VIEW_TYPE &&
+        input.uri.toString() === documentKey;
+    };
+
+    const openLinkFromWebview = (message: MarkdownOpenLinkRequest): void => {
+      let settled = false;
+      const finish = (ok: boolean, explanation?: string): void => {
+        if (settled) return;
+        settled = true;
+        if (disposed) return;
+        void webview.postMessage({ type: "markdownLinkResult", requestId: message.requestId,
+          ok, message: explanation } satisfies MarkdownLinkResult);
+        if (!ok && explanation && isInvokingPanelActive()) {
+          void vscode.window.showInformationMessage(explanation);
+        }
+      };
+      if (message.sessionToken !== clipboardDocumentToken || message.requestId <= lastMarkdownLinkRequestId) {
+        finish(false, "This link request is no longer current.");
+        return;
+      }
+      lastMarkdownLinkRequestId = message.requestId;
+      applyQueue = applyQueue.then(async () => {
+        if (!isInvokingPanelActive()) { finish(false); return; }
+        if (!vscode.workspace.getConfiguration("markdownLiveRenderTables", document.uri)
+          .get<boolean>(MARKDOWN_RENDERING_ENABLED_SETTING, true)) {
+          finish(false, "Markdown link actions are disabled."); return;
+        }
+        const currentText = normalizeDocumentText(document.getText());
+        const currentVersion = document.version;
+        if (message.baseRevision < minimumWebviewBaseRevision || message.baseRevision > documentRevision ||
+            normalizeDocumentText(message.beforeText) !== currentText || message.to > currentText.length) {
+          finish(false, "The document changed before this link could be opened. Try again."); return;
+        }
+        const link = findMarkdownLinkAt(currentText, markdownRenderingParser.parse(currentText),
+          message.from, parseMarkdownTables(currentText));
+        if (!link || link.from !== message.from || link.to !== message.to) {
+          finish(false, "There is no current Markdown link at this source range."); return;
+        }
+        const target = resolveMarkdownSourceLink(link,
+          document.isUntitled ? null : document.uri.toString());
+        if (!target.ok) { finish(false, target.reason); return; }
+        let uri = vscode.Uri.parse(target.uri, true);
+        if (target.kind === "external") {
+          const opened = await vscode.env.openExternal(uri);
+          finish(opened, opened ? undefined : "VS Code could not open this link.");
+          return;
+        }
+        let targetDocument: vscode.TextDocument;
+        try { targetDocument = await vscode.workspace.openTextDocument(uri); }
+        catch (error) {
+          if (link.kind !== "wiki") throw error;
+          // A vault-style short name first resolves beside this note, then in
+          // the containing workspace. Never pick an ambiguous basename silently.
+          const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+          if (!folder || !isInvokingPanelActive()) throw error;
+          const basename = uri.path.slice(uri.path.lastIndexOf("/") + 1);
+          const escaped = basename.replace(/[?*{}[\]]/gu, char => `[${char}]`);
+          const matches = await vscode.workspace.findFiles(new vscode.RelativePattern(folder, `**/${escaped}`), "**/{node_modules,.git}/**", 100);
+          if (!isInvokingPanelActive() || !matches.length) throw error;
+          if (matches.length === 1) uri = matches[0];
+          else {
+            const selected = await vscode.window.showQuickPick(matches.map(candidate => ({ label: vscode.workspace.asRelativePath(candidate), uri: candidate })), { placeHolder: "Choose the note for this wikilink" });
+            if (!selected || !isInvokingPanelActive()) { finish(false); return; }
+            uri = selected.uri;
+          }
+          targetDocument = await vscode.workspace.openTextDocument(uri);
+        }
+        // A slow remote provider may resolve after the user switches editors.
+        // Reading may finish, but the obsolete request must not steal focus.
+        if (!isInvokingPanelActive() || document.version !== currentVersion ||
+            normalizeDocumentText(document.getText()) !== currentText ||
+            !vscode.workspace.getConfiguration("markdownLiveRenderTables", document.uri)
+              .get<boolean>(MARKDOWN_RENDERING_ENABLED_SETTING, true)) {
+          finish(false); return;
+        }
+        let selection: vscode.Range | undefined;
+        if (target.fragment) {
+          const targetText = normalizeDocumentText(targetDocument.getText());
+          const offset = markdownFragmentOffset(targetText, markdownRenderingParser.parse(targetText), target.fragment);
+          if (offset === null) { finish(false, `The heading or block “${target.fragment}” was not found.`); return; }
+          const before = targetText.slice(0, offset).split("\n");
+          const position = new vscode.Position(before.length - 1, before[before.length - 1].length);
+          selection = new vscode.Range(position, position);
+        }
+        await vscode.window.showTextDocument(targetDocument, {
+          viewColumn: webviewPanel.viewColumn,
+          preserveFocus: false,
+          preview: true,
+          ...(selection ? { selection } : {}),
+        });
+        finish(true);
+      }).catch(() => finish(false, "VS Code could not open this Markdown link."));
+    };
+
     disposables.push(
       vscode.workspace.onDidChangeTextDocument((event) => {
         if (
@@ -299,6 +506,15 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
             "markdownLiveRenderTables.tableNavigation",
             document.uri,
           ) ||
+          event.affectsConfiguration(
+            "markdownLiveRenderTables.markdownRendering",
+            document.uri,
+          ) ||
+          event.affectsConfiguration(
+            "editor.accessibilitySupport",
+            markdownEditorScope,
+          ) ||
+          event.affectsConfiguration("editor.multiCursorModifier", markdownEditorScope) ||
           event.affectsConfiguration("editor.wordWrap", markdownEditorScope) ||
           event.affectsConfiguration(
             "editor.scrollBeyondLastLine",
@@ -311,16 +527,23 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
       webviewPanel.onDidChangeViewState((event) => {
         if (event.webviewPanel.active) {
           this.activeLiveDocumentUri = document.uri;
+          void refreshReadOnly();
         }
       }),
       webview.onDidReceiveMessage((message: unknown) => {
         if (isReadyMessage(message)) {
           postDocument();
+          void refreshReadOnly();
           return;
         }
 
         if (isDebugMessage(message)) {
           logDebug(`${message.event}: ${JSON.stringify(message.details)}`);
+          return;
+        }
+
+        if (isMarkdownOpenLinkRequest(message)) {
+          openLinkFromWebview(message);
           return;
         }
 
@@ -390,15 +613,9 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
       normalizeDocumentText(document.getText()),
       document.uri,
       clipboardDocumentToken,
+      knownReadOnly,
     );
 
-    webviewPanel.onDidDispose(() => {
-      this.panelsByDocument.delete(documentKey);
-      if (this.activeLiveDocumentUri?.toString() === documentKey) {
-        this.activeLiveDocumentUri = undefined;
-      }
-      vscode.Disposable.from(...disposables).dispose();
-    });
   }
 
   private readMediaText(fileName: string): string {
@@ -599,6 +816,7 @@ interface ChangeMessage {
   changes?: DocumentChange[];
   changeGroups?: DocumentChange[][];
   baseRevision: number;
+  sourceAction?: "markdownTaskToggle";
 }
 
 interface DebugMessage {
@@ -629,6 +847,11 @@ interface HostSetEditorOptionsMessage {
   editorOptions: ReturnType<typeof getEditorOptions>;
 }
 
+interface HostMarkdownTaskCommandMessage {
+  type: "markdownTaskCommand";
+  action: "toggle" | "focus";
+}
+
 interface OpenClipboardSettingsMessage {
   type: "openClipboardSettings";
 }
@@ -647,6 +870,8 @@ function isChangeMessage(message: unknown): message is ChangeMessage {
         message.changeId > 0)) &&
     typeof message.beforeText === "string" &&
     typeof message.text === "string" &&
+    (message.sourceAction === undefined ||
+      message.sourceAction === "markdownTaskToggle") &&
     (message.changes === undefined ||
       (Array.isArray(message.changes) &&
         message.changes.every(isDocumentChange))) &&
@@ -741,6 +966,7 @@ function getEditorHtml(
   initialText: string,
   documentUri: vscode.Uri,
   clipboardDocumentToken: string,
+  readOnly: boolean,
 ): string {
   const nonce = getNonce();
   const initialDocumentScript = JSON.stringify(initialText).replace(
@@ -749,7 +975,7 @@ function getEditorHtml(
   );
   const editorMetricsCss = getEditorMetricsCss(documentUri);
   const editorOptionsScript = JSON.stringify(
-    getEditorOptions(documentUri, clipboardDocumentToken),
+    getEditorOptions(documentUri, clipboardDocumentToken, readOnly),
   );
   const inlineScript = scriptText.replace(/<\/script/gi, "<\\/script");
   return `<!DOCTYPE html>
@@ -860,6 +1086,7 @@ function getEditorMetricsCss(documentUri: vscode.Uri): string {
 function getEditorOptions(
   documentUri: vscode.Uri,
   clipboardDocumentToken: string,
+  readOnly: boolean,
 ): {
   lineWrapping: boolean;
   scrollBeyondLastLine: boolean;
@@ -867,6 +1094,16 @@ function getEditorOptions(
   defaultCopyMode: "smart" | "rich" | "plain" | "markdown";
   defaultPasteMode: "auto" | "rich" | "plain" | "markdown";
   tableNavigationModifierKey: TableNavigationModifierKey;
+  markdownRendering: {
+    enabled: boolean;
+    screenReaderOptimized: boolean;
+    readOnly: boolean;
+  };
+  markdownLinks: {
+    documentUri: string | null;
+    multiCursorModifier: "alt" | "ctrlCmd";
+    isMac: boolean;
+  };
 } {
   const editorConfig = vscode.workspace.getConfiguration("editor", {
     uri: documentUri,
@@ -884,6 +1121,22 @@ function getEditorOptions(
       true,
     ),
     clipboardDocumentToken,
+    markdownLinks: {
+      documentUri: documentUri.scheme === "untitled" ? null : documentUri.toString(),
+      multiCursorModifier: editorConfig.get<string>("multiCursorModifier", "alt") === "ctrlCmd" ? "ctrlCmd" : "alt",
+      isMac: process.platform === "darwin",
+    },
+    markdownRendering: {
+      enabled: extensionConfig.get<boolean>(
+        MARKDOWN_RENDERING_ENABLED_SETTING,
+        true,
+      ),
+      // Auto-detected accessibility is exposed to webviews through VS Code's
+      // injected body class. This covers the explicit host preference too.
+      screenReaderOptimized:
+        editorConfig.get<string>("accessibilitySupport", "auto") === "on",
+      readOnly,
+    },
     tableNavigationModifierKey: normalizeTableNavigationModifierKey(
       extensionConfig.get<string>(
         TABLE_NAVIGATION_MODIFIER_KEY_SETTING,
@@ -901,6 +1154,55 @@ function getEditorOptions(
       "auto",
     ),
   };
+}
+
+async function isDocumentKnownReadOnly(uri: vscode.Uri): Promise<boolean> {
+  if (vscode.workspace.fs.isWritableFileSystem(uri.scheme) === false) {
+    return true;
+  }
+  try {
+    const stat = await vscode.workspace.fs.stat(uri);
+    if (
+      stat.permissions !== undefined &&
+      (stat.permissions & vscode.FilePermission.Readonly) !== 0
+    ) {
+      return true;
+    }
+  } catch {
+    // Untitled and provider-backed documents may not expose a FileStat.
+    // Unknown permission is left to the authoritative WorkspaceEdit result.
+  }
+  if (uri.scheme === "file") {
+    try {
+      await fs.promises.access(uri.fsPath, fs.constants.W_OK);
+    } catch (error: unknown) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "EACCES" || code === "EPERM" || code === "EROFS") {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function isSingleTaskToggleClaim(message: ChangeMessage): boolean {
+  if (message.changeGroups !== undefined || message.changes?.length !== 1) {
+    return false;
+  }
+  const change = message.changes[0];
+  const source = normalizeDocumentText(message.beforeText);
+  const planned = planTaskToggle(
+    source,
+    markdownRenderingParser.parse(source),
+    change.from - 1,
+    parseMarkdownTables(source),
+  );
+  return (
+    planned !== null &&
+    planned.from === change.from &&
+    planned.to === change.to &&
+    planned.insert === change.text
+  );
 }
 
 function readEnumSetting<const T extends readonly string[]>(

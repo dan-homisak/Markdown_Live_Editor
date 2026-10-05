@@ -1,0 +1,417 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-Yb4PXv",
+  "port": 62935,
+  "checks": [
+    {
+      "name": "nested quote and alert code retain simultaneous inset edges",
+      "pass": true,
+      "detail": {
+        "normal": {
+          "quoteStart": {
+            "line": "> > ```javascript",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code mlrt-markdown-block-start",
+            "shadow": "rgb(97, 97, 97) 1px 0px 0px 0px inset, rgb(97, 97, 97) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0) 0px -1px 0px 0px inset",
+            "guide": "1px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "rgba(97, 97, 97, 1)",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 57.5,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "quoteBody": {
+            "line": "> > const quoteCode = 1;",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code",
+            "shadow": "rgb(97, 97, 97) 1px 0px 0px 0px inset, rgba(0, 0, 0, 0) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0) 0px -1px 0px 0px inset",
+            "guide": "1px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 76.4000015258789,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "quoteEnd": {
+            "line": "> > ```",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code mlrt-markdown-block-end",
+            "shadow": "rgb(97, 97, 97) 1px 0px 0px 0px inset, rgba(0, 0, 0, 0) 0px 1px 0px 0px inset, rgb(97, 97, 97) 0px -1px 0px 0px inset",
+            "guide": "1px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "rgba(97, 97, 97, 1)",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 95.30000305175781,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertStart": {
+            "line": "> ```javascript",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code mlrt-markdown-block-start",
+            "shadow": "rgb(204, 167, 0) 2px 0px 0px 0px inset, rgb(97, 97, 97) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0) 0px -1px 0px 0px inset",
+            "guide": "2px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "rgba(97, 97, 97, 1)",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 189.8000030517578,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertBody": {
+            "line": "> const alertCode = 2;",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code",
+            "shadow": "rgb(204, 167, 0) 2px 0px 0px 0px inset, rgba(0, 0, 0, 0) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0) 0px -1px 0px 0px inset",
+            "guide": "2px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 208.6999969482422,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertEnd": {
+            "line": "> ```",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code mlrt-markdown-block-end",
+            "shadow": "rgb(204, 167, 0) 2px 0px 0px 0px inset, rgba(0, 0, 0, 0) 0px 1px 0px 0px inset, rgb(97, 97, 97) 0px -1px 0px 0px inset",
+            "guide": "2px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "rgba(97, 97, 97, 1)",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 227.60000610351562,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "standalone": {
+            "line": "const standaloneCode = 3;",
+            "classes": "cm-line mlrt-markdown-block-code",
+            "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px inset, rgba(0, 0, 0, 0) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0) 0px -1px 0px 0px inset",
+            "guide": "",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 303.20001220703125,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          }
+        },
+        "forced": {
+          "quoteStart": {
+            "line": "> > ```javascript",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code mlrt-markdown-block-start",
+            "shadow": "none",
+            "guide": "1px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "CanvasText",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0.8px",
+              "top": "0.8px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 57.5,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "quoteBody": {
+            "line": "> > const quoteCode = 1;",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code",
+            "shadow": "none",
+            "guide": "1px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0.8px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 76.4000015258789,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "quoteEnd": {
+            "line": "> > ```",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code mlrt-markdown-block-end",
+            "shadow": "none",
+            "guide": "1px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "CanvasText",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0.8px",
+              "top": "0px",
+              "bottom": "0.8px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 95.30000305175781,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertStart": {
+            "line": "> ```javascript",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code mlrt-markdown-block-start",
+            "shadow": "none",
+            "guide": "2px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "CanvasText",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "1.6px",
+              "top": "0.8px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 189.8000030517578,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertBody": {
+            "line": "> const alertCode = 2;",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code",
+            "shadow": "none",
+            "guide": "2px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "1.6px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 208.6999969482422,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertEnd": {
+            "line": "> ```",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code mlrt-markdown-block-end",
+            "shadow": "none",
+            "guide": "2px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "CanvasText",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "1.6px",
+              "top": "0px",
+              "bottom": "0.8px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 227.60000610351562,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "standalone": {
+            "line": "const standaloneCode = 3;",
+            "classes": "cm-line mlrt-markdown-block-code",
+            "shadow": "none",
+            "guide": "",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 68.32500457763672,
+              "y": 303.20001220703125,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          }
+        },
+        "probes": {
+          "one": "0.8px",
+          "two": "1.6px"
+        },
+        "maxGeometryDelta": 0,
+        "sourceUnchanged": true
+      }
+    }
+  ],
+  "environment": {
+    "stock": {
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "19px",
+      "dpr": 1.25,
+      "width": 1204,
+      "height": 804
+    }
+  },
+  "limitations": [
+    "OS IME and an actual screen reader are not exercised by this automated script.",
+    "Forced colors uses Chromium emulation, not a changed Windows system theme."
+  ],
+  "finalSourceMatches": true,
+  "console": [],
+  "passed": true
+}
