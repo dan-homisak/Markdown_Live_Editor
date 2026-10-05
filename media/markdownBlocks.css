@@ -1,0 +1,145 @@
+/* Semantic rows retain editable source. Live Preview supplies contextual
+   delimiter replacements and the block chrome below. */
+.cm-line.mlrt-markdown-block-quote {
+  --mlrt-markdown-block-accent: var(--mlrt-markdown-edge, var(--vscode-editor-foreground));
+  --mlrt-markdown-block-guide-width: 1px;
+  box-shadow: inset var(--mlrt-markdown-block-guide-width) 0 var(--mlrt-markdown-block-accent);
+  padding-left: 12px;
+}
+
+.mlrt-markdown-block-alert-note,
+.cm-line.mlrt-markdown-block-alert-note { --mlrt-markdown-block-accent: var(--mlrt-markdown-alert-note, var(--vscode-editor-foreground)); }
+.mlrt-markdown-block-alert-tip,
+.cm-line.mlrt-markdown-block-alert-tip { --mlrt-markdown-block-accent: var(--mlrt-markdown-alert-tip, var(--vscode-editor-foreground)); }
+.mlrt-markdown-block-alert-important,
+.cm-line.mlrt-markdown-block-alert-important { --mlrt-markdown-block-accent: var(--mlrt-markdown-alert-important, var(--vscode-editor-foreground)); }
+.mlrt-markdown-block-alert-warning,
+.cm-line.mlrt-markdown-block-alert-warning { --mlrt-markdown-block-accent: var(--mlrt-markdown-alert-warning, var(--vscode-editor-foreground)); }
+.mlrt-markdown-block-alert-caution,
+.cm-line.mlrt-markdown-block-alert-caution { --mlrt-markdown-block-accent: var(--mlrt-markdown-alert-caution, var(--vscode-editor-foreground)); }
+
+.cm-line.mlrt-markdown-block-alert {
+  --mlrt-markdown-block-guide-width: 2px;
+  box-shadow: inset var(--mlrt-markdown-block-guide-width) 0 var(--mlrt-markdown-block-accent);
+  background-color: color-mix(in srgb, var(--mlrt-markdown-block-accent) 9%, transparent);
+}
+
+.cm-content .mlrt-markdown-block-alert-label,
+.cm-content .mlrt-markdown-block-alert-label .mlrt-markdown-role-link,
+.cm-content .mlrt-markdown-block-alert-label .mlrt-markdown-role-punctuation {
+  color: var(--mlrt-markdown-block-accent, var(--vscode-editor-foreground));
+  font-weight: 600;
+}
+
+.cm-line.mlrt-markdown-block-code {
+  --mlrt-markdown-block-top-edge: transparent;
+  --mlrt-markdown-block-bottom-edge: transparent;
+  background-color: var(--mlrt-markdown-code-background, var(--vscode-textCodeBlock-background, var(--vscode-editor-background)));
+  /* Code owns the fill; an enclosing quote/alert retains its single guide. */
+  box-shadow: inset var(--mlrt-markdown-block-guide-width, 0px) 0 var(--mlrt-markdown-block-accent, transparent), inset 0 1px var(--mlrt-markdown-block-top-edge), inset 0 -1px var(--mlrt-markdown-block-bottom-edge);
+  color: var(--mlrt-markdown-foreground, var(--vscode-editor-foreground));
+  font-weight: var(--mlrt-editor-font-weight, normal);
+  font-style: normal;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.mlrt-preview-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 6px 6px 0 0;
+  background: var(--mlrt-markdown-code-background, var(--vscode-textCodeBlock-background));
+  color: var(--vscode-descriptionForeground, inherit);
+  box-sizing: border-box;
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: 12px;
+}
+.mlrt-preview-code-end { height: 0; }
+.mlrt-preview-code-header button,
+.mlrt-preview-callout button,
+.mlrt-preview-properties button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.mlrt-preview-code-header button { padding: 3px 5px; border-radius: 4px; }
+.mlrt-preview-code-header button:hover,
+.mlrt-preview-properties button:hover { background: var(--vscode-toolbar-hoverBackground, #80808026); }
+.mlrt-preview-code-header button:focus-visible,
+.mlrt-preview-callout button:focus-visible,
+.mlrt-preview-properties button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.mlrt-preview-properties {
+  /* Block widgets must have no vertical margins: CM measures their border box
+     to map source positions to screen coordinates. */
+  margin: 0;
+  border: 1px solid var(--vscode-widget-border, #80808040);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+.mlrt-preview-properties .mlrt-preview-properties-title { display: block; font-weight: 600; padding: 3px 0 8px; }
+.mlrt-preview-properties .mlrt-preview-property { display: grid; grid-template-columns: minmax(90px, 25%) 1fr; width: 100%; gap: 12px; padding: 5px 4px; border-radius: 4px; }
+.mlrt-preview-property-key { color: var(--vscode-descriptionForeground, inherit); }
+.mlrt-preview-property-value { overflow-wrap: anywhere; white-space: pre-wrap; }
+.mlrt-preview-callout { font-weight: 600; color: var(--mlrt-markdown-block-accent); }
+.mlrt-preview-callout button { padding: 0; line-height: inherit; }
+.mlrt-preview-callout-fold { margin-right: 5px; }
+.mlrt-preview-callout-title span { display: inline-block; min-width: 1em; }
+@media (forced-colors: active) {
+  .mlrt-preview-code-header, .mlrt-preview-properties { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+  .mlrt-preview-callout { color: CanvasText; }
+}
+
+.cm-line.mlrt-markdown-block-start { --mlrt-markdown-block-top-edge: var(--mlrt-markdown-edge, var(--vscode-editor-foreground)); }
+.cm-line.mlrt-markdown-block-end { --mlrt-markdown-block-bottom-edge: var(--mlrt-markdown-edge, var(--vscode-editor-foreground)); }
+
+/* Active-line treatment is an overlay above code/alert background. The existing
+   CodeMirror selection and cursor layers retain their own paint order. */
+.cm-line.cm-activeLine:is(.mlrt-markdown-block-code, .mlrt-markdown-block-alert) {
+  background-image: linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent));
+}
+
+.mlrt-markdown-block-code-source {
+  font-weight: var(--mlrt-editor-font-weight, normal);
+  font-style: normal;
+  /* The row supplies the generic foreground. A source wrapper may be nested
+     inside a token with identical bounds, so its color must inherit. */
+}
+.mlrt-markdown-block-delimiter,
+.mlrt-markdown-block-token-punctuation,
+.mlrt-markdown-block-token-comment { color: var(--mlrt-markdown-code-comment, var(--vscode-editor-foreground)); }
+.mlrt-markdown-block-info,
+.mlrt-markdown-block-token-declaration { color: var(--mlrt-markdown-code-declaration, var(--vscode-editor-foreground)); }
+.mlrt-markdown-block-token-constant { color: var(--mlrt-markdown-code-constant, var(--vscode-editor-foreground)); }
+.mlrt-markdown-block-token-keyword { color: var(--mlrt-markdown-code-keyword, var(--vscode-editor-foreground)); }
+.mlrt-markdown-block-token-string { color: var(--mlrt-markdown-code-string, var(--vscode-editor-foreground)); }
+.mlrt-markdown-block-token-variable { color: var(--mlrt-markdown-code-variable, var(--vscode-editor-foreground)); }
+.mlrt-markdown-block-token-tag { color: var(--mlrt-markdown-code-tag, var(--vscode-editor-foreground)); }
+
+@media (forced-colors: active) {
+  .cm-line.mlrt-markdown-block-code,
+  .cm-line.mlrt-markdown-block-alert { background-color: Canvas; }
+  .cm-line.mlrt-markdown-block-quote { --mlrt-markdown-block-accent: CanvasText; }
+  .cm-line.mlrt-markdown-block-start { --mlrt-markdown-block-top-edge: CanvasText; }
+  .cm-line.mlrt-markdown-block-end { --mlrt-markdown-block-bottom-edge: CanvasText; }
+  /* Forced colors suppresses box-shadow. An absolutely positioned source-row
+     pseudo-element keeps the same inset edges without adding border geometry. */
+  .cm-line:is(.mlrt-markdown-block-quote, .mlrt-markdown-block-code) { position: relative; }
+  .cm-line:is(.mlrt-markdown-block-quote, .mlrt-markdown-block-code)::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border: 0 solid CanvasText;
+  }
+  .cm-line.mlrt-markdown-block-quote::before { border-left-width: var(--mlrt-markdown-block-guide-width, 1px); }
+  .cm-line.mlrt-markdown-block-start::before { border-top-width: 1px; }
+  .cm-line.mlrt-markdown-block-end::before { border-bottom-width: 1px; }
+}

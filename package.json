@@ -2,7 +2,7 @@
   "name": "markdown-live-render-tables",
   "displayName": "Markdown Live Editor",
   "description": "A VS Code extension for editing markdown in a live rendered editor.",
-  "version": "0.1.170",
+  "version": "0.1.178",
   "publisher": "dan-homisak",
   "license": "MIT",
   "engines": {
@@ -24,6 +24,24 @@
         "command": "markdownLiveRenderTables.showDebugLog",
         "title": "Show Debug Log",
         "category": "Markdown Live Editor"
+      },
+      {
+        "command": "markdownLiveRenderTables.toggleTaskCheckbox",
+        "title": "Toggle Task Checkbox at Caret",
+        "category": "Markdown Live Editor",
+        "enablement": "activeCustomEditorId == markdownLiveRenderTables.liveEditor && config.markdownLiveRenderTables.markdownRendering.enabled"
+      },
+      {
+        "command": "markdownLiveRenderTables.openMarkdownLinkAtCaret",
+        "title": "Open Markdown Link at Caret",
+        "category": "Markdown Live Editor",
+        "enablement": "activeCustomEditorId == markdownLiveRenderTables.liveEditor && config.markdownLiveRenderTables.markdownRendering.enabled"
+      },
+      {
+        "command": "markdownLiveRenderTables.focusTaskCheckbox",
+        "title": "Focus Task Checkbox at Caret",
+        "category": "Markdown Live Editor",
+        "enablement": "activeCustomEditorId == markdownLiveRenderTables.liveEditor && config.markdownLiveRenderTables.markdownRendering.enabled"
       }
     ],
     "keybindings": [
@@ -82,6 +100,11 @@
           ],
           "default": "auto",
           "description": "Default interpretation used by Paste in the Markdown Live Editor. Automatic prefers lossless internal data, then HTML, Markdown, and plain text."
+        },
+        "markdownLiveRenderTables.markdownRendering.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use Obsidian-style Live Preview: hide inactive Markdown syntax, reveal it at the caret, render properties/callouts/code, and enable task, list, and link controls. Disable to restore ordinary non-table source editing; rendered tables remain available."
         }
       }
     },
@@ -112,7 +135,7 @@
   },
   "scripts": {
     "bundle:webview": "esbuild ./src/webview/liveEditor.ts --bundle --format=iife --platform=browser --target=es2022 --outfile=./media/liveEditor.js",
-    "compile": "tsc -p ./ && npm run bundle:webview",
+    "compile": "tsc -p ./ && npm run bundle:webview && npm run bundle:extension",
     "package": "vsce package --allow-missing-repository --out markdown-live-render-tables-latest.vsix",
     "package:windows": "npm run package && node scripts/prepare-windows-install-bundle.mjs",
     "qa:harness": "npm run compile && node scripts/render-live-editor-harness.mjs",
@@ -125,12 +148,14 @@
     "generate:gutter-fixture": "node scripts/generate-gutter-stress-fixture.mjs",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "node ./dist/test/smoke.test.js && node ./dist/test/clipboard.test.js && node ./dist/test/selection.test.js && node ./dist/test/sourceProtection.test.js && node ./dist/test/tableCellInput.test.js && node ./dist/test/tableKeyboardNavigation.test.js && node ./dist/test/documentChangeValidation.test.js && node ./dist/test/tableParserReliability.test.js && node ./dist/test/tableEditingReliability.test.js && node ./dist/test/gutterFixture.test.js",
-    "vscode:prepublish": "npm run compile"
+    "test": "node ./dist/test/smoke.test.js && node ./dist/test/clipboard.test.js && node ./dist/test/selection.test.js && node ./dist/test/sourceProtection.test.js && node ./dist/test/tableCellInput.test.js && node ./dist/test/tableKeyboardNavigation.test.js && node ./dist/test/documentChangeValidation.test.js && node ./dist/test/tableParserReliability.test.js && node ./dist/test/tableEditingReliability.test.js && node ./dist/test/gutterFixture.test.js && node ./dist/test/markdownRendering.test.js && node ./dist/test/markdownPresentation.test.js && node ./dist/test/markdownBlocks.test.js && node ./dist/test/markdownLinks.test.js && node ./dist/test/markdownLivePreview.test.js && node scripts/check-extension-bundle.mjs && node scripts/check-markdown-host-lifecycle.mjs",
+    "vscode:prepublish": "npm run compile",
+    "bundle:extension": "esbuild ./src/extension.ts --bundle --format=cjs --platform=node --target=node20 --external:vscode --sourcemap --outfile=./dist/extension.js"
   },
   "devDependencies": {
     "@codemirror/commands": "^6.10.4",
     "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "6.12.4",
     "@codemirror/state": "^6.7.0",
     "@codemirror/view": "^6.43.4",
     "@types/markdown-it": "^14.1.2",
@@ -142,6 +167,14 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@codemirror/lang-javascript": "6.2.5",
+    "@codemirror/lang-json": "6.0.2",
+    "@codemirror/lang-python": "6.2.1",
+    "@codemirror/lang-yaml": "6.1.3",
+    "@codemirror/legacy-modes": "6.5.4",
+    "@lezer/common": "1.5.2",
+    "@lezer/highlight": "1.2.3",
+    "@lezer/markdown": "1.6.4",
     "dompurify": "^3.4.11",
     "markdown-it": "^14.3.0",
     "turndown": "^7.2.4",

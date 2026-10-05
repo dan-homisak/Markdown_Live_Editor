@@ -1,5 +1,4 @@
 import { history } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
 import { Compartment, Extension } from "@codemirror/state";
 import {
   drawSelection,
@@ -17,6 +16,11 @@ import {
 } from "../shared/tableKeyboardNavigation";
 import { createEditorGeometrySync } from "./editorGeometrySync";
 import { createEditorTheme } from "./editorTheme";
+import {
+  createMarkdownRenderingExtensions,
+  markdownRenderingCompartment,
+  MarkdownRenderingOptions,
+} from "./markdown/markdownRendering";
 import { createDocumentSelectionInputHandler } from "./documentClipboard";
 import { createDocumentSelectionDecorations } from "./documentSelectionDecorations";
 import { TABLE_CELL_SELECTOR } from "./table/cellSelection";
@@ -34,6 +38,7 @@ import {
 export interface LiveEditorOptions {
   lineWrapping: boolean;
   tableNavigationModifierKey: TableNavigationModifierKey;
+  markdownRendering?: MarkdownRenderingOptions;
 }
 
 export const lineWrappingCompartment = new Compartment();
@@ -54,10 +59,8 @@ export function createLiveEditorExtensions(
 ): Extension[] {
   const tableHeightEstimateMetrics = createTableHeightEstimateMetrics();
   return [
-    // CodeMirror owns the undo history so ⌘Z coalesces typing into
-    // word/whitespace groups and stops at the initially loaded document,
-    // matching the stock VS Code editor. Undo/redo are dispatched locally
-    // (see installEditorCommandBridge) rather than delegated to the host.
+    // Keep CodeMirror history mapping available; the webview command bridge
+    // routes undo/redo through the authoritative VS Code document history.
     history(),
     createEditorTheme(),
     createTableBoundaryArrowNavigation(),
@@ -75,7 +78,9 @@ export function createLiveEditorExtensions(
     createTableSourceSelectionGuard({
       tableCellSelector: TABLE_CELL_SELECTOR,
     }),
-    markdown(),
+    markdownRenderingCompartment.of(createMarkdownRenderingExtensions(
+      options.markdownRendering ?? { enabled: true, screenReaderOptimized: false, readOnly: false },
+    )),
     lineWrappingCompartment.of(
       options.lineWrapping ? EditorView.lineWrapping : [],
     ),

@@ -33,6 +33,11 @@ const userDataDir = mkdtempSync(path.join(os.tmpdir(), "mlrt-edh-"));
 const extensionsDir = path.join(userDataDir, "extensions");
 const qaDir = path.join(repoRoot, "qa");
 const pixelTolerance = 0.5;
+const borderOnlyComplete = Symbol("border-only-complete");
+const requestedDeviceScale = process.argv.find(argument => argument.startsWith("--device-scale="))?.split("=")[1];
+if (requestedDeviceScale !== undefined && (!Number.isFinite(Number(requestedDeviceScale)) || Number(requestedDeviceScale) < 0.5 || Number(requestedDeviceScale) > 4)) {
+  throw new Error("--device-scale must be a finite number between 0.5 and 4.");
+}
 const mixedInputOnlyComplete = Symbol("mixed-input-only-complete");
 const editingReliabilityOnlyComplete = Symbol(
   "editing-reliability-only-complete",
@@ -129,6 +134,7 @@ const child = spawn(
     `--user-data-dir=${userDataDir}`,
     `--extensions-dir=${extensionsDir}`,
     `--remote-debugging-port=${port}`,
+    ...(requestedDeviceScale === undefined ? [] : [`--force-device-scale-factor=${requestedDeviceScale}`]),
     "--new-window",
     "--disable-workspace-trust",
     "--skip-release-notes",
@@ -338,6 +344,63 @@ try {
   }
 
   assertPixelParity(stockMetrics, liveMetrics);
+
+  if (process.argv.includes("--global-undo-only")) {
+    // Fresh startup has no synthetic host isolation or selection fixture.
+    const bridge = await evaluateJson(liveClient, tableGlobalUndoBridgeExpression());
+    console.log("TABLE GLOBAL UNDO BRIDGE CHECK:", bridge);
+    assertTableGlobalUndoBridge(bridge);
+    liveClient.ws.close(); wb.ws.close();
+    throw borderOnlyComplete;
+  }
+
+  if (process.argv.includes("--border-only")) {
+    const negativeChecks = [];
+    for (const [name, selector, property, width] of [
+      ["missing outer border", '.mlrt-table-cell[data-row-kind="header"][data-column="0"]', "border-bottom-width", "0px"],
+      ["doubled outer border", '.mlrt-table-cell[data-row-kind="header"][data-column="0"]', "border-bottom-width", "2px"],
+      ["doubled row seam", '.mlrt-table-cell[data-row-kind="body"][data-column="0"]', "border-top-width", "1px"],
+      ["doubled column seam", '.mlrt-table-cell[data-row-kind="body"][data-column="1"]', "border-left-width", "1px"],
+      ["border in line-number gutter", '.mlrt-table-source-line', "border-right", "1px solid transparent"],
+      ["dashed separator", '.mlrt-table-cell[data-row-kind="header"][data-column="0"]', "border-bottom-style", "dashed"],
+    ]) {
+      const mutate = (restore) => `(() => {
+        const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map(frame => { try { return frame.contentDocument; } catch { return null; } }).filter(Boolean)];
+        const root = roots.find(candidate => candidate.querySelector('.mlrt-table-cell'));
+        const cell = root?.querySelector(${JSON.stringify(selector)});
+        if (!cell) throw new Error('Missing border negative-control target');
+        if (${restore}) {
+          const previous = cell.__MLRT_BORDER_STYLE;
+          if (previous === null) cell.removeAttribute('style'); else cell.setAttribute('style', previous);
+          delete cell.__MLRT_BORDER_STYLE;
+        } else {
+          cell.__MLRT_BORDER_STYLE = cell.getAttribute('style');
+          cell.style.setProperty(${JSON.stringify(property)}, ${JSON.stringify(width)}, 'important');
+        }
+        return JSON.stringify({ok:true});
+      })()`;
+      try {
+        await evaluateJson(liveClient, mutate(false));
+        const altered = await evaluateJson(liveClient, liveMetricsExpression());
+        let rejected = false;
+        try { assertPixelParity(stockMetrics, altered); }
+        catch (error) { if (/border model expected/.test(String(error))) rejected = true; else throw error; }
+        if (!rejected) throw new Error(`Border assertion accepted negative control: ${name}`);
+        negativeChecks.push({name, rejected});
+      } finally {
+        await evaluateJson(liveClient, mutate(true));
+      }
+    }
+    const restored = await evaluateJson(liveClient, liveMetricsExpression());
+    assertPixelParity(stockMetrics, restored);
+    const scaleLabel = String(restored.devicePixelRatio).replaceAll('.', '-');
+    await captureWorkbenchScreenshot(wb, path.join(qaDir, `edh-table-borders-dpr-${scaleLabel}.png`));
+    await writeFile(path.join(qaDir, `edh-table-borders-dpr-${scaleLabel}.json`), JSON.stringify({requestedDeviceScale, stockMetrics, liveMetrics: restored, negativeChecks}, null, 2));
+    console.log("TABLE BORDER NEGATIVE CONTROLS:", negativeChecks);
+    liveClient.ws.close();
+    wb.ws.close();
+    throw borderOnlyComplete;
+  }
 
   if (process.argv.includes("--table-selection-outline-only")) {
     const outline = await evaluateJson(
@@ -2313,15 +2376,15 @@ try {
 
   await key({
     type: "keyDown",
-    modifiers: 4 | 2,
-    key: "M",
+    modifiers: toggleModifiers,
+    key: "m",
     code: "KeyM",
     windowsVirtualKeyCode: 77,
   });
   await key({
     type: "keyUp",
-    modifiers: 4 | 2,
-    key: "M",
+    modifiers: toggleModifiers,
+    key: "m",
     code: "KeyM",
     windowsVirtualKeyCode: 77,
   });
@@ -2329,7 +2392,7 @@ try {
   const shortcutSourceMetrics = await evaluateJson(wb, stockMetricsExpression());
   if (!shortcutSourceMetrics?.hasMonaco) {
     throw new Error(
-      "Shortcut toggle check failed: Cmd+Ctrl+M did not return to the Monaco source editor.",
+      "Shortcut toggle check failed: the registered platform shortcut did not return to the Monaco source editor.",
     );
   }
   console.log("SHORTCUT TOGGLE CHECK:", {
@@ -2338,6 +2401,7 @@ try {
   wb.ws.close();
 } catch (error) {
   if (
+    error !== borderOnlyComplete &&
     error !== mixedInputOnlyComplete &&
     error !== editingReliabilityOnlyComplete &&
     error !== emptyDeleteOnlyComplete &&
@@ -2621,8 +2685,42 @@ function liveMetricsExpression() {
           left: style.borderLeftWidth,
         };
       };
+      const borderStyles = (element) => {
+        const style = getComputedStyle(element);
+        return { top: style.borderTopStyle, right: style.borderRightStyle, bottom: style.borderBottomStyle, left: style.borderLeftStyle };
+      };
+      // Measure an independent CSS reference in the same renderer. Chromium
+      // snaps used border widths to device pixels at fractional display scale;
+      // the authored 1px width need not serialize as "1px" in computed style.
+      const borderReferences = {};
+      const borderProbe = root.createElement('div');
+      borderProbe.setAttribute('aria-hidden', 'true');
+      try {
+        root.body.appendChild(borderProbe);
+        for (const width of [0, 1, 2]) {
+          borderProbe.style.cssText = 'all: initial !important; position: fixed !important; left: -10000px !important; top: 0 !important; display: block !important; box-sizing: content-box !important; width: 100px !important; height: 100px !important; padding: 0 !important; margin: 0 !important; border: ' + width + 'px solid transparent !important; pointer-events: none !important;';
+          borderReferences[width] = { authoredWidth: borderProbe.style.borderTopWidth, borders: borders(borderProbe), box: box(borderProbe) };
+        }
+      } finally {
+        borderProbe.remove();
+      }
       return JSON.stringify({
         url: location.href.slice(0, 80),
+        devicePixelRatio: root.defaultView.devicePixelRatio,
+        visualViewportScale: root.defaultView.visualViewport?.scale ?? null,
+        tableZoom: getComputedStyle(table).zoom,
+        editorZoom: getComputedStyle(root.querySelector('.cm-editor')).zoom,
+        tableBorderCollapse: getComputedStyle(table).borderCollapse,
+        tableBorderSpacing: getComputedStyle(table).borderSpacing,
+        borderReferences,
+        tableBorderCells: Array.from(root.querySelectorAll('.mlrt-table-cell')).map(cell => ({
+          rowKind: cell.dataset.rowKind,
+          rowIndex: cell.dataset.rowIndex,
+          column: Number(cell.dataset.column),
+          borders: borders(cell),
+          styles: borderStyles(cell),
+        })),
+        tableGutterBorders: Array.from(root.querySelectorAll('.mlrt-table-source-line')).map(borders),
         scrollerClientWidth: scroller.clientWidth,
         scrollerScrollWidth: scroller.scrollWidth,
         overflow: scroller.scrollWidth > scroller.clientWidth + 1,
@@ -10790,6 +10888,74 @@ function tableArrowNavigationExpression() {
       }
       return boundaries.has(offset);
     };
+    const nativeGoalResets = [];
+    const resetSyntheticCaretVerticalGoal = (cell, label) => {
+      // Programmatic Range placement and untrusted ArrowRight events do not
+      // necessarily reset Chromium's remembered vertical goal. A native
+      // horizontal round trip does, without changing the source or final offset.
+      const selection = root.defaultView.getSelection();
+      const beforeOffset = selectionOffset(cell);
+      const direction = beforeOffset > 0 ? 'backward' : 'forward';
+      const reverse = beforeOffset > 0 ? 'forward' : 'backward';
+      let remainedInside = false;
+      if (selection && beforeOffset !== null && (cell.textContent ?? '').length > 0) {
+        selection.modify('move', direction, 'character');
+        remainedInside = cell.contains(selection.anchorNode) && cell.contains(selection.focusNode);
+        selection.modify('move', reverse, 'character');
+      }
+      const afterOffset = selectionOffset(cell);
+      nativeGoalResets.push({ label, beforeOffset, afterOffset,
+        pass: remainedInside && beforeOffset !== null && beforeOffset === afterOffset });
+    };
+    const measureVisualCaretRows = (cell) => {
+      const text = cell.textContent ?? '';
+      const boundaries = [0];
+      for (const segment of new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)) {
+        boundaries.push(segment.index + segment.segment.length);
+      }
+      const textNodes = [];
+      const walker = root.createTreeWalker(cell, root.defaultView.NodeFilter.SHOW_TEXT);
+      let length = 0;
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        textNodes.push({ node, from: length, to: length + (node.textContent?.length ?? 0) });
+        length += node.textContent?.length ?? 0;
+      }
+      const point = offset => {
+        const entry = textNodes.find(entry => offset >= entry.from && offset <= entry.to);
+        return entry ? { node: entry.node, offset: offset - entry.from } : null;
+      };
+      const rows = [];
+      const add = (rect, x, offset, kind) => {
+        if (rect.height <= 0 || !Number.isFinite(x)) return;
+        let row = rows.find(row => Math.abs(row.top - rect.top) <= 1);
+        if (!row) {
+          row = { top: rect.top, height: rect.height, left: x, right: x, candidates: [] };
+          rows.push(row);
+        }
+        row.left = Math.min(row.left, x);
+        row.right = Math.max(row.right, x);
+        row.candidates.push({ x, offset, kind });
+      };
+      for (let index = 0; index < boundaries.length; index++) {
+        const start = point(boundaries[index]);
+        if (!start) continue;
+        const collapsed = root.createRange();
+        collapsed.setStart(start.node, start.offset);
+        collapsed.collapse(true);
+        for (const rect of collapsed.getClientRects()) add(rect, rect.left, boundaries[index], 'caret');
+        if (index + 1 >= boundaries.length) continue;
+        const end = point(boundaries[index + 1]);
+        if (!end) continue;
+        const glyph = root.createRange();
+        glyph.setStart(start.node, start.offset);
+        glyph.setEnd(end.node, end.offset);
+        for (const rect of glyph.getClientRects()) {
+          add(rect, rect.left, boundaries[index], 'glyph-start');
+          add(rect, rect.right, boundaries[index + 1], 'glyph-end');
+        }
+      }
+      return rows.sort((a, b) => a.top - b.top);
+    };
     const before = view.state.doc.toString();
     const wrapper = root.querySelector('.mlrt-table-widget');
     const firstSourceLine = root.querySelector('.mlrt-table-source-line');
@@ -10820,9 +10986,23 @@ function tableArrowNavigationExpression() {
         const fromAfterTableLine = activeCellDetails();
         const activeCell = root.activeElement;
         setCellSelection(activeCell, true);
+        resetSyntheticCaretVerticalGoal(activeCell, 'inside-up');
         const insideUpTextLength = (activeCell.textContent ?? '').length;
         const insideUpLineHeight = root.defaultView.getComputedStyle(activeCell).lineHeight;
         const insideUpStartBox = caretBox();
+        const insideUpMeasuredRows = measureVisualCaretRows(activeCell);
+        const insideUpStartRow = insideUpStartBox
+          ? insideUpMeasuredRows.findIndex(row => Math.abs(row.top - insideUpStartBox.top) <= 1)
+          : -1;
+        const insideUpTargetRow = insideUpStartRow > 0 ? insideUpMeasuredRows[insideUpStartRow - 1] : null;
+        const insideUpClampedGoalX = insideUpStartBox && insideUpTargetRow
+          ? Math.max(insideUpTargetRow.left, Math.min(insideUpTargetRow.right, insideUpStartBox.left))
+          : null;
+        const insideUpNearestCaret = insideUpTargetRow && insideUpClampedGoalX !== null
+          ? insideUpTargetRow.candidates.reduce((nearest, candidate) =>
+            !nearest || Math.abs(candidate.x - insideUpClampedGoalX) < Math.abs(nearest.x - insideUpClampedGoalX)
+              ? candidate : nearest, null)
+          : null;
         const insideUpPrevented = !key(activeCell, 'ArrowUp');
         const insideUpBox = caretBox();
         const insideUpOffset = selectionOffset(activeCell);
@@ -10839,17 +11019,25 @@ function tableArrowNavigationExpression() {
         const insideUpColumnDelta = insideUpStartBox && insideUpBox
           ? Math.abs(insideUpStartBox.left - insideUpBox.left)
           : null;
+        const insideUpClampedColumnDelta = insideUpNearestCaret && insideUpBox
+          ? Math.abs(insideUpNearestCaret.x - insideUpBox.left)
+          : null;
         const insideUpMovedOneVisualLine = Boolean(
           insideUpStartBox &&
           insideUpBox &&
+          insideUpTargetRow &&
           insideUpBox.top < insideUpStartBox.top - 1 &&
-          Math.abs(insideUpStartBox.top - insideUpBox.top - 18) <= 1
+          Math.abs(insideUpBox.top - insideUpTargetRow.top) <= 1 &&
+          Math.abs(insideUpStartBox.top - insideUpBox.top - Number.parseFloat(insideUpLineHeight)) <= 1
         );
+        // Keep the existing 12px column bound, applied to the independently
+        // measured available caret nearest the goal. A short wrapped row may
+        // legitimately clamp farther than 12px from the longer source row.
         const insideUpPreservedColumn =
-          insideUpColumnDelta !== null && insideUpColumnDelta <= 12;
+          insideUpClampedColumnDelta !== null && insideUpClampedColumnDelta <= 12;
         const stayedInCellAfterInsideUp = root.activeElement === activeCell;
         setCellSelection(activeCell, false);
-        key(activeCell, 'ArrowRight');
+        resetSyntheticCaretVerticalGoal(activeCell, 'inside-down');
         const insideDownPrevented = !key(activeCell, 'ArrowDown');
         const stayedInCellAfterInsideDown = root.activeElement === activeCell;
         const originalCellText = activeCell.textContent ?? '';
@@ -10858,7 +11046,7 @@ function tableArrowNavigationExpression() {
         activeCell.textContent = goalText;
         const goalStartOffset = goalLine.indexOf('012345') + 3;
         setCellSelectionOffset(activeCell, goalStartOffset);
-        key(activeCell, 'ArrowRight');
+        resetSyntheticCaretVerticalGoal(activeCell, 'goal-through-short-line');
         const goalStartBox = caretBox();
         const goalFirstDownPrevented = !key(activeCell, 'ArrowDown');
         const goalShortLineBox = caretBox();
@@ -10885,12 +11073,12 @@ function tableArrowNavigationExpression() {
           isGraphemeBoundary(goalText, goalThirdLineOffset);
         const shortLineEndOffset = goalLine.length + 2;
         setCellSelectionOffset(activeCell, goalLine.length);
-        key(activeCell, 'ArrowRight');
-        key(activeCell, 'ArrowLeft');
+        resetSyntheticCaretVerticalGoal(activeCell, 'first-line-end-down');
         const endOfFirstLineDownPrevented = !key(activeCell, 'ArrowDown');
         const endOfFirstLineDownOffset = selectionOffset(activeCell);
         const endOfFirstLineDownBox = caretBox();
         setCellSelection(activeCell, true);
+        resetSyntheticCaretVerticalGoal(activeCell, 'last-line-end-up');
         const endOfLastLineUpPrevented = !key(activeCell, 'ArrowUp');
         const endOfLastLineUpOffset = selectionOffset(activeCell);
         const endOfLastLineUpBox = caretBox();
@@ -10923,7 +11111,7 @@ function tableArrowNavigationExpression() {
         if (emojiWrapBoundary !== null) {
           activeCell.textContent = emojiWrapText;
           setCellSelectionOffset(activeCell, 0);
-          key(activeCell, 'ArrowRight');
+          resetSyntheticCaretVerticalGoal(activeCell, 'emoji-wrap');
           key(activeCell, 'ArrowDown');
         }
         const emojiCaretOffset = emojiWrapBoundary === null
@@ -10938,6 +11126,7 @@ function tableArrowNavigationExpression() {
           isGraphemeBoundary(emojiWrapText, emojiCaretOffset);
         activeCell.textContent = originalCellText;
         setCellSelection(activeCell, true);
+        resetSyntheticCaretVerticalGoal(activeCell, 'exit-down');
         const exitDownAllowed = key(activeCell, 'ArrowDown');
         setTimeout(() => {
           const activeLineGutter = root.querySelector('.cm-activeLineGutter');
@@ -10954,6 +11143,17 @@ function tableArrowNavigationExpression() {
             insideUpLineHeight,
             insideUpStartBox,
             insideUpBox,
+            insideUpMeasuredRows: insideUpMeasuredRows.map(row => ({
+              top: row.top, height: row.height, left: row.left, right: row.right,
+              candidateCount: row.candidates.length,
+              firstOffset: Math.min(...row.candidates.map(candidate => candidate.offset)),
+              lastOffset: Math.max(...row.candidates.map(candidate => candidate.offset)),
+            })),
+            insideUpStartRow,
+            insideUpClampedGoalX,
+            insideUpNearestCaret,
+            insideUpClampedColumnDelta,
+            nativeGoalResets,
             insideUpOffset,
             insideUpLineTops,
             insideUpVisualCaret,
@@ -11226,6 +11426,9 @@ function tableExactFixtureArrowRegressionExpression(
       const visualCaretStyle = root.defaultView.getComputedStyle(cell, '::after');
       return {
         offset,
+        collapsedCaretRects: Array.from(selection.getRangeAt(0).getClientRects())
+          .filter(rect => rect.height > 0)
+          .map(rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom })),
         beforeText: text.slice(Math.max(0, offset - 12), offset),
         afterText: text.slice(offset, offset + 12),
         previousBox: offset > 0 ? box(offset - 1, offset) : null,
@@ -11247,6 +11450,54 @@ function tableExactFixtureArrowRegressionExpression(
           return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
         })(),
       };
+    };
+
+    const resetNativeGoalAtEnd = (cell) => {
+      const expectedOffset = (cell.textContent ?? '').length;
+      if (!setAtOffset(cell, expectedOffset)) return false;
+      const selection = root.defaultView.getSelection();
+      if (!selection || expectedOffset === 0) return false;
+      // Reset the browser's goal left by the preceding independent test, using
+      // native horizontal movement rather than an untrusted key event.
+      selection.modify('move', 'backward', 'character');
+      const stayedInside = cell.contains(selection.anchorNode);
+      selection.modify('move', 'forward', 'character');
+      return stayedInside && caretDetails(cell)?.offset === expectedOffset;
+    };
+    const probeNativeVisualRow = (cell) => {
+      // A DOM offset at a soft wrap has two adjacent glyph rows. Ask native
+      // line-boundary movement which row owns the current caret affinity, then
+      // measure that row's selected glyphs. Call only after a completed case:
+      // restoring a Range cannot preserve Chromium's private affinity/goal.
+      const selection = root.defaultView.getSelection();
+      const original = caretDetails(cell);
+      if (!selection || !original || selection.rangeCount === 0) return null;
+      const saved = selection.getRangeAt(0).cloneRange();
+      try {
+        selection.modify('move', 'backward', 'lineboundary');
+        const start = caretDetails(cell);
+        selection.modify('extend', 'forward', 'lineboundary');
+        if (!start || selection.rangeCount === 0 ||
+            !cell.contains(selection.anchorNode) || !cell.contains(selection.focusNode)) return null;
+        const measured = root.createRange();
+        measured.selectNodeContents(cell);
+        measured.setEnd(selection.focusNode, selection.focusOffset);
+        const endOffset = measured.toString().length;
+        const rects = Array.from(selection.getRangeAt(0).getClientRects())
+          .filter(rect => rect.height > 0 && rect.width > 0)
+          .map(rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }));
+        return {
+          originalOffset: original.offset,
+          startOffset: start.offset,
+          endOffset,
+          containsOriginal: start.offset <= original.offset && original.offset <= endOffset,
+          selectedText: selection.toString(),
+          rects,
+        };
+      } finally {
+        selection.removeAllRanges();
+        selection.addRange(saved);
+      }
     };
 
     root.defaultView.dispatchEvent(new root.defaultView.MessageEvent('message', {
@@ -11456,20 +11707,22 @@ function tableExactFixtureArrowRegressionExpression(
     await wait();
 
     line71Cell.focus();
-    setAtEnd(line71Cell);
+    const upSetupGoalReset = resetNativeGoalAtEnd(line71Cell);
     const beforeUp = caretDetails(line71Cell);
     const upPrevented = !key(line71Cell, 'ArrowUp');
     const afterUp = caretDetails(line71Cell);
     const stayedInLine71Cell = root.activeElement === line71Cell;
+    const upNativeVisualRow = probeNativeVisualRow(line71Cell);
 
     line71Cell.focus();
-    setAtEnd(line71Cell);
+    const downSetupGoalReset = resetNativeGoalAtEnd(line71Cell);
     const beforeDown = caretDetails(line71Cell);
     const downPrevented = !key(line71Cell, 'ArrowDown');
     await new Promise((done) => root.defaultView.setTimeout(done, 100));
     line72Cell = cellOnSourceLine(72, 2);
     const afterDown = line72Cell ? caretDetails(line72Cell) : null;
     const enteredLine72Cell = root.activeElement === line72Cell;
+    const downNativeVisualRow = line72Cell ? probeNativeVisualRow(line72Cell) : null;
     const result = {
       ok: true,
       line71EndsWithUl: (line71Cell.textContent ?? '').endsWith('</ul>'),
@@ -11479,12 +11732,16 @@ function tableExactFixtureArrowRegressionExpression(
       selectedForcedWidth,
       widthCases,
       upPrevented,
+      upSetupGoalReset,
       beforeUp,
       afterUp,
+      upNativeVisualRow,
       stayedInLine71Cell,
       downPrevented,
+      downSetupGoalReset,
       beforeDown,
       afterDown,
+      downNativeVisualRow,
       enteredLine72Cell,
     };
 
@@ -15375,6 +15632,12 @@ function assertTableSourceProtection(result) {
 function assertTableArrowNavigation(result) {
   if (
     !result?.ok ||
+    result.nativeGoalResets?.length !== 7 ||
+    !result.nativeGoalResets.every(reset => reset.pass) ||
+    !(result.insideUpStartRow > 0) ||
+    !result.insideUpMeasuredRows?.length ||
+    !Number.isFinite(result.insideUpClampedGoalX) ||
+    !Number.isFinite(result.insideUpNearestCaret?.x) ||
     !result.fromBeforeDownPrevented ||
     result.fromBeforeTableLine?.rowKind !== "header" ||
     result.fromBeforeTableLine?.column !== "0" ||
@@ -15516,11 +15779,42 @@ function assertTableExactFixtureArrowRegression(result) {
   const expectedUpTop = upLineTops.at(-2);
   const upPreviousBox = result?.afterUp?.previousBox;
   const upNextBox = result?.afterUp?.nextBox;
+  const nativeRowIs = (probe, top) =>
+    probe?.containsOriginal &&
+    probe.startOffset < probe.endOffset &&
+    probe.rects?.length > 0 &&
+    probe.rects.every(rect => Math.abs(rect.top - top) <= 1);
+  const nativeCaretHasRow = (details, top) =>
+    details?.collapsedCaretRects?.some(rect => Math.abs(rect.top - top) <= 1) &&
+    !details.hasVisualCaretAffinity &&
+    typeof details.nativeCaretColor === "string" &&
+    details.nativeCaretColor !== "transparent" &&
+    details.nativeCaretColor !== "rgba(0, 0, 0, 0)";
+  const expectedUpLine = result?.beforeUp?.lineBoxes?.find(
+    line => Math.abs(line.top - expectedUpTop) <= 1,
+  );
+  const beforeUpCaret = result?.beforeUp?.collapsedCaretRects?.find(
+    rect => Math.abs(rect.top - upLineTops.at(-1)) <= 1,
+  );
+  const afterUpCaret = result?.afterUp?.collapsedCaretRects?.find(
+    rect => Math.abs(rect.top - expectedUpTop) <= 1,
+  );
+  const expectedUpX = beforeUpCaret && expectedUpLine
+    ? Math.max(expectedUpLine.left, Math.min(expectedUpLine.right, beforeUpCaret.left))
+    : Number.NaN;
   const upLandedOnPrecedingVisualLine =
     Number.isFinite(expectedUpTop) &&
     upPreviousBox &&
     Math.abs(upPreviousBox.top - expectedUpTop) <= 1 &&
-    (!upNextBox || Math.abs(upNextBox.top - expectedUpTop) <= 1);
+    // The next glyph may legitimately be on the following row at a wrap.
+    // Native caret rectangles AND the independent line-boundary probe must
+    // still place the actual caret on the preceding row, at its clamped goal.
+    (!upNextBox || Math.abs(upNextBox.top - expectedUpTop) <= 1 ||
+      Math.abs(upNextBox.top - upLineTops.at(-1)) <= 1) &&
+    nativeCaretHasRow(result.afterUp, expectedUpTop) &&
+    nativeRowIs(result.upNativeVisualRow, expectedUpTop) &&
+    Number.isFinite(expectedUpX) && afterUpCaret &&
+    Math.abs(afterUpCaret.left - expectedUpX) <= 12;
   const downLineTops = result?.afterDown?.lineTops ?? [];
   const expectedDownTop = downLineTops.at(0);
   const downPreviousBox = result?.afterDown?.previousBox;
@@ -15529,11 +15823,15 @@ function assertTableExactFixtureArrowRegression(result) {
     Number.isFinite(expectedDownTop) &&
     downPreviousBox &&
     Math.abs(downPreviousBox.top - expectedDownTop) <= 1 &&
-    (!downNextBox || Math.abs(downNextBox.top - expectedDownTop) <= 1);
+    (!downNextBox || Math.abs(downNextBox.top - expectedDownTop) <= 1) &&
+    nativeCaretHasRow(result.afterDown, expectedDownTop) &&
+    nativeRowIs(result.downNativeVisualRow, expectedDownTop);
   if (
     !result?.ok ||
     !result.line71EndsWithUl ||
     !result.line72ContainsBoldText ||
+    !result.upSetupGoalReset ||
+    !result.downSetupGoalReset ||
     !result.upPrevented ||
     !result.stayedInLine71Cell ||
     !result.downPrevented ||
@@ -15745,6 +16043,7 @@ function assertPixelParity(stock, live) {
   if (!live) {
     throw new Error("Pixel parity check failed: live editor webview metrics were not found.");
   }
+  console.log("BORDER REFERENCES:", JSON.stringify({ devicePixelRatio: live.devicePixelRatio, visualViewportScale: live.visualViewportScale, references: live.borderReferences }));
 
   const screen = (box) =>
     box
@@ -15824,22 +16123,51 @@ function assertPixelParity(stock, live) {
     });
   }
 
-  const expectedHeaderBorders = {
-    top: "1px",
-    right: "1px",
-    bottom: "1px",
-    left: "1px",
-  };
-  const expectedBodyBorders = {
-    top: "0px",
-    right: "1px",
-    bottom: "1px",
-    left: "1px",
-  };
-  for (const [name, expected, actual] of [
-    ["header cell border model", expectedHeaderBorders, live.headerCellBorders],
-    ["body cell border model", expectedBodyBorders, live.bodyCellBorders],
-  ]) {
+  const zeroBorder = live.borderReferences?.[0];
+  const oneBorder = live.borderReferences?.[1];
+  const sides = ["top", "right", "bottom", "left"];
+  if (
+    zeroBorder?.authoredWidth !== "0px" ||
+    oneBorder?.authoredWidth !== "1px" ||
+    !sides.every(side => zeroBorder.borders[side] === "0px" &&
+      Number.isFinite(parseFloat(oneBorder.borders[side])) && parseFloat(oneBorder.borders[side]) > 0) ||
+    !live.tableBorderCells?.length || !live.tableGutterBorders?.length
+  ) {
+    throw new Error("Pixel parity check failed: missing or invalid independent border references/table cells.");
+  }
+  // Keep exact used-width comparisons and single-edge ownership. A fixed
+  // string "1px" confuses an authored CSS length with its device-snapped value.
+  // The reference has no table classes, so a missing, doubled, or misplaced
+  // cell border still fails without relaxing the general geometry tolerance.
+  const borderChecks = live.tableBorderCells.map((cell, index) => {
+    if (!["header", "body"].includes(cell.rowKind) || !Number.isInteger(cell.column) || cell.column < 0) {
+      throw new Error(`Pixel parity check failed: invalid table cell identity ${JSON.stringify(cell)}.`);
+    }
+    return [
+      `table cell ${index} (${cell.rowKind} ${cell.rowIndex}, column ${cell.column}) border model`,
+      {
+        top: cell.rowKind === "header" ? oneBorder.borders.top : zeroBorder.borders.top,
+        right: oneBorder.borders.right,
+        bottom: oneBorder.borders.bottom,
+        left: cell.column === 0 ? oneBorder.borders.left : zeroBorder.borders.left,
+      },
+      cell.borders,
+    ];
+  });
+  for (const [index, cell] of live.tableBorderCells.entries()) {
+    const expected = borderChecks[index][1];
+    for (const side of sides) {
+      if (expected[side] !== "0px" && cell.styles?.[side] !== "solid") {
+        failures.push({name: `table cell ${index} ${side} border model`, expected: "solid", actual: cell.styles?.[side], pass: false});
+      }
+    }
+  }
+  if (live.tableBorderCollapse !== "separate" || !/^0px(?: 0px)?$/.test(live.tableBorderSpacing)) {
+    failures.push({name: "table border model", expected: "separate borders with zero spacing", actual: `${live.tableBorderCollapse} / ${live.tableBorderSpacing}`, pass: false});
+  }
+  borderChecks.push(...live.tableGutterBorders.map((actual, index) =>
+    [`table gutter ${index} border model`, zeroBorder.borders, actual]));
+  for (const [name, expected, actual] of borderChecks) {
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       failures.push({
         name,
@@ -15850,6 +16178,7 @@ function assertPixelParity(stock, live) {
       });
     }
   }
+  console.log("TABLE BORDER CHECKS:", { cells: live.tableBorderCells.length, gutters: live.tableGutterBorders.length, failures: failures.filter(failure => failure.name.includes("border model")) });
 
   console.log(
     "PIXEL CHECKS:",

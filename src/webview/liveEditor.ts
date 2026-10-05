@@ -6,10 +6,31 @@ import {
   Transaction,
 } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
+import { forceParsing, syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import {
   createLiveEditorExtensions,
   lineWrappingCompartment,
 } from "../editor/liveEditorExtensions";
+import {
+  createMarkdownRenderingExtensions,
+  explainTaskFocusFallback,
+  focusMarkdownTask,
+  invalidateMarkdownTaskContext,
+  markdownRenderingCompartment,
+  markdownTaskChangeAnnotation,
+  markdownTaskContextActions,
+  refreshMarkdownTaskAvailability,
+  setMarkdownTaskActionGuard,
+  setMarkdownActionNotifier,
+  toggleMarkdownTask,
+} from "../editor/markdown/markdownRendering";
+import {
+  createMarkdownLinkExtensions, markdownLinksCompartment,
+  MarkdownLinkIntent, MarkdownLinkOptions, openMarkdownLinkAtCaret, markdownLinkDiagnostics,
+} from "../editor/markdown/markdownLinks";
+import { markdownListLine } from "../editor/markdown/markdownListEditing";
+import { markdownPreviewField } from "../editor/markdown/markdownLivePreview";
+import { MarkdownOpenLinkRequest } from "../shared/markdownLinkValidation";
 import {
   tableNavigationModifierCompartment,
   tableNavigationModifierFacet,
@@ -38,6 +59,7 @@ import {
 } from "../shared/tableKeyboardNavigation";
 import {
   installDocumentClipboard,
+  announceEditorStatus,
   syncDocumentRangeSelection,
 } from "../editor/documentClipboard";
 import {
@@ -61,9 +83,13 @@ declare global {
     __MLRT_DEBUG__?: unknown;
     __MLRT_DEBUG_EVENTS__?: DebugEvent[];
     __MLRT_EDITOR_VIEW__?: EditorView;
+    __MLRT_TEST_LIVE_PREVIEW__?: (x?: number, y?: number) => unknown;
     __MLRT_TEST_HOST_ISOLATED__?: boolean;
     __MLRT_TEST_HOST_RESYNC_PENDING__?: boolean;
     __MLRT_TEST_SET_HOST_ISOLATION__?: (isolated: boolean) => void;
+    __MLRT_TEST_MARKDOWN_PARSE__?: (force?: boolean) => {
+      treeLength: number; documentLength: number; fullReady: boolean; viewportReady: boolean;
+    } | null;
   }
 }
 
@@ -80,6 +106,11 @@ interface HostSetDocumentMessage {
 interface HostSetEditorOptionsMessage {
   type: "setEditorOptions";
   editorOptions: EditorOptions;
+}
+
+interface HostMarkdownTaskCommandMessage {
+  type: "markdownTaskCommand";
+  action: "toggle" | "focus";
 }
 
 interface DocumentChangeMessage {
@@ -130,12 +161,18 @@ type HostUndoRestoreTarget =
     };
 
 interface EditorOptions {
+  markdownLinks: Omit<MarkdownLinkOptions, "enabled">;
   lineWrapping: boolean;
   scrollBeyondLastLine: boolean;
   clipboardDocumentToken: string;
   defaultCopyMode: ClipboardCopyMode;
   defaultPasteMode: ClipboardPasteMode;
   tableNavigationModifierKey: TableNavigationModifierKey;
+  markdownRendering: {
+    enabled: boolean;
+    screenReaderOptimized: boolean;
+    readOnly: boolean;
+  };
 }
 
 const vscode = acquireVsCodeApi();
@@ -151,6 +188,7 @@ let hostRevision = 0;
 let view: EditorView;
 let lastTableCellCommit: TableCellCommitDetail | null = null;
 let nextWebviewChangeId = 1;
+let nextMarkdownLinkRequestId = 1;
 let hostDocumentApplyToken = 0;
 let editorCompositionActive = false;
 let pendingEditorComposition: PendingEditorComposition | null = null;
@@ -161,6 +199,8 @@ let deferredHostDocumentDuringEditorComposition:
 const pendingEditorCommandsAfterComposition: EditorCommandMessage["command"][] =
   [];
 let editorOptions = readEditorOptions();
+let appliedMarkdownRenderingOptions =
+  effectiveMarkdownRenderingOptions(editorOptions);
 const pendingWebviewEchoes: { id: number; text: string }[] = [];
 const pendingHostUndoFocusStack: PendingHostUndoFocus[] = [];
 const MAX_PENDING_HOST_UNDO_FOCUS = 200;
@@ -181,7 +221,10 @@ window.__MLRT_TEST_SET_HOST_ISOLATION__ = (isolated: boolean): void => {
 };
 
 try {
-  const editorExtensions = createLiveEditorExtensions(editorOptions);
+  const editorExtensions = createLiveEditorExtensions({
+    ...editorOptions,
+    markdownRendering: appliedMarkdownRenderingOptions,
+  });
   const initialDocument = readInitialDocument();
   app.replaceChildren();
   app.className = "mlrt-editor-shell";
@@ -194,6 +237,10 @@ try {
       doc: initialDocument,
       extensions: [
         ...editorExtensions,
+        markdownLinksCompartment.of(createMarkdownLinkExtensions(
+          { ...editorOptions.markdownLinks, enabled: editorOptions.markdownRendering.enabled },
+          postMarkdownLinkIntent,
+        )),
         EditorView.updateListener.of((update) => {
           if (
             update.docChanged &&
@@ -208,8 +255,13 @@ try {
               transaction.annotation(documentSelectionProjectionTransaction) ===
               true,
           );
+          // A validated task action changes one code unit outside the selected
+          // marker. Its explicit selection/projection retains the same offsets.
+          const taskPreservesProjection = projectionAuthoredSelection &&
+            update.transactions.length === 1 &&
+            update.transactions[0].annotation(markdownTaskChangeAnnotation) === true;
           if (
-            update.docChanged ||
+            (update.docChanged && !taskPreservesProjection) ||
             (update.selectionSet && !projectionAuthoredSelection)
           ) {
             clearDocumentSelectionProjection(update.view.dom.ownerDocument);
@@ -245,13 +297,50 @@ try {
     }),
   });
   window.__MLRT_EDITOR_VIEW__ = view;
+  window.__MLRT_TEST_LIVE_PREVIEW__ = (x, y) => {
+    if (!debugEnabled) return null;
+    const next = view.moveVertically(view.state.selection.main, false);
+    return { hasFocus: view.hasFocus, composing: view.compositionStarted, next: next.head,
+      list: markdownListLine(view.state.doc, syntaxTree(view.state), next.head),
+      preview: view.state.field(markdownPreviewField, false)?.focused,
+      link: x === undefined || y === undefined ? null : markdownLinkDiagnostics(view, x, y) };
+  };
+  // Explicit debug-only harness observation keeps parse convergence separate
+  // from frame timing. Normal editing never forces a full-document parse.
+  window.__MLRT_TEST_MARKDOWN_PARSE__ = (force = false) => {
+    if (!debugEnabled) return null;
+    if (force) forceParsing(view, view.state.doc.length, 25);
+    return {
+      treeLength: syntaxTree(view.state).length, documentLength: view.state.doc.length,
+      fullReady: syntaxTreeAvailable(view.state, view.state.doc.length),
+      viewportReady: view.visibleRanges.every(range => syntaxTreeAvailable(view.state, range.to)),
+    };
+  };
+  setMarkdownTaskActionGuard(view, () =>
+    !editorCompositionActive && pendingEditorComposition === null &&
+    deferredHostDocumentDuringEditorComposition === null &&
+    pendingEditorCommandsAfterComposition.length === 0,
+  );
+  setMarkdownActionNotifier(view, message => announceEditorStatus(document, message));
   installEditorCompositionBatching(view);
   applyDocumentEditorOptions(editorOptions);
   updateStatus(initialDocument, "embedded");
   installEditorCommandBridge(app);
-  installDocumentClipboard(app, view);
+  installDocumentClipboard(app, view, event => markdownTaskContextActions(view, event));
   syncDocumentRangeSelection(view);
   installCursorDebugListeners(app);
+  // VS Code injects and maintains this documented accessibility signal on
+  // the webview body, including changes while the retained view is hidden.
+  const accessibilityObserver = new MutationObserver(() => {
+    updateEditorOptions(editorOptions);
+  });
+  accessibilityObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  window.addEventListener("unload", () => accessibilityObserver.disconnect(), {
+    once: true,
+  });
   view.dom.addEventListener("mlrt:open-clipboard-settings", () => {
     vscode.postMessage({ type: "openClipboardSettings" });
   });
@@ -262,6 +351,30 @@ try {
 
 window.addEventListener("message", (event: MessageEvent<unknown>) => {
   const message = event.data;
+  if (message && typeof message === "object" && "type" in message &&
+      message.type === "markdownLinkCommand" && "action" in message && message.action === "open") {
+    if (editorCompositionActive || view.compositionStarted || pendingEditorComposition ||
+        deferredHostDocumentDuringEditorComposition || !openMarkdownLinkAtCaret(view)) {
+      announceEditorStatus(document, "Place a single caret in a Markdown link to open it after editing finishes.");
+    }
+    return;
+  }
+  if (isHostMarkdownTaskCommandMessage(message)) {
+    // The palette can own focus while this editor retains its intentional
+    // source selection. Composition commands are rejected rather than queued.
+    if (
+      !editorCompositionActive &&
+      !view.compositionStarted &&
+      !deferredHostDocumentDuringEditorComposition
+    ) {
+      if (message.action === "toggle") {
+        toggleMarkdownTask(view);
+      } else {
+        if (!focusMarkdownTask(view)) explainTaskFocusFallback(view);
+      }
+    }
+    return;
+  }
   if (isHostSetEditorOptionsMessage(message)) {
     updateEditorOptions(message.editorOptions);
     return;
@@ -289,6 +402,7 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
       if (!matched) {
         pendingWebviewEchoes.length = 0;
         pendingHostUndoFocusStack.length = 0;
+        invalidateMarkdownTaskContext(view);
         const mismatchSource = `host revision ${message.revision} authoritative mismatch`;
         if (
           !reconcileEditorCompositionWithHostDocument(
@@ -310,6 +424,7 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
   if (message.source === "webviewReject") {
     pendingWebviewEchoes.length = 0;
     pendingHostUndoFocusStack.length = 0;
+    invalidateMarkdownTaskContext(view);
     const rejectionSource = `host revision ${message.revision} rejected stale change`;
     if (
       !reconcileEditorCompositionWithHostDocument(
@@ -322,6 +437,7 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
     return;
   }
   const source = `host revision ${message.revision}`;
+  invalidateMarkdownTaskContext(view);
   if (reconcileEditorCompositionWithHostDocument(message.text, source)) {
     return;
   }
@@ -575,6 +691,24 @@ function postEditorCommand(command: EditorCommandMessage["command"]): void {
   } satisfies EditorCommandMessage);
 }
 
+function postMarkdownLinkIntent(intent: MarkdownLinkIntent): void {
+  if (editorCompositionActive || view.compositionStarted || view.composing ||
+      deferredHostDocumentDuringEditorComposition || !editorOptions.markdownRendering.enabled) return;
+  const intentDocument = view.state.doc;
+  cancelEditorCompositionFlush();
+  flushEditorComposition();
+  flushPendingEditorCommandsAfterComposition();
+  if (view.state.doc !== intentDocument || pendingEditorComposition ||
+      deferredHostDocumentDuringEditorComposition || pendingEditorCommandsAfterComposition.length) return;
+  // The host's existing document queue orders this behind already posted edits.
+  // The host derives the destination again from this exact source and range.
+  postMutationToHost({
+    type: "openMarkdownLink", sessionToken: editorOptions.clipboardDocumentToken,
+    requestId: nextMarkdownLinkRequestId++, beforeText: intentDocument.toString(),
+    baseRevision: hostRevision, ...intent,
+  } satisfies MarkdownOpenLinkRequest);
+}
+
 function postMutationToHost(message: unknown): void {
   if (window.__MLRT_TEST_HOST_ISOLATED__) {
     recordDebug("suppress-test-host-mutation", {
@@ -714,12 +848,18 @@ function readInitialDocument(): string {
 function readEditorOptions(): EditorOptions {
   const options = window.__MLRT_EDITOR_OPTIONS__;
   const defaults: EditorOptions = {
+    markdownLinks: { documentUri: null, multiCursorModifier: "alt", isMac: false },
     lineWrapping: true,
     scrollBeyondLastLine: true,
     clipboardDocumentToken: createClipboardDocumentToken(),
     defaultCopyMode: "smart",
     defaultPasteMode: "auto",
     tableNavigationModifierKey: DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY,
+    markdownRendering: {
+      enabled: true,
+      screenReaderOptimized: false,
+      readOnly: false,
+    },
   };
   if (!options || typeof options !== "object") {
     return defaults;
@@ -740,6 +880,8 @@ function readEditorOptions(): EditorOptions {
       defaultCopyMode: optionRecord.defaultCopyMode,
       defaultPasteMode: optionRecord.defaultPasteMode,
       tableNavigationModifierKey: optionRecord.tableNavigationModifierKey,
+      markdownRendering: optionRecord.markdownRendering,
+      markdownLinks: optionRecord.markdownLinks,
     },
     defaults,
   );
@@ -755,7 +897,20 @@ function normalizeEditorOptions(
       : {};
   const defaultCopyMode = record.defaultCopyMode;
   const defaultPasteMode = record.defaultPasteMode;
+  const markdownLinks = record.markdownLinks && typeof record.markdownLinks === "object"
+    ? record.markdownLinks as Record<string, unknown> : {};
+  const markdownRendering =
+    record.markdownRendering && typeof record.markdownRendering === "object"
+      ? (record.markdownRendering as Record<string, unknown>)
+      : {};
   return {
+    markdownLinks: {
+      documentUri: markdownLinks.documentUri === null || typeof markdownLinks.documentUri === "string"
+        ? markdownLinks.documentUri : fallback.markdownLinks.documentUri,
+      multiCursorModifier: markdownLinks.multiCursorModifier === "alt" || markdownLinks.multiCursorModifier === "ctrlCmd"
+        ? markdownLinks.multiCursorModifier : fallback.markdownLinks.multiCursorModifier,
+      isMac: typeof markdownLinks.isMac === "boolean" ? markdownLinks.isMac : fallback.markdownLinks.isMac,
+    },
     lineWrapping:
       typeof record.lineWrapping === "boolean"
         ? record.lineWrapping
@@ -787,6 +942,31 @@ function normalizeEditorOptions(
       record.tableNavigationModifierKey,
       fallback.tableNavigationModifierKey,
     ),
+    markdownRendering: {
+      enabled:
+        typeof markdownRendering.enabled === "boolean"
+          ? markdownRendering.enabled
+          : fallback.markdownRendering.enabled,
+      screenReaderOptimized:
+        typeof markdownRendering.screenReaderOptimized === "boolean"
+          ? markdownRendering.screenReaderOptimized
+          : fallback.markdownRendering.screenReaderOptimized,
+      readOnly:
+        typeof markdownRendering.readOnly === "boolean"
+          ? markdownRendering.readOnly
+          : fallback.markdownRendering.readOnly,
+    },
+  };
+}
+
+function effectiveMarkdownRenderingOptions(
+  options: EditorOptions,
+): EditorOptions["markdownRendering"] {
+  return {
+    ...options.markdownRendering,
+    screenReaderOptimized:
+      options.markdownRendering.screenReaderOptimized ||
+      document.body.classList.contains("vscode-using-screen-reader"),
   };
 }
 
@@ -809,6 +989,10 @@ function applyDocumentEditorOptions(options: EditorOptions): void {
 
 function updateEditorOptions(value: unknown): void {
   const nextOptions = normalizeEditorOptions(value, editorOptions);
+  const linksChanged = nextOptions.markdownRendering.enabled !== editorOptions.markdownRendering.enabled ||
+    nextOptions.markdownLinks.documentUri !== editorOptions.markdownLinks.documentUri ||
+    nextOptions.markdownLinks.multiCursorModifier !== editorOptions.markdownLinks.multiCursorModifier ||
+    nextOptions.markdownLinks.isMac !== editorOptions.markdownLinks.isMac;
   const lineWrappingChanged =
     nextOptions.lineWrapping !== editorOptions.lineWrapping;
   const tableNavigationModifierChanged =
@@ -817,6 +1001,23 @@ function updateEditorOptions(value: unknown): void {
   editorOptions = nextOptions;
   applyDocumentEditorOptions(editorOptions);
   const effects: StateEffect<unknown>[] = [];
+  if (linksChanged) effects.push(markdownLinksCompartment.reconfigure(createMarkdownLinkExtensions(
+    { ...editorOptions.markdownLinks, enabled: editorOptions.markdownRendering.enabled }, postMarkdownLinkIntent,
+  )));
+  const markdownOptions = effectiveMarkdownRenderingOptions(editorOptions);
+  if (
+    markdownOptions.enabled !== appliedMarkdownRenderingOptions.enabled ||
+    markdownOptions.screenReaderOptimized !==
+      appliedMarkdownRenderingOptions.screenReaderOptimized ||
+    markdownOptions.readOnly !== appliedMarkdownRenderingOptions.readOnly
+  ) {
+    appliedMarkdownRenderingOptions = markdownOptions;
+    effects.push(
+      markdownRenderingCompartment.reconfigure(
+        createMarkdownRenderingExtensions(markdownOptions),
+      ),
+    );
+  }
   if (lineWrappingChanged) {
     effects.push(
       lineWrappingCompartment.reconfigure(
@@ -945,6 +1146,10 @@ function publishEditorDocumentUpdate(update: ViewUpdate): void {
     update.startState.doc.toString(),
     update.state.doc.toString(),
     commitSequence,
+    update.transactions.some(
+      (transaction) =>
+        transaction.annotation(markdownTaskChangeAnnotation) === true,
+    ),
   );
 }
 
@@ -998,6 +1203,7 @@ function flushEditorComposition(): void {
     finalText,
   );
   if (changes.empty) {
+    refreshMarkdownTaskAvailability(view);
     return;
   }
   pushPendingHostUndoFocus({
@@ -1008,6 +1214,7 @@ function flushEditorComposition(): void {
     },
   });
   postDocumentChanges(changes, composition.beforeText, finalText);
+  refreshMarkdownTaskAvailability(view);
 }
 
 function flushPendingEditorCommandsAfterComposition(): void {
@@ -1177,6 +1384,7 @@ function postDocumentChanges(
   beforeText: string,
   text: string,
   commitSequence?: TableCellCommitSequence,
+  markdownTaskToggle = false,
 ): void {
   const documentChanges: DocumentChangeMessage[] = [];
   changes.iterChanges((from, to, _fromB, _toB, inserted) => {
@@ -1205,6 +1413,7 @@ function postDocumentChanges(
     changes: documentChanges,
     changeGroups: commitSequence?.steps.map((step) => [step.change]),
     baseRevision: hostRevision,
+    sourceAction: markdownTaskToggle ? "markdownTaskToggle" : undefined,
   });
 }
 
@@ -1414,12 +1623,27 @@ function isHostSetEditorOptionsMessage(
   );
 }
 
+function isHostMarkdownTaskCommandMessage(
+  message: unknown,
+): message is HostMarkdownTaskCommandMessage {
+  if (!message || typeof message !== "object") {
+    return false;
+  }
+  const record = message as Record<string, unknown>;
+  return (
+    record.type === "markdownTaskCommand" &&
+    (record.action === "toggle" || record.action === "focus")
+  );
+}
+
 function isEditorOptions(value: unknown): value is EditorOptions {
   if (!value || typeof value !== "object") {
     return false;
   }
   const record = value as Record<string, unknown>;
+  const markdownRendering = record.markdownRendering;
   return (
+    (markdownRendering === undefined || isMarkdownRenderingOptions(markdownRendering)) &&
     typeof record.lineWrapping === "boolean" &&
     typeof record.scrollBeyondLastLine === "boolean" &&
     typeof record.clipboardDocumentToken === "string" &&
@@ -1434,6 +1658,20 @@ function isEditorOptions(value: unknown): value is EditorOptions {
       record.defaultPasteMode === "markdown") &&
     normalizeTableNavigationModifierKey(record.tableNavigationModifierKey) ===
       record.tableNavigationModifierKey
+  );
+}
+
+function isMarkdownRenderingOptions(
+  value: unknown,
+): value is EditorOptions["markdownRendering"] {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.enabled === "boolean" &&
+    typeof record.screenReaderOptimized === "boolean" &&
+    typeof record.readOnly === "boolean"
   );
 }
 
