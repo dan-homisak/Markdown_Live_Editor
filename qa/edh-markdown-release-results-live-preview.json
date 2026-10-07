@@ -1,6 +1,6 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-otExin",
-  "port": 55433,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-P9OCtG",
+  "port": 59821,
   "checks": [
     {
       "name": "live preview: resting syntax is removed, properties and semantic content render",
@@ -8,6 +8,208 @@
       "detail": {
         "visible": "PropertiestitleLive previewtagsnotes · editor# Live previewPlain bold, italic, strike and inline code.Local target and Wiki alias.- Parent  - Child    - GrandchildAfter list- [ ] Open task- [x] Done task✓ A useful calloutStyled content.▸ⓘ Folded titlejsconst answer = 42;// exact code32AB34**Table bold**valueResting caret.",
         "sourceExact": true
+      }
+    },
+    {
+      "name": "live preview: inline code surfaces have centered padding, separate rows and enclosed backticks",
+      "pass": true,
+      "detail": {
+        "resting": [
+          {
+            "text": "paragraph",
+            "box": {
+              "left": 106.8125,
+              "right": 184.0999984741211,
+              "top": 0.30000001192092896,
+              "bottom": 17.30000001192093,
+              "height": 17
+            },
+            "glyph": {
+              "left": 110.8125,
+              "right": 180.10000610351562,
+              "top": 0.800000011920929,
+              "bottom": 16.80000191926956,
+              "height": 16.000001907348633
+            },
+            "padding": [
+              "0.5px",
+              "0.5px",
+              "4px",
+              "4px"
+            ],
+            "nested": 0
+          },
+          {
+            "text": "should",
+            "box": {
+              "left": 106.8125,
+              "right": 161,
+              "top": 19.200000762939453,
+              "bottom": 36.20000076293945,
+              "height": 17
+            },
+            "glyph": {
+              "left": 110.8125,
+              "right": 157,
+              "top": 19.700000762939453,
+              "bottom": 35.70000076293945,
+              "height": 16
+            },
+            "padding": [
+              "0.5px",
+              "0.5px",
+              "4px",
+              "4px"
+            ],
+            "nested": 0
+          },
+          {
+            "text": "JobInterest",
+            "box": {
+              "left": 99.125,
+              "right": 191.8000030517578,
+              "top": 38.10000228881836,
+              "bottom": 55.10000228881836,
+              "height": 17
+            },
+            "glyph": {
+              "left": 103.125,
+              "right": 187.8000030517578,
+              "top": 38.60000228881836,
+              "bottom": 54.60000228881836,
+              "height": 16
+            },
+            "padding": [
+              "0.5px",
+              "0.5px",
+              "4px",
+              "4px"
+            ],
+            "nested": 0
+          },
+          {
+            "text": "Qualified",
+            "box": {
+              "left": 230.28750610351562,
+              "right": 307.5750045776367,
+              "top": 38.10000228881836,
+              "bottom": 55.10000228881836,
+              "height": 17
+            },
+            "glyph": {
+              "left": 234.28750610351562,
+              "right": 303.57501220703125,
+              "top": 38.60000228881836,
+              "bottom": 54.60000228881836,
+              "height": 16
+            },
+            "padding": [
+              "0.5px",
+              "0.5px",
+              "4px",
+              "4px"
+            ],
+            "nested": 0
+          }
+        ],
+        "editing": [
+          {
+            "text": "`paragraph`",
+            "box": {
+              "left": 106.8125,
+              "right": 199.5,
+              "top": 0.30000001192092896,
+              "bottom": 17.30000001192093,
+              "height": 17
+            },
+            "glyph": {
+              "left": 110.8125,
+              "right": 195.5,
+              "top": 0.800000011920929,
+              "bottom": 16.80000191926956,
+              "height": 16.000001907348633
+            },
+            "padding": [
+              "0.5px",
+              "0.5px",
+              "4px",
+              "4px"
+            ],
+            "nested": 0
+          },
+          {
+            "text": "should",
+            "box": {
+              "left": 106.8125,
+              "right": 161,
+              "top": 19.200000762939453,
+              "bottom": 36.20000076293945,
+              "height": 17
+            },
+            "glyph": {
+              "left": 110.8125,
+              "right": 157,
+              "top": 19.700000762939453,
+              "bottom": 35.70000076293945,
+              "height": 16
+            },
+            "padding": [
+              "0.5px",
+              "0.5px",
+              "4px",
+              "4px"
+            ],
+            "nested": 0
+          },
+          {
+            "text": "JobInterest",
+            "box": {
+              "left": 99.125,
+              "right": 191.8000030517578,
+              "top": 38.10000228881836,
+              "bottom": 55.10000228881836,
+              "height": 17
+            },
+            "glyph": {
+              "left": 103.125,
+              "right": 187.8000030517578,
+              "top": 38.60000228881836,
+              "bottom": 54.60000228881836,
+              "height": 16
+            },
+            "padding": [
+              "0.5px",
+              "0.5px",
+              "4px",
+              "4px"
+            ],
+            "nested": 0
+          },
+          {
+            "text": "Qualified",
+            "box": {
+              "left": 230.28750610351562,
+              "right": 307.5750045776367,
+              "top": 38.10000228881836,
+              "bottom": 55.10000228881836,
+              "height": 17
+            },
+            "glyph": {
+              "left": 234.28750610351562,
+              "right": 303.57501220703125,
+              "top": 38.60000228881836,
+              "bottom": 54.60000228881836,
+              "height": 16
+            },
+            "padding": [
+              "0.5px",
+              "0.5px",
+              "4px",
+              "4px"
+            ],
+            "nested": 0
+          }
+        ]
       }
     },
     {
@@ -192,14 +394,14 @@
               "role": "mlrt-preview-code-copy-label",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.409925,
+              "opacity": 0.3651,
               "transitionDuration": "0.16s"
             },
             {
               "role": "mlrt-preview-code-copy-action",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.590075,
+              "opacity": 0.6349,
               "transitionDuration": "0.16s"
             },
             {
@@ -382,14 +584,14 @@
               "role": "mlrt-preview-code-copy-label",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.0348092,
+              "opacity": 0.0608248,
               "transitionDuration": "0.16s"
             },
             {
               "role": "mlrt-preview-code-copy-action",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.95143,
+              "opacity": 0.920876,
               "transitionDuration": "0.16s"
             },
             {
@@ -840,7 +1042,7 @@
       "pass": true,
       "detail": {
         "radius": "3px",
-        "fill": "rgb(0, 120, 212)",
+        "fill": "rgb(35, 118, 197)",
         "prefixes": 2
       }
     },

@@ -25,6 +25,22 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
     assert.equal(await liveEval('return view.state.doc.toString();'),source);
     await screenshot('live-preview-resting'); return {visible,sourceExact:true};
   });
+  await check('live preview: inline code surfaces have centered padding, separate rows and enclosed backticks', async () => {
+    const sample = ['This `paragraph` has a code span.', 'This `should` appear on its own line.', 'The `JobInterest` and `Qualified` fields.', '', 'Resting caret.'].join('\n');
+    await writeFixture(sample); await select(sample.indexOf('Resting caret')); await liveEval('view.scrollDOM.scrollTop=0;return true;'); await sleep(200);
+    const measure = () => liveEval(`const rect=el=>{const b=el.getBoundingClientRect();return {left:b.left,right:b.right,top:b.top,bottom:b.bottom,height:b.height};};return Array.from(root.querySelectorAll('.mlrt-markdown-inline-code')).map(el=>{const range=root.createRange();range.selectNodeContents(el);const css=win.getComputedStyle(el);return {text:el.textContent,box:rect(el),glyph:rect(range),padding:[css.paddingTop,css.paddingBottom,css.paddingLeft,css.paddingRight],nested:el.querySelectorAll('.mlrt-markdown-inline-code').length};});`);
+    const resting=await measure(); assert.equal(resting.length,4);
+    assert(resting[0].text==='paragraph' && resting[1].text==='should');
+    assert(resting[1].box.top-resting[0].box.bottom>=1,'consecutive backgrounds have a visible gap');
+    for(const span of resting){assert.equal(span.nested,0);assert.deepEqual(span.padding,['0.5px','0.5px','4px','4px']);assert(Math.abs((span.box.top+span.box.bottom-span.glyph.top-span.glyph.bottom)/2)<0.5,'surface centered on actual text boxes');}
+    await screenshot('inline-code-consecutive-resting');
+    await select(sample.indexOf('paragraph')+3);
+    const editing=await measure();assert.equal(editing[0].text,'`paragraph`');assert.equal(editing[0].nested,0);
+    assert(editing[0].box.left<editing[0].glyph.left && editing[0].box.right>editing[0].glyph.right,'padding encloses the source backticks');
+    assert(editing[1].box.top-editing[0].box.bottom>=1);
+    assert.equal(await liveEval('return view.state.doc.toString();'),sample);
+    await screenshot('inline-code-consecutive-editing'); await restore(); return {resting,editing};
+  });
   await check('live preview: caret and selection reveal only the active formatting', async () => {
     const observations=[];
     for (const [word,syntax] of [['bold','**bold**'],['italic','*italic*'],['inline code','`inline code`'],['Local target','[Local target](./LinkedTarget.md)'],['Wiki alias','[[LinkedTarget|Wiki alias]]']]) {

@@ -200,7 +200,7 @@ export function classifyMarkdownPresentation(
 export function markdownPresentationDecorations(document: Text, runs: readonly MarkdownPresentationRun[]): DecorationSet {
   const ranges: Range<Decoration>[] = [];
   for (const run of runs) {
-    const mark = Decoration.mark({ class: run.className });
+    const mark = Decoration.mark({ class: run.className.split(" ").filter(name => name !== "mlrt-markdown-inline-code").join(" ") });
     for (let from = run.from; from < run.to;) {
       const line = document.lineAt(from), to = Math.min(run.to, line.to);
       if (from < to) ranges.push(mark.range(from, to));
@@ -210,8 +210,30 @@ export function markdownPresentationDecorations(document: Text, runs: readonly M
   return Decoration.set(ranges, true);
 }
 
+/** One outer mark owns the surface, including the independently colored backticks. */
+export function markdownInlineCodeDecorations(document: Text, runs: readonly MarkdownPresentationRun[]): DecorationSet {
+  const groups: { from: number; to: number }[] = [];
+  for (const run of runs) {
+    if (!run.className.split(" ").includes("mlrt-markdown-inline-code")) continue;
+    const previous = groups[groups.length - 1];
+    if (previous?.to === run.from) previous.to = run.to;
+    else groups.push({ from: run.from, to: run.to });
+  }
+  const ranges: Range<Decoration>[] = [];
+  const mark = Decoration.mark({ class: "mlrt-markdown-inline-code" });
+  for (const group of groups) {
+    for (let from = group.from; from < group.to;) {
+      const line = document.lineAt(from), to = Math.min(group.to, line.to);
+      if (from < to) ranges.push(mark.range(from, to));
+      from = line.to + 1;
+    }
+  }
+  return Decoration.set(ranges, true);
+}
+
 class MarkdownPresentationView {
   decorations: DecorationSet = Decoration.none;
+  inlineCodeDecorations: DecorationSet = Decoration.none;
   private document: Text;
   private tree: Tree;
   private windows = "";
@@ -233,8 +255,10 @@ class MarkdownPresentationView {
     const runs = classifyMarkdownPresentation(this.view.state.doc, this.tree,
       getParsedTables(this.view.state.doc), windows);
     const next = markdownPresentationDecorations(this.view.state.doc, runs);
-    const changed = !RangeSet.eq([this.decorations], [next]);
+    const inlineCode = markdownInlineCodeDecorations(this.view.state.doc, runs);
+    const changed = !RangeSet.eq([this.decorations, this.inlineCodeDecorations], [next, inlineCode]);
     this.decorations = next;
+    this.inlineCodeDecorations = inlineCode;
     return changed;
   }
   update(update: ViewUpdate): void {
@@ -242,10 +266,12 @@ class MarkdownPresentationView {
     try {
       if (this.composing || update.view.compositionStarted) {
         this.decorations = this.decorations.map(update.changes);
+        this.inlineCodeDecorations = this.inlineCodeDecorations.map(update.changes);
         return;
       }
       if (!update.view.inView) {
         this.decorations = this.decorations.map(update.changes);
+        this.inlineCodeDecorations = this.inlineCodeDecorations.map(update.changes);
         this.windows = "hidden";
         return;
       }
@@ -282,6 +308,7 @@ class MarkdownPresentationView {
   }
   private fail(): void {
     this.decorations = Decoration.none;
+    this.inlineCodeDecorations = Decoration.none;
     if (!this.failed) console.warn("Markdown readable source styling disabled after an internal failure.");
     this.failed = true;
     this.theme?.destroy(); this.theme = null;
@@ -293,6 +320,7 @@ class MarkdownPresentationView {
 export function createMarkdownPresentationExtensions(): Extension {
   return ViewPlugin.fromClass(MarkdownPresentationView, {
     decorations: value => value.decorations,
+    provide: plugin => EditorView.outerDecorations.of(view => view.plugin(plugin)?.inlineCodeDecorations ?? Decoration.none),
     eventHandlers: {
       compositionstart() { this.compositionStart(); return false; },
       compositionend() { this.compositionEnd(); return false; },
