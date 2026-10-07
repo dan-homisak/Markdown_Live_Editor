@@ -519,6 +519,10 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
         }
         if (
           event.affectsConfiguration(
+            "markdownLiveRenderTables.lineHighlight",
+            document.uri,
+          ) ||
+          event.affectsConfiguration(
             "markdownLiveRenderTables.clipboard",
             document.uri,
           ) ||
@@ -1126,6 +1130,7 @@ function getEditorOptions(
   readOnly: boolean,
 ): {
   lineWrapping: boolean;
+  lineHighlight: boolean;
   scrollBeyondLastLine: boolean;
   clipboardDocumentToken: string;
   defaultCopyMode: "smart" | "rich" | "plain" | "markdown";
@@ -1154,6 +1159,7 @@ function getEditorOptions(
   );
   return {
     lineWrapping: wordWrap !== "off",
+    lineHighlight: extensionConfig.get<boolean>("lineHighlight.enabled", false),
     scrollBeyondLastLine: editorConfig.get<boolean>(
       "scrollBeyondLastLine",
       true,

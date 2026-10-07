@@ -9,6 +9,8 @@ import { EditorView, ViewUpdate } from "@codemirror/view";
 import { forceParsing, syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import {
   createLiveEditorExtensions,
+  createLineHighlightAttributes,
+  lineHighlightCompartment,
   lineWrappingCompartment,
 } from "../editor/liveEditorExtensions";
 import {
@@ -164,6 +166,7 @@ type HostUndoRestoreTarget =
 interface EditorOptions {
   markdownLinks: Omit<MarkdownLinkOptions, "enabled">;
   lineWrapping: boolean;
+  lineHighlight: boolean;
   scrollBeyondLastLine: boolean;
   clipboardDocumentToken: string;
   defaultCopyMode: ClipboardCopyMode;
@@ -855,6 +858,7 @@ function readEditorOptions(): EditorOptions {
   const defaults: EditorOptions = {
     markdownLinks: { documentUri: null, multiCursorModifier: "alt", isMac: false },
     lineWrapping: true,
+    lineHighlight: false,
     scrollBeyondLastLine: true,
     clipboardDocumentToken: createClipboardDocumentToken(),
     defaultCopyMode: "smart",
@@ -882,6 +886,7 @@ function readEditorOptions(): EditorOptions {
         typeof optionRecord.scrollBeyondLastLine === "boolean"
           ? optionRecord.scrollBeyondLastLine
           : true,
+      lineHighlight: optionRecord.lineHighlight,
       clipboardDocumentToken: optionRecord.clipboardDocumentToken,
       defaultCopyMode: optionRecord.defaultCopyMode,
       defaultPasteMode: optionRecord.defaultPasteMode,
@@ -921,6 +926,10 @@ function normalizeEditorOptions(
       typeof record.lineWrapping === "boolean"
         ? record.lineWrapping
         : fallback.lineWrapping,
+    lineHighlight:
+      typeof record.lineHighlight === "boolean"
+        ? record.lineHighlight
+        : fallback.lineHighlight,
     scrollBeyondLastLine:
       typeof record.scrollBeyondLastLine === "boolean"
         ? record.scrollBeyondLastLine
@@ -1003,6 +1012,7 @@ function updateEditorOptions(value: unknown): void {
     nextOptions.markdownLinks.documentUri !== editorOptions.markdownLinks.documentUri ||
     nextOptions.markdownLinks.multiCursorModifier !== editorOptions.markdownLinks.multiCursorModifier ||
     nextOptions.markdownLinks.isMac !== editorOptions.markdownLinks.isMac;
+  const lineHighlightChanged = nextOptions.lineHighlight !== editorOptions.lineHighlight;
   const lineWrappingChanged =
     nextOptions.lineWrapping !== editorOptions.lineWrapping;
   const tableNavigationModifierChanged =
@@ -1011,6 +1021,11 @@ function updateEditorOptions(value: unknown): void {
   editorOptions = nextOptions;
   applyDocumentEditorOptions(editorOptions);
   const effects: StateEffect<unknown>[] = [];
+  if (lineHighlightChanged) {
+    effects.push(lineHighlightCompartment.reconfigure(
+      createLineHighlightAttributes(editorOptions.lineHighlight),
+    ));
+  }
   if (linksChanged) effects.push(markdownLinksCompartment.reconfigure(createMarkdownLinkExtensions(
     { ...editorOptions.markdownLinks, enabled: editorOptions.markdownRendering.enabled }, postMarkdownLinkIntent,
   )));
@@ -1655,6 +1670,7 @@ function isEditorOptions(value: unknown): value is EditorOptions {
   const markdownRendering = record.markdownRendering;
   return (
     (markdownRendering === undefined || isMarkdownRenderingOptions(markdownRendering)) &&
+    (record.lineHighlight === undefined || typeof record.lineHighlight === "boolean") &&
     typeof record.lineWrapping === "boolean" &&
     typeof record.scrollBeyondLastLine === "boolean" &&
     typeof record.clipboardDocumentToken === "string" &&

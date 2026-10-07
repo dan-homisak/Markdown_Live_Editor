@@ -60,6 +60,10 @@ const fixturePath = path.join(userDataDir, "TestTable.md");
 await writeFile(
   fixturePath,
   [
+    ...(process.argv.includes("--line-highlight-only") ? [
+      "# Heading", "", "```js", "const answer = 42;", "```", "",
+      "> [!NOTE] Callout", "> Callout body", "", "> Quote", "",
+    ] : []),
     "Text up here at. ",
     "",
     "More text. ",
@@ -136,6 +140,7 @@ const child = spawn(
     `--remote-debugging-port=${port}`,
     ...(requestedDeviceScale === undefined ? [] : [`--force-device-scale-factor=${requestedDeviceScale}`]),
     "--new-window",
+    ...(process.env.MLRT_EDH_SOFTWARE_RENDERING === "1" ? ["--disable-gpu", "--no-sandbox"] : []),
     "--disable-workspace-trust",
     "--skip-release-notes",
     "--skip-welcome",
@@ -184,8 +189,12 @@ async function listTargets() {
   return res.json();
 }
 
+const debuggingSockets = new Set();
+
 function connect(wsUrl) {
   const ws = new WebSocket(wsUrl);
+  debuggingSockets.add(ws);
+  ws.addEventListener("close", () => debuggingSockets.delete(ws));
   let id = 0;
   const pending = new Map();
   const eventHandlers = [];
@@ -344,6 +353,54 @@ try {
   }
 
   assertPixelParity(stockMetrics, liveMetrics);
+
+  // Exercise the real settings watcher; legacy highlight checks below run enabled.
+  const highlightSettingsPath = path.join(userDataDir, "User", "settings.json");
+  const setLineHighlight = async (enabled) => {
+    await mkdir(path.dirname(highlightSettingsPath), { recursive: true });
+    await writeFile(highlightSettingsPath, JSON.stringify({
+      "markdownLiveRenderTables.lineHighlight.enabled": enabled,
+    }));
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const applied = await evaluateJson(liveClient, lineHighlightEnabledExpression());
+      if (applied === enabled) return;
+      await sleep(100);
+    }
+    throw new Error("Line highlight setting did not update the open live editor.");
+  };
+  if (process.argv.includes("--line-highlight-only")) {
+    const initial = await evaluateJson(liveClient, lineHighlightEnabledExpression());
+    if (initial !== false) throw new Error("Line highlighting must default to off.");
+    const off = await evaluateJson(liveClient, lineHighlightSettingExpression());
+    await evaluateJson(liveClient, textLineHighlightExpression());
+    await captureWorkbenchScreenshot(wb, path.join(qaDir, "edh-line-highlight-off.png"));
+    await setLineHighlight(true);
+    const on = await evaluateJson(liveClient, lineHighlightSettingExpression());
+    const proseOn = await evaluateJson(liveClient, textLineHighlightExpression());
+    assertTextLineHighlight(proseOn);
+    await captureWorkbenchScreenshot(wb, path.join(qaDir, "edh-line-highlight-on.png"));
+    await setLineHighlight(false);
+    const offAgain = await evaluateJson(liveClient, lineHighlightSettingExpression());
+    for (const [label, snapshot] of [["default", off], ["disabled again", offAgain]]) {
+      if (snapshot.rows.some(row => row.active.background !== row.passive.background ||
+        row.active.image !== row.passive.image)) {
+        throw new Error(label + " left an active-line fill: " + JSON.stringify(snapshot.rows));
+      }
+      if (JSON.stringify(snapshot.table) !== JSON.stringify(on.table)) {
+        throw new Error("Table focus styling changed with line highlighting.");
+      }
+    }
+    if (on.rows.some(row => row.active.background === row.passive.background &&
+      row.active.image === row.passive.image)) {
+      throw new Error("Enabled highlighting missing from a non-table line: " + JSON.stringify(on.rows));
+    }
+    await writeFile(path.join(qaDir, "edh-line-highlight-setting.json"), JSON.stringify({ off, on, offAgain }, null, 2));
+    console.log("LINE HIGHLIGHT SETTING CHECK: default off, on/off updates, seven non-table line types, and unchanged table styling passed.");
+    liveClient.ws.close(); wb.ws.close();
+    throw cursorHighlightOnlyComplete;
+  }
+  await setLineHighlight(true);
+
 
   if (process.argv.includes("--global-undo-only")) {
     // Fresh startup has no synthetic host isolation or selection fixture.
@@ -2416,6 +2473,7 @@ try {
     throw error;
   }
 } finally {
+  for (const ws of debuggingSockets) ws.close();
   await sleep(500);
   if (childExit === null) {
     child.kill("SIGTERM");
@@ -10619,6 +10677,47 @@ function gutterScrollOrderingExpression(matrixCase) {
         '.mlrt-hidden-table-source-line, .mlrt-hidden-table-source-gutter',
       ).length,
     });
+  })()`;
+}
+
+function lineHighlightEnabledExpression() {
+  return `(() => {
+    const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map(frame => {
+      try { return frame.contentDocument; } catch { return null; }
+    }).filter(Boolean)];
+    const root = roots.find(candidate => candidate.defaultView?.__MLRT_EDITOR_VIEW__);
+    return JSON.stringify(root?.defaultView.__MLRT_EDITOR_VIEW__.dom.classList.contains('mlrt-line-highlight-enabled'));
+  })()`;
+}
+
+function lineHighlightSettingExpression() {
+  return `(async () => {
+    const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map(frame => {
+      try { return frame.contentDocument; } catch { return null; }
+    }).filter(Boolean)];
+    const root = roots.find(candidate => candidate.defaultView?.__MLRT_EDITOR_VIEW__);
+    const view = root.defaultView.__MLRT_EDITOR_VIEW__;
+    const settle = () => new Promise(done => root.defaultView.requestAnimationFrame(() => root.defaultView.requestAnimationFrame(done)));
+    const style = element => {
+      const computed = root.defaultView.getComputedStyle(element);
+      return { background: computed.backgroundColor, image: computed.backgroundImage, color: computed.color };
+    };
+    const rows = [];
+    for (const text of ['# Heading', '', 'const answer = 42;', '> Callout body', '> Quote', 'Text up here at. ', '- list']) {
+      const line = Array.from({length:view.state.doc.lines}, (_,i) => view.state.doc.line(i+1)).find(line => line.text === text);
+      view.dispatch({selection:{anchor:line.from + Math.min(2,line.length)}, scrollIntoView:true});
+      view.focus(); await settle();
+      const activeElement = root.querySelector('.cm-line.mlrt-prose-active-line');
+      const active = style(activeElement);
+      view.dispatch({selection:{anchor:view.state.doc.length}}); await settle();
+      const position = view.domAtPos(line.from + Math.min(2, line.length)).node;
+      const passiveElement = (position.nodeType === 1 ? position : position.parentElement).closest(".cm-line");
+      rows.push({text, active, passive:style(passiveElement)});
+    }
+    const cell = root.querySelector('.mlrt-table-cell');
+    (cell.matches('[contenteditable=true]') ? cell : cell.querySelector('[contenteditable=true]')).focus(); await settle();
+    const table = Array.from(root.querySelectorAll('.mlrt-table-cell, .mlrt-table-source-line')).map(style);
+    return JSON.stringify({rows, table});
   })()`;
 }
 

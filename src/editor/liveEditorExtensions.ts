@@ -37,11 +37,19 @@ import {
 
 export interface LiveEditorOptions {
   lineWrapping: boolean;
+  lineHighlight?: boolean;
   tableNavigationModifierKey: TableNavigationModifierKey;
   markdownRendering?: MarkdownRenderingOptions;
 }
 
 export const lineWrappingCompartment = new Compartment();
+export const lineHighlightCompartment = new Compartment();
+
+export function createLineHighlightAttributes(enabled: boolean): Extension {
+  return EditorView.editorAttributes.of({
+    class: enabled ? "mlrt-line-highlight-enabled" : "",
+  });
+}
 
 /**
  * Assembles the complete CodeMirror extension set for the live markdown
@@ -63,6 +71,7 @@ export function createLiveEditorExtensions(
     // routes undo/redo through the authoritative VS Code document history.
     history(),
     createEditorTheme(),
+    lineHighlightCompartment.of(createLineHighlightAttributes(options.lineHighlight ?? false)),
     createTableBoundaryArrowNavigation(),
     createTableBoundaryInputHandler(),
     createDocumentSelectionInputHandler(),
