@@ -59,6 +59,35 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
     assert.equal(await liveEval('return root.querySelectorAll(".mlrt-preview-properties").length;'),1);
     return {sourceExact:await liveEval('return view.state.doc.toString();')===source};
   });
+  await check('live preview: arrows enter opening and closing code fences at the source text end', async () => {
+    const observations=[];
+    for (const [opening,closing,body] of [['```python','```','print("hello")'],['```','```','plain code'],['~~~~js','~~~~  ','const n = 1;'],['> ```python','> ```','> print("hello")']]) {
+      const before='Before the code block with a long line of text.',after='After the code block with a long line of text.';
+      const sample=[before,opening,body,closing,after].join('\n');
+      await writeFixture(sample);
+      for (const column of [0,6,before.length]) for (const forward of [true,false]) {
+        const from=forward?0:sample.lastIndexOf(after);
+        await select(from+Math.min(column,forward?before.length:after.length));
+        await key(forward?'ArrowDown':'ArrowUp',forward?'ArrowDown':'ArrowUp',forward?40:38);
+        const expected=forward?before.length+1+opening.length:sample.lastIndexOf(closing)+closing.trimEnd().length;
+        const actual=await liveEval('const head=view.state.selection.main.head,point=view.domAtPos(head,-1),range=root.createRange();range.setStart(point.node,point.offset);range.setEnd(point.node,point.offset);const textBox=range.getBoundingClientRect(),caret=view.coordsAtPos(head,view.state.selection.main.assoc);return {head,assoc:view.state.selection.main.assoc,caretLeft:caret?.left,textRight:textBox.right,line:view.state.doc.lineAt(head).number,source:view.state.doc.toString(),toolbar:root.querySelector(".mlrt-preview-code-copy")?.getBoundingClientRect().left};');
+        assert.equal(actual.head,expected,JSON.stringify({opening,column,forward,actual}));
+        assert.equal(actual.source,sample,'navigation preserves the complete document');
+        assert(Math.abs(actual.caretLeft-actual.textRight)<=0.5,'caret sits at the last source glyph: '+JSON.stringify(actual));
+        observations.push({opening,column,forward,...actual,source:undefined});
+        if(opening==='```python'&&column===before.length)await screenshot(forward?'fence-arrow-down':'fence-arrow-up');
+        await key(forward?'ArrowDown':'ArrowUp',forward?'ArrowDown':'ArrowUp',forward?40:38);
+        assert.equal(await liveEval('return view.state.doc.lineAt(view.state.selection.main.head).number;'),3,'the following arrow reaches the code body');
+      }
+    }
+    const wrapped=['Long prose '.repeat(180),'```python','print("hello")','```','Long prose '.repeat(180)].join('\n');
+    await writeFixture(wrapped);
+    await select(0);await key('ArrowDown','ArrowDown',40);
+    assert.equal(await liveEval('return view.state.doc.lineAt(view.state.selection.main.head).number;'),1);
+    await select(wrapped.length);await key('ArrowUp','ArrowUp',38);
+    assert.equal(await liveEval('return view.state.doc.lineAt(view.state.selection.main.head).number;'),5);
+    await restore();return {observations,wrappedRowsStayNative:true};
+  });
   await check('live preview: code language, copy button, and fence reveal', async () => {
     await select(source.indexOf('const answer')+8);
     assert((await content()).includes('```js'));

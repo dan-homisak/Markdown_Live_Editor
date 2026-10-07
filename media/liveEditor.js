@@ -29698,9 +29698,36 @@ ${text3}`;
     const value = view2.state.field(markdownPreviewField, false);
     return !!value && !previewOwnerActive(range, view2.state.selection, view2.hasFocus, value.projected);
   }
+  function markdownFenceEntry(state, forward, nextHead) {
+    const current = state.doc.lineAt(state.selection.main.head);
+    const number2 = current.number + (forward ? 1 : -1);
+    if (number2 < 1 || number2 > state.doc.lines) return null;
+    const line = state.doc.line(number2);
+    if (forward ? nextHead < line.from : nextHead > line.to) return null;
+    const part = state.field(markdownPreviewField, false)?.parts.find((part2) => part2.from === line.from && part2.fence && part2.kind === (forward ? "code-header" : "code-end"));
+    return part?.fence?.to ?? null;
+  }
+  function enterMarkdownFence(view2, forward) {
+    const selection = view2.state.selection;
+    const projection = getDocumentSelectionProjection(view2.dom.ownerDocument, selection.main);
+    if (!view2.hasFocus || view2.compositionStarted || view2.composing || selection.ranges.length !== 1 || !selection.main.empty || view2.dom.ownerDocument.activeElement?.closest(".mlrt-table-widget") || projection && projection.tableRegions.length > 0) return false;
+    const next2 = view2.moveVertically(selection.main, forward);
+    const head = markdownFenceEntry(view2.state, forward, next2.head);
+    if (head === null) return false;
+    view2.dispatch({
+      selection: EditorSelection.create([EditorSelection.cursor(head, -1)]),
+      effects: activityEffect.of({ focused: true, composing: false, projected: null }),
+      scrollIntoView: true,
+      userEvent: "select"
+    });
+    return true;
+  }
   function createMarkdownLivePreviewExtensions(screenReaderOptimized, showHeadingMarkers = true) {
     if (screenReaderOptimized) return [];
-    return [headingMarkersFacet.of(showHeadingMarkers), markdownPreviewField, ViewPlugin.fromClass(class {
+    return [headingMarkersFacet.of(showHeadingMarkers), markdownPreviewField, keymap.of([
+      { key: "ArrowDown", run: (view2) => enterMarkdownFence(view2, true) },
+      { key: "ArrowUp", run: (view2) => enterMarkdownFence(view2, false) }
+    ]), ViewPlugin.fromClass(class {
       constructor(view2) {
         this.view = view2;
         this.schedule();

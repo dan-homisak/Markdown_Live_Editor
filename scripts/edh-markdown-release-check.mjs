@@ -14,7 +14,8 @@ import { WebSocket } from "undici";
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const qa = path.join(repo, "qa");
 const codeOnly = process.argv.includes("--code-only");
-const livePreviewOnly = process.argv.includes("--live-preview-only");
+const fenceNavigationOnly = process.argv.includes("--fence-navigation-only");
+const livePreviewOnly = fenceNavigationOnly || process.argv.includes("--live-preview-only");
 const nestedGuideOnly = process.argv.includes("--nested-guide-only");
 const measureDiagnostic = process.argv.includes("--measure-diagnostic-only");
 const paintOnly = process.argv.includes("--paint-only") || measureDiagnostic;
@@ -158,6 +159,7 @@ async function sample(position) {
   return liveEval(`const pos=${position},a=view.domAtPos(pos,1),b=view.domAtPos(pos+1,-1),r=root.createRange();r.setStart(a.node,a.offset);r.setEnd(b.node,b.offset);const box=r.getBoundingClientRect(),el=a.node.nodeType===3?a.node.parentElement:a.node,css=win.getComputedStyle(el),line=el.closest('.cm-line');return {position:pos,text:r.toString(),classes:el.className,line:line?.textContent,lineClasses:line?.className,fontSize:css.fontSize,fontFamily:css.fontFamily,lineHeight:css.lineHeight,fontWeight:css.fontWeight,fontStyle:css.fontStyle,color:css.color,background:css.backgroundColor,decoration:css.textDecorationLine,x:box.x,y:box.y,height:box.height};`);
 }
 async function check(name, action) {
+  if (fenceNavigationOnly && !name.startsWith("live preview: arrows enter")) return;
   if (livePreviewOnly && !name.startsWith("live preview:")) return;
   if (nestedGuideOnly && !name.startsWith("nested quote and alert")) return;
   if (measureDiagnostic && !name.startsWith("actual rendered performance")) return;
@@ -446,7 +448,7 @@ try {
 } catch (error) { checks.push({ name: "harness initialization/completion", pass: false, error: String(error) }); console.error(error); }
 finally {
   report.passed = checks.length > 0 && checks.every(check => check.pass) && !(report.console?.length);
-  const reportName=`edh-markdown-release-results${livePreviewOnly ? "-live-preview" : nestedGuideOnly ? "-nested-guides" : codeOnly ? "-code-diagnostic" : measureDiagnostic ? "-measure-diagnostic" : paintOnly ? "-paint" : ""}.json`;
+  const reportName=`edh-markdown-release-results${fenceNavigationOnly ? "-fence-navigation" : livePreviewOnly ? "-live-preview" : nestedGuideOnly ? "-nested-guides" : codeOnly ? "-code-diagnostic" : measureDiagnostic ? "-measure-diagnostic" : paintOnly ? "-paint" : ""}.json`;
   await writeFile(path.join(qa, reportName), JSON.stringify(report, null, 2));
   for (const client of clients) client.socket.close(); child.kill();
   console.log(`Saved qa/${reportName}; ${checks.filter(check => check.pass).length}/${checks.length} checks passed.`);

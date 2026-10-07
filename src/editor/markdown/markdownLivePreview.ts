@@ -1,8 +1,9 @@
 import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { EditorSelection, EditorState, Extension, Facet, Range, StateEffect, StateField, Text } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
+import { Decoration, DecorationSet, EditorView, keymap, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { SyntaxNode, Tree } from "@lezer/common";
 import { getParsedTables } from "../../shared/tableModel";
+import { getDocumentSelectionProjection } from "../documentSelectionState";
 import { isTablePointerSelectionActive } from "../table/tableRangeSelection";
 import { MarkdownRange } from "./markdownSyntax";
 import { markdownAlertForQuote } from "./markdownBlockSyntax";
@@ -332,10 +333,43 @@ export function isMarkdownPreviewActive(view: EditorView, range: MarkdownRange):
   return !!value && !previewOwnerActive(range, view.state.selection, view.hasFocus, value.projected);
 }
 
+/** Enter fence source rows before browser hit testing can skip hidden glyphs or hit the toolbar. */
+export function markdownFenceEntry(state: EditorState, forward: boolean, nextHead: number): number | null {
+  const current = state.doc.lineAt(state.selection.main.head);
+  const number = current.number + (forward ? 1 : -1);
+  if (number < 1 || number > state.doc.lines) return null;
+  const line = state.doc.line(number);
+  // A wrapped visual row still belongs to the current source line.
+  if (forward ? nextHead < line.from : nextHead > line.to) return null;
+  const part = state.field(markdownPreviewField, false)?.parts.find(part =>
+    part.from === line.from && part.fence && part.kind === (forward ? "code-header" : "code-end"));
+  return part?.fence?.to ?? null;
+}
+
+function enterMarkdownFence(view: EditorView, forward: boolean): boolean {
+  const selection = view.state.selection;
+  const projection = getDocumentSelectionProjection(view.dom.ownerDocument, selection.main);
+  if (!view.hasFocus || view.compositionStarted || view.composing || selection.ranges.length !== 1 ||
+      !selection.main.empty || view.dom.ownerDocument.activeElement?.closest(".mlrt-table-widget") ||
+      (projection && projection.tableRegions.length > 0)) return false;
+  const next = view.moveVertically(selection.main, forward);
+  const head = markdownFenceEntry(view.state, forward, next.head);
+  if (head === null) return false;
+  // At the opening line end, -1 keeps the caret beside the last source glyph,
+  // before the absolutely positioned copy widget anchored at the same offset.
+  view.dispatch({ selection: EditorSelection.create([EditorSelection.cursor(head, -1)]),
+    effects: activityEffect.of({ focused: true, composing: false, projected: null }),
+    scrollIntoView: true, userEvent: "select" });
+  return true;
+}
+
 /** Direct field decorations may collapse block rows. Viewport discovery itself never supplies block decorations. */
 export function createMarkdownLivePreviewExtensions(screenReaderOptimized: boolean, showHeadingMarkers = true): Extension {
   if (screenReaderOptimized) return [];
-  return [headingMarkersFacet.of(showHeadingMarkers), markdownPreviewField, ViewPlugin.fromClass(class {
+  return [headingMarkersFacet.of(showHeadingMarkers), markdownPreviewField, keymap.of([
+    { key: "ArrowDown", run: view => enterMarkdownFence(view, true) },
+    { key: "ArrowUp", run: view => enterMarkdownFence(view, false) },
+  ]), ViewPlugin.fromClass(class {
     private queued = false;
     private frame: number | null = null;
     private destroyed = false;
