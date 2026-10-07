@@ -17,6 +17,7 @@ import {
 
 export interface MarkdownRenderingOptions {
   enabled: boolean;
+  showHeadingMarkers?: boolean;
   screenReaderOptimized: boolean;
   readOnly: boolean;
 }
@@ -71,7 +72,7 @@ export function createMarkdownRenderingExtensions(options: MarkdownRenderingOpti
     ? [createMarkdownListEditing(options.readOnly),
       markdown({ extensions: [markdownParserExtensions, markdownBlockLanguageExtensions], codeLanguages: markdownCodeLanguages }),
       createMarkdownPresentationExtensions(), createMarkdownBlockExtensions(),
-      createMarkdownLivePreviewExtensions(options.screenReaderOptimized), markerPlugin]
+      createMarkdownLivePreviewExtensions(options.screenReaderOptimized, options.showHeadingMarkers), markerPlugin]
     : markdown()];
 }
 

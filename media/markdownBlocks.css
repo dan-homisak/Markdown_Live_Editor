@@ -32,6 +32,7 @@
 }
 
 .cm-line.mlrt-markdown-block-code {
+  position: relative;
   --mlrt-markdown-block-top-edge: transparent;
   --mlrt-markdown-block-bottom-edge: transparent;
   background-color: var(--mlrt-markdown-code-background, var(--vscode-textCodeBlock-background, var(--vscode-editor-background)));
@@ -44,20 +45,45 @@
   padding-right: 12px;
 }
 
+/* Code keeps its fill and any enclosing quote guide, with no horizontal frame. */
+.cm-line.mlrt-markdown-block-code:not(.mlrt-markdown-block-frontmatter) {
+  --mlrt-markdown-block-top-edge: transparent;
+  --mlrt-markdown-block-bottom-edge: transparent;
+  box-shadow: inset var(--mlrt-markdown-block-guide-width, 0px) 0 var(--mlrt-markdown-block-accent, transparent);
+}
+.cm-line.mlrt-markdown-block-code:not(.mlrt-markdown-block-frontmatter).mlrt-markdown-block-start {
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+}
+.cm-line.mlrt-markdown-block-code:not(.mlrt-markdown-block-frontmatter).mlrt-markdown-block-end {
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
+
 .mlrt-preview-code-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   min-height: 28px;
   padding: 0 12px;
-  border-radius: 6px 6px 0 0;
+  border-radius: 3px 3px 0 0;
   background: var(--mlrt-markdown-code-background, var(--vscode-textCodeBlock-background));
   color: var(--vscode-descriptionForeground, inherit);
   box-sizing: border-box;
-  font-family: var(--vscode-font-family, sans-serif);
-  font-size: 12px;
+  font: inherit;
 }
-.mlrt-preview-code-end { height: 0; }
+.mlrt-preview-code-fence-hidden { visibility: hidden; }
+/* The control stays outside text layout. Two extra pixels below the opening
+   row give its centered text breathing room without moving any source rows. */
+.mlrt-preview-code-header-inline {
+  position: absolute;
+  top: 0;
+  height: calc(var(--mlrt-editor-line-height, 1lh) + 2px);
+  right: 12px;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
 .mlrt-preview-code-header button,
 .mlrt-preview-callout button,
 .mlrt-preview-properties button {
@@ -69,11 +95,44 @@
   text-align: left;
 }
 .mlrt-preview-code-header button { padding: 3px 5px; border-radius: 4px; }
+.mlrt-preview-code-header .mlrt-preview-code-copy {
+  display: inline-grid;
+  place-items: center;
+  text-align: center;
+  transition: background-color 160ms ease-out, color 160ms ease-out;
+}
+.mlrt-preview-code-copy > span { grid-area: 1 / 1; }
+.mlrt-preview-code-copy-size { visibility: hidden; }
+.mlrt-preview-code-copy-label,
+.mlrt-preview-code-copy-action,
+.mlrt-preview-code-copy-status {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease-out;
+}
+.mlrt-preview-code-copy[data-copy-state="language"] .mlrt-preview-code-copy-label,
+.mlrt-preview-code-copy[data-copy-state="action"] .mlrt-preview-code-copy-action,
+.mlrt-preview-code-copy[data-copy-state="status"] .mlrt-preview-code-copy-status { opacity: 1; }
+.mlrt-preview-code-header-inline .mlrt-preview-code-copy {
+  box-sizing: border-box;
+  height: 100%;
+  max-height: 100%;
+  padding: 0 8px;
+  border-radius: 3px;
+}
+.mlrt-preview-code-copy:is(:hover, :focus-visible) { color: var(--vscode-editor-foreground, inherit); }
 .mlrt-preview-code-header button:hover,
+.mlrt-preview-code-header button:focus-visible,
 .mlrt-preview-properties button:hover { background: var(--vscode-toolbar-hoverBackground, #80808026); }
 .mlrt-preview-code-header button:focus-visible,
 .mlrt-preview-callout button:focus-visible,
 .mlrt-preview-properties button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+@media (prefers-reduced-motion: reduce) {
+  .mlrt-preview-code-header .mlrt-preview-code-copy,
+  .mlrt-preview-code-copy-label,
+  .mlrt-preview-code-copy-action,
+  .mlrt-preview-code-copy-status { transition: none; }
+}
 .mlrt-preview-properties {
   /* Block widgets must have no vertical margins: CM measures their border box
      to map source positions to screen coordinates. */
@@ -142,4 +201,10 @@
   .cm-line.mlrt-markdown-block-quote::before { border-left-width: var(--mlrt-markdown-block-guide-width, 1px); }
   .cm-line.mlrt-markdown-block-start::before { border-top-width: 1px; }
   .cm-line.mlrt-markdown-block-end::before { border-bottom-width: 1px; }
+  .cm-line.mlrt-markdown-block-code:not(.mlrt-markdown-block-frontmatter)::before {
+    border-top-width: 0;
+    border-bottom-width: 0;
+    border-radius: inherit;
+  }
+  .mlrt-preview-code-header-inline { border: 0; background: transparent; }
 }

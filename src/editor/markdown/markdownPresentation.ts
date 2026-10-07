@@ -10,6 +10,7 @@ import { MarkdownThemeAdapter } from "./presentationTheme";
 type Foreground = "heading" | "punctuation" | "link" | "destination" | "title" |
   "code" | "comment" | "tag" | "variable" | "string" | "keyword";
 interface Style {
+  headingLevel?: number;
   foreground?: Foreground;
   priority?: number;
   bold?: boolean;
@@ -101,7 +102,7 @@ export function classifyMarkdownPresentation(
         if (name === "FencedCode" || name === "CodeBlock" || name === "MarkdownFrontmatter" ||
             name === "Frontmatter") return false;
         if (/^(?:ATX|Setext)Heading[1-6]$/.test(name)) {
-          add(from, to, { foreground: "heading", priority: 20, bold: true });
+          add(from, to, { foreground: "heading", headingLevel: Number(name.slice(-1)), priority: 20, bold: true });
         } else switch (name) {
           case "StrongEmphasis": content(node, "EmphasisMark", { bold: true }); break;
           case "Emphasis": content(node, "EmphasisMark", { italic: true }); break;
@@ -168,8 +169,10 @@ export function classifyMarkdownPresentation(
     if (!active.size || from === to) continue;
     let foreground: Foreground | undefined, priority = -1;
     const flags = { bold: false, italic: false, strike: false, inlineCode: false, codeFont: false };
+    let headingLevel: number | undefined;
     for (const id of active) {
       const style = spans[id].style;
+      if (style.headingLevel) headingLevel = style.headingLevel;
       if (style.foreground && (style.priority ?? 0) > priority) {
         foreground = style.foreground; priority = style.priority ?? 0;
       }
@@ -177,6 +180,7 @@ export function classifyMarkdownPresentation(
     }
     const classes = ["mlrt-markdown-source"];
     if (foreground) classes.push(`mlrt-markdown-role-${foreground}`);
+    if (headingLevel) classes.push(`mlrt-markdown-heading-${headingLevel}`);
     if (flags.bold && !flags.codeFont) classes.push("mlrt-markdown-bold");
     if (flags.italic && !flags.codeFont) classes.push("mlrt-markdown-italic");
     if (flags.strike) classes.push("mlrt-markdown-strike");

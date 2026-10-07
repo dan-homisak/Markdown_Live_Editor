@@ -20,6 +20,13 @@ function has(runs: readonly MarkdownPresentationRun[], position: number, role: s
 
 const mixed = "## **Important** [deployment](./deploy.md \"title\") `settings` ##";
 const mixedRuns = classify(mixed);
+for (let level = 1; level <= 6; level++) {
+  const heading = '#'.repeat(level) + ' Heading';
+  const runs = classify(heading);
+  assert(has(runs, 0, `heading-${level}`) && has(runs, heading.indexOf('Heading'), `heading-${level}`));
+}
+const headingColors = resolveMarkdownTheme({ colors: { 'editor.background': '#1e1e1e', 'editor.foreground': '#d4d4d4' }, dark: true, highContrast: false });
+assert.equal(new Set(Array.from({ length: 6 }, (_, index) => headingColors[`--mlrt-markdown-heading-${index + 1}`])).size, 6, 'Dark+ heading levels have distinct colors');
 assert.ok(has(mixedRuns, 0, "bold") && has(mixedRuns, 0, "role-heading"));
 assert.ok(has(mixedRuns, mixed.indexOf("Important"), "bold"));
 assert.ok(has(mixedRuns, mixed.indexOf("deployment"), "bold") && has(mixedRuns, mixed.indexOf("deployment"), "role-link"));
@@ -111,7 +118,7 @@ assert.deepEqual(parseMarkdownColor("rgb(100% 0% 0% / 25%)"), { r: 254.999999999
 assert.equal(parseMarkdownColor("color(display-p3 1 0 0)"), null);
 assert.equal(parseMarkdownColor("rgba(nope)"), null);
 assert.equal(markdownContrast(parseMarkdownColor("#fff")!, parseMarkdownColor("#000")!), 21);
-const textRoles = ["foreground", "heading", "link", "destination", "title", "punctuation", "inline-code-foreground",
+const textRoles = ["foreground", "heading", "heading-1", "heading-2", "heading-3", "heading-4", "heading-5", "heading-6", "link", "destination", "title", "punctuation", "inline-code-foreground",
   "code-foreground", "code-comment", "code-constant", "code-declaration", "code-keyword", "code-string", "code-variable", "code-tag",
   "alert-note", "alert-tip", "alert-important", "alert-warning", "alert-caution"];
 for (const background of ["#0d1117", "#ffffff", "#1e1e1e", "#777777", "#7e7770", "#ffccdd", "#003300"]) {

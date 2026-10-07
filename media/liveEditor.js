@@ -27124,6 +27124,10 @@
       tag: "#116329"
     }
   };
+  var markdownHeadingPalettes = {
+    dark: ["#569CD6", "#4EC9B0", "#DCDCAA", "#C586C0", "#CE9178", "#9CDCFE"],
+    light: ["#800000", "#267F99", "#795E26", "#AF00DB", "#A31515", "#001080"]
+  };
   function resolveMarkdownTheme(input) {
     const read = (name2) => parseMarkdownColor(input.colors[name2]);
     const canvas = compositeMarkdownColor(read("editor.background") ?? (input.dark ? black : white), input.dark ? black : white);
@@ -27171,6 +27175,10 @@
       "inline-code-outline": input.highContrast ? `inset 0 0 0 1px ${edge}` : "none"
     };
     const taskFill = input.highContrast ? canvas : read("checkbox.background") ?? canvas;
+    const headingPalette = markdownHeadingPalettes[luminance(canvas) < 0.4 ? "dark" : "light"];
+    headingPalette.forEach((color, index) => {
+      result[`heading-${index + 1}`] = safe(parseMarkdownColor(color));
+    });
     const taskSurface = compositeMarkdownColor(taskFill, canvas);
     result["task-fill"] = cssColor(taskFill);
     result["task-mark"] = safe(read("checkbox.foreground"), [taskSurface]);
@@ -27349,7 +27357,7 @@
           if (to <= window2.from || from >= window2.to) return false;
           if (name2 === "FencedCode" || name2 === "CodeBlock" || name2 === "MarkdownFrontmatter" || name2 === "Frontmatter") return false;
           if (/^(?:ATX|Setext)Heading[1-6]$/.test(name2)) {
-            add2(from, to, { foreground: "heading", priority: 20, bold: true });
+            add2(from, to, { foreground: "heading", headingLevel: Number(name2.slice(-1)), priority: 20, bold: true });
           } else switch (name2) {
             case "StrongEmphasis":
               content2(node, "EmphasisMark", { bold: true });
@@ -27435,8 +27443,10 @@
       if (!active.size || from === to) continue;
       let foreground, priority = -1;
       const flags = { bold: false, italic: false, strike: false, inlineCode: false, codeFont: false };
+      let headingLevel;
       for (const id2 of active) {
         const style = spans[id2].style;
+        if (style.headingLevel) headingLevel = style.headingLevel;
         if (style.foreground && (style.priority ?? 0) > priority) {
           foreground = style.foreground;
           priority = style.priority ?? 0;
@@ -27445,6 +27455,7 @@
       }
       const classes = ["mlrt-markdown-source"];
       if (foreground) classes.push(`mlrt-markdown-role-${foreground}`);
+      if (headingLevel) classes.push(`mlrt-markdown-heading-${headingLevel}`);
       if (flags.bold && !flags.codeFont) classes.push("mlrt-markdown-bold");
       if (flags.italic && !flags.codeFont) classes.push("mlrt-markdown-italic");
       if (flags.strike) classes.push("mlrt-markdown-strike");
@@ -29269,7 +29280,7 @@ ${text3}`;
 
   // src/editor/markdown/markdownLivePreview.ts
   var overlaps = (a, b) => a.from < b.to && b.from < a.to;
-  function classifyMarkdownPreview(doc2, tree, tables2, windows2) {
+  function classifyMarkdownPreview(doc2, tree, tables2, windows2, showHeadingMarkers = true) {
     const parts = [], seen = /* @__PURE__ */ new Set();
     const read = (from, to) => doc2.sliceString(from, to);
     const add2 = (part) => {
@@ -29307,15 +29318,19 @@ ${text3}`;
         const end = marks2.length > 1 ? doc2.lineAt(marks2[marks2.length - 1].from).from : node.to;
         const copy = { from: start, to: Math.max(start, end), prefix, indented: node.name === "CodeBlock" };
         if (node.name === "FencedCode") {
-          if (first.from <= window2.to && first.to >= window2.from) add2({ from: first.from, to: first.to, owner, kind: "code-header", block: true, label: language2, copy, editAt: Math.min(node.to, start) });
-          if (marks2.length > 1 && last.from <= window2.to && last.to >= window2.from) add2({ from: last.from, to: last.to, owner, kind: "code-end", block: true });
+          for (const part of parts) if (part.kind === "hide" && part.from >= first.from && part.to <= node.from) {
+            part.kind = "conceal";
+            part.owner = owner;
+          }
+          if (first.from <= window2.to && first.to >= window2.from) add2({ from: first.from, to: first.to, owner, kind: "code-header", fence: { from: marks2[0].from, to: first.to }, label: language2, copy, editAt: Math.min(node.to, start) });
+          if (marks2.length > 1 && last.from <= window2.to && last.to >= window2.from) add2({ from: last.from, to: last.to, owner, kind: "code-end", fence: { from: last.from, to: marks2[marks2.length - 1].to } });
         } else {
           if (first.from <= window2.to && first.to >= window2.from) add2({ from: first.from, to: first.to, owner, kind: "code-header", block: true, insertion: true, label: "text", copy, editAt: node.from });
         }
         for (let from = Math.max(start, doc2.lineAt(window2.from).from); from < Math.min(end, window2.to); ) {
           const line = doc2.lineAt(from);
           const structural = codeStructuralPrefixLength(line.text, prefix);
-          if (structural) hide(line.from, line.from + structural, owner);
+          if (structural) add2({ from: line.from, to: line.from + structural, owner, kind: node.name === "FencedCode" ? "conceal" : "hide" });
           from = line.to + 1;
         }
         return false;
@@ -29339,6 +29354,7 @@ ${text3}`;
         hide(node.from, Math.min(node.to + (read(node.to, node.to + 1) === " " ? 1 : 0), line.to), { from: line.from, to: line.to });
       } else if (/^(?:ATX|Setext)Heading[1-6]$/u.test(node.name)) {
         for (const mark of node.getChildren("HeaderMark")) {
+          if (showHeadingMarkers && node.name.startsWith("ATX")) continue;
           const line = doc2.lineAt(mark.from);
           if (node.name.startsWith("Setext")) hide(line.from, line.to, owner, true);
           else hide(mark.from === node.from ? mark.from : Math.max(node.from, mark.from - 1), whitespaceAfter(mark.to), owner);
@@ -29438,6 +29454,7 @@ ${text3}`;
       const doc2 = view2.dom.ownerDocument, part = this.part;
       const wrapper = doc2.createElement(part.block ? "div" : "span");
       wrapper.className = `mlrt-preview-${part.kind}`;
+      if (part.fence) wrapper.classList.add("mlrt-preview-code-header-inline");
       wrapper.dataset.previewFrom = String(part.from);
       wrapper.contentEditable = "false";
       const current = () => view2.state.doc.sliceString(part.from, part.to) === this.source;
@@ -29459,32 +29476,64 @@ ${text3}`;
       });
       if (part.kind === "code-end") return wrapper;
       if (part.kind === "code-header") {
-        const language2 = doc2.createElement("button");
-        language2.type = "button";
-        language2.className = "mlrt-preview-code-language";
-        language2.textContent = part.label || "text";
-        language2.title = "Edit code block";
-        language2.addEventListener("click", () => edit2());
+        const language2 = part.label || "text";
         const copy = doc2.createElement("button");
         copy.type = "button";
         copy.className = "mlrt-preview-code-copy";
-        copy.textContent = "Copy";
-        copy.setAttribute("aria-label", `Copy ${part.label || "text"} code`);
+        copy.setAttribute("aria-label", `Copy ${language2} code`);
+        copy.title = `Copy ${language2} code`;
+        const size = doc2.createElement("span");
+        size.className = "mlrt-preview-code-copy-size";
+        size.setAttribute("aria-hidden", "true");
+        size.textContent = "Copied";
+        const label = doc2.createElement("span");
+        label.className = "mlrt-preview-code-copy-label";
+        label.setAttribute("aria-hidden", "true");
+        label.textContent = language2;
+        const action = doc2.createElement("span");
+        action.className = "mlrt-preview-code-copy-action";
+        action.setAttribute("aria-hidden", "true");
+        action.textContent = "Copy";
+        const feedback = doc2.createElement("span");
+        feedback.className = "mlrt-preview-code-copy-status";
+        feedback.setAttribute("role", "status");
+        let hovered = false, status = null;
+        const refreshLabel = () => {
+          copy.dataset.copyState = status ? "status" : hovered || doc2.activeElement === copy ? "action" : "language";
+          if (status) feedback.textContent = status;
+          feedback.setAttribute("aria-hidden", String(!status));
+        };
+        copy.addEventListener("pointerenter", () => {
+          hovered = true;
+          refreshLabel();
+        });
+        copy.addEventListener("pointerleave", () => {
+          hovered = false;
+          refreshLabel();
+        });
+        copy.addEventListener("focus", refreshLabel);
+        copy.addEventListener("blur", refreshLabel);
+        copy.append(size, label, action, feedback);
+        refreshLabel();
         copy.addEventListener("click", async () => {
           if (!current()) return;
           const range = part.copy;
           const content2 = range ? codeBlockText(view2.state.doc, range.from, range.to, range.prefix, range.indented) : "";
           try {
             await doc2.defaultView.navigator.clipboard.writeText(content2);
-            copy.textContent = "Copied";
+            status = "Copied";
           } catch {
-            copy.textContent = "Copy failed";
+            status = "Failed";
           }
+          refreshLabel();
           doc2.defaultView.setTimeout(() => {
-            if (copy.isConnected) copy.textContent = "Copy";
+            if (copy.isConnected) {
+              status = null;
+              refreshLabel();
+            }
           }, 1800);
         });
-        wrapper.append(language2, copy);
+        wrapper.append(copy);
       } else if (part.kind === "properties") {
         const title = doc2.createElement("button");
         title.type = "button";
@@ -29538,13 +29587,25 @@ ${text3}`;
       return true;
     }
     get estimatedHeight() {
-      return this.part.kind === "code-end" ? 0 : this.part.kind === "properties" ? 30 + frontmatterPropertyRows(this.part.content ?? "").length * 28 : -1;
+      return this.part.kind === "properties" ? 30 + frontmatterPropertyRows(this.part.content ?? "").length * 28 : -1;
     }
   };
   function decorations2(state, value) {
     const ranges = [], covered = [];
     for (const part of value.parts) {
       const active = previewOwnerActive(part.owner, state.selection, value.focused, value.projected);
+      if (part.fence) {
+        if (part.kind === "code-header") ranges.push(Decoration.widget({
+          side: 1,
+          widget: new PreviewWidget(part, state.doc.sliceString(part.from, part.to))
+        }).range(part.to));
+        if (!active) ranges.push(Decoration.mark({ class: "mlrt-preview-code-fence-hidden" }).range(part.fence.from, part.fence.to));
+        continue;
+      }
+      if (part.kind === "conceal") {
+        if (!active) ranges.push(Decoration.mark({ class: "mlrt-preview-code-fence-hidden" }).range(part.from, part.to));
+        continue;
+      }
       if (part.kind === "code-header" && (active || part.insertion)) {
         ranges.push(Decoration.widget({ block: true, side: -1, widget: new PreviewWidget(part, state.doc.sliceString(part.from, part.to)) }).range(part.from));
         continue;
@@ -29565,11 +29626,12 @@ ${text3}`;
     }
     return Decoration.set(ranges, true);
   }
+  var headingMarkersFacet = Facet.define({ combine: (values2) => values2[0] ?? true });
   var markdownPreviewField = StateField.define({
     create(state) {
       const windows2 = [{ from: 0, to: Math.min(state.doc.length, 12e3) }];
       const value = {
-        parts: classifyMarkdownPreview(state.doc, syntaxTree(state), getParsedTables(state.doc), windows2),
+        parts: classifyMarkdownPreview(state.doc, syntaxTree(state), getParsedTables(state.doc), windows2, state.facet(headingMarkersFacet)),
         windows: windows2,
         focused: false,
         composing: false,
@@ -29594,8 +29656,8 @@ ${text3}`;
         folds = new Map([...folds].map(([from, folded]) => [transaction.changes.mapPos(from), folded]));
       }
       if (composing) return { ...value, focused, composing, projected, folds, windows: windows2, decorations: value.decorations.map(transaction.changes) };
-      const changed = transaction.docChanged || syntaxTree(transaction.state) !== syntaxTree(transaction.startState) || windows2 !== value.windows;
-      const parts = changed ? classifyMarkdownPreview(transaction.state.doc, syntaxTree(transaction.state), getParsedTables(transaction.state.doc), windows2) : value.parts;
+      const changed = transaction.docChanged || syntaxTree(transaction.state) !== syntaxTree(transaction.startState) || windows2 !== value.windows || transaction.state.facet(headingMarkersFacet) !== transaction.startState.facet(headingMarkersFacet);
+      const parts = changed ? classifyMarkdownPreview(transaction.state.doc, syntaxTree(transaction.state), getParsedTables(transaction.state.doc), windows2, transaction.state.facet(headingMarkersFacet)) : value.parts;
       const next2 = { parts, windows: windows2, focused, composing, projected, folds };
       return { ...next2, decorations: decorations2(transaction.state, next2) };
     },
@@ -29605,9 +29667,9 @@ ${text3}`;
     const value = view2.state.field(markdownPreviewField, false);
     return !!value && !previewOwnerActive(range, view2.state.selection, view2.hasFocus, value.projected);
   }
-  function createMarkdownLivePreviewExtensions(screenReaderOptimized) {
+  function createMarkdownLivePreviewExtensions(screenReaderOptimized, showHeadingMarkers = true) {
     if (screenReaderOptimized) return [];
-    return [markdownPreviewField, ViewPlugin.fromClass(class {
+    return [headingMarkersFacet.of(showHeadingMarkers), markdownPreviewField, ViewPlugin.fromClass(class {
       constructor(view2) {
         this.view = view2;
         this.schedule();
@@ -30804,6 +30866,7 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
           let row = rows.get(line.from);
           if (!row) rows.set(line.from, row = { quote: false, alertDepth: -1, start: false, end: false });
           visit(row, line.from);
+          if (node.name === "CodeBlock" && line.from === lastLine) row.end = true;
           if (node.name === "FencedCode" || node.name === "MarkdownFrontmatter") {
             if (line.from === firstLine) row.start = true;
             const closing = node.lastChild;
@@ -31208,7 +31271,7 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       markdown({ extensions: [markdownParserExtensions, markdownBlockLanguageExtensions], codeLanguages: markdownCodeLanguages }),
       createMarkdownPresentationExtensions(),
       createMarkdownBlockExtensions(),
-      createMarkdownLivePreviewExtensions(options.screenReaderOptimized),
+      createMarkdownLivePreviewExtensions(options.screenReaderOptimized, options.showHeadingMarkers),
       markerPlugin
     ] : markdown()];
   }
@@ -46424,6 +46487,7 @@ ${replacement}
       tableNavigationModifierKey: DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY,
       markdownRendering: {
         enabled: true,
+        showHeadingMarkers: true,
         screenReaderOptimized: false,
         readOnly: false
       }
@@ -46468,6 +46532,7 @@ ${replacement}
         fallback.tableNavigationModifierKey
       ),
       markdownRendering: {
+        showHeadingMarkers: typeof markdownRendering.showHeadingMarkers === "boolean" ? markdownRendering.showHeadingMarkers : fallback.markdownRendering.showHeadingMarkers,
         enabled: typeof markdownRendering.enabled === "boolean" ? markdownRendering.enabled : fallback.markdownRendering.enabled,
         screenReaderOptimized: typeof markdownRendering.screenReaderOptimized === "boolean" ? markdownRendering.screenReaderOptimized : fallback.markdownRendering.screenReaderOptimized,
         readOnly: typeof markdownRendering.readOnly === "boolean" ? markdownRendering.readOnly : fallback.markdownRendering.readOnly
@@ -46506,7 +46571,7 @@ ${replacement}
       postMarkdownLinkIntent
     )));
     const markdownOptions = effectiveMarkdownRenderingOptions(editorOptions);
-    if (markdownOptions.enabled !== appliedMarkdownRenderingOptions.enabled || markdownOptions.screenReaderOptimized !== appliedMarkdownRenderingOptions.screenReaderOptimized || markdownOptions.readOnly !== appliedMarkdownRenderingOptions.readOnly) {
+    if (markdownOptions.enabled !== appliedMarkdownRenderingOptions.enabled || markdownOptions.showHeadingMarkers !== appliedMarkdownRenderingOptions.showHeadingMarkers || markdownOptions.screenReaderOptimized !== appliedMarkdownRenderingOptions.screenReaderOptimized || markdownOptions.readOnly !== appliedMarkdownRenderingOptions.readOnly) {
       appliedMarkdownRenderingOptions = markdownOptions;
       effects.push(
         markdownRenderingCompartment.reconfigure(
@@ -46994,7 +47059,7 @@ ${String(error2)}`;
       return false;
     }
     const record = value;
-    return typeof record.enabled === "boolean" && typeof record.screenReaderOptimized === "boolean" && typeof record.readOnly === "boolean";
+    return typeof record.enabled === "boolean" && (record.showHeadingMarkers === void 0 || typeof record.showHeadingMarkers === "boolean") && typeof record.screenReaderOptimized === "boolean" && typeof record.readOnly === "boolean";
   }
   function isTableCellCommitDetail(detail) {
     if (!detail || typeof detail !== "object") {

@@ -27,6 +27,12 @@
   --mlrt-markdown-alert-caution: var(--vscode-editor-foreground, currentColor);
 }
 .cm-content .mlrt-markdown-role-heading { color: var(--mlrt-markdown-heading); }
+.cm-content .mlrt-markdown-role-heading.mlrt-markdown-heading-1 { color: var(--mlrt-markdown-heading-1, var(--mlrt-markdown-heading)); }
+.cm-content .mlrt-markdown-role-heading.mlrt-markdown-heading-2 { color: var(--mlrt-markdown-heading-2, var(--mlrt-markdown-heading)); }
+.cm-content .mlrt-markdown-role-heading.mlrt-markdown-heading-3 { color: var(--mlrt-markdown-heading-3, var(--mlrt-markdown-heading)); }
+.cm-content .mlrt-markdown-role-heading.mlrt-markdown-heading-4 { color: var(--mlrt-markdown-heading-4, var(--mlrt-markdown-heading)); }
+.cm-content .mlrt-markdown-role-heading.mlrt-markdown-heading-5 { color: var(--mlrt-markdown-heading-5, var(--mlrt-markdown-heading)); }
+.cm-content .mlrt-markdown-role-heading.mlrt-markdown-heading-6 { color: var(--mlrt-markdown-heading-6, var(--mlrt-markdown-heading)); }
 .cm-content .mlrt-markdown-role-punctuation { color: var(--mlrt-markdown-punctuation); }
 .cm-content .mlrt-markdown-role-link { color: var(--mlrt-markdown-link); }
 .cm-content .mlrt-markdown-role-destination { color: var(--mlrt-markdown-destination); }

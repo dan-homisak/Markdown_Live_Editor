@@ -147,9 +147,10 @@ export function classifyMarkdownBlocks(
         let row = rows.get(line.from);
         if (!row) rows.set(line.from, row = { quote: false, alertDepth: -1, start: false, end: false });
         visit(row, line.from);
+        if (node.name === "CodeBlock" && line.from === lastLine) row.end = true;
         if (node.name === "FencedCode" || node.name === "MarkdownFrontmatter") {
           if (line.from === firstLine) row.start = true;
-          // Only a real closing marker earns the bottom inset edge.
+          // Only a real closing marker marks the end of fenced source.
           const closing = node.lastChild;
           if (closing && /^(CodeMark|MarkdownFrontmatterMark)$/u.test(closing.name) &&
               closing.from > node.from && line.from === lastLine) row.end = true;

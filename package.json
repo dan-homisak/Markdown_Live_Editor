@@ -2,7 +2,7 @@
   "name": "markdown-live-render-tables",
   "displayName": "Markdown Live Editor",
   "description": "A VS Code extension for editing markdown in a live rendered editor.",
-  "version": "0.1.178",
+  "version": "0.1.181",
   "publisher": "dan-homisak",
   "license": "MIT",
   "engines": {
@@ -105,6 +105,11 @@
           "type": "boolean",
           "default": true,
           "description": "Use Obsidian-style Live Preview: hide inactive Markdown syntax, reveal it at the caret, render properties/callouts/code, and enable task, list, and link controls. Disable to restore ordinary non-table source editing; rendered tables remain available."
+        },
+        "markdownLiveRenderTables.markdownRendering.showHeadingMarkers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Always show heading # markers in the Markdown Live Editor. Disable to hide them in inactive headings and reveal them while editing. Heading colors and text size are preserved."
         }
       }
     },

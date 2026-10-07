@@ -94,7 +94,9 @@ const indented = "before\n\n    const answer = 42;\n\n    another line\n\nafter"
 const indentProjection = project(indented);
 assert.match(rowClasses(indentProjection, indented, 4), /block-code/, "blank indented-code row retains band");
 assert(!indentProjection.marks.some(mark => mark.classes.includes("block-token-")), "indented code never guesses JavaScript");
-assert(!indentProjection.rows.some(row => /block-(start|end)/u.test(row.classes)));
+assert(!indentProjection.rows.some(row => /block-start/u.test(row.classes)), 'the separate indented-code header owns its top corners');
+assert.match(rowClasses(indentProjection, indented, 5), /block-end/, 'the final indented-code row owns its bottom corners');
+assert.equal(indentProjection.rows.filter(row => /block-end/u.test(row.classes)).length, 1);
 
 for (const [language, body, expectedRole, expectedText] of [
   ["ts", "const answer: number = 42", "declaration", "const"],
