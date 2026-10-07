@@ -69,6 +69,14 @@ export const markdownCodePalettes = {
     string: "#0a3069", variable: "#953800", tag: "#116329" },
 } as const;
 
+// VS Code Dark+ has one markup.heading color. Distinguish the six levels with
+// its heading, type, function, keyword, string, and variable token colors.
+// Source: microsoft/vscode extensions/theme-defaults/themes/{dark,light}_plus.json
+export const markdownHeadingPalettes = {
+  dark: ["#569CD6", "#4EC9B0", "#DCDCAA", "#C586C0", "#CE9178", "#9CDCFE"],
+  light: ["#800000", "#267F99", "#795E26", "#AF00DB", "#A31515", "#001080"],
+} as const;
+
 /** Only new semantic roles are adjusted. Existing canvas, ordinary text,
  * selection, gutters, and all table colors remain host-owned. */
 export function resolveMarkdownTheme(input: MarkdownThemeInput): Record<string, string> {
@@ -115,6 +123,8 @@ export function resolveMarkdownTheme(input: MarkdownThemeInput): Record<string, 
     "inline-code-outline": input.highContrast ? `inset 0 0 0 1px ${edge}` : "none",
   };
   const taskFill = input.highContrast ? canvas : read("checkbox.background") ?? canvas;
+  const headingPalette = markdownHeadingPalettes[luminance(canvas) < 0.4 ? "dark" : "light"];
+  headingPalette.forEach((color, index) => { result[`heading-${index + 1}`] = safe(parseMarkdownColor(color)); });
   const taskSurface = compositeMarkdownColor(taskFill, canvas);
   result["task-fill"] = cssColor(taskFill);
   result["task-mark"] = safe(read("checkbox.foreground"), [taskSurface]);

@@ -1,12 +1,12 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-QP4eTn",
-  "port": 50960,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-otExin",
+  "port": 55433,
   "checks": [
     {
       "name": "live preview: resting syntax is removed, properties and semantic content render",
       "pass": true,
       "detail": {
-        "visible": "PropertiestitleLive previewtagsnotes · editorLive previewPlain bold, italic, strike and inline code.Local target and Wiki alias.- Parent  - Child    - GrandchildAfter list- [ ] Open task- [x] Done task✓ A useful calloutStyled content.▸ⓘ Folded titlejsCopyconst answer = 42;// exact code32AB34**Table bold**valueResting caret.",
+        "visible": "PropertiestitleLive previewtagsnotes · editor# Live previewPlain bold, italic, strike and inline code.Local target and Wiki alias.- Parent  - Child    - GrandchildAfter list- [ ] Open task- [x] Done task✓ A useful calloutStyled content.▸ⓘ Folded titlejsconst answer = 42;// exact code32AB34**Table bold**valueResting caret.",
         "sourceExact": true
       }
     },
@@ -38,6 +38,802 @@
         "clipboard": "const answer = 42;\r\n// exact code\r\n",
         "sourceExact": true
       }
+    },
+    {
+      "name": "live preview: language replaces Copy until hover and the control stays within rounded code",
+      "pass": true,
+      "detail": {
+        "before": {
+          "label": "typescript",
+          "labelBox": {
+            "left": 712.2250366210938,
+            "right": 789.2000350952148,
+            "top": 38.79999923706055,
+            "bottom": 57.69999885559082,
+            "width": 76.9749984741211,
+            "height": 18.899999618530273
+          },
+          "glyph": {
+            "left": 712.2250366210938,
+            "right": 789.2000122070312,
+            "top": 39.60000228881836,
+            "bottom": 55.60000228881836,
+            "width": 76.9749755859375,
+            "height": 16
+          },
+          "button": {
+            "left": 704.2250366210938,
+            "right": 797.2000350952148,
+            "top": 37.79999923706055,
+            "bottom": 58.69999885559082,
+            "width": 92.9749984741211,
+            "height": 20.899999618530273
+          },
+          "row": {
+            "left": 68.32500457763672,
+            "right": 809.2000045776367,
+            "top": 37.79999923706055,
+            "bottom": 56.69999885559082,
+            "width": 740.875,
+            "height": 18.899999618530273
+          },
+          "end": {
+            "left": 68.32500457763672,
+            "right": 809.2000045776367,
+            "top": 75.5999984741211,
+            "bottom": 94.49999809265137,
+            "width": 740.875,
+            "height": 18.899999618530273
+          },
+          "hover": false,
+          "focus": false,
+          "fontSize": "14px",
+          "rowFontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "rowFontFamily": "Consolas, \"Courier New\", monospace",
+          "textAlign": "center",
+          "layers": [
+            {
+              "role": "mlrt-preview-code-copy-label",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 1,
+              "transitionDuration": "0.16s"
+            },
+            {
+              "role": "mlrt-preview-code-copy-action",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 0,
+              "transitionDuration": "0.16s"
+            },
+            {
+              "role": "mlrt-preview-code-copy-status",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 0,
+              "transitionDuration": "0.16s"
+            }
+          ],
+          "firstShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px inset",
+          "endShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px inset",
+          "firstRadius": [
+            "3px",
+            "3px"
+          ],
+          "endRadius": [
+            "3px",
+            "3px"
+          ],
+          "border": [
+            "0px",
+            "0px"
+          ],
+          "outline": "2.4px",
+          "outlineOffset": "0px",
+          "source": "Resting caret.\n\n```typescript\nconst answer: number = 42;\n```\n\nAfter code.\n\n    indented code\n    second indented row\n\nAfter indented code.",
+          "hidden": "```typescript",
+          "frame": {
+            "left": 0,
+            "top": 0
+          }
+        },
+        "crossfade": {
+          "label": "Copy",
+          "labelBox": {
+            "left": 735.3125,
+            "right": 766.1125011444092,
+            "top": 38.79999923706055,
+            "bottom": 57.69999885559082,
+            "width": 30.80000114440918,
+            "height": 18.899999618530273
+          },
+          "glyph": {
+            "left": 735.3125,
+            "right": 766.1124877929688,
+            "top": 39.60000228881836,
+            "bottom": 55.60000228881836,
+            "width": 30.79998779296875,
+            "height": 16
+          },
+          "button": {
+            "left": 704.2250366210938,
+            "right": 797.2000350952148,
+            "top": 37.79999923706055,
+            "bottom": 58.69999885559082,
+            "width": 92.9749984741211,
+            "height": 20.899999618530273
+          },
+          "row": {
+            "left": 68.32500457763672,
+            "right": 809.2000045776367,
+            "top": 37.79999923706055,
+            "bottom": 56.69999885559082,
+            "width": 740.875,
+            "height": 18.899999618530273
+          },
+          "end": {
+            "left": 68.32500457763672,
+            "right": 809.2000045776367,
+            "top": 75.5999984741211,
+            "bottom": 94.49999809265137,
+            "width": 740.875,
+            "height": 18.899999618530273
+          },
+          "hover": true,
+          "focus": false,
+          "fontSize": "14px",
+          "rowFontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "rowFontFamily": "Consolas, \"Courier New\", monospace",
+          "textAlign": "center",
+          "layers": [
+            {
+              "role": "mlrt-preview-code-copy-label",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 0.409925,
+              "transitionDuration": "0.16s"
+            },
+            {
+              "role": "mlrt-preview-code-copy-action",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 0.590075,
+              "transitionDuration": "0.16s"
+            },
+            {
+              "role": "mlrt-preview-code-copy-status",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 0,
+              "transitionDuration": "0.16s"
+            }
+          ],
+          "firstShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px inset",
+          "endShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px inset",
+          "firstRadius": [
+            "3px",
+            "3px"
+          ],
+          "endRadius": [
+            "3px",
+            "3px"
+          ],
+          "border": [
+            "0px",
+            "0px"
+          ],
+          "outline": "2.4px",
+          "outlineOffset": "0px",
+          "source": "Resting caret.\n\n```typescript\nconst answer: number = 42;\n```\n\nAfter code.\n\n    indented code\n    second indented row\n\nAfter indented code.",
+          "hidden": "```typescript",
+          "frame": {
+            "left": 0,
+            "top": 0
+          }
+        },
+        "hovered": {
+          "label": "Copy",
+          "labelBox": {
+            "left": 735.3125,
+            "right": 766.1125011444092,
+            "top": 38.79999923706055,
+            "bottom": 57.69999885559082,
+            "width": 30.80000114440918,
+            "height": 18.899999618530273
+          },
+          "glyph": {
+            "left": 735.3125,
+            "right": 766.1124877929688,
+            "top": 39.60000228881836,
+            "bottom": 55.60000228881836,
+            "width": 30.79998779296875,
+            "height": 16
+          },
+          "button": {
+            "left": 704.2250366210938,
+            "right": 797.2000350952148,
+            "top": 37.79999923706055,
+            "bottom": 58.69999885559082,
+            "width": 92.9749984741211,
+            "height": 20.899999618530273
+          },
+          "row": {
+            "left": 68.32500457763672,
+            "right": 809.2000045776367,
+            "top": 37.79999923706055,
+            "bottom": 56.69999885559082,
+            "width": 740.875,
+            "height": 18.899999618530273
+          },
+          "end": {
+            "left": 68.32500457763672,
+            "right": 809.2000045776367,
+            "top": 75.5999984741211,
+            "bottom": 94.49999809265137,
+            "width": 740.875,
+            "height": 18.899999618530273
+          },
+          "hover": true,
+          "focus": false,
+          "fontSize": "14px",
+          "rowFontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "rowFontFamily": "Consolas, \"Courier New\", monospace",
+          "textAlign": "center",
+          "layers": [
+            {
+              "role": "mlrt-preview-code-copy-label",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 0,
+              "transitionDuration": "0.16s"
+            },
+            {
+              "role": "mlrt-preview-code-copy-action",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 1,
+              "transitionDuration": "0.16s"
+            },
+            {
+              "role": "mlrt-preview-code-copy-status",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 0,
+              "transitionDuration": "0.16s"
+            }
+          ],
+          "firstShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px inset",
+          "endShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px inset",
+          "firstRadius": [
+            "3px",
+            "3px"
+          ],
+          "endRadius": [
+            "3px",
+            "3px"
+          ],
+          "border": [
+            "0px",
+            "0px"
+          ],
+          "outline": "2.4px",
+          "outlineOffset": "0px",
+          "source": "Resting caret.\n\n```typescript\nconst answer: number = 42;\n```\n\nAfter code.\n\n    indented code\n    second indented row\n\nAfter indented code.",
+          "hidden": "```typescript",
+          "frame": {
+            "left": 0,
+            "top": 0
+          }
+        },
+        "focused": {
+          "label": "Copy",
+          "labelBox": {
+            "left": 735.3125,
+            "right": 766.1125011444092,
+            "top": 38.79999923706055,
+            "bottom": 57.69999885559082,
+            "width": 30.80000114440918,
+            "height": 18.899999618530273
+          },
+          "glyph": {
+            "left": 735.3125,
+            "right": 766.1124877929688,
+            "top": 39.60000228881836,
+            "bottom": 55.60000228881836,
+            "width": 30.79998779296875,
+            "height": 16
+          },
+          "button": {
+            "left": 704.2250366210938,
+            "right": 797.2000350952148,
+            "top": 37.79999923706055,
+            "bottom": 58.69999885559082,
+            "width": 92.9749984741211,
+            "height": 20.899999618530273
+          },
+          "row": {
+            "left": 68.32500457763672,
+            "right": 809.2000045776367,
+            "top": 37.79999923706055,
+            "bottom": 56.69999885559082,
+            "width": 740.875,
+            "height": 18.899999618530273
+          },
+          "end": {
+            "left": 68.32500457763672,
+            "right": 809.2000045776367,
+            "top": 75.5999984741211,
+            "bottom": 94.49999809265137,
+            "width": 740.875,
+            "height": 18.899999618530273
+          },
+          "hover": false,
+          "focus": true,
+          "fontSize": "14px",
+          "rowFontSize": "14px",
+          "fontFamily": "Consolas, \"Courier New\", monospace",
+          "rowFontFamily": "Consolas, \"Courier New\", monospace",
+          "textAlign": "center",
+          "layers": [
+            {
+              "role": "mlrt-preview-code-copy-label",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 0.0348092,
+              "transitionDuration": "0.16s"
+            },
+            {
+              "role": "mlrt-preview-code-copy-action",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 0.95143,
+              "transitionDuration": "0.16s"
+            },
+            {
+              "role": "mlrt-preview-code-copy-status",
+              "fontSize": "14px",
+              "fontFamily": "Consolas, \"Courier New\", monospace",
+              "opacity": 0,
+              "transitionDuration": "0.16s"
+            }
+          ],
+          "firstShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px inset",
+          "endShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px inset",
+          "firstRadius": [
+            "3px",
+            "3px"
+          ],
+          "endRadius": [
+            "3px",
+            "3px"
+          ],
+          "border": [
+            "0px",
+            "0px"
+          ],
+          "outline": "0.8px",
+          "outlineOffset": "-0.8px",
+          "source": "Resting caret.\n\n```typescript\nconst answer: number = 42;\n```\n\nAfter code.\n\n    indented code\n    second indented row\n\nAfter indented code.",
+          "hidden": "```typescript",
+          "frame": {
+            "left": 0,
+            "top": 0
+          }
+        },
+        "pointerCopy": true,
+        "reducedMotion": true
+      }
+    },
+    {
+      "name": "live preview: fence glyphs reveal without moving numbered rows or wrapped code",
+      "pass": true,
+      "detail": [
+        {
+          "width": 600,
+          "maxDelta": 0,
+          "rows": [
+            {
+              "number": 1,
+              "top": 0,
+              "height": 18.899999618530273,
+              "x": 68.32500457763672,
+              "y": 0.800000011920929,
+              "glyphHeight": 16.000001907348633,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 2,
+              "top": 18.899999618530273,
+              "height": 18.899999618530273,
+              "x": 0,
+              "y": 0,
+              "glyphHeight": 0,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 3,
+              "top": 37.79999923706055,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 38.60000228881836,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 4,
+              "top": 56.69999885559082,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 57.5,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 5,
+              "top": 75.5999984741211,
+              "height": 56.70000076293945,
+              "x": 80.32500457763672,
+              "y": 76.4000015258789,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 56.70000076293945
+            },
+            {
+              "number": 6,
+              "top": 132.29999923706055,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 133.10000610351562,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 7,
+              "top": 151.19999885559082,
+              "height": 18.899999618530273,
+              "x": 68.32500457763672,
+              "y": 152,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 8,
+              "top": 170.0999984741211,
+              "height": 18.899999618530273,
+              "x": 0,
+              "y": 0,
+              "glyphHeight": 0,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 9,
+              "top": 188.99999809265137,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 189.8000030517578,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 10,
+              "top": 207.89999771118164,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 208.6999969482422,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 11,
+              "top": 226.7999973297119,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 227.60000610351562,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 12,
+              "top": 245.6999969482422,
+              "height": 18.899999618530273,
+              "x": 68.32500457763672,
+              "y": 246.5,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 13,
+              "top": 264.59999656677246,
+              "height": 18.899999618530273,
+              "x": 0,
+              "y": 0,
+              "glyphHeight": 0,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 14,
+              "top": 283.49999618530273,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 284.3000183105469,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 15,
+              "top": 302.399995803833,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 303.20001220703125,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 16,
+              "top": 321.2999954223633,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 322.1000061035156,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 17,
+              "top": 340.19999504089355,
+              "height": 18.899999618530273,
+              "x": 68.32500457763672,
+              "y": 341,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            }
+          ],
+          "contentHeight": 1021.0999946594238
+        },
+        {
+          "width": 360,
+          "maxDelta": 0,
+          "rows": [
+            {
+              "number": 1,
+              "top": 0,
+              "height": 18.899999618530273,
+              "x": 68.32500457763672,
+              "y": 0.800000011920929,
+              "glyphHeight": 16.000001907348633,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 2,
+              "top": 18.899999618530273,
+              "height": 18.899999618530273,
+              "x": 0,
+              "y": 0,
+              "glyphHeight": 0,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 3,
+              "top": 37.79999923706055,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 38.60000228881836,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 4,
+              "top": 56.69999885559082,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 57.5,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 5,
+              "top": 75.5999984741211,
+              "height": 113.4000015258789,
+              "x": 80.32500457763672,
+              "y": 76.4000015258789,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 113.4000015258789
+            },
+            {
+              "number": 6,
+              "top": 189,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 189.8000030517578,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 7,
+              "top": 207.89999961853027,
+              "height": 18.899999618530273,
+              "x": 68.32500457763672,
+              "y": 208.6999969482422,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 8,
+              "top": 226.79999923706055,
+              "height": 18.899999618530273,
+              "x": 0,
+              "y": 0,
+              "glyphHeight": 0,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 9,
+              "top": 245.69999885559082,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 246.5,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 10,
+              "top": 264.5999984741211,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 265.3999938964844,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 11,
+              "top": 283.49999809265137,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 284.3000183105469,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 12,
+              "top": 302.39999771118164,
+              "height": 18.899999618530273,
+              "x": 68.32500457763672,
+              "y": 303.20001220703125,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 13,
+              "top": 321.2999973297119,
+              "height": 18.899999618530273,
+              "x": 0,
+              "y": 0,
+              "glyphHeight": 0,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 14,
+              "top": 340.1999969482422,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 341,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 15,
+              "top": 359.09999656677246,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 359.8999938964844,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 16,
+              "top": 377.99999618530273,
+              "height": 18.899999618530273,
+              "x": 80.32500457763672,
+              "y": 378.8000183105469,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            },
+            {
+              "number": 17,
+              "top": 396.899995803833,
+              "height": 18.899999618530273,
+              "x": 68.32500457763672,
+              "y": 397.70001220703125,
+              "glyphHeight": 16,
+              "gutterVisible": true,
+              "gutterHeight": 18.899999618530273
+            }
+          ],
+          "contentHeight": 1077.7999954223633
+        }
+      ]
+    },
+    {
+      "name": "live preview: six heading colors and marker setting update the open editor",
+      "pass": true,
+      "detail": [
+        {
+          "level": 1,
+          "text": "# Heading 1",
+          "color": "rgb(86, 156, 214)",
+          "fontSize": "14px",
+          "lineHeight": "18.9px"
+        },
+        {
+          "level": 2,
+          "text": "## Heading 2",
+          "color": "rgb(78, 201, 176)",
+          "fontSize": "14px",
+          "lineHeight": "18.9px"
+        },
+        {
+          "level": 3,
+          "text": "### Heading 3",
+          "color": "rgb(220, 220, 170)",
+          "fontSize": "14px",
+          "lineHeight": "18.9px"
+        },
+        {
+          "level": 4,
+          "text": "#### Heading 4",
+          "color": "rgb(197, 134, 192)",
+          "fontSize": "14px",
+          "lineHeight": "18.9px"
+        },
+        {
+          "level": 5,
+          "text": "##### Heading 5",
+          "color": "rgb(206, 145, 120)",
+          "fontSize": "14px",
+          "lineHeight": "18.9px"
+        },
+        {
+          "level": 6,
+          "text": "###### Heading 6",
+          "color": "rgb(156, 220, 254)",
+          "fontSize": "14px",
+          "lineHeight": "18.9px"
+        }
+      ]
     },
     {
       "name": "live preview: Obsidian task treatment and expandable callouts",

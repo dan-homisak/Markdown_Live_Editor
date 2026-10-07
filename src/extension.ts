@@ -1096,6 +1096,7 @@ function getEditorOptions(
   tableNavigationModifierKey: TableNavigationModifierKey;
   markdownRendering: {
     enabled: boolean;
+    showHeadingMarkers: boolean;
     screenReaderOptimized: boolean;
     readOnly: boolean;
   };
@@ -1127,6 +1128,7 @@ function getEditorOptions(
       isMac: process.platform === "darwin",
     },
     markdownRendering: {
+      showHeadingMarkers: extensionConfig.get<boolean>("markdownRendering.showHeadingMarkers", true),
       enabled: extensionConfig.get<boolean>(
         MARKDOWN_RENDERING_ENABLED_SETTING,
         true,

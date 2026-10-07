@@ -170,6 +170,7 @@ interface EditorOptions {
   tableNavigationModifierKey: TableNavigationModifierKey;
   markdownRendering: {
     enabled: boolean;
+    showHeadingMarkers: boolean;
     screenReaderOptimized: boolean;
     readOnly: boolean;
   };
@@ -857,6 +858,7 @@ function readEditorOptions(): EditorOptions {
     tableNavigationModifierKey: DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY,
     markdownRendering: {
       enabled: true,
+      showHeadingMarkers: true,
       screenReaderOptimized: false,
       readOnly: false,
     },
@@ -943,6 +945,10 @@ function normalizeEditorOptions(
       fallback.tableNavigationModifierKey,
     ),
     markdownRendering: {
+      showHeadingMarkers:
+        typeof markdownRendering.showHeadingMarkers === "boolean"
+          ? markdownRendering.showHeadingMarkers
+          : fallback.markdownRendering.showHeadingMarkers,
       enabled:
         typeof markdownRendering.enabled === "boolean"
           ? markdownRendering.enabled
@@ -1007,6 +1013,7 @@ function updateEditorOptions(value: unknown): void {
   const markdownOptions = effectiveMarkdownRenderingOptions(editorOptions);
   if (
     markdownOptions.enabled !== appliedMarkdownRenderingOptions.enabled ||
+    markdownOptions.showHeadingMarkers !== appliedMarkdownRenderingOptions.showHeadingMarkers ||
     markdownOptions.screenReaderOptimized !==
       appliedMarkdownRenderingOptions.screenReaderOptimized ||
     markdownOptions.readOnly !== appliedMarkdownRenderingOptions.readOnly
@@ -1670,6 +1677,7 @@ function isMarkdownRenderingOptions(
   const record = value as Record<string, unknown>;
   return (
     typeof record.enabled === "boolean" &&
+    (record.showHeadingMarkers === undefined || typeof record.showHeadingMarkers === "boolean") &&
     typeof record.screenReaderOptimized === "boolean" &&
     typeof record.readOnly === "boolean"
   );

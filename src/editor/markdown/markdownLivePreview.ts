@@ -1,5 +1,5 @@
 import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
-import { EditorSelection, EditorState, Extension, Range, StateEffect, StateField, Text } from "@codemirror/state";
+import { EditorSelection, EditorState, Extension, Facet, Range, StateEffect, StateField, Text } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { SyntaxNode, Tree } from "@lezer/common";
 import { getParsedTables } from "../../shared/tableModel";
@@ -9,7 +9,8 @@ import { markdownAlertForQuote } from "./markdownBlockSyntax";
 
 export interface PreviewPart extends MarkdownRange {
   owner: MarkdownRange;
-  kind: "hide" | "code-header" | "code-end" | "properties" | "callout";
+  kind: "hide" | "conceal" | "code-header" | "code-end" | "properties" | "callout";
+  fence?: MarkdownRange;
   block?: boolean;
   label?: string;
   content?: string;
@@ -23,7 +24,7 @@ export interface PreviewPart extends MarkdownRange {
 const overlaps = (a: MarkdownRange, b: MarkdownRange): boolean => a.from < b.to && b.from < a.to;
 
 /** Recognition uses the configured tree. Only the requested windows are visited. */
-export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly MarkdownRange[], windows: readonly MarkdownRange[]): PreviewPart[] {
+export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly MarkdownRange[], windows: readonly MarkdownRange[], showHeadingMarkers = true): PreviewPart[] {
   const parts: PreviewPart[] = [], seen = new Set<string>();
   const read = (from: number, to: number): string => doc.sliceString(from, to);
   const add = (part: PreviewPart): void => {
@@ -54,8 +55,13 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
       const end = marks.length > 1 ? doc.lineAt(marks[marks.length - 1].from).from : node.to;
       const copy = { from: start, to: Math.max(start, end), prefix, indented: node.name === "CodeBlock" };
       if (node.name === "FencedCode") {
-        if (first.from <= window.to && first.to >= window.from) add({ from: first.from, to: first.to, owner, kind: "code-header", block: true, label: language, copy, editAt: Math.min(node.to, start) });
-        if (marks.length > 1 && last.from <= window.to && last.to >= window.from) add({ from: last.from, to: last.to, owner, kind: "code-end", block: true });
+        // The parser emits opening quote marks outside the fenced owner.
+        // Keep those columns too, just like prefixes on the body/closing rows.
+        for (const part of parts) if (part.kind === "hide" && part.from >= first.from && part.to <= node.from) {
+          part.kind = "conceal"; part.owner = owner;
+        }
+        if (first.from <= window.to && first.to >= window.from) add({ from: first.from, to: first.to, owner, kind: "code-header", fence: { from: marks[0].from, to: first.to }, label: language, copy, editAt: Math.min(node.to, start) });
+        if (marks.length > 1 && last.from <= window.to && last.to >= window.from) add({ from: last.from, to: last.to, owner, kind: "code-end", fence: { from: last.from, to: marks[marks.length - 1].to } });
       } else {
         // Indented code keeps its source rows but removes the structural indent.
         if (first.from <= window.to && first.to >= window.from) add({ from: first.from, to: first.to, owner, kind: "code-header", block: true, insertion: true, label: "text", copy, editAt: node.from });
@@ -64,7 +70,7 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
       for (let from = Math.max(start, doc.lineAt(window.from).from); from < Math.min(end, window.to);) {
         const line = doc.lineAt(from);
         const structural = codeStructuralPrefixLength(line.text, prefix);
-        if (structural) hide(line.from, line.from + structural, owner);
+        if (structural) add({ from: line.from, to: line.from + structural, owner, kind: node.name === "FencedCode" ? "conceal" : "hide" });
         from = line.to + 1;
       }
       return false;
@@ -82,6 +88,7 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
       hide(node.from, Math.min(node.to + (read(node.to, node.to + 1) === " " ? 1 : 0), line.to), { from: line.from, to: line.to });
     } else if (/^(?:ATX|Setext)Heading[1-6]$/u.test(node.name)) {
       for (const mark of node.getChildren("HeaderMark")) {
+        if (showHeadingMarkers && node.name.startsWith("ATX")) continue;
         const line = doc.lineAt(mark.from);
         if (node.name.startsWith("Setext")) hide(line.from, line.to, owner, true);
         else hide(mark.from === node.from ? mark.from : Math.max(node.from, mark.from - 1), whitespaceAfter(mark.to), owner);
@@ -175,6 +182,7 @@ class PreviewWidget extends WidgetType {
     const doc = view.dom.ownerDocument, part = this.part;
     const wrapper = doc.createElement(part.block ? "div" : "span");
     wrapper.className = `mlrt-preview-${part.kind}`;
+    if (part.fence) wrapper.classList.add("mlrt-preview-code-header-inline");
     wrapper.dataset.previewFrom = String(part.from);
     wrapper.contentEditable = "false";
     const current = (): boolean => view.state.doc.sliceString(part.from, part.to) === this.source;
@@ -193,19 +201,41 @@ class PreviewWidget extends WidgetType {
     });
     if (part.kind === "code-end") return wrapper;
     if (part.kind === "code-header") {
-      const language = doc.createElement("button"); language.type = "button"; language.className = "mlrt-preview-code-language";
-      language.textContent = part.label || "text"; language.title = "Edit code block"; language.addEventListener("click", () => edit());
+      const language = part.label || "text";
       const copy = doc.createElement("button"); copy.type = "button"; copy.className = "mlrt-preview-code-copy";
-      copy.textContent = "Copy"; copy.setAttribute("aria-label", `Copy ${part.label || "text"} code`);
+      copy.setAttribute("aria-label", `Copy ${language} code`);
+      copy.title = `Copy ${language} code`;
+      const size = doc.createElement("span"); size.className = "mlrt-preview-code-copy-size";
+      size.setAttribute("aria-hidden", "true"); size.textContent = "Copied";
+      const label = doc.createElement("span"); label.className = "mlrt-preview-code-copy-label";
+      label.setAttribute("aria-hidden", "true"); label.textContent = language;
+      const action = doc.createElement("span"); action.className = "mlrt-preview-code-copy-action";
+      action.setAttribute("aria-hidden", "true"); action.textContent = "Copy";
+      const feedback = doc.createElement("span"); feedback.className = "mlrt-preview-code-copy-status";
+      feedback.setAttribute("role", "status");
+      let hovered = false, status: string | null = null;
+      // Persistent layers share one centered grid cell, so label changes can
+      // crossfade without replacing glyphs or resizing the pointer target.
+      const refreshLabel = (): void => {
+        copy.dataset.copyState = status ? "status" : hovered || doc.activeElement === copy ? "action" : "language";
+        if (status) feedback.textContent = status;
+        feedback.setAttribute("aria-hidden", String(!status));
+      };
+      copy.addEventListener("pointerenter", () => { hovered = true; refreshLabel(); });
+      copy.addEventListener("pointerleave", () => { hovered = false; refreshLabel(); });
+      copy.addEventListener("focus", refreshLabel);
+      copy.addEventListener("blur", refreshLabel);
+      copy.append(size, label, action, feedback); refreshLabel();
       copy.addEventListener("click", async () => {
         if (!current()) return;
         const range = part.copy;
         const content = range ? codeBlockText(view.state.doc, range.from, range.to, range.prefix, range.indented) : "";
-        try { await doc.defaultView!.navigator.clipboard.writeText(content); copy.textContent = "Copied"; }
-        catch { copy.textContent = "Copy failed"; }
-        doc.defaultView!.setTimeout(() => { if (copy.isConnected) copy.textContent = "Copy"; }, 1800);
+        try { await doc.defaultView!.navigator.clipboard.writeText(content); status = "Copied"; }
+        catch { status = "Failed"; }
+        refreshLabel();
+        doc.defaultView!.setTimeout(() => { if (copy.isConnected) { status = null; refreshLabel(); } }, 1800);
       });
-      wrapper.append(language, copy);
+      wrapper.append(copy);
     } else if (part.kind === "properties") {
       const title = doc.createElement("button"); title.type = "button"; title.className = "mlrt-preview-properties-title";
       title.textContent = "Properties"; title.title = "Edit YAML properties"; title.addEventListener("click", () => edit()); wrapper.append(title);
@@ -230,13 +260,25 @@ class PreviewWidget extends WidgetType {
     return wrapper;
   }
   ignoreEvent(): boolean { return true; }
-  get estimatedHeight(): number { return this.part.kind === "code-end" ? 0 : this.part.kind === "properties" ? 30 + frontmatterPropertyRows(this.part.content ?? "").length * 28 : -1; }
+  get estimatedHeight(): number { return this.part.kind === "properties" ? 30 + frontmatterPropertyRows(this.part.content ?? "").length * 28 : -1; }
 }
 
 function decorations(state: EditorState, value: Omit<PreviewState, "decorations">): DecorationSet {
   const ranges: Range<Decoration>[] = [], covered: MarkdownRange[] = [];
   for (const part of value.parts) {
     const active = previewOwnerActive(part.owner, state.selection, value.focused, value.projected);
+    // Fence rows belong to the document and gutter in both modes. Concealing
+    // their glyphs keeps wrapping, line height, and the closing padding row fixed.
+    if (part.fence) {
+      if (part.kind === "code-header") ranges.push(Decoration.widget({ side: 1,
+        widget: new PreviewWidget(part, state.doc.sliceString(part.from, part.to)) }).range(part.to));
+      if (!active) ranges.push(Decoration.mark({ class: "mlrt-preview-code-fence-hidden" }).range(part.fence.from, part.fence.to));
+      continue;
+    }
+    if (part.kind === "conceal") {
+      if (!active) ranges.push(Decoration.mark({ class: "mlrt-preview-code-fence-hidden" }).range(part.from, part.to));
+      continue;
+    }
     if (part.kind === "code-header" && (active || part.insertion)) {
       ranges.push(Decoration.widget({ block: true, side: -1, widget: new PreviewWidget(part, state.doc.sliceString(part.from, part.to)) }).range(part.from));
       continue;
@@ -255,10 +297,12 @@ function decorations(state: EditorState, value: Omit<PreviewState, "decorations"
   return Decoration.set(ranges, true);
 }
 
+const headingMarkersFacet = Facet.define<boolean, boolean>({ combine: values => values[0] ?? true });
+
 export const markdownPreviewField = StateField.define<PreviewState>({
   create(state) {
     const windows = [{ from: 0, to: Math.min(state.doc.length, 12000) }];
-    const value = { parts: classifyMarkdownPreview(state.doc, syntaxTree(state), getParsedTables(state.doc), windows),
+    const value = { parts: classifyMarkdownPreview(state.doc, syntaxTree(state), getParsedTables(state.doc), windows, state.facet(headingMarkersFacet)),
       windows, focused: false, composing: false, projected: null, folds: new Map<number, boolean>() };
     return { ...value, decorations: decorations(state, value) };
   },
@@ -275,8 +319,8 @@ export const markdownPreviewField = StateField.define<PreviewState>({
       folds = new Map([...folds].map(([from, folded]) => [transaction.changes.mapPos(from), folded]));
     }
     if (composing) return { ...value, focused, composing, projected, folds, windows, decorations: value.decorations.map(transaction.changes) };
-    const changed = transaction.docChanged || syntaxTree(transaction.state) !== syntaxTree(transaction.startState) || windows !== value.windows;
-    const parts = changed ? classifyMarkdownPreview(transaction.state.doc, syntaxTree(transaction.state), getParsedTables(transaction.state.doc), windows) : value.parts;
+    const changed = transaction.docChanged || syntaxTree(transaction.state) !== syntaxTree(transaction.startState) || windows !== value.windows || transaction.state.facet(headingMarkersFacet) !== transaction.startState.facet(headingMarkersFacet);
+    const parts = changed ? classifyMarkdownPreview(transaction.state.doc, syntaxTree(transaction.state), getParsedTables(transaction.state.doc), windows, transaction.state.facet(headingMarkersFacet)) : value.parts;
     const next = { parts, windows, focused, composing, projected, folds };
     return { ...next, decorations: decorations(transaction.state, next) };
   },
@@ -289,9 +333,9 @@ export function isMarkdownPreviewActive(view: EditorView, range: MarkdownRange):
 }
 
 /** Direct field decorations may collapse block rows. Viewport discovery itself never supplies block decorations. */
-export function createMarkdownLivePreviewExtensions(screenReaderOptimized: boolean): Extension {
+export function createMarkdownLivePreviewExtensions(screenReaderOptimized: boolean, showHeadingMarkers = true): Extension {
   if (screenReaderOptimized) return [];
-  return [markdownPreviewField, ViewPlugin.fromClass(class {
+  return [headingMarkersFacet.of(showHeadingMarkers), markdownPreviewField, ViewPlugin.fromClass(class {
     private queued = false;
     private frame: number | null = null;
     private destroyed = false;

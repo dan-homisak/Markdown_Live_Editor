@@ -312,7 +312,7 @@ try {
     }
     await showSection(text.indexOf("const jsValue")); await screenshot("code-languages"); return samples;
   });
-  await check("nested quote and alert code retain simultaneous inset edges", async () => {
+  await check("nested quote and alert code retain guides without horizontal borders", async () => {
     const nested = ["Nested code guide fixture", "", "> Outer quote", "> > ```javascript", "> > const quoteCode = 1;", "> > ```", "> After nested code.", "",
       "> [!WARNING]", ">", "> ```javascript", "> const alertCode = 2;", "> ```", "> After alert code.", "",
       "```javascript", "const standaloneCode = 3;", "```", "", "End."].join("\n");
@@ -327,23 +327,24 @@ try {
         const width=name.startsWith('quote')?'1px':name.startsWith('alert')?'2px':'';
         assert.equal(row.guide,width);assert.deepEqual(row.border,['0px','0px']);
         if(width)assert(row.shadow.includes(` ${width} 0px 0px 0px inset`),`${name}: guide remains in code shadow`);
-        if(name.endsWith('Start'))assert.notEqual(row.top,'transparent');
-        if(name.endsWith('End'))assert.notEqual(row.bottom,'transparent');
+        assert.equal(row.top,'transparent');assert.equal(row.bottom,'transparent');
+        assert.equal((row.shadow.match(/inset/g)??[]).length,1,'only the enclosing vertical guide remains');
       }
       await screenshot('nested-guides');
-      await writeSettings({'markdownLiveRenderTables.markdownRendering.enabled':false});await select(0);
-      const disabled=await capture();
+      // Reveal the source in the same rendered block layout. Disabling the
+      // entire renderer deliberately removes code padding and is a different mode.
+      await liveEval('view.dispatch({selection:{anchor:0,head:view.state.doc.length}});view.focus();return true;');await sleep(250);
+      const revealed=await capture();
       let maxGeometryDelta=0;
-      for(const name of Object.keys(normal))for(const key of ['x','y','width','height'])maxGeometryDelta=Math.max(maxGeometryDelta,Math.abs(normal[name].glyph[key]-disabled[name].glyph[key]));
+      for(const name of Object.keys(normal))for(const key of ['x','y','width','height'])maxGeometryDelta=Math.max(maxGeometryDelta,Math.abs(normal[name].glyph[key]-revealed[name].glyph[key]));
       assert(maxGeometryDelta<=0.5,`nested code source geometry drift ${maxGeometryDelta}`);
-      await writeSettings();await select(0);
+      await select(0);
       await live.send('Emulation.setEmulatedMedia',{features:[{name:'forced-colors',value:'active'}]});await sleep(250);
       const forced=await capture();
       const probes=await liveEval("const el=root.createElement('i');el.style.cssText='position:absolute;border:1px solid CanvasText;border-left-width:2px';root.body.appendChild(el);const css=win.getComputedStyle(el),result={one:css.borderTopWidth,two:css.borderLeftWidth};el.remove();return result;");
       for(const [name,row]of Object.entries(forced)){
         assert.equal(row.pseudo.left,name.startsWith('quote')?probes.one:name.startsWith('alert')?probes.two:'0px');
-        if(name.endsWith('Start'))assert.equal(row.pseudo.top,probes.one);
-        if(name.endsWith('End'))assert.equal(row.pseudo.bottom,probes.one);
+        assert.equal(row.pseudo.top,'0px');assert.equal(row.pseudo.bottom,'0px');
         assert.equal(row.pseudo.pointerEvents,'none');assert.deepEqual(row.border,['0px','0px']);
         for(const key of ['x','y','width','height'])assert(Math.abs(row.glyph[key]-normal[name].glyph[key])<=0.5);
       }
