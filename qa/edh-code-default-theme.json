@@ -1,0 +1,65 @@
+{
+  "checks": [
+    {
+      "theme": "Dark 2026",
+      "language": "js",
+      "characters": 157,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark 2026",
+      "language": "ts",
+      "characters": 173,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark 2026",
+      "language": "html",
+      "characters": 113,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark 2026",
+      "language": "css",
+      "characters": 143,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark 2026",
+      "language": "json",
+      "characters": 104,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark 2026",
+      "language": "sh",
+      "characters": 34,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark 2026",
+      "language": "python",
+      "characters": 104,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark 2026",
+      "language": "md",
+      "characters": 53,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark 2026",
+      "language": "diff",
+      "characters": 41,
+      "mismatches": []
+    }
+  ],
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-code-colors-YuPaZH",
+  "port": 9894,
+  "themeData": {
+    "vscodeThemeKind": "vscode-dark",
+    "vscodeThemeName": "Dark 2026",
+    "vscodeThemeId": "Dark 2026"
+  }
+}

@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import { randomUUID } from "crypto";
 import * as vscode from "vscode";
+import { VscodeCodeHighlighting } from "./highlighting/vscodeCodeHighlighting";
+import { isCodeHighlightRequest } from "./shared/codeHighlighting";
 import {
   mapNormalizedDocumentChangesToHost,
   normalizeDocumentText,
@@ -145,6 +147,10 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
     const documentKey = document.uri.toString();
     const clipboardDocumentToken = randomUUID();
     const disposables: vscode.Disposable[] = [];
+    const codeHighlighting = new VscodeCodeHighlighting(this.context, document.uri);
+    disposables.push(codeHighlighting);
+    let highlightQueue: Promise<void> = Promise.resolve();
+    let latestHighlightRequest = 0;
     let disposed = false;
     let readOnlyQueryGeneration = 0;
     // Remote/filesystem permission queries can outlive an editor opened and
@@ -484,6 +490,14 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
     };
 
     disposables.push(
+      vscode.window.onDidChangeActiveColorTheme(() => {
+        codeHighlighting.invalidate();
+        void webview.postMessage({ type: "refreshCodeHighlighting" });
+      }),
+      vscode.extensions.onDidChange(() => {
+        codeHighlighting.invalidate();
+        void webview.postMessage({ type: "refreshCodeHighlighting" });
+      }),
       vscode.workspace.onDidChangeTextDocument((event) => {
         if (
           event.document.uri.toString() === documentKey &&
@@ -497,6 +511,12 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
           uri: document.uri,
           languageId: "markdown",
         };
+        if (event.affectsConfiguration("editor.tokenColorCustomizations", markdownEditorScope) ||
+            event.affectsConfiguration("workbench.colorCustomizations", document.uri) ||
+            event.affectsConfiguration("workbench.colorTheme", document.uri)) {
+          codeHighlighting.invalidate();
+          void webview.postMessage({ type: "refreshCodeHighlighting" });
+        }
         if (
           event.affectsConfiguration(
             "markdownLiveRenderTables.clipboard",
@@ -531,6 +551,23 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
         }
       }),
       webview.onDidReceiveMessage((message: unknown) => {
+        if (isCodeHighlightRequest(message)) {
+          latestHighlightRequest = message.id;
+          const pendingEdits = applyQueue;
+          highlightQueue = highlightQueue.then(async () => {
+            await pendingEdits;
+            if (disposed || document.isClosed || message.id !== latestHighlightRequest) return;
+            const source = normalizeDocumentText(document.getText());
+            if (message.ranges.some(range => range.to > source.length || source.slice(range.from, range.to) !== range.text)) return;
+            const version = document.version;
+            const tokens = await codeHighlighting.highlight(source, message.ranges, message.themeName);
+            if (!tokens || disposed || document.isClosed || version !== document.version || message.id !== latestHighlightRequest) return;
+            await webview.postMessage({ type: "codeHighlighting", id: message.id, tokens });
+          }).catch(error => {
+            logDebug(`Code highlighting failed: ${String(error)}`);
+          });
+          return;
+        }
         if (isReadyMessage(message)) {
           postDocument();
           void refreshReadOnly();

@@ -1,0 +1,183 @@
+{
+  "checks": [
+    {
+      "theme": "Dark+",
+      "language": "js",
+      "characters": 157,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark+",
+      "language": "ts",
+      "characters": 173,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark+",
+      "language": "html",
+      "characters": 113,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark+",
+      "language": "css",
+      "characters": 143,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark+",
+      "language": "json",
+      "characters": 104,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark+",
+      "language": "sh",
+      "characters": 34,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark+",
+      "language": "python",
+      "characters": 104,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark+",
+      "language": "md",
+      "characters": 53,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark+",
+      "language": "diff",
+      "characters": 41,
+      "mismatches": []
+    },
+    {
+      "theme": "Light+",
+      "language": "js",
+      "characters": 157,
+      "mismatches": []
+    },
+    {
+      "theme": "Light+",
+      "language": "ts",
+      "characters": 173,
+      "mismatches": []
+    },
+    {
+      "theme": "Light+",
+      "language": "html",
+      "characters": 113,
+      "mismatches": []
+    },
+    {
+      "theme": "Light+",
+      "language": "css",
+      "characters": 143,
+      "mismatches": []
+    },
+    {
+      "theme": "Light+",
+      "language": "json",
+      "characters": 104,
+      "mismatches": []
+    },
+    {
+      "theme": "Light+",
+      "language": "sh",
+      "characters": 34,
+      "mismatches": []
+    },
+    {
+      "theme": "Light+",
+      "language": "python",
+      "characters": 104,
+      "mismatches": []
+    },
+    {
+      "theme": "Light+",
+      "language": "md",
+      "characters": 53,
+      "mismatches": []
+    },
+    {
+      "theme": "Light+",
+      "language": "diff",
+      "characters": 41,
+      "mismatches": []
+    },
+    {
+      "theme": "Default High Contrast",
+      "language": "js",
+      "characters": 157,
+      "mismatches": []
+    },
+    {
+      "theme": "Default High Contrast",
+      "language": "ts",
+      "characters": 173,
+      "mismatches": []
+    },
+    {
+      "theme": "Default High Contrast",
+      "language": "html",
+      "characters": 113,
+      "mismatches": []
+    },
+    {
+      "theme": "Default High Contrast",
+      "language": "css",
+      "characters": 143,
+      "mismatches": []
+    },
+    {
+      "theme": "Default High Contrast",
+      "language": "json",
+      "characters": 104,
+      "mismatches": []
+    },
+    {
+      "theme": "Default High Contrast",
+      "language": "sh",
+      "characters": 34,
+      "mismatches": []
+    },
+    {
+      "theme": "Default High Contrast",
+      "language": "python",
+      "characters": 104,
+      "mismatches": []
+    },
+    {
+      "theme": "Default High Contrast",
+      "language": "md",
+      "characters": 53,
+      "mismatches": []
+    },
+    {
+      "theme": "Default High Contrast",
+      "language": "diff",
+      "characters": 41,
+      "mismatches": []
+    },
+    {
+      "theme": "Dark+",
+      "retainedWebview": true,
+      "mismatches": []
+    },
+    {
+      "theme": "Light+",
+      "retainedWebview": true,
+      "mismatches": []
+    }
+  ],
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-code-colors-A4qWqS",
+  "port": 9876,
+  "themeData": {
+    "vscodeThemeKind": "vscode-high-contrast",
+    "vscodeThemeName": "Dark High Contrast",
+    "vscodeThemeId": "Default High Contrast"
+  }
+}

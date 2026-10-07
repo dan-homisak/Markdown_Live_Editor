@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-05T04:06:41.525Z",
+  "recordedAt": "2026-10-07T02:49:05.966Z",
   "reproduction": "npm.cmd run compile && node scripts/record-markdown-bundle-impact.mjs",
   "limitations": [
     "Sizes describe the current unminified production bundles; gzip is an additional comparison metric, not VSIX compressed-size evidence.",
@@ -9,43 +9,43 @@
   ],
   "bundles": {
     "webview": {
-      "bytes": 1918472,
-      "gzipBytes": 475207,
-      "sha256": "6765ff3e86b530d0af68ae727efe85c8d3b32849458d83e83e4b658cdf34121a",
+      "bytes": 1927948,
+      "gzipBytes": 477304,
+      "sha256": "8ab35391c0ce873b9ce24b4d2a1eb1df92518ed21a29ce1e4bbee60a54cf1d38",
       "diskMatchesGenerated": true,
       "sourceMapBytes": 0
     },
     "extensionHost": {
-      "bytes": 440821,
-      "gzipBytes": 113232,
-      "sha256": "db7e7a47d0c47feab1cbd6659c97b16d488bf1f901d2e6fcb7fa881950dfb7bb",
+      "bytes": 613936,
+      "gzipBytes": 149984,
+      "sha256": "f3eae11279136de76ab319af5bc1e5565685b2da614fc532f29be958afff6c36",
       "diskMatchesGenerated": true,
-      "sourceMapBytes": 830934
+      "sourceMapBytes": 1117203
     }
   },
   "baseline": {
-    "revision": "df3cd2244d9b112e09817653a6a16f60a7290424",
+    "revision": "710862ec24128c176a670f11baa79648fa894460",
     "webview": {
       "kind": "Exact tracked HEAD media/liveEditor.js bytes",
-      "bytes": 1693451,
-      "gzipBytes": 412282,
-      "sha256": "d014897e062fa8b0ca466651e224637e762e75ea2a7febfb9d5fcb9f2afb8257"
+      "bytes": 1922290,
+      "gzipBytes": 476025,
+      "sha256": "90fa51be2492b48d0d3df5d4395780476b83ab145d622b88da75b07f8faaa6af"
     },
     "extensionHost": {
       "kind": "HEAD extension.ts rebuilt with current installed dependencies and current shared imports; not a historical packaged byte-for-byte baseline",
-      "bytes": 31041,
-      "gzipBytes": 7582,
-      "sha256": "1ae22d04b13123178894ddc96c128ae3ee6aa0afe042b7198b77aadba79907d8"
+      "bytes": 440900,
+      "gzipBytes": 113262,
+      "sha256": "1feb1dfb94b3042aa7870607b154b3e87ac277c722695ae712c1aa9e1d74c627"
     }
   },
   "delta": {
     "webview": {
-      "bytes": 225021,
-      "gzipBytes": 62925
+      "bytes": 5658,
+      "gzipBytes": 1279
     },
     "extensionHost": {
-      "bytes": 409780,
-      "gzipBytes": 105650
+      "bytes": 173036,
+      "gzipBytes": 36722
     }
   },
   "newLanguageRoots": [
@@ -292,7 +292,7 @@
       "directory": "node_modules/@lezer/common",
       "outputContributions": {
         "webview": 69072,
-        "extensionHost": 47000
+        "extensionHost": 47002
       },
       "licenseFiles": [
         "node_modules/@lezer/common/LICENSE"
@@ -383,7 +383,7 @@
       "directory": "node_modules/@lezer/markdown",
       "outputContributions": {
         "webview": 73721,
-        "extensionHost": 68088
+        "extensionHost": 68095
       },
       "licenseFiles": [
         "node_modules/@lezer/markdown/LICENSE"
@@ -456,6 +456,19 @@
       ]
     },
     {
+      "name": "jsonc-parser",
+      "version": "3.3.1",
+      "license": "MIT",
+      "directory": "node_modules/jsonc-parser",
+      "outputContributions": {
+        "webview": 0,
+        "extensionHost": 26769
+      },
+      "licenseFiles": [
+        "node_modules/jsonc-parser/LICENSE.md"
+      ]
+    },
+    {
       "name": "linkify-it",
       "version": "5.0.2",
       "license": "MIT",
@@ -475,7 +488,7 @@
       "directory": "node_modules/markdown-it",
       "outputContributions": {
         "webview": 117672,
-        "extensionHost": 109763
+        "extensionHost": 109771
       },
       "licenseFiles": [
         "node_modules/markdown-it/LICENSE"
@@ -488,7 +501,7 @@
       "directory": "node_modules/mdurl",
       "outputContributions": {
         "webview": 10816,
-        "extensionHost": 10030
+        "extensionHost": 10032
       },
       "licenseFiles": [
         "node_modules/mdurl/LICENSE"
@@ -560,6 +573,33 @@
       ]
     },
     {
+      "name": "vscode-oniguruma",
+      "version": "2.0.1",
+      "license": "MIT",
+      "directory": "node_modules/vscode-oniguruma",
+      "outputContributions": {
+        "webview": 0,
+        "extensionHost": 34917
+      },
+      "licenseFiles": [
+        "node_modules/vscode-oniguruma/LICENSE.txt",
+        "node_modules/vscode-oniguruma/NOTICES.txt"
+      ]
+    },
+    {
+      "name": "vscode-textmate",
+      "version": "9.3.2",
+      "license": "MIT",
+      "directory": "node_modules/vscode-textmate",
+      "outputContributions": {
+        "webview": 0,
+        "extensionHost": 99406
+      },
+      "licenseFiles": [
+        "node_modules/vscode-textmate/LICENSE.md"
+      ]
+    },
+    {
       "name": "w3c-keyname",
       "version": "2.2.8",
       "license": "MIT",
@@ -575,7 +615,7 @@
   ],
   "notices": {
     "path": "THIRD_PARTY_NOTICES.md",
-    "packageCount": 35,
+    "packageCount": 38,
     "missingLicenseFiles": []
   }
 }

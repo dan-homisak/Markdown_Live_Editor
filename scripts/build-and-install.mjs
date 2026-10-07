@@ -133,6 +133,7 @@ async function verifyInstalledPayload(version) {
     ["media/liveEditor.js", "markdownWikiExtension"],
     ["media/liveEditor.js", "mlrt-preview-code-copy"],
     ["media/liveEditor.js", "openMarkdownLinkAtCaret"],
+    ["media/liveEditor.js", "mlrt-vscode-code-token"],
     ["media/markdownPresentation.css", "mlrt-markdown-inline-code"],
     ["media/markdownBlocks.css", "mlrt-markdown-block-code"],
     ["media/markdownBlocks.css", "mlrt-preview-code-header"],
@@ -143,6 +144,7 @@ async function verifyInstalledPayload(version) {
     ["dist/extension.js", "ignored a change without source ranges"],
     ["dist/extension.js", "validateDocumentChangeClaim"],
     ["dist/extension.js", "reopenActiveEditorWith"],
+    ["dist/extension.js", "VscodeCodeHighlighting"],
   ];
 
   for (const [relativePath, marker] of checks) {
@@ -150,6 +152,10 @@ async function verifyInstalledPayload(version) {
     if (!content.includes(marker)) {
       throw new Error(`Installed ${relativePath} does not contain expected marker: ${marker}`);
     }
+  }
+  const installedWasm = await readFile(path.join(installedDir, "dist/onig.wasm"));
+  if (!installedWasm.equals(await readFile(path.join(projectDir, "dist/onig.wasm")))) {
+    throw new Error("Installed syntax-highlighting WASM does not match the build.");
   }
   const installedManifest = JSON.parse(await readFile(path.join(installedDir, "package.json"), "utf8"));
   if (installedManifest.contributes.configuration.properties["markdownLiveRenderTables.markdownRendering.enabled"].default !== true) {

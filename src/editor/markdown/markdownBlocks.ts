@@ -11,6 +11,7 @@ import { MarkdownExtension } from "@lezer/markdown";
 import { getParsedTables } from "../../shared/tableModel";
 import type { MarkdownRange } from "./markdownSyntax";
 import { markdownAlertForQuote, MarkdownAlertType } from "./markdownBlockSyntax";
+import { nativeCodeHighlightingFacet } from "./vscodeCodeHighlighting";
 
 // legacy-modes publishes a CJS runtime with ESM-only declaration identity.
 // Use its documented require export with this editor's StreamParser type.
@@ -108,6 +109,7 @@ export function classifyMarkdownBlocks(
   tree: Tree,
   protectedRanges: readonly MarkdownRange[] = [],
   visibleRanges: readonly MarkdownRange[] = [{ from: 0, to: source.length }],
+  nativeCodeHighlighting = false,
 ): MarkdownBlockProjection {
   const rows = new Map<number, RowState>();
   const marks: MarkdownBlockMark[] = [];
@@ -182,7 +184,7 @@ export function classifyMarkdownBlocks(
         addRows(node, row => { row.code = kind; });
         for (let child = node.firstChild; child; child = child.nextSibling) {
           if (child.name === "CodeText" || child.name === "MarkdownFrontmatterContent") {
-            codeContents.push({ from: child.from, to: child.to });
+            if (!nativeCodeHighlighting || kind === "frontmatter") codeContents.push({ from: child.from, to: child.to });
             addMark(child, "mlrt-markdown-block-code-source");
           } else if (child.name === "CodeMark" || child.name === "MarkdownFrontmatterMark") {
             addMark(child, "mlrt-markdown-block-delimiter");
@@ -269,7 +271,8 @@ class MarkdownBlockView {
       this.tree = syntaxTree(this.view.state);
       const windows = this.readyWindows();
       this.windows = windows.map(range => `${range.from}:${range.to}`).join(",");
-      const projection = classifyMarkdownBlocks(this.view.state.doc, this.tree, getParsedTables(this.view.state.doc), windows);
+      const projection = classifyMarkdownBlocks(this.view.state.doc, this.tree, getParsedTables(this.view.state.doc), windows,
+        this.view.state.facet(nativeCodeHighlightingFacet));
       const ranges: Range<Decoration>[] = projection.rows.map(row => Decoration.line({ class: row.classes }).range(row.from));
       ranges.push(...projection.marks.map(mark => Decoration.mark({ class: mark.classes }).range(mark.from, mark.to)));
       this.decorations = Decoration.set(ranges, true);

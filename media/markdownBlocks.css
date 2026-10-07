@@ -171,6 +171,10 @@
   /* The row supplies the generic foreground. A source wrapper may be nested
      inside a token with identical bounds, so its color must inherit. */
 }
+.mlrt-vscode-code-token .mlrt-markdown-block-code-source {
+  font-weight: inherit;
+  font-style: inherit;
+}
 .mlrt-markdown-block-delimiter,
 .mlrt-markdown-block-token-punctuation,
 .mlrt-markdown-block-token-comment { color: var(--mlrt-markdown-code-comment, var(--vscode-editor-foreground)); }
