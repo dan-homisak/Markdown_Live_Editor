@@ -828,11 +828,22 @@ body,
   text-align: center;
 }
 .cm-content .mlrt-markdown-task-control[aria-checked="true"]::after {
-  content: "✓";
-  color: #fff;
-  border-color: var(--vscode-button-background, #7852ee);
-  background: var(--vscode-button-background, #7852ee);
-  font-weight: 700;
+  border-color: #2376c5;
+  background: #2376c5;
+}
+/* Draw the mark without image URLs: the webview CSP blocks image resources. */
+.cm-content .mlrt-markdown-task-control[aria-checked="true"]::before {
+  content: "";
+  position: absolute;
+  width: 0.5em;
+  height: 0.25em;
+  box-sizing: content-box;
+  margin-top: -0.15em;
+  border-left: 2px solid #101214;
+  border-bottom: 2px solid #101214;
+  transform: rotate(-45deg);
+  pointer-events: none;
+  z-index: 1;
 }
 .cm-content .mlrt-markdown-task-complete { text-decoration: line-through; color: var(--vscode-descriptionForeground, inherit); }
 .cm-content .mlrt-markdown-task-complete .mlrt-markdown-task-control { text-decoration: none; }
@@ -840,5 +851,6 @@ body,
 .cm-content .mlrt-markdown-task-control[aria-disabled="true"] { cursor: default; }
 @media (forced-colors: active) {
   .cm-content .mlrt-markdown-task-control::after { color: ButtonText; background: Canvas; border-color: ButtonText; }
+  .cm-content .mlrt-markdown-task-control[aria-checked="true"]::before { border-color: ButtonText; }
   .cm-content .mlrt-markdown-task-control:focus-visible { outline-color: Highlight; }
 }
