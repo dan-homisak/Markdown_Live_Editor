@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocket } from "undici";
+import { runSelectionWrappingCheck } from "./edh-selection-wrapping-check.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -353,6 +354,11 @@ try {
   }
 
   assertPixelParity(stockMetrics, liveMetrics);
+
+  if (process.argv.includes("--selection-wrapping-only")) {
+    await runSelectionWrappingCheck({ liveClient, wb, evaluateJson, captureWorkbenchScreenshot, qaDir });
+    throw borderOnlyComplete;
+  }
 
   // Exercise the real settings watcher; legacy highlight checks below run enabled.
   const highlightSettingsPath = path.join(userDataDir, "User", "settings.json");

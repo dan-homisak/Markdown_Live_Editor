@@ -8,6 +8,7 @@ Edits are written directly back to the underlying Markdown, so documents remain 
 
 - Read rendered headings, emphasis, inline code, quotes, callouts, and YAML properties
 - Reveal exact Markdown syntax by moving the caret into the text
+- Wrap highlighted text by typing a formatting character; repeat it to build bold, wikilinks, or code fences
 - Nest and unnest lists with Tab/Shift+Tab, continue them with Enter, and navigate to item text with the arrow keys
 - Open rendered Markdown links and wikilinks, including heading/block targets
 - Highlight JavaScript, TypeScript, JSON, shell, Python, and YAML code without downloads
@@ -31,6 +32,19 @@ You can also use the default keyboard shortcut:
 - Windows and Linux: `Ctrl+Alt+M`
 
 To customize the shortcut, open **Keyboard Shortcuts** and search for **Markdown Live Editor: Toggle Markdown Live Editor**.
+
+## Formatting a selection
+
+Highlight text and type a formatting character. The text stays selected, so another press extends the surrounding markers:
+
+- `*` or `_`: italics, then bold, then bold italics
+- Backtick: inline code, then double backticks, then a fenced code block with the selected text between two fence lines
+- `[`: `[text]()` with an empty link destination; press again for `[[text]]`
+- `!`: `![text]()`; on an existing link or wikilink, converts it to image or embed syntax
+- `~`, `=`, `$`, or `^`: surround the text with that character; repeat for doubled markers such as strikethrough `~~text~~` or highlight `==text==`
+- `(`, `{`, `<`, single quote, or double quote: surround the text with the matching pair
+
+This also works inside table cells, where backticks stay inline. Highlight, math, and superscript markers are inserted as source syntax. Their rendering depends on the Markdown viewer. Typing without a selection keeps its usual behavior.
 
 ## Working with tables
 

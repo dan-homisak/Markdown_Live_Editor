@@ -29916,6 +29916,132 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
     ]))];
   }
 
+  // src/shared/markdownSelectionWrapping.ts
+  function slice(source, from, to) {
+    return typeof source === "string" ? source.slice(from, to) : source.sliceString(from, to);
+  }
+  var pairs = {
+    "*": "*",
+    "_": "_",
+    "~": "~",
+    "=": "=",
+    "^": "^",
+    "$": "$",
+    "(": ")",
+    "{": "}",
+    "<": ">",
+    '"': '"',
+    "'": "'"
+  };
+  function planMarkdownSelectionWrap(source, selection, character, options = {}) {
+    if (character.length !== 1 || character !== "`" && character !== "[" && character !== "!" && !pairs[character]) return null;
+    const { anchor, head } = selection;
+    if (!Number.isInteger(anchor) || !Number.isInteger(head) || anchor < 0 || head < 0 || anchor > source.length || head > source.length || anchor === head) return null;
+    const start = Math.min(anchor, head), end = Math.max(anchor, head);
+    const payload = slice(source, start, end);
+    const at = (from, to) => slice(source, Math.max(0, from), Math.min(source.length, to));
+    const edit2 = (from, to, prefix, suffix) => {
+      const selectedFrom = from + prefix.length, selectedTo = selectedFrom + payload.length;
+      return {
+        from,
+        to,
+        insert: prefix + payload + suffix,
+        selection: anchor < head ? { anchor: selectedFrom, head: selectedTo } : { anchor: selectedTo, head: selectedFrom }
+      };
+    };
+    if (character === "[") {
+      if (at(start - 1, start) === "[" && at(end, end + 3) === "]()") {
+        return edit2(start - 1, end + 3, "[[", "]]");
+      }
+      if (at(start - 1, start) === "[" && at(end, end + 1) === "]") {
+        return edit2(start, end, "[", "]");
+      }
+      return edit2(start, end, "[", "]()");
+    }
+    if (character === "!") {
+      if (at(start - 2, start) === "[[" && at(end, end + 2) === "]]") {
+        return edit2(start - 2, end + 2, "![[", "]]");
+      }
+      if (at(start - 1, start) === "[" && at(end, end + 1) === "]") {
+        return edit2(start - 1, end + 1, "![", "]");
+      }
+      return edit2(start, end, "![", "]()");
+    }
+    if (character !== "`") {
+      return pairs[character] ? edit2(start, end, character, pairs[character]) : null;
+    }
+    let left = start, right = end, surrounding = 0;
+    for (const gap of ["", " ", "\n"]) {
+      if (gap && (at(start - 1, start) !== gap || at(end, end + 1) !== gap)) continue;
+      const before = start - gap.length, after = end + gap.length;
+      let opening = before, closing = after;
+      while (opening > 0 && at(opening - 1, opening) === "`") opening--;
+      while (closing < source.length && at(closing, closing + 1) === "`") closing++;
+      const width2 = before - opening;
+      if (width2 && width2 === closing - after && (gap !== "\n" || !options.inlineOnly && width2 >= 3 && (!opening || at(opening - 1, opening) === "\n") && (closing === source.length || at(closing, closing + 1) === "\n"))) {
+        left = opening;
+        right = closing;
+        surrounding = width2;
+        break;
+      }
+    }
+    const longestRun = Array.from(payload.matchAll(/`+/g), (match2) => match2[0].length).reduce((longest, length) => Math.max(longest, length), 0);
+    let width = Math.max(surrounding + 1, longestRun + 1);
+    if (!options.inlineOnly && (width >= 3 || payload.includes("\n"))) {
+      width = Math.max(3, width);
+      const fence2 = "`".repeat(width);
+      const before = left > 0 && at(left - 1, left) !== "\n" ? "\n" : "";
+      const after = right < source.length && at(right, right + 1) !== "\n" ? "\n" : "";
+      return edit2(left, right, before + fence2 + "\n", "\n" + fence2 + after);
+    }
+    const ticks = "`".repeat(width);
+    const padding = payload.startsWith("`") || payload.endsWith("`") || payload.startsWith(" ") && payload.endsWith(" ") && /[^ ]/.test(payload) ? " " : "";
+    return edit2(left, right, ticks + padding, padding + ticks);
+  }
+
+  // src/editor/markdown/markdownSelectionWrapping.ts
+  function markdownSelectionWrapTransaction(state, character) {
+    if (state.readOnly || state.selection.ranges.some((range) => range.empty)) return null;
+    const edits = state.selection.ranges.map((range) => planMarkdownSelectionWrap(state.doc, range, character));
+    if (edits.some((edit2) => !edit2)) return null;
+    const plans = edits.filter((edit2) => edit2 !== null);
+    const tables2 = getParsedTables(state.doc);
+    if (plans.some((edit2, index) => tables2.some((table2) => edit2.from < table2.to && edit2.to > table2.from) || index > 0 && plans[index - 1].to > edit2.from)) return null;
+    const changes = state.changes(plans.map(({ from, to, insert: insert2 }) => ({ from, to, insert: insert2 })));
+    const ranges = plans.map((edit2) => {
+      const offset = changes.mapPos(edit2.from, -1) - edit2.from;
+      return EditorSelection.range(edit2.selection.anchor + offset, edit2.selection.head + offset);
+    });
+    return {
+      changes,
+      selection: EditorSelection.create(ranges, state.selection.mainIndex),
+      annotations: isolateHistory.of("full"),
+      userEvent: "input.type.markdown-wrap",
+      scrollIntoView: true
+    };
+  }
+  function createMarkdownSelectionWrapping(readOnly2 = false) {
+    const wrap = (view2, character) => {
+      if (readOnly2 || view2.composing || view2.compositionStarted || !view2.state.facet(EditorView.editable) || findCell(view2.dom.ownerDocument.activeElement) || getDocumentSelectionProjection(view2.dom.ownerDocument, view2.state.selection.main)) return false;
+      const transaction = markdownSelectionWrapTransaction(view2.state, character);
+      if (!transaction) return false;
+      view2.dispatch(transaction);
+      return true;
+    };
+    return Prec.high([
+      EditorView.domEventHandlers({ keydown(event, view2) {
+        if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || !(event.target instanceof Node) || !view2.contentDOM.contains(event.target) || findCell(event.target)) return false;
+        return wrap(view2, event.key);
+      } }),
+      // Text input from virtual/alternate-layout keyboards has the same behavior;
+      // paste, replacement text, and IME composition retain their normal routes.
+      EditorView.inputHandler.of((view2, _from, _to, text3, insert2) => {
+        if (insert2().isUserEvent("input.type.compose")) return false;
+        return wrap(view2, text3);
+      })
+    ]);
+  }
+
   // node_modules/@lezer/json/dist/index.js
   var jsonHighlighting = styleTags({
     String: tags.string,
@@ -31260,7 +31386,7 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
     markdownWikiExtension
   ];
   var markdownRenderingParser = parser.configure(markdownParserExtensions);
-  function slice(source, from, to) {
+  function slice2(source, from, to) {
     return typeof source === "string" ? source.slice(from, to) : source.sliceString(from, to);
   }
   function markdownRangesOverlap(a, b) {
@@ -31284,11 +31410,11 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       return null;
     }
     const from = paragraph2.from;
-    const token = slice(source, from, from + 3);
+    const token = slice2(source, from, from + 3);
     if (token !== "[ ]" && token !== "[x]" && token !== "[X]") {
       return null;
     }
-    const following = slice(source, from + 3, Math.min(source.length, from + 4));
+    const following = slice2(source, from + 3, Math.min(source.length, from + 4));
     if (following && !/\s/u.test(following)) {
       return null;
     }
@@ -31301,7 +31427,7 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       checked: token !== "[ ]",
       itemFrom: item.from,
       itemTo: item.to,
-      label: slice(source, from + 3, Math.min(paragraph2.to, from + 163)).split(/\r?\n/u, 1)[0].trim() || "Task"
+      label: slice2(source, from + 3, Math.min(paragraph2.to, from + 163)).split(/\r?\n/u, 1)[0].trim() || "Task"
     };
   }
   function classifyMarkdownMarkers(source, tree, protectedRanges = [], visibleRanges = [{ from: 0, to: source.length }]) {
@@ -31335,12 +31461,12 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
               add2(task, window2);
             }
           } else if (node.name === "ListMark" && node.parent?.parent?.name === "BulletList") {
-            const token = slice(source, node.from, node.to);
+            const token = slice2(source, node.from, node.to);
             if (token === "-" || token === "+" || token === "*") {
               add2({ kind: "bullet", from: node.from, to: node.to, source: token }, window2);
             }
           } else if (node.name === "HorizontalRule") {
-            const token = slice(source, node.from, node.to).replace(/[\t ]+$/u, "");
+            const token = slice2(source, node.from, node.to).replace(/[\t ]+$/u, "");
             if (token && !/[\r\n]/u.test(token)) {
               add2({
                 kind: "rule",
@@ -31366,13 +31492,13 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
   ]);
   function positionAfterLeadingIndent(source, position) {
     for (let offset = position - 1; offset >= 0; offset--) {
-      const character2 = slice(source, offset, offset + 1);
+      const character2 = slice2(source, offset, offset + 1);
       if (character2 === "\n" || character2 === "\r") break;
       if (character2 !== " " && character2 !== "	") return position;
     }
     let next2 = position;
-    while (next2 < source.length && /[\t ]/u.test(slice(source, next2, next2 + 1))) next2++;
-    const character = slice(source, next2, next2 + 1);
+    while (next2 < source.length && /[\t ]/u.test(slice2(source, next2, next2 + 1))) next2++;
+    const character = slice2(source, next2, next2 + 1);
     return character && character !== "\n" && character !== "\r" ? next2 : position;
   }
   function enclosingItem(tree, position) {
@@ -31427,6 +31553,7 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
   var optionsFacet = Facet.define({
     combine: (values2) => values2[0] ?? { enabled: false, screenReaderOptimized: false, readOnly: false }
   });
+  var markdownRenderingOptionsFacet = optionsFacet;
   var editingOwners = /* @__PURE__ */ new WeakMap();
   var editingOwnerTracker = ViewPlugin.fromClass(class {
     constructor(view2) {
@@ -31449,7 +31576,7 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
     }
   });
   function createMarkdownRenderingExtensions(options) {
-    return [optionsFacet.of(options), editingOwnerTracker, options.enabled ? [
+    return [optionsFacet.of(options), editingOwnerTracker, createMarkdownSelectionWrapping(options.readOnly), options.enabled ? [
       createMarkdownListEditing(options.readOnly),
       markdown({ extensions: [markdownParserExtensions, markdownBlockLanguageExtensions], codeLanguages: markdownCodeLanguages }),
       createMarkdownPresentationExtensions(),
@@ -42421,6 +42548,21 @@ ${replacement}
   var MAX_TRACKED_CELL_HISTORIES = 512;
   function bindTableEditing(wrapper, view2, table2, scheduleTableLayout) {
     const getCurrentTable = () => getTableWidgetTable(wrapper) ?? table2;
+    const wrapCellSelection = (cell2, character) => {
+      if (view2.state.readOnly || view2.state.facet(markdownRenderingOptionsFacet).readOnly) return false;
+      const selection = getCellSelectionOffsets(cell2);
+      if (!selection) return false;
+      const value = readCellDisplayValue(cell2);
+      const edit2 = planMarkdownSelectionWrap(value, selection, character, { inlineOnly: true });
+      if (!edit2) return false;
+      recordCellEditHistory(cell2);
+      setCellPlainText(cell2, value.slice(0, edit2.from) + edit2.insert + value.slice(edit2.to));
+      setCellSelectionOffsets(cell2, edit2.selection.anchor, edit2.selection.head);
+      syncCellEditHistory(cell2);
+      applyLiveCellEdit(view2, getCurrentTable(), cell2);
+      scheduleTableLayout();
+      return true;
+    };
     wrapper.addEventListener("focusin", (event) => {
       const cell2 = findCell(event.target);
       if (cell2) {
@@ -42451,6 +42593,10 @@ ${replacement}
         return;
       }
       const cellSelection = getCellSelectionOffsets(cell2);
+      if (event.inputType === "insertText" && !event.isComposing && event.data !== null && cellSelection && getCellInputTargetSelection(cell2, event) !== null && wrapCellSelection(cell2, event.data)) {
+        event.preventDefault();
+        return;
+      }
       const inputDecision = computeCellBeforeInputDecision({
         value: readCellDisplayValue(cell2),
         selection: cellSelection,
@@ -42505,6 +42651,11 @@ ${replacement}
         return;
       }
       if (event.isComposing || event.key === "Process") {
+        return;
+      }
+      if (!event.defaultPrevented && !event.ctrlKey && !event.metaKey && !event.altKey && wrapCellSelection(cell2, event.key)) {
+        event.preventDefault();
+        event.stopPropagation();
         return;
       }
       const tableNavigationModifier = view2.state.facet(
@@ -45848,16 +45999,16 @@ ${replacement}
   // src/shared/markdownLinkValidation.ts
   var markdownUtils = new lib_default("zero").utils;
   var literalNodes = /* @__PURE__ */ new Set(["FencedCode", "CodeBlock", "InlineCode", "HTMLBlock", "HTMLTag", "Comment", "MarkdownFrontmatter"]);
-  var slice2 = (source, from, to) => typeof source === "string" ? source.slice(from, to) : source.sliceString(from, to);
+  var slice3 = (source, from, to) => typeof source === "string" ? source.slice(from, to) : source.sliceString(from, to);
   var overlaps3 = (a, b) => a.from < b.to && b.from < a.to;
   var protectedLink = (link2, ranges) => ranges.some((range) => overlaps3(link2, range));
   function destinationText(source, node) {
-    let value = slice2(source, node.from, node.to);
+    let value = slice3(source, node.from, node.to);
     if (value.startsWith("<") && value.endsWith(">")) value = value.slice(1, -1);
     return markdownUtils.unescapeAll(value);
   }
   function labelText(source, node) {
-    return slice2(source, node.from + 1, node.to - 1);
+    return slice3(source, node.from + 1, node.to - 1);
   }
   var definitionsByTree = /* @__PURE__ */ new WeakMap();
   function referenceDefinitions(source, tree, protectedRanges) {
@@ -45882,7 +46033,7 @@ ${replacement}
     if (protectedLink(node, protectedRanges)) return null;
     if (node.name === "WikiLink") {
       const target = node.getChild("WikiTarget");
-      return target ? { from: node.from, to: node.to, destination: slice2(source, target.from, target.to).trim(), kind: "wiki" } : null;
+      return target ? { from: node.from, to: node.to, destination: slice3(source, target.from, target.to).trim(), kind: "wiki" } : null;
     }
     if (node.name === "Link") {
       const url = node.getChild("URL");
@@ -45890,9 +46041,9 @@ ${replacement}
       if (tree.length < source.length) return null;
       const explicitLabel = node.getChild("LinkLabel");
       const marks2 = node.getChildren("LinkMark");
-      const closingLabelMark = marks2.find((mark) => slice2(source, mark.from, mark.to) === "]");
+      const closingLabelMark = marks2.find((mark) => slice3(source, mark.from, mark.to) === "]");
       if (!closingLabelMark) return null;
-      const visibleLabel = slice2(source, node.from + 1, closingLabelMark.from);
+      const visibleLabel = slice3(source, node.from + 1, closingLabelMark.from);
       const label = explicitLabel && explicitLabel.to - explicitLabel.from > 2 ? labelText(source, explicitLabel) : visibleLabel;
       const destination = referenceDefinitions(source, tree, protectedRanges).get(markdownUtils.normalizeReference(label));
       return destination === void 0 ? null : { from: node.from, to: node.to, destination, kind: "reference" };
@@ -45900,7 +46051,7 @@ ${replacement}
     if (node.name === "Autolink" || node.name === "URL") {
       const url = node.name === "Autolink" ? node.getChild("URL") : node;
       if (!url) return null;
-      let destination = node.name === "URL" && node.parent?.name === "LinkReference" ? destinationText(source, url) : slice2(source, url.from, url.to);
+      let destination = node.name === "URL" && node.parent?.name === "LinkReference" ? destinationText(source, url) : slice3(source, url.from, url.to);
       if (/^www\./i.test(destination)) destination = `http://${destination}`;
       else if (!/^[a-z][a-z\d+.-]*:/i.test(destination) && destination.includes("@")) destination = `mailto:${destination}`;
       return { from: node.from, to: node.to, destination, kind: "autolink" };
