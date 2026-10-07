@@ -27137,7 +27137,7 @@
       const color = read(name2);
       return input.highContrast || !color ? transparent : { ...color, a: Math.min(color.a, maxAlpha) };
     };
-    let inlineFill = quietFill("textPreformat.background", 0.18);
+    let inlineFill = input.dark && !input.highContrast ? parseMarkdownColor("#242424") : quietFill("textPreformat.background", 0.18);
     let codeFill = quietFill("textCodeBlock.background", 0.22);
     let surfaces = [canvas, compositeMarkdownColor(inlineFill, canvas), compositeMarkdownColor(codeFill, canvas)];
     if ([black, white].every((color) => surfaces.some((surface) => markdownContrast(color, surface) < 4.5))) {
@@ -27155,6 +27155,7 @@
     const link2 = safe(read("textLink.foreground"));
     const punctuation2 = safe(read("descriptionForeground"));
     const codeForeground = safe(read("textPreformat.foreground"));
+    const inlineCodeForeground = safe(input.dark ? parseMarkdownColor("#B5CEA8") : read("textPreformat.foreground"));
     const configuredEdge = read("textBlockQuote.border") ?? read("contrastBorder");
     const edge = input.highContrast ? safe(host, [canvas], 3) : cssColor(configuredEdge && configuredEdge.a > 0 ? configuredEdge : { ...host, a: 0.28 });
     const result = {
@@ -27165,14 +27166,14 @@
       "destination": link2,
       "title": punctuation2,
       "punctuation": punctuation2,
-      "inline-code-foreground": codeForeground,
+      "inline-code-foreground": inlineCodeForeground,
       "inline-code-background": cssColor(inlineFill),
       "code-foreground": codeForeground,
       "code-background": cssColor(codeFill),
       "edge": edge,
       "marker": punctuation2,
       "focus": safe(read("focusBorder") ?? read("contrastActiveBorder"), [canvas], 3),
-      "inline-code-outline": input.highContrast ? `inset 0 0 0 1px ${edge}` : "none"
+      "inline-code-outline": input.highContrast ? `inset 0 0 0 1px ${edge}` : input.dark && inlineFill.a > 0 ? "inset 0 0 0 1px #242424" : "none"
     };
     const taskFill = input.highContrast ? canvas : read("checkbox.background") ?? canvas;
     const headingPalette = markdownHeadingPalettes[luminance(canvas) < 0.4 ? "dark" : "light"];
@@ -27471,9 +27472,28 @@
   function markdownPresentationDecorations(document2, runs) {
     const ranges = [];
     for (const run of runs) {
-      const mark = Decoration.mark({ class: run.className });
+      const mark = Decoration.mark({ class: run.className.split(" ").filter((name2) => name2 !== "mlrt-markdown-inline-code").join(" ") });
       for (let from = run.from; from < run.to; ) {
         const line = document2.lineAt(from), to = Math.min(run.to, line.to);
+        if (from < to) ranges.push(mark.range(from, to));
+        from = line.to + 1;
+      }
+    }
+    return Decoration.set(ranges, true);
+  }
+  function markdownInlineCodeDecorations(document2, runs) {
+    const groups = [];
+    for (const run of runs) {
+      if (!run.className.split(" ").includes("mlrt-markdown-inline-code")) continue;
+      const previous = groups[groups.length - 1];
+      if (previous?.to === run.from) previous.to = run.to;
+      else groups.push({ from: run.from, to: run.to });
+    }
+    const ranges = [];
+    const mark = Decoration.mark({ class: "mlrt-markdown-inline-code" });
+    for (const group of groups) {
+      for (let from = group.from; from < group.to; ) {
+        const line = document2.lineAt(from), to = Math.min(group.to, line.to);
         if (from < to) ranges.push(mark.range(from, to));
         from = line.to + 1;
       }
@@ -27494,6 +27514,7 @@
     }
     view;
     decorations = Decoration.none;
+    inlineCodeDecorations = Decoration.none;
     document;
     tree;
     windows = "";
@@ -27511,8 +27532,10 @@
         windows2
       );
       const next2 = markdownPresentationDecorations(this.view.state.doc, runs);
-      const changed = !RangeSet.eq([this.decorations], [next2]);
+      const inlineCode = markdownInlineCodeDecorations(this.view.state.doc, runs);
+      const changed = !RangeSet.eq([this.decorations, this.inlineCodeDecorations], [next2, inlineCode]);
       this.decorations = next2;
+      this.inlineCodeDecorations = inlineCode;
       return changed;
     }
     update(update) {
@@ -27520,10 +27543,12 @@
       try {
         if (this.composing || update.view.compositionStarted) {
           this.decorations = this.decorations.map(update.changes);
+          this.inlineCodeDecorations = this.inlineCodeDecorations.map(update.changes);
           return;
         }
         if (!update.view.inView) {
           this.decorations = this.decorations.map(update.changes);
+          this.inlineCodeDecorations = this.inlineCodeDecorations.map(update.changes);
           this.windows = "hidden";
           return;
         }
@@ -27560,6 +27585,7 @@
     }
     fail() {
       this.decorations = Decoration.none;
+      this.inlineCodeDecorations = Decoration.none;
       if (!this.failed) console.warn("Markdown readable source styling disabled after an internal failure.");
       this.failed = true;
       this.theme?.destroy();
@@ -27573,6 +27599,7 @@
   function createMarkdownPresentationExtensions() {
     return ViewPlugin.fromClass(MarkdownPresentationView, {
       decorations: (value) => value.decorations,
+      provide: (plugin) => EditorView.outerDecorations.of((view2) => view2.plugin(plugin)?.inlineCodeDecorations ?? Decoration.none),
       eventHandlers: {
         compositionstart() {
           this.compositionStart();

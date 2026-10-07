@@ -88,8 +88,9 @@ export function resolveMarkdownTheme(input: MarkdownThemeInput): Record<string, 
     const color = read(name);
     return input.highContrast || !color ? transparent : { ...color, a: Math.min(color.a, maxAlpha) };
   };
-  // Translucent treatments preserve host selection/active-line layers below.
-  let inlineFill = quietFill("textPreformat.background", 0.18);
+  // Inline code uses a padded charcoal surface; block fills remain translucent.
+  let inlineFill = input.dark && !input.highContrast
+    ? parseMarkdownColor("#242424")! : quietFill("textPreformat.background", 0.18);
   let codeFill = quietFill("textCodeBlock.background", 0.22);
   let surfaces = [canvas, compositeMarkdownColor(inlineFill, canvas), compositeMarkdownColor(codeFill, canvas)];
   // Near the light/dark contrast crossover, even a subtle fill can prevent one
@@ -110,6 +111,7 @@ export function resolveMarkdownTheme(input: MarkdownThemeInput): Record<string, 
   const link = safe(read("textLink.foreground"));
   const punctuation = safe(read("descriptionForeground"));
   const codeForeground = safe(read("textPreformat.foreground"));
+  const inlineCodeForeground = safe(input.dark ? parseMarkdownColor("#B5CEA8") : read("textPreformat.foreground"));
   const configuredEdge = read("textBlockQuote.border") ?? read("contrastBorder");
   // These are decorative guides; interactive boundaries are resolved below.
   const edge = input.highContrast ? safe(host, [canvas], 3)
@@ -117,10 +119,11 @@ export function resolveMarkdownTheme(input: MarkdownThemeInput): Record<string, 
   const result: Record<string, string> = {
     "foreground": safe(host), "background": cssColor(codeFill), "heading": link, "link": link,
     "destination": link, "title": punctuation, "punctuation": punctuation,
-    "inline-code-foreground": codeForeground, "inline-code-background": cssColor(inlineFill),
+    "inline-code-foreground": inlineCodeForeground, "inline-code-background": cssColor(inlineFill),
     "code-foreground": codeForeground, "code-background": cssColor(codeFill), "edge": edge,
     "marker": punctuation, "focus": safe(read("focusBorder") ?? read("contrastActiveBorder"), [canvas], 3),
-    "inline-code-outline": input.highContrast ? `inset 0 0 0 1px ${edge}` : "none",
+    "inline-code-outline": input.highContrast ? `inset 0 0 0 1px ${edge}`
+      : input.dark && inlineFill.a > 0 ? "inset 0 0 0 1px #242424" : "none",
   };
   const taskFill = input.highContrast ? canvas : read("checkbox.background") ?? canvas;
   const headingPalette = markdownHeadingPalettes[luminance(canvas) < 0.4 ? "dark" : "light"];

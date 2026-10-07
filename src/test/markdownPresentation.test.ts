@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { markdown } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorState, Text } from "@codemirror/state";
-import { classifyMarkdownPresentation, markdownPresentationDecorations, MarkdownPresentationRun } from "../editor/markdown/markdownPresentation";
+import { classifyMarkdownPresentation, markdownPresentationDecorations, markdownInlineCodeDecorations, MarkdownPresentationRun } from "../editor/markdown/markdownPresentation";
 import { markdownFrontmatterParserExtension } from "../editor/markdown/markdownBlockSyntax";
 import { markdownParserExtensions, markdownRenderingParser } from "../editor/markdown/markdownSyntax";
 import { compositeMarkdownColor, markdownContrast, parseMarkdownColor, resolveMarkdownTheme } from "../editor/markdown/presentationTheme";
@@ -38,6 +38,11 @@ assert.ok(!has(mixedRuns, mixed.indexOf("settings"), "bold"), "code resets headi
 assert.ok(has(mixedRuns, mixed.indexOf("`"), "role-punctuation") && has(mixedRuns, mixed.indexOf("`"), "inline-code"));
 assert.ok(mixedRuns.every((run, index) => index === 0 || mixedRuns[index - 1].to <= run.from), "runs must be disjoint");
 assert.equal(mixed, "## **Important** [deployment](./deploy.md \"title\") `settings` ##", "classification retains literal source");
+
+const codeSurfaces: { from: number; to: number }[] = [];
+markdownInlineCodeDecorations(Text.of([mixed]), mixedRuns).between(0, mixed.length, (from, to) => { codeSurfaces.push({ from, to }); });
+assert.deepEqual(codeSurfaces, [{ from: mixed.indexOf("`settings`"), to: mixed.indexOf("`settings`") + 10 }],
+  "one surface includes the content and both independently styled source backticks");
 
 const nested = "***all*** ~~strike *italic*~~ and `  exact  ` unmatched **";
 const nestedRuns = classify(nested);

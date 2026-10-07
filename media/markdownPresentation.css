@@ -1,5 +1,5 @@
-/* Literal-source semantic roles. No padding, font-size, line-height, margins,
-   whitespace normalization, or broad descendant rules belong in this layer. */
+/* Literal-source semantic roles preserve editor typography. Inline-code content
+   alone has padding to give its rounded background room around the text. */
 .cm-editor {
   --mlrt-markdown-foreground: var(--vscode-editor-foreground, currentColor);
   --mlrt-markdown-background: transparent;
@@ -51,6 +51,9 @@
   background-color: var(--mlrt-markdown-inline-code-background);
   box-shadow: var(--mlrt-markdown-inline-code-outline);
   border-radius: 4px;
+  padding: 0.5px 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 /* Added exclusively by the validated modifier-hover interaction owner. */
 .cm-content .mlrt-markdown-link-actionable-hover { text-decoration-line: underline; cursor: pointer; }
