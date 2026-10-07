@@ -1,6 +1,6 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-P9OCtG",
-  "port": 59821,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-PrvYBZ",
+  "port": 60136,
   "checks": [
     {
       "name": "live preview: resting syntax is removed, properties and semantic content render",
@@ -233,6 +233,279 @@
       }
     },
     {
+      "name": "live preview: arrows enter opening and closing code fences at the source text end",
+      "pass": true,
+      "detail": {
+        "observations": [
+          {
+            "opening": "```python",
+            "column": 0,
+            "forward": true,
+            "head": 57,
+            "assoc": -1,
+            "caretLeft": 149.6125030517578,
+            "textRight": 149.60000610351562,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```python",
+            "column": 0,
+            "forward": false,
+            "head": 76,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```python",
+            "column": 6,
+            "forward": true,
+            "head": 57,
+            "assoc": -1,
+            "caretLeft": 149.6125030517578,
+            "textRight": 149.60000610351562,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```python",
+            "column": 6,
+            "forward": false,
+            "head": 76,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```python",
+            "column": 47,
+            "forward": true,
+            "head": 57,
+            "assoc": -1,
+            "caretLeft": 149.6125030517578,
+            "textRight": 149.60000610351562,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```python",
+            "column": 47,
+            "forward": false,
+            "head": 76,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 0,
+            "forward": true,
+            "head": 51,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 0,
+            "forward": false,
+            "head": 66,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 6,
+            "forward": true,
+            "head": 51,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 6,
+            "forward": false,
+            "head": 66,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 47,
+            "forward": true,
+            "head": 51,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 47,
+            "forward": false,
+            "head": 66,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "~~~~js",
+            "column": 0,
+            "forward": true,
+            "head": 54,
+            "assoc": -1,
+            "caretLeft": 126.5250015258789,
+            "textRight": 126.51250457763672,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "~~~~js",
+            "column": 0,
+            "forward": false,
+            "head": 72,
+            "assoc": -1,
+            "caretLeft": 111.125,
+            "textRight": 111.11250305175781,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "~~~~js",
+            "column": 6,
+            "forward": true,
+            "head": 54,
+            "assoc": -1,
+            "caretLeft": 126.5250015258789,
+            "textRight": 126.51250457763672,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "~~~~js",
+            "column": 6,
+            "forward": false,
+            "head": 72,
+            "assoc": -1,
+            "caretLeft": 111.125,
+            "textRight": 111.11250305175781,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "~~~~js",
+            "column": 47,
+            "forward": true,
+            "head": 54,
+            "assoc": -1,
+            "caretLeft": 126.5250015258789,
+            "textRight": 126.51250457763672,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "~~~~js",
+            "column": 47,
+            "forward": false,
+            "head": 72,
+            "assoc": -1,
+            "caretLeft": 111.125,
+            "textRight": 111.11250305175781,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 0,
+            "forward": true,
+            "head": 59,
+            "assoc": -1,
+            "caretLeft": 165.0124969482422,
+            "textRight": 165,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 0,
+            "forward": false,
+            "head": 82,
+            "assoc": -1,
+            "caretLeft": 118.82500457763672,
+            "textRight": 118.8125,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 6,
+            "forward": true,
+            "head": 59,
+            "assoc": -1,
+            "caretLeft": 165.0124969482422,
+            "textRight": 165,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 6,
+            "forward": false,
+            "head": 82,
+            "assoc": -1,
+            "caretLeft": 118.82500457763672,
+            "textRight": 118.8125,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 47,
+            "forward": true,
+            "head": 59,
+            "assoc": -1,
+            "caretLeft": 165.0124969482422,
+            "textRight": 165,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 47,
+            "forward": false,
+            "head": 82,
+            "assoc": -1,
+            "caretLeft": 118.82500457763672,
+            "textRight": 118.8125,
+            "line": 4,
+            "toolbar": 735.0125122070312
+          }
+        ],
+        "wrappedRowsStayNative": true
+      }
+    },
+    {
       "name": "live preview: code language, copy button, and fence reveal",
       "pass": true,
       "detail": {
@@ -394,14 +667,14 @@
               "role": "mlrt-preview-code-copy-label",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.3651,
+              "opacity": 0.454201,
               "transitionDuration": "0.16s"
             },
             {
               "role": "mlrt-preview-code-copy-action",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.6349,
+              "opacity": 0.545799,
               "transitionDuration": "0.16s"
             },
             {
@@ -584,14 +857,14 @@
               "role": "mlrt-preview-code-copy-label",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.0608248,
+              "opacity": 0.0245422,
               "transitionDuration": "0.16s"
             },
             {
               "role": "mlrt-preview-code-copy-action",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.920876,
+              "opacity": 0.958683,
               "transitionDuration": "0.16s"
             },
             {
