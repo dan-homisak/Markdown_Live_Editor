@@ -49,6 +49,7 @@ The following settings are available in VS Code:
 - `markdownLiveRenderTables.tableNavigation.modifierKey` - chooses the function key used with arrow keys for direct cell navigation
 - `markdownLiveRenderTables.clipboard.defaultCopyMode` - sets the default copy representation
 - `markdownLiveRenderTables.clipboard.defaultPasteMode` - sets the default paste interpretation
+- `markdownLiveRenderTables.lineHighlight.enabled` - highlights the active line outside rendered tables; defaults to `false`. Table highlighting and editing are unchanged.
 - `markdownLiveRenderTables.debug` - enables diagnostic logging for development and troubleshooting
 - `markdownLiveRenderTables.markdownRendering.enabled` - enables live Markdown styling and actions; defaults to `true`
 - `markdownLiveRenderTables.markdownRendering.showHeadingMarkers` - always shows heading `#` markers; defaults to `true`. Disable to hide inactive markers and reveal them at the caret.

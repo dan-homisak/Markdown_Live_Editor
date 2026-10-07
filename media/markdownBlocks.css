@@ -161,7 +161,7 @@
 
 /* Active-line treatment is an overlay above code/alert background. The existing
    CodeMirror selection and cursor layers retain their own paint order. */
-.cm-line.cm-activeLine:is(.mlrt-markdown-block-code, .mlrt-markdown-block-alert) {
+:where(.mlrt-line-highlight-enabled) .cm-line.cm-activeLine:is(.mlrt-markdown-block-code, .mlrt-markdown-block-alert) {
   background-image: linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent));
 }
 

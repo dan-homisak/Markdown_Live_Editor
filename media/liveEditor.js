@@ -19377,6 +19377,10 @@
         padding: "0"
       },
       ".cm-activeLine, .mlrt-prose-active-line": {
+        backgroundColor: "transparent",
+        backgroundImage: "none"
+      },
+      "&:where(.mlrt-line-highlight-enabled) :is(.cm-activeLine, .mlrt-prose-active-line)": {
         // The lower layer is a guaranteed, theme-derived contrast fallback.
         // The VS Code token paints over it when supplied, preserving exact
         // stock-editor color while remaining visible if a host injects an
@@ -19408,7 +19412,7 @@
       // by a long-lived webview focus transition. This is intentionally after
       // the suppression rules: when the editable CodeMirror content itself
       // owns an empty cursor, its line highlight is authoritative.
-      "&:is(.cm-focused, .mlrt-prose-cursor-focused) :is(.cm-activeLine, .mlrt-prose-active-line)": {
+      "&:where(.mlrt-line-highlight-enabled):is(.cm-focused, .mlrt-prose-cursor-focused) :is(.cm-activeLine, .mlrt-prose-active-line)": {
         backgroundColor: "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
         backgroundImage: "linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent))"
       },
@@ -45772,6 +45776,12 @@ ${replacement}
 
   // src/editor/liveEditorExtensions.ts
   var lineWrappingCompartment = new Compartment();
+  var lineHighlightCompartment = new Compartment();
+  function createLineHighlightAttributes(enabled) {
+    return EditorView.editorAttributes.of({
+      class: enabled ? "mlrt-line-highlight-enabled" : ""
+    });
+  }
   function createLiveEditorExtensions(options) {
     const tableHeightEstimateMetrics = createTableHeightEstimateMetrics();
     return [
@@ -45779,6 +45789,7 @@ ${replacement}
       // routes undo/redo through the authoritative VS Code document history.
       history(),
       createEditorTheme(),
+      lineHighlightCompartment.of(createLineHighlightAttributes(options.lineHighlight ?? false)),
       createTableBoundaryArrowNavigation(),
       createTableBoundaryInputHandler(),
       createDocumentSelectionInputHandler(),
@@ -46635,6 +46646,7 @@ ${replacement}
     const defaults = {
       markdownLinks: { documentUri: null, multiCursorModifier: "alt", isMac: false },
       lineWrapping: true,
+      lineHighlight: false,
       scrollBeyondLastLine: true,
       clipboardDocumentToken: createClipboardDocumentToken(),
       defaultCopyMode: "smart",
@@ -46655,6 +46667,7 @@ ${replacement}
       {
         lineWrapping: typeof optionRecord.lineWrapping === "boolean" ? optionRecord.lineWrapping : true,
         scrollBeyondLastLine: typeof optionRecord.scrollBeyondLastLine === "boolean" ? optionRecord.scrollBeyondLastLine : true,
+        lineHighlight: optionRecord.lineHighlight,
         clipboardDocumentToken: optionRecord.clipboardDocumentToken,
         defaultCopyMode: optionRecord.defaultCopyMode,
         defaultPasteMode: optionRecord.defaultPasteMode,
@@ -46678,6 +46691,7 @@ ${replacement}
         isMac: typeof markdownLinks.isMac === "boolean" ? markdownLinks.isMac : fallback.markdownLinks.isMac
       },
       lineWrapping: typeof record.lineWrapping === "boolean" ? record.lineWrapping : fallback.lineWrapping,
+      lineHighlight: typeof record.lineHighlight === "boolean" ? record.lineHighlight : fallback.lineHighlight,
       scrollBeyondLastLine: typeof record.scrollBeyondLastLine === "boolean" ? record.scrollBeyondLastLine : fallback.scrollBeyondLastLine,
       clipboardDocumentToken: typeof record.clipboardDocumentToken === "string" && record.clipboardDocumentToken.length > 0 ? record.clipboardDocumentToken : fallback.clipboardDocumentToken,
       defaultCopyMode: defaultCopyMode === "smart" || defaultCopyMode === "rich" || defaultCopyMode === "plain" || defaultCopyMode === "markdown" ? defaultCopyMode : fallback.defaultCopyMode,
@@ -46716,11 +46730,17 @@ ${replacement}
   function updateEditorOptions(value) {
     const nextOptions = normalizeEditorOptions(value, editorOptions);
     const linksChanged = nextOptions.markdownRendering.enabled !== editorOptions.markdownRendering.enabled || nextOptions.markdownLinks.documentUri !== editorOptions.markdownLinks.documentUri || nextOptions.markdownLinks.multiCursorModifier !== editorOptions.markdownLinks.multiCursorModifier || nextOptions.markdownLinks.isMac !== editorOptions.markdownLinks.isMac;
+    const lineHighlightChanged = nextOptions.lineHighlight !== editorOptions.lineHighlight;
     const lineWrappingChanged = nextOptions.lineWrapping !== editorOptions.lineWrapping;
     const tableNavigationModifierChanged = nextOptions.tableNavigationModifierKey !== editorOptions.tableNavigationModifierKey;
     editorOptions = nextOptions;
     applyDocumentEditorOptions(editorOptions);
     const effects = [];
+    if (lineHighlightChanged) {
+      effects.push(lineHighlightCompartment.reconfigure(
+        createLineHighlightAttributes(editorOptions.lineHighlight)
+      ));
+    }
     if (linksChanged) effects.push(markdownLinksCompartment.reconfigure(createMarkdownLinkExtensions(
       { ...editorOptions.markdownLinks, enabled: editorOptions.markdownRendering.enabled },
       postMarkdownLinkIntent
@@ -47207,7 +47227,7 @@ ${String(error2)}`;
     }
     const record = value;
     const markdownRendering = record.markdownRendering;
-    return (markdownRendering === void 0 || isMarkdownRenderingOptions(markdownRendering)) && typeof record.lineWrapping === "boolean" && typeof record.scrollBeyondLastLine === "boolean" && typeof record.clipboardDocumentToken === "string" && record.clipboardDocumentToken.length > 0 && (record.defaultCopyMode === "smart" || record.defaultCopyMode === "rich" || record.defaultCopyMode === "plain" || record.defaultCopyMode === "markdown") && (record.defaultPasteMode === "auto" || record.defaultPasteMode === "rich" || record.defaultPasteMode === "plain" || record.defaultPasteMode === "markdown") && normalizeTableNavigationModifierKey(record.tableNavigationModifierKey) === record.tableNavigationModifierKey;
+    return (markdownRendering === void 0 || isMarkdownRenderingOptions(markdownRendering)) && (record.lineHighlight === void 0 || typeof record.lineHighlight === "boolean") && typeof record.lineWrapping === "boolean" && typeof record.scrollBeyondLastLine === "boolean" && typeof record.clipboardDocumentToken === "string" && record.clipboardDocumentToken.length > 0 && (record.defaultCopyMode === "smart" || record.defaultCopyMode === "rich" || record.defaultCopyMode === "plain" || record.defaultCopyMode === "markdown") && (record.defaultPasteMode === "auto" || record.defaultPasteMode === "rich" || record.defaultPasteMode === "plain" || record.defaultPasteMode === "markdown") && normalizeTableNavigationModifierKey(record.tableNavigationModifierKey) === record.tableNavigationModifierKey;
   }
   function isMarkdownRenderingOptions(value) {
     if (!value || typeof value !== "object") {

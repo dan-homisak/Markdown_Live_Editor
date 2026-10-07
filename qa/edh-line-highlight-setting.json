@@ -1,0 +1,683 @@
+{
+  "off": {
+    "rows": [
+      {
+        "text": "# Heading",
+        "active": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "",
+        "active": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "const answer = 42;",
+        "active": {
+          "background": "rgba(36, 37, 38, 0.22)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(36, 37, 38, 0.22)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "> Callout body",
+        "active": {
+          "background": "color(srgb 0.34902 0.643137 0.976471 / 0.09)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "color(srgb 0.34902 0.643137 0.976471 / 0.09)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "> Quote",
+        "active": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "Text up here at. ",
+        "active": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "- list",
+        "active": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      }
+    ],
+    "table": [
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(255, 255, 255, 0.13)",
+        "image": "none",
+        "color": "rgb(237, 237, 237)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      }
+    ]
+  },
+  "on": {
+    "rows": [
+      {
+        "text": "# Heading",
+        "active": {
+          "background": "color(srgb 0.11698 0.121451 0.125373)",
+          "image": "linear-gradient(rgb(36, 37, 38), rgb(36, 37, 38))",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "",
+        "active": {
+          "background": "color(srgb 0.11698 0.121451 0.125373)",
+          "image": "linear-gradient(rgb(36, 37, 38), rgb(36, 37, 38))",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "const answer = 42;",
+        "active": {
+          "background": "color(srgb 0.11698 0.121451 0.125373)",
+          "image": "linear-gradient(rgb(36, 37, 38), rgb(36, 37, 38))",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(36, 37, 38, 0.22)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "> Callout body",
+        "active": {
+          "background": "color(srgb 0.11698 0.121451 0.125373)",
+          "image": "linear-gradient(rgb(36, 37, 38), rgb(36, 37, 38))",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "color(srgb 0.34902 0.643137 0.976471 / 0.09)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "> Quote",
+        "active": {
+          "background": "color(srgb 0.11698 0.121451 0.125373)",
+          "image": "linear-gradient(rgb(36, 37, 38), rgb(36, 37, 38))",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "Text up here at. ",
+        "active": {
+          "background": "color(srgb 0.11698 0.121451 0.125373)",
+          "image": "linear-gradient(rgb(36, 37, 38), rgb(36, 37, 38))",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "- list",
+        "active": {
+          "background": "color(srgb 0.11698 0.121451 0.125373)",
+          "image": "linear-gradient(rgb(36, 37, 38), rgb(36, 37, 38))",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      }
+    ],
+    "table": [
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(255, 255, 255, 0.13)",
+        "image": "none",
+        "color": "rgb(237, 237, 237)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      }
+    ]
+  },
+  "offAgain": {
+    "rows": [
+      {
+        "text": "# Heading",
+        "active": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "",
+        "active": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "const answer = 42;",
+        "active": {
+          "background": "rgba(36, 37, 38, 0.22)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(36, 37, 38, 0.22)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "> Callout body",
+        "active": {
+          "background": "color(srgb 0.34902 0.643137 0.976471 / 0.09)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "color(srgb 0.34902 0.643137 0.976471 / 0.09)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "> Quote",
+        "active": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "Text up here at. ",
+        "active": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      },
+      {
+        "text": "- list",
+        "active": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        },
+        "passive": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "color": "rgb(187, 190, 191)"
+        }
+      }
+    ],
+    "table": [
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(255, 255, 255, 0.13)",
+        "image": "none",
+        "color": "rgb(237, 237, 237)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(32, 33, 34)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgb(18, 19, 20)",
+        "image": "none",
+        "color": "rgb(133, 136, 137)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "image": "none",
+        "color": "rgb(187, 190, 191)"
+      }
+    ]
+  }
+}
