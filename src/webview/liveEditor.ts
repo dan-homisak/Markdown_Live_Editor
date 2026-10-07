@@ -30,6 +30,7 @@ import {
 } from "../editor/markdown/markdownLinks";
 import { markdownListLine } from "../editor/markdown/markdownListEditing";
 import { markdownPreviewField } from "../editor/markdown/markdownLivePreview";
+import { createVscodeCodeHighlighting } from "../editor/markdown/vscodeCodeHighlighting";
 import { MarkdownOpenLinkRequest } from "../shared/markdownLinkValidation";
 import {
   tableNavigationModifierCompartment,
@@ -177,6 +178,7 @@ interface EditorOptions {
 }
 
 const vscode = acquireVsCodeApi();
+const codeHighlighting = createVscodeCodeHighlighting(message => vscode.postMessage(message));
 const app = document.getElementById("app");
 
 if (!app) {
@@ -238,6 +240,7 @@ try {
       doc: initialDocument,
       extensions: [
         ...editorExtensions,
+        codeHighlighting.extension,
         markdownLinksCompartment.of(createMarkdownLinkExtensions(
           { ...editorOptions.markdownLinks, enabled: editorOptions.markdownRendering.enabled },
           postMarkdownLinkIntent,
@@ -352,6 +355,7 @@ try {
 
 window.addEventListener("message", (event: MessageEvent<unknown>) => {
   const message = event.data;
+  if (codeHighlighting.accept(view, message)) return;
   if (message && typeof message === "object" && "type" in message &&
       message.type === "markdownLinkCommand" && "action" in message && message.action === "open") {
     if (editorCompositionActive || view.compositionStarted || pendingEditorComposition ||

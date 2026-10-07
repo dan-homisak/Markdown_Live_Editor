@@ -52,13 +52,16 @@ notices = notices.replace("# Bundled host parser notices", "# Bundled third-part
 const missingLicenses = [];
 for (const entry of [...packages.values()].sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version))) {
   const directory = path.join(root, entry.directory);
-  const files = (await readdir(directory)).filter(file => /^licen[sc]e(?:[.-].*)?$/i.test(file)).sort();
+  const files = (await readdir(directory)).filter(file => /^(?:licen[sc]e|notices?)(?:[.-].*)?$/i.test(file)).sort();
   if (!files.length) { missingLicenses.push(`${entry.name}@${entry.version}`); continue; }
   entry.licenseFiles = files.map(file => `${entry.directory}/${file}`);
   const heading = `## ${entry.name} ${entry.version}`;
-  if (notices.includes(`${heading}\n`) || notices.includes(`${heading}\r\n`)) continue;
-  notices += `\n${heading}\n\n`;
-  for (const file of files) {
+  const hasHeading = notices.includes(`${heading}\n`) || notices.includes(`${heading}\r\n`);
+  const missing = files.filter(file => !hasHeading || /^notices?/i.test(file) &&
+    !notices.includes(`Installed license source: \`${entry.directory}/${file}\``));
+  if (!missing.length) continue;
+  notices += `\n${hasHeading ? `### Additional bundled notices: ${entry.name} ${entry.version}` : heading}\n\n`;
+  for (const file of missing) {
     const text = await readFile(path.join(directory, file), "utf8");
     notices += `Installed license source: \`${entry.directory}/${file}\`\n\n${text.trim()}\n\n`;
   }

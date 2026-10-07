@@ -205,6 +205,7 @@ async function host(initialText = "[site](https://example.test)") {
     Range: class { constructor(public start: any, public end: any) {} },
     env: { openExternal: async (target: any) => { external.push(target.toString()); return true; } },
     window: {
+      onDidChangeActiveColorTheme: () => new Disposable(),
       createOutputChannel: () => ({ dispose() {}, appendLine() {}, show() {} }),
       registerCustomEditorProvider: (_id: string, value: any) => { provider = value; return new Disposable(); },
       showWarningMessage: (message: string) => errors.push(message), showErrorMessage: (message: string) => errors.push(message),
@@ -213,6 +214,7 @@ async function host(initialText = "[site](https://example.test)") {
       tabGroups: { activeTabGroup: { activeTab: { input: new TabInputCustom(document.uri, "markdownLiveRenderTables.liveEditor") } } },
     },
     commands: { registerCommand: (name: string, callback: () => Promise<void>) => { commands.set(name, callback); return new Disposable(); }, executeCommand: async () => {} },
+    extensions: { onDidChange: () => new Disposable() },
     workspace: {
       fs: { isWritableFileSystem: () => true, stat: async () => ({ permissions: 0 }) },
       getConfiguration: () => ({ get: (key: string, fallback: unknown) => key === "markdownRendering.enabled" ? renderingEnabled : fallback }),

@@ -30767,6 +30767,125 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
     })
   });
 
+  // src/editor/markdown/vscodeCodeHighlighting.ts
+  var nativeCodeHighlightingFacet = Facet.define({ combine: (values2) => values2.some(Boolean) });
+  var refreshCodeHighlighting = StateEffect.define();
+  function codeTokenStyle(token) {
+    const decoration = [token.fontStyle & 4 ? "underline" : "", token.fontStyle & 8 ? "line-through" : ""].filter(Boolean).join(" ") || "none";
+    return `color:${token.color};font-style:${token.fontStyle & 1 ? "italic" : "normal"};font-weight:${token.fontStyle & 2 ? "bold" : "var(--mlrt-editor-font-weight, normal)"};text-decoration:${decoration}`;
+  }
+  function visibleCodeRanges(view2) {
+    const ranges = [];
+    const protectedRanges = getParsedTables(view2.state.doc);
+    for (const window2 of view2.visibleRanges) {
+      if (!syntaxTreeAvailable(view2.state, window2.to)) continue;
+      syntaxTree(view2.state).iterate({ from: window2.from, to: window2.to, enter(reference2) {
+        const node = reference2.node;
+        if (node.name !== "FencedCode" && node.name !== "CodeBlock") return;
+        for (const child of node.getChildren("CodeText")) {
+          const from = Math.max(child.from, window2.from), to = Math.min(child.to, window2.to);
+          if (from < to && !protectedRanges.some((range) => range.from < to && range.to > from)) ranges.push({ from, to });
+        }
+        return false;
+      } });
+    }
+    ranges.sort((a, b) => a.from - b.from || a.to - b.to);
+    const merged = [];
+    for (const range of ranges) {
+      const last = merged.at(-1);
+      if (last && last.to >= range.from) last.to = Math.max(last.to, range.to);
+      else merged.push({ ...range });
+    }
+    return merged.map((range) => ({ ...range, text: view2.state.doc.sliceString(range.from, range.to) }));
+  }
+  function createVscodeCodeHighlighting(post) {
+    class NativeCodeHighlighting {
+      constructor(view2) {
+        this.view = view2;
+        this.tree = syntaxTree(view2.state);
+        this.themeObserver = new MutationObserver(() => {
+          this.id++;
+          this.schedule();
+        });
+        this.themeObserver.observe(view2.dom.ownerDocument.body, {
+          attributes: true,
+          attributeFilter: ["data-vscode-theme-id", "data-vscode-theme-name"]
+        });
+        this.schedule();
+      }
+      view;
+      decorations = Decoration.none;
+      id = 0;
+      snapshot = null;
+      requested = [];
+      timer;
+      tree;
+      destroyed = false;
+      themeObserver;
+      schedule() {
+        if (this.timer) clearTimeout(this.timer);
+        this.timer = setTimeout(() => {
+          this.timer = void 0;
+          if (this.destroyed || this.view.compositionStarted || this.view.composing) return;
+          this.snapshot = this.view.state.doc;
+          this.requested = visibleCodeRanges(this.view);
+          this.id++;
+          if (this.requested.length) post({
+            type: "requestCodeHighlighting",
+            id: this.id,
+            ranges: this.requested,
+            themeName: this.view.dom.ownerDocument.body.dataset.vscodeThemeId ?? this.view.dom.ownerDocument.body.dataset.vscodeThemeName
+          });
+        }, 40);
+      }
+      update(update) {
+        const tree = syntaxTree(update.state);
+        if (update.docChanged) {
+          this.id++;
+          this.snapshot = null;
+          this.decorations = Decoration.none;
+        }
+        if (update.docChanged || update.viewportChanged || tree !== this.tree) this.schedule();
+        this.tree = tree;
+      }
+      accept(message) {
+        if (!message || typeof message !== "object" || !("type" in message)) return false;
+        if (message.type === "refreshCodeHighlighting") {
+          this.id++;
+          this.schedule();
+          return true;
+        }
+        if (message.type !== "codeHighlighting") return false;
+        const response = message;
+        if (this.destroyed || response.id !== this.id || this.snapshot !== this.view.state.doc || !Array.isArray(response.tokens)) return true;
+        const ranges = [];
+        for (const token of response.tokens) {
+          if (!token || !Number.isInteger(token.from) || !Number.isInteger(token.to) || token.from >= token.to || !/^#[\da-f]{6}(?:[\da-f]{2})?$/iu.test(token.color) || !Number.isInteger(token.fontStyle) || token.fontStyle < 0 || token.fontStyle > 15 || !this.requested.some((range) => token.from >= range.from && token.to <= range.to)) continue;
+          ranges.push(Decoration.mark({ class: "mlrt-vscode-code-token", attributes: { style: codeTokenStyle(token) } }).range(token.from, token.to));
+        }
+        this.decorations = Decoration.set(ranges, true);
+        this.view.dispatch({ effects: refreshCodeHighlighting.of(null) });
+        return true;
+      }
+      destroy() {
+        this.destroyed = true;
+        this.themeObserver.disconnect();
+        if (this.timer) clearTimeout(this.timer);
+      }
+    }
+    const plugin = ViewPlugin.fromClass(NativeCodeHighlighting, {
+      decorations: (value) => value.decorations,
+      eventHandlers: { compositionend() {
+        this.schedule();
+        return false;
+      } }
+    });
+    return {
+      extension: [nativeCodeHighlightingFacet.of(true), plugin],
+      accept: (view2, message) => view2.plugin(plugin)?.accept(message) ?? false
+    };
+  }
+
   // src/editor/markdown/markdownBlocks.ts
   var { shell } = require_shell();
   var shellLanguage = StreamLanguage.define(shell);
@@ -30829,7 +30948,7 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
     }
     return result;
   }
-  function classifyMarkdownBlocks(source, tree, protectedRanges = [], visibleRanges = [{ from: 0, to: source.length }]) {
+  function classifyMarkdownBlocks(source, tree, protectedRanges = [], visibleRanges = [{ from: 0, to: source.length }], nativeCodeHighlighting = false) {
     const rows = /* @__PURE__ */ new Map();
     const marks2 = [];
     const markKeys = /* @__PURE__ */ new Set();
@@ -30904,7 +31023,7 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
           });
           for (let child = node.firstChild; child; child = child.nextSibling) {
             if (child.name === "CodeText" || child.name === "MarkdownFrontmatterContent") {
-              codeContents.push({ from: child.from, to: child.to });
+              if (!nativeCodeHighlighting || kind === "frontmatter") codeContents.push({ from: child.from, to: child.to });
               addMark(child, "mlrt-markdown-block-code-source");
             } else if (child.name === "CodeMark" || child.name === "MarkdownFrontmatterMark") {
               addMark(child, "mlrt-markdown-block-delimiter");
@@ -30988,7 +31107,13 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
         this.tree = syntaxTree(this.view.state);
         const windows2 = this.readyWindows();
         this.windows = windows2.map((range) => `${range.from}:${range.to}`).join(",");
-        const projection = classifyMarkdownBlocks(this.view.state.doc, this.tree, getParsedTables(this.view.state.doc), windows2);
+        const projection = classifyMarkdownBlocks(
+          this.view.state.doc,
+          this.tree,
+          getParsedTables(this.view.state.doc),
+          windows2,
+          this.view.state.facet(nativeCodeHighlightingFacet)
+        );
         const ranges = projection.rows.map((row) => Decoration.line({ class: row.classes }).range(row.from));
         ranges.push(...projection.marks.map((mark) => Decoration.mark({ class: mark.classes }).range(mark.from, mark.to)));
         this.decorations = Decoration.set(ranges, true);
@@ -45969,6 +46094,7 @@ ${replacement}
 
   // src/webview/liveEditor.ts
   var vscode = acquireVsCodeApi();
+  var codeHighlighting = createVscodeCodeHighlighting((message) => vscode.postMessage(message));
   var app = document.getElementById("app");
   if (!app) {
     throw new Error("Missing live editor mount element.");
@@ -46017,6 +46143,7 @@ ${replacement}
         doc: initialDocument,
         extensions: [
           ...editorExtensions,
+          codeHighlighting.extension,
           markdownLinksCompartment.of(createMarkdownLinkExtensions(
             { ...editorOptions.markdownLinks, enabled: editorOptions.markdownRendering.enabled },
             postMarkdownLinkIntent
@@ -46110,6 +46237,7 @@ ${replacement}
   }
   window.addEventListener("message", (event) => {
     const message = event.data;
+    if (codeHighlighting.accept(view, message)) return;
     if (message && typeof message === "object" && "type" in message && message.type === "markdownLinkCommand" && "action" in message && message.action === "open") {
       if (editorCompositionActive || view.compositionStarted || pendingEditorComposition || deferredHostDocumentDuringEditorComposition || !openMarkdownLinkAtCaret(view)) {
         announce(document, "Place a single caret in a Markdown link to open it after editing finishes.");

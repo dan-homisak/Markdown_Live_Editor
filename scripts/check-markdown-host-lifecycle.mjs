@@ -41,6 +41,7 @@ const vscode = {
   Range: class { constructor(start, end) { this.start = start; this.end = end; } },
   WorkspaceEdit: class { replace() {} },
   window: {
+    onDidChangeActiveColorTheme() { return new Disposable(); },
     createOutputChannel() { return { dispose() {}, appendLine() {}, show() {} }; },
     registerCustomEditorProvider(_id, value) { provider = value; return new Disposable(); },
     showWarningMessage() {},
@@ -51,6 +52,7 @@ const vscode = {
     registerCommand() { return new Disposable(); },
     executeCommand() { return Promise.resolve(); },
   },
+  extensions: { onDidChange() { return new Disposable(); } },
   workspace: {
     fs: {
       isWritableFileSystem() { return true; },
