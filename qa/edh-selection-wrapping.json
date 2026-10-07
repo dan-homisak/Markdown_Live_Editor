@@ -1,0 +1,251 @@
+{
+  "results": [
+    {
+      "character": "*",
+      "text": "*word*",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "*",
+      "text": "**word**",
+      "anchor": 2,
+      "head": 6,
+      "selected": "word"
+    },
+    {
+      "character": "*",
+      "text": "***word***",
+      "anchor": 3,
+      "head": 7,
+      "selected": "word"
+    },
+    {
+      "character": "_",
+      "text": "_word_",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "_",
+      "text": "__word__",
+      "anchor": 2,
+      "head": 6,
+      "selected": "word"
+    },
+    {
+      "character": "_",
+      "text": "___word___",
+      "anchor": 3,
+      "head": 7,
+      "selected": "word"
+    },
+    {
+      "character": "`",
+      "text": "`word`",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "`",
+      "text": "``word``",
+      "anchor": 2,
+      "head": 6,
+      "selected": "word"
+    },
+    {
+      "character": "`",
+      "text": "```\nword\n```",
+      "anchor": 4,
+      "head": 8,
+      "selected": "word"
+    },
+    {
+      "character": "[",
+      "text": "[word]()",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "[",
+      "text": "[[word]]",
+      "anchor": 2,
+      "head": 6,
+      "selected": "word"
+    },
+    {
+      "character": "~",
+      "text": "~word~",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "~",
+      "text": "~~word~~",
+      "anchor": 2,
+      "head": 6,
+      "selected": "word"
+    },
+    {
+      "character": "=",
+      "text": "=word=",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "=",
+      "text": "==word==",
+      "anchor": 2,
+      "head": 6,
+      "selected": "word"
+    },
+    {
+      "character": "$",
+      "text": "$word$",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "$",
+      "text": "$$word$$",
+      "anchor": 2,
+      "head": 6,
+      "selected": "word"
+    },
+    {
+      "character": "^",
+      "text": "^word^",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "!",
+      "text": "![word]()",
+      "anchor": 2,
+      "head": 6,
+      "selected": "word"
+    },
+    {
+      "character": "(",
+      "text": "(word)",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "{",
+      "text": "{word}",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "<",
+      "text": "<word>",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "\"",
+      "text": "\"word\"",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "character": "'",
+      "text": "'word'",
+      "anchor": 1,
+      "head": 5,
+      "selected": "word"
+    },
+    {
+      "table": true,
+      "character": "*",
+      "value": "*word*",
+      "selected": "word",
+      "text": "| Key | Value |\n| --- | --- |\n| *word* | keep |\n",
+      "cells": 4
+    },
+    {
+      "table": true,
+      "character": "*",
+      "value": "**word**",
+      "selected": "word",
+      "text": "| Key | Value |\n| --- | --- |\n| **word** | keep |\n",
+      "cells": 4
+    },
+    {
+      "table": true,
+      "character": "*",
+      "value": "***word***",
+      "selected": "word",
+      "text": "| Key | Value |\n| --- | --- |\n| ***word*** | keep |\n",
+      "cells": 4
+    },
+    {
+      "table": true,
+      "character": "`",
+      "value": "`word`",
+      "selected": "word",
+      "text": "| Key | Value |\n| --- | --- |\n| `word` | keep |\n",
+      "cells": 4
+    },
+    {
+      "table": true,
+      "character": "`",
+      "value": "``word``",
+      "selected": "word",
+      "text": "| Key | Value |\n| --- | --- |\n| ``word`` | keep |\n",
+      "cells": 4
+    },
+    {
+      "table": true,
+      "character": "`",
+      "value": "```word```",
+      "selected": "word",
+      "text": "| Key | Value |\n| --- | --- |\n| ```word``` | keep |\n",
+      "cells": 4
+    },
+    {
+      "table": true,
+      "character": "[",
+      "value": "[word]()",
+      "selected": "word",
+      "text": "| Key | Value |\n| --- | --- |\n| [word]() | keep |\n",
+      "cells": 4
+    },
+    {
+      "table": true,
+      "character": "[",
+      "value": "[[word]]",
+      "selected": "word",
+      "text": "| Key | Value |\n| --- | --- |\n| [[word]] | keep |\n",
+      "cells": 4
+    },
+    {
+      "table": true,
+      "character": "!",
+      "value": "![word]()",
+      "selected": "word",
+      "text": "| Key | Value |\n| --- | --- |\n| ![word]() | keep |\n",
+      "cells": 4
+    }
+  ],
+  "fence": {
+    "text": "before \n```\nword\n```\n after",
+    "anchor": 16,
+    "head": 12,
+    "selected": "word"
+  },
+  "hostUndo": true
+}

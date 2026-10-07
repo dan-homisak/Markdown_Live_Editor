@@ -9,6 +9,7 @@ import { taskFocusReturnSelection } from "./markdownFocus";
 import { createMarkdownPresentationExtensions } from "./markdownPresentation";
 import { createMarkdownLivePreviewExtensions } from "./markdownLivePreview";
 import { createMarkdownListEditing } from "./markdownListEditing";
+import { createMarkdownSelectionWrapping } from "./markdownSelectionWrapping";
 import { createMarkdownBlockExtensions, markdownBlockLanguageExtensions, markdownCodeLanguages } from "./markdownBlocks";
 import {
   classifyMarkdownMarkers, findTaskAtCaret, markdownParserExtensions,
@@ -42,6 +43,7 @@ export function refreshMarkdownTaskAvailability(view: EditorView): void {
 const optionsFacet = Facet.define<MarkdownRenderingOptions, MarkdownRenderingOptions>({
   combine: values => values[0] ?? { enabled: false, screenReaderOptimized: false, readOnly: false },
 });
+export const markdownRenderingOptionsFacet = optionsFacet;
 
 const editingOwners = new WeakMap<EditorView, "source" | "table">();
 // Keep only passive ownership tracking while rendering is disabled. A palette
@@ -68,7 +70,7 @@ const editingOwnerTracker = ViewPlugin.fromClass(class {
 
 /** Recovery restores the original parser/input configuration as well as appearance. */
 export function createMarkdownRenderingExtensions(options: MarkdownRenderingOptions): Extension {
-  return [optionsFacet.of(options), editingOwnerTracker, options.enabled
+  return [optionsFacet.of(options), editingOwnerTracker, createMarkdownSelectionWrapping(options.readOnly), options.enabled
     ? [createMarkdownListEditing(options.readOnly),
       markdown({ extensions: [markdownParserExtensions, markdownBlockLanguageExtensions], codeLanguages: markdownCodeLanguages }),
       createMarkdownPresentationExtensions(), createMarkdownBlockExtensions(),

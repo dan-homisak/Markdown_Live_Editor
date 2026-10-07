@@ -1,5 +1,7 @@
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { planMarkdownSelectionWrap } from "../../shared/markdownSelectionWrapping";
+import { markdownRenderingOptionsFacet } from "../markdown/markdownRendering";
 import {
   ensureTableCellSeparatorSafe,
   formatMarkdownCell,
@@ -116,6 +118,24 @@ export function bindTableEditing(
   const getCurrentTable = (): ParsedTable =>
     getTableWidgetTable(wrapper) ?? table;
 
+  const wrapCellSelection = (cell: HTMLElement, character: string): boolean => {
+    if (view.state.readOnly || view.state.facet(markdownRenderingOptionsFacet).readOnly) return false;
+    const selection = getCellSelectionOffsets(cell);
+    if (!selection) return false;
+    const value = readCellDisplayValue(cell);
+    // Table cell content is inline Markdown. Even long backtick delimiters
+    // stay inline rather than introducing block fences into a table row.
+    const edit = planMarkdownSelectionWrap(value, selection, character, { inlineOnly: true });
+    if (!edit) return false;
+    recordCellEditHistory(cell);
+    setCellPlainText(cell, value.slice(0, edit.from) + edit.insert + value.slice(edit.to));
+    setCellSelectionOffsets(cell, edit.selection.anchor, edit.selection.head);
+    syncCellEditHistory(cell);
+    applyLiveCellEdit(view, getCurrentTable(), cell);
+    scheduleTableLayout();
+    return true;
+  };
+
   wrapper.addEventListener("focusin", (event) => {
     const cell = findCell(event.target);
     if (cell) {
@@ -151,6 +171,12 @@ export function bindTableEditing(
     }
 
     const cellSelection = getCellSelectionOffsets(cell);
+    if (event.inputType === "insertText" && !event.isComposing && event.data !== null &&
+        cellSelection && getCellInputTargetSelection(cell, event) !== null &&
+        wrapCellSelection(cell, event.data)) {
+      event.preventDefault();
+      return;
+    }
     const inputDecision = computeCellBeforeInputDecision({
       value: readCellDisplayValue(cell),
       selection: cellSelection,
@@ -219,6 +245,13 @@ export function bindTableEditing(
     // Enter accepts an IME candidate and arrow keys navigate candidate lists.
     // None of the table-level shortcuts may run until composition has ended.
     if (event.isComposing || event.key === "Process") {
+      return;
+    }
+
+    if (!event.defaultPrevented && !event.ctrlKey && !event.metaKey && !event.altKey &&
+        wrapCellSelection(cell, event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
       return;
     }
 
