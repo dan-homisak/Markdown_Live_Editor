@@ -9,6 +9,7 @@ import { taskFocusReturnSelection } from "./markdownFocus";
 import { createMarkdownPresentationExtensions } from "./markdownPresentation";
 import { createMarkdownLivePreviewExtensions } from "./markdownLivePreview";
 import { createMarkdownListEditing } from "./markdownListEditing";
+import { createMarkdownProperties } from "./markdownProperties";
 import { createMarkdownListStructure } from "./markdownListStructure";
 import { createMarkdownSelectionWrapping } from "./markdownSelectionWrapping";
 import { createMarkdownCompositionTracking, markdownComposing, markdownRenderTreeField, markdownRenderTree as syntaxTree } from "./markdownRenderTree";
@@ -73,7 +74,7 @@ const editingOwnerTracker = ViewPlugin.fromClass(class {
 /** Recovery restores the original parser/input configuration as well as appearance. */
 export function createMarkdownRenderingExtensions(options: MarkdownRenderingOptions): Extension {
   return [optionsFacet.of(options), editingOwnerTracker, createMarkdownCompositionTracking(), createMarkdownSelectionWrapping(options.readOnly), options.enabled
-    ? [createMarkdownListEditing(options.readOnly),
+    ? [createMarkdownProperties(options.readOnly), createMarkdownListEditing(options.readOnly),
       markdown({ extensions: [markdownParserExtensions, markdownBlockLanguageExtensions], codeLanguages: markdownCodeLanguages }),
       markdownRenderTreeField,
       createMarkdownListStructure(options.screenReaderOptimized),

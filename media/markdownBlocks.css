@@ -85,8 +85,7 @@
   background: transparent;
 }
 .mlrt-preview-code-header button,
-.mlrt-preview-callout button,
-.mlrt-preview-properties button {
+.mlrt-preview-callout button {
   font: inherit;
   color: inherit;
   background: transparent;
@@ -122,37 +121,61 @@
 }
 .mlrt-preview-code-copy:is(:hover, :focus-visible) { color: var(--vscode-editor-foreground, inherit); }
 .mlrt-preview-code-header button:hover,
+.mlrt-preview-code-header button:focus-visible { background: var(--vscode-toolbar-hoverBackground, #80808026); }
 .mlrt-preview-code-header button:focus-visible,
-.mlrt-preview-properties button:hover { background: var(--vscode-toolbar-hoverBackground, #80808026); }
-.mlrt-preview-code-header button:focus-visible,
-.mlrt-preview-callout button:focus-visible,
-.mlrt-preview-properties button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.mlrt-preview-callout button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
 @media (prefers-reduced-motion: reduce) {
   .mlrt-preview-code-header .mlrt-preview-code-copy,
   .mlrt-preview-code-copy-label,
   .mlrt-preview-code-copy-action,
   .mlrt-preview-code-copy-status { transition: none; }
 }
-.mlrt-preview-properties {
-  /* Block widgets must have no vertical margins: CM measures their border box
-     to map source positions to screen coordinates. */
-  margin: 0;
-  border: 1px solid var(--vscode-widget-border, #80808040);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-family: var(--vscode-font-family, sans-serif);
-  font-size: var(--vscode-font-size, 13px);
+/* A quiet frame around real YAML source; focusing never replaces/reflows it. */
+.cm-line.mlrt-markdown-block-frontmatter {
+  box-shadow: inset 1px 0 var(--vscode-widget-border, #80808040), inset -1px 0 var(--vscode-widget-border, #80808040), inset 0 1px var(--mlrt-markdown-block-top-edge), inset 0 -1px var(--mlrt-markdown-block-bottom-edge);
 }
-.mlrt-preview-properties .mlrt-preview-properties-title { display: block; font-weight: 600; padding: 3px 0 8px; }
-.mlrt-preview-properties .mlrt-preview-property { display: grid; grid-template-columns: minmax(90px, 25%) 1fr; width: 100%; gap: 12px; padding: 5px 4px; border-radius: 4px; }
-.mlrt-preview-property-key { color: var(--vscode-descriptionForeground, inherit); }
-.mlrt-preview-property-value { overflow-wrap: anywhere; white-space: pre-wrap; }
+.cm-line.mlrt-markdown-block-frontmatter.mlrt-markdown-block-start::after {
+  content: "Properties";
+  position: absolute;
+  right: 12px;
+  top: 0;
+  color: var(--vscode-descriptionForeground, inherit);
+  font: inherit;
+  font-size: 0.85em;
+  pointer-events: none;
+}
+.cm-tooltip.cm-tooltip-autocomplete,
+.cm-tooltip.cm-tooltip-lint {
+  border: 1px solid var(--vscode-editorSuggestWidget-border, var(--vscode-widget-border, #80808040));
+  background: var(--vscode-editorSuggestWidget-background, var(--vscode-editor-background));
+  color: var(--vscode-editorSuggestWidget-foreground, var(--vscode-editor-foreground));
+  border-radius: 3px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, #0004);
+}
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--vscode-editorSuggestWidget-selectedBackground, #04395e);
+  color: var(--vscode-editorSuggestWidget-selectedForeground, var(--vscode-editor-foreground));
+}
+.cm-tooltip-autocomplete .cm-completionDetail { color: var(--vscode-descriptionForeground); font-style: normal; }
+.cm-diagnostic { font-family: var(--vscode-font-family, sans-serif); }
+/* Native underlines work under the webview CSP (the lint package's default
+   squiggles use SVG data images, which this editor intentionally disallows). */
+.cm-content .cm-lintRange-error,
+.cm-content .cm-lintRange-warning {
+  background-image: none;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: var(--vscode-editorError-foreground, #f14c4c);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+.cm-content .cm-lintRange-warning { text-decoration-color: var(--vscode-editorWarning-foreground, #cca700); }
 .mlrt-preview-callout { font-weight: 600; color: var(--mlrt-markdown-block-accent); }
 .mlrt-preview-callout button { padding: 0; line-height: inherit; }
 .mlrt-preview-callout-fold { margin-right: 5px; }
 .mlrt-preview-callout-title span { display: inline-block; min-width: 1em; }
 @media (forced-colors: active) {
-  .mlrt-preview-code-header, .mlrt-preview-properties { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+  .mlrt-preview-code-header { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
   .mlrt-preview-callout { color: CanvasText; }
 }
 

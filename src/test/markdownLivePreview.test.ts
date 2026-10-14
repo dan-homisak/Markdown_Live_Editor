@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { markdown } from "@codemirror/lang-markdown";
 import { Compartment, EditorSelection, EditorState, Text } from "@codemirror/state";
 import { markdownParserExtensions, markdownRenderingParser } from "../editor/markdown/markdownSyntax";
-import { markdownFenceEntry, classifyMarkdownPreview, classifyMarkdownPreviewLayout, createMarkdownLivePreviewExtensions, markdownPreviewField, previewOwnerActive, frontmatterPropertyRows, codeBlockText, PreviewPart } from "../editor/markdown/markdownLivePreview";
+import { markdownFenceEntry, classifyMarkdownPreview, classifyMarkdownPreviewLayout, createMarkdownLivePreviewExtensions, markdownPreviewField, previewOwnerActive, codeBlockText, PreviewPart } from "../editor/markdown/markdownLivePreview";
 import { markdownListLine, planMarkdownListEdit } from "../editor/markdown/markdownListEditing";
 import { getParsedTables } from "../shared/tableModel";
 import { markdownRenderTreeField, markdownRenderTree } from "../editor/markdown/markdownRenderTree";
@@ -77,8 +77,7 @@ assert.equal(project('**unclosed').length, 0);
 assert.equal(project('<!-- **literal** -->').length, 0);
 const table = '| A | B |\n| --- | --- |\n| **bold** | [[Note]] |'; assert.equal(project(table).length, 0);
 const yaml = '---\ntitle: "A note"\ntags:\n  - one\n  - two\n---';
-assert.equal(project(yaml)[0]?.kind, "properties");
-assert.deepEqual(frontmatterPropertyRows(yaml).map(row => [row.key, row.value]), [["title", "A note"], ["tags", "one · two"]]);
+assert.deepEqual(project(yaml), [], "properties retain editable YAML at rest and at the caret");
 const nestedCode = '> ```js\n> const n = 1;\n> ```'; assert.equal(copied(nestedCode,project(nestedCode).find(part => part.kind === "code-header")), 'const n = 1;\n');
 assert(!project(nestedCode).some(part => part.kind === 'hide'), 'quoted fence prefixes retain their source columns in preview');
 const quotedEnd = project(nestedCode).find(part => part.kind === 'code-end'); assert(quotedEnd?.fence);
@@ -105,7 +104,7 @@ assert(layout[0].to-layout[0].from<100,'only the opening row belongs to the tool
 const layoutSource = yaml+'\n\nTitle\n=====\n\n> [!INFO]- Folded\n> body\n\n'+table;
 const layoutDoc = text(layoutSource);
 const structural = classifyMarkdownPreviewLayout(layoutDoc,markdownRenderingParser.parse(layoutSource),getParsedTables(layoutDoc));
-assert.deepEqual(structural.map(part=>part.kind),['properties','hide','callout'],'all height-changing owners are declared outside viewport discovery');
+assert.deepEqual(structural.map(part=>part.kind),['hide','callout'],'all height-changing owners are declared outside viewport discovery');
 assert(structural.every(part=>part.to<=layoutSource.indexOf(table)),'tables retain exclusive layout ownership');
 
 function state(source: string, position = source.length): EditorState {

@@ -11,7 +11,7 @@ import { markdownListField, markdownListRangeHidden } from "./markdownListStruct
 
 export interface PreviewPart extends MarkdownRange {
   owner: MarkdownRange;
-  kind: "hide" | "conceal" | "code-header" | "code-end" | "properties" | "callout";
+  kind: "hide" | "conceal" | "code-header" | "code-end" | "callout";
   fence?: MarkdownRange;
   block?: boolean;
   label?: string;
@@ -60,8 +60,7 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
     const owner = { from: node.from, to: node.to };
     if (["HTMLBlock", "HTMLTag", "Comment", "WikiEmbed"].includes(node.name)) return false;
     if (node.name === "MarkdownFrontmatter") {
-      if (!overlapsTable(node)) add({ ...owner, owner, kind: "properties", block: true,
-        content: read(node.from, node.to), editAt: node.firstChild?.to ? node.firstChild.to + 1 : node.from });
+      // Properties always retain their source rows and normal editor geometry.
       return false;
     }
     if (node.name === "FencedCode" || node.name === "CodeBlock") {
@@ -181,28 +180,6 @@ export function previewOwnerActive(owner: MarkdownRange, selection: EditorSelect
     ? focused && range.head >= owner.from && range.head <= owner.to : overlaps(owner, range));
 }
 
-export interface PropertyRow { key: string; value: string; offset: number; }
-export function frontmatterPropertyRows(source: string): PropertyRow[] {
-  const rows: PropertyRow[] = [];
-  const lines = source.split("\n"); let offset = lines[0].length + 1;
-  const scalar = (value: string): string => {
-    if (value.startsWith('"') && value.endsWith('"')) { try { return JSON.parse(value) as string; } catch { return value; } }
-    return value.startsWith("'") && value.endsWith("'") ? value.slice(1, -1).replace(/''/g, "'") : value;
-  };
-  for (const line of lines.slice(1, -1)) {
-    const key = /^([^\s:#][^:]*):(?:[ \t]+(.*))?\s*$/u.exec(line);
-    if (key) rows.push({ key: scalar(key[1].trim()), value: scalar(key[2]?.trim() ?? ""), offset: offset + line.indexOf(":") + 1 });
-    else if (line.trim() && !line.trimStart().startsWith("#")) {
-      const previous = rows[rows.length - 1];
-      const value = scalar(line.trim().replace(/^-\s+/u, ""));
-      if (previous) previous.value += `${previous.value ? " · " : ""}${value}`;
-      else rows.push({ key: "Value", value, offset });
-    }
-    offset += line.length + 1;
-  }
-  return rows;
-}
-
 const activityEffect = StateEffect.define<{ focused: boolean; composing: boolean; projected: MarkdownRange | null }>();
 const foldEffect = StateEffect.define<{ from: number; collapsed: boolean }>();
 interface PreviewState {
@@ -276,16 +253,6 @@ class PreviewWidget extends WidgetType {
         doc.defaultView!.setTimeout(() => { if (copy.isConnected) { status = null; refreshLabel(); } }, 1800);
       });
       wrapper.append(copy);
-    } else if (part.kind === "properties") {
-      const title = doc.createElement("button"); title.type = "button"; title.className = "mlrt-preview-properties-title";
-      title.textContent = "Properties"; title.title = "Edit YAML properties"; title.addEventListener("click", () => edit()); wrapper.append(title);
-      for (const row of frontmatterPropertyRows(part.content ?? "")) {
-        const button = doc.createElement("button"); button.type = "button"; button.className = "mlrt-preview-property";
-        const key = doc.createElement("span"), value = doc.createElement("span"); key.className = "mlrt-preview-property-key"; value.className = "mlrt-preview-property-value";
-        key.textContent = row.key; value.textContent = row.value || "Empty";
-        button.append(key, value); button.setAttribute("aria-label", `Edit property ${row.key}`);
-        button.addEventListener("click", () => edit(part.from + row.offset)); wrapper.append(button);
-      }
     } else if (part.kind === "callout") {
       wrapper.classList.add(`mlrt-preview-callout-${part.accent}`);
       if (part.collapsed !== undefined) {
@@ -300,8 +267,7 @@ class PreviewWidget extends WidgetType {
     return wrapper;
   }
   ignoreEvent(): boolean { return true; }
-  get estimatedHeight(): number { return this.part.kind === "properties" ? 30 + frontmatterPropertyRows(this.part.content ?? "").length * 28
-    : this.part.kind === "code-header" && this.part.block ? 28 : -1; }
+  get estimatedHeight(): number { return this.part.kind === "code-header" && this.part.block ? 28 : -1; }
 }
 
 function decorations(state: EditorState, value: Omit<PreviewState, "decorations">): DecorationSet {
