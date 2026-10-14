@@ -263,18 +263,27 @@ try {
     assert.equal(actual.letterSpacing==="normal"?0:parseFloat(actual.letterSpacing),largeMetrics?1:0);
     return actual;
   });
-  await check("marker reveal retains actual following glyph boxes and document geometry", async () => {
-    const before=await geometry();const wraps=await wrapGeometry(); const transitions=[];
+  await check("compact markers expand to source and restore the rendered layout", async () => {
+    await select(0);const before=await geometry(),wraps=await wrapGeometry(),transitions=[];
     for(const anchor of [text.indexOf("- Bullet"),text.indexOf("[ ]"),text.indexOf("[X]"),text.indexOf("***"),text.indexOf("  - Nested")+2,text.indexOf("\t- Tab")+1]) {
-      await select(anchor); const after=await geometry(); assert.equal(after.source,text); assert.equal(after.height,before.height); assert.equal(after.scrollTop,before.scrollTop);
-      let maxDelta=0;
-      for(let i=0;i<before.glyphs.length;i++)for(const dimension of ["x","y","width","height"])maxDelta=Math.max(maxDelta,Math.abs(before.glyphs[i][dimension]-after.glyphs[i][dimension]));
-      assert(maxDelta<=0.5,`glyph geometry drift ${maxDelta}`);
-      const afterWraps=await wrapGeometry();let maxWrapDelta=0;
-      for(let i=0;i<wraps.length;i++){assert.equal(afterWraps[i].rows.length,wraps[i].rows.length,"wrapped row count stable");for(let j=0;j<wraps[i].rows.length;j++){const a=wraps[i].rows[j],b=afterWraps[i].rows[j];assert.equal(a.from,b.from,"wrap start source offset stable");assert.equal(a.to,b.to,"wrap end source offset stable");for(const dimension of ["x","y","right"])maxWrapDelta=Math.max(maxWrapDelta,Math.abs(a[dimension]-b[dimension]));}}
-      assert(maxWrapDelta<=0.5,`wrapped glyph drift ${maxWrapDelta}`);transitions.push({anchor,maxDelta,maxWrapDelta,markers:after.markerCount});
+      await select(anchor);const after=await geometry();assert.equal(after.source,text);
+      const sourceLine=text.slice(0,anchor).split('\n').length;
+      const target=before.glyphs.findIndex(glyph=>text.slice(0,glyph.position).split('\n').length===sourceLine);
+      if(target>=0) {
+        const a=before.glyphs[target],b=after.glyphs[target],task=text[anchor]==='[';
+        // Both the marker slot and literal glyphs honor editor letter spacing.
+        const expected=(task?3:-1)*a.width;
+        assert(Math.abs((b.x-a.x)-expected)<0.6,JSON.stringify({anchor,expected,shift:b.x-a.x}));
+        assert(Math.abs(a.height-b.height)<=0.5,'source reveal preserves font size');
+        transitions.push({anchor,shift:b.x-a.x,task});
+      }
+      await screenshot("edh-markdown-revealed.png");await select(0);
+      const restored=await geometry();assert.equal(restored.source,text);
+      for(let i=0;i<before.glyphs.length;i++)for(const dimension of ["x","y","width","height"])
+        assert(Math.abs(before.glyphs[i][dimension]-restored.glyphs[i][dimension])<=0.5,'rendered geometry restores: '+dimension);
+      assert.deepEqual(await wrapGeometry(),wraps,'rendered line wrapping restores after source reveal');
     }
-    await screenshot("edh-markdown-revealed.png"); await select(0);return {before,wraps,transitions};
+    return {transitions,sourcePreserved:true,layoutRestored:true};
   });
   if(!geometryOnly) {
   await check("ordinary arrow navigation exposes each task character", async () => {
@@ -386,7 +395,7 @@ try {
       assert(after.sourceFocus,JSON.stringify(after));assert.deepEqual(after.selection.ranges,[{anchor,head:anchor}]);
       assert(Math.abs(after.scrollTop-before.scrollTop)<=0.5,'focus release must not scroll back');
       const projection=await liveEval("const plugin=view.plugins.find(plugin=>plugin.value&&Array.isArray(plugin.value.markers))?.value;return {oldControlConnected:win.__MLRT_EVICTED_CONTROL.isConnected,oldControlPresent:!!root.querySelector('[data-markdown-task-from=\"118\"]'),markers:plugin?.markers.length,sizes:plugin?.sizes.size,controls:root.querySelectorAll('.mlrt-markdown-task-control').length};");
-      assert.equal(projection.oldControlConnected,false);assert.equal(projection.oldControlPresent,false);assert(projection.controls<500,'viewport projection must not mount all2000 task controls');
+      assert.equal(projection.oldControlConnected,false,JSON.stringify({before,after,projection}));assert.equal(projection.oldControlPresent,false,JSON.stringify(projection));assert(projection.controls<500,'viewport projection must not mount all2000 task controls');
       assert.equal(await source(),large);assert.equal(await liveEval('return win.__MLRT_HARNESS_MESSAGES.length;'),messages);await screenshot('edh-markdown-viewport-eviction.png');
       await liveEval('view.scrollDOM.scrollTop=0;return true;');await waitFor(async()=>liveEval("return !!root.querySelector('.mlrt-markdown-task-control[aria-label^=\"Task alpha\"]');"),'task control recreated after scrolling back');
       return {fixtureTasks:2002,before,after,projection,sourcePreserved:true};

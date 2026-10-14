@@ -7,6 +7,7 @@ import { getDocumentSelectionProjection } from "../documentSelectionState";
 import { isTablePointerSelectionActive } from "../table/tableRangeSelection";
 import { MarkdownRange } from "./markdownSyntax";
 import { markdownAlertForQuote } from "./markdownBlockSyntax";
+import { markdownListField, markdownListRangeHidden } from "./markdownListStructure";
 
 export interface PreviewPart extends MarkdownRange {
   owner: MarkdownRange;
@@ -309,6 +310,7 @@ function decorations(state: EditorState, value: Omit<PreviewState, "decorations"
   // without rescanning every earlier block on each selection/scroll update.
   let coveredTo = -1;
   for (const part of value.parts) {
+    if (markdownListRangeHidden(state, part)) continue;
     const active = previewOwnerActive(part.owner, state.selection, value.focused, value.projected);
     // Fence rows belong to the document and gutter in both modes. Concealing
     // their glyphs keeps wrapping, line height, and the closing padding row fixed.
@@ -364,7 +366,8 @@ export const markdownPreviewField = StateField.define<PreviewState>({
     const syntaxChanged = transaction.docChanged || value.composing && !composing || syntaxTree(transaction.state) !== syntaxTree(transaction.startState);
     const changed = syntaxChanged || windows !== value.windows || transaction.state.facet(headingMarkersFacet) !== transaction.startState.facet(headingMarkersFacet);
     if (!changed && !transaction.selection && focused === value.focused && composing === value.composing &&
-        projected === value.projected && folds === value.folds) return value;
+        projected === value.projected && folds === value.folds &&
+        transaction.state.field(markdownListField, false) === transaction.startState.field(markdownListField, false)) return value;
     let parts = value.parts;
     if (transaction.docChanged && !value.composing) {
       const changedWindows = markdownChangedWindows(transaction);
@@ -390,6 +393,7 @@ export function markdownFenceEntry(state: EditorState, forward: boolean, nextHea
   const number = current.number + (forward ? 1 : -1);
   if (number < 1 || number > state.doc.lines) return null;
   const line = state.doc.line(number);
+  if (markdownListRangeHidden(state, line)) return null;
   // A wrapped visual row still belongs to the current source line.
   if (forward ? nextHead < line.from : nextHead > line.to) return null;
   const part = state.field(markdownPreviewField, false)?.parts.find(part =>

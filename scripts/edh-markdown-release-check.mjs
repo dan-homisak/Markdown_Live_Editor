@@ -18,6 +18,8 @@ const scrollOnly = process.argv.includes("--scroll-only");
 const fenceNavigationOnly = process.argv.includes("--fence-navigation-only");
 const livePreviewOnly = fenceNavigationOnly || process.argv.includes("--live-preview-only");
 const nestedGuideOnly = process.argv.includes("--nested-guide-only");
+const listsOnly = process.argv.includes("--lists-only");
+const largeListMetrics = listsOnly && process.argv.includes("--large-metrics");
 const measureDiagnostic = process.argv.includes("--measure-diagnostic-only");
 const paintOnly = process.argv.includes("--paint-only") || measureDiagnostic;
 const paintMetrics = paintOnly || process.argv.includes("--paint");
@@ -55,7 +57,8 @@ const text = [
 ].join("\n");
 // Deliberately omit rendering.enabled: this verifies the installed default.
 const settings = { "markdownLiveRenderTables.debug": true,
-  "editor.fontFamily": "Consolas, 'Courier New', monospace", "editor.fontSize": 14,
+  "editor.fontFamily": "Consolas, 'Courier New', monospace", "editor.fontSize": largeListMetrics ? 20 : 14,
+  ...(largeListMetrics ? { "editor.lineHeight": 30, "editor.letterSpacing": 1 } : {}),
   "editor.wordWrap": "on", "workbench.startupEditor": "none", "workbench.colorTheme": "Default Dark Modern" };
 await Promise.all([mkdir(qa, { recursive: true }), mkdir(user, { recursive: true }), mkdir(extensions, { recursive: true })]);
 await writeFile(fixture, text);
@@ -165,6 +168,7 @@ async function sample(position) {
   return liveEval(`const pos=${position},a=view.domAtPos(pos,1),b=view.domAtPos(pos+1,-1),r=root.createRange();r.setStart(a.node,a.offset);r.setEnd(b.node,b.offset);const box=r.getBoundingClientRect(),el=a.node.nodeType===3?a.node.parentElement:a.node,css=win.getComputedStyle(el),line=el.closest('.cm-line');return {position:pos,text:r.toString(),classes:el.className,line:line?.textContent,lineClasses:line?.className,fontSize:css.fontSize,fontFamily:css.fontFamily,lineHeight:css.lineHeight,fontWeight:css.fontWeight,fontStyle:css.fontStyle,color:css.color,background:css.backgroundColor,decoration:css.textDecorationLine,x:box.x,y:box.y,height:box.height};`);
 }
 async function check(name, action) {
+  if (listsOnly && !name.startsWith("list structure:")) return;
   if (scrollOnly && !name.startsWith("scroll rendering:")) return;
   if (fenceNavigationOnly && !name.startsWith("live preview: arrows enter")) return;
   if (livePreviewOnly && !name.startsWith("live preview:")) return;
@@ -208,6 +212,13 @@ try {
   await select(0);
   await waitFor(async () => liveEval("return !!root.querySelector('.mlrt-markdown-role-heading')&&!!root.querySelector('.mlrt-markdown-block-frontmatter,.mlrt-preview-properties');"), "default-enabled semantic presentation");
   await screenshot("readable");
+
+  if (listsOnly) {
+    const { runListStructureChecks } = await import('./edh-list-structure-cases.mjs');
+    await runListStructureChecks({ check, liveEval, select, screenshot, writeFixture, sleep,
+      send: (method, params) => live.send(method, params), key: (...args) => key(live, ...args) });
+    await writeFixture(text);
+  }
 
   if (livePreviewOnly) {
     const { runLivePreviewChecks } = await import('./edh-live-preview-cases.mjs');
@@ -455,7 +466,7 @@ try {
     await writeFile(path.join(qa,`edh-markdown-paint-results${measureDiagnostic?'-measure-diagnostic':''}.json`),JSON.stringify(metrics,null,2));
     return {fixtures:metrics.fixtures.map(fixture=>({lineCount:fixture.lineCount,enabled:fixture.enabled,classes:Object.fromEntries(Object.entries(fixture.classes).map(([name,value])=>[name,value.firstPaintOpportunity]))})),acknowledgedEdits:metrics.acknowledgedEdits?.acknowledgement};
   });
-  if (!codeOnly && !livePreviewOnly && !nestedGuideOnly && !paintOnly) {
+  if (!codeOnly && !livePreviewOnly && !nestedGuideOnly && !paintOnly && !listsOnly) {
     const { runMarkdownScrollChecks } = await import('./edh-markdown-scroll-cases.mjs');
     await runMarkdownScrollChecks({ check, liveEval, writeFixture, select, sleep, screenshot, palette, text });
   }
@@ -465,7 +476,7 @@ try {
 finally {
   report.launchOutput = launchOutput;
   report.passed = checks.length > 0 && checks.every(check => check.pass) && !(report.console?.length);
-  const reportName=`edh-markdown-release-results${scrollOnly ? "-scroll" : fenceNavigationOnly ? "-fence-navigation" : livePreviewOnly ? "-live-preview" : nestedGuideOnly ? "-nested-guides" : codeOnly ? "-code-diagnostic" : measureDiagnostic ? "-measure-diagnostic" : paintOnly ? "-paint" : ""}.json`;
+  const reportName=`edh-markdown-release-results${listsOnly ? largeListMetrics ? "-lists-20px" : "-lists" : scrollOnly ? "-scroll" : fenceNavigationOnly ? "-fence-navigation" : livePreviewOnly ? "-live-preview" : nestedGuideOnly ? "-nested-guides" : codeOnly ? "-code-diagnostic" : measureDiagnostic ? "-measure-diagnostic" : paintOnly ? "-paint" : ""}.json`;
   await writeFile(path.join(qa, reportName), JSON.stringify(report, null, 2));
   for (const client of clients) client.socket.close(); child.kill();
   console.log(`Saved qa/${reportName}; ${checks.filter(check => check.pass).length}/${checks.length} checks passed.`);

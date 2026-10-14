@@ -9,6 +9,7 @@ import { findCell, focusCellAtVerticalEdge } from "./table/cellSelection";
 import { TABLE_CELL_SELECTOR } from "./table/cellSelection";
 import { TABLE_WIDGET_SELECTOR } from "./table/tableWidgetState";
 import { selectVisibleTableBoundary } from "./tableBoundaryInput";
+import { markdownListRangeHidden } from "./markdown/markdownListStructure";
 
 /**
  * Arrow-key handoff between the source editor and rendered tables.
@@ -43,6 +44,7 @@ function focusTableAcrossBoundary(
   const line = view.state.doc.lineAt(head);
   const tables = getParsedTables(view.state.doc);
   for (const table of tables) {
+    if (markdownListRangeHidden(view.state, table)) continue;
     if (direction === "down" && head === table.to) {
       selectVisibleTableBoundary(view, table, "after");
       return true;

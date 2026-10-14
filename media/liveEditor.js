@@ -32001,6 +32001,286 @@ ${text3}`;
     return left.row === right.row && left.column === right.column;
   }
 
+  // src/editor/markdown/markdownListStructure.ts
+  function classifyMarkdownLists(doc2, tree, tabSize = 4) {
+    const items = [], tables2 = getParsedTables(doc2);
+    tree.iterate({ enter(ref) {
+      const node = ref.node;
+      if (["FencedCode", "CodeBlock", "HTMLBlock", "MarkdownFrontmatter"].includes(node.name) || tables2.some((table2) => node.from >= table2.from && node.to <= table2.to)) return false;
+      if (node.name !== "ListItem") return;
+      const mark = node.getChild("ListMark");
+      if (!mark) return;
+      let parent = node.parent;
+      while (parent && parent.name !== "ListItem") parent = parent.parent;
+      const line = doc2.lineAt(mark.from);
+      const width = (to) => {
+        let columns2 = 0;
+        for (const character of doc2.sliceString(line.from, to)) columns2 += character === "	" ? tabSize - columns2 % tabSize : 1;
+        return columns2;
+      };
+      const prefix = /^[ \t]+(?:\[[ xX]\](?:[ \t]+|$))?/u.exec(doc2.sliceString(mark.to, line.to))?.[0] ?? "";
+      const columns = width(mark.from), contentColumns = width(mark.to + prefix.length);
+      const parentFrom = parent?.getChild("ListMark")?.from ?? null;
+      const parentItem = items.find((item) => item.from === parentFrom);
+      const task = /\[[ xX]\]/u.test(prefix);
+      const taskEnd = task ? mark.to + prefix.indexOf("]") + 1 : mark.to;
+      const renderedPrefixColumns = task ? 2 + contentColumns - width(taskEnd) : contentColumns - columns + (mark.to - mark.from === 1 ? 1 : 0);
+      items.push({
+        from: mark.from,
+        lineFrom: line.from,
+        foldFrom: line.to,
+        to: doc2.lineAt(node.to).to,
+        parent: parentFrom,
+        columns,
+        contentColumns,
+        renderedPrefixColumns,
+        renderColumns: parentItem ? parentItem.renderColumns + Math.max(4, columns - parentItem.columns) : columns
+      });
+    } });
+    return items;
+  }
+  var markdownListFoldEffect = StateEffect.define({
+    map: (value, changes) => ({ ...value, from: changes.mapPos(value.from, 1) })
+  });
+  var CollapsedListHint = class extends WidgetType {
+    eq() {
+      return true;
+    }
+    toDOM(view2) {
+      const hint = view2.dom.ownerDocument.createElement("span");
+      hint.className = "mlrt-list-fold-hint";
+      hint.textContent = " ...";
+      hint.title = "Nested content is collapsed";
+      hint.setAttribute("aria-label", "Collapsed nested content");
+      return hint;
+    }
+  };
+  function listState(items, collapsed) {
+    const hidden = [], ranges = [];
+    for (const item of items) {
+      if (!collapsed.has(item.from) || item.to <= item.foldFrom || hidden.some((range) => range.from < item.from && range.to >= item.to)) continue;
+      hidden.push({ from: item.foldFrom, to: item.to });
+      ranges.push(Decoration.replace({ inclusive: false, widget: new CollapsedListHint() }).range(item.foldFrom, item.to));
+    }
+    return { items, collapsed, hidden, decorations: Decoration.set(ranges, true), composing: false };
+  }
+  var markdownListField = StateField.define({
+    create: (state) => listState(classifyMarkdownLists(state.doc, markdownRenderTree(state), state.tabSize), /* @__PURE__ */ new Set()),
+    update(value, transaction) {
+      const composing = markdownComposing(transaction, value.composing);
+      if (composing) {
+        const map2 = (position) => transaction.changes.mapPos(position);
+        return {
+          ...value,
+          composing,
+          decorations: value.decorations.map(transaction.changes),
+          items: value.items.map((item) => ({
+            ...item,
+            from: map2(item.from),
+            lineFrom: map2(item.lineFrom),
+            foldFrom: map2(item.foldFrom),
+            to: map2(item.to),
+            parent: item.parent === null ? null : map2(item.parent)
+          })),
+          collapsed: new Set([...value.collapsed].map(map2)),
+          hidden: value.hidden.map((range) => ({ from: map2(range.from), to: map2(range.to) }))
+        };
+      }
+      const changed = transaction.docChanged || value.composing || markdownRenderTree(transaction.state) !== markdownRenderTree(transaction.startState);
+      const items = changed ? classifyMarkdownLists(transaction.state.doc, markdownRenderTree(transaction.state), transaction.state.tabSize) : value.items;
+      const removed = /* @__PURE__ */ new Set();
+      transaction.changes.iterChangedRanges((from, to) => {
+        for (const position of value.collapsed) if (from <= position && to > position) removed.add(position);
+      });
+      let collapsed = new Set([...value.collapsed].filter((from) => !removed.has(from)).map((from) => transaction.changes.mapPos(from, 1)));
+      collapsed = new Set([...collapsed].filter((from) => items.some((item) => item.from === from && item.to > item.foldFrom)));
+      let folded = false;
+      for (const effect of transaction.effects) if (effect.is(markdownListFoldEffect)) {
+        if (effect.value.collapsed) collapsed.add(effect.value.from);
+        else collapsed.delete(effect.value.from);
+        folded = true;
+      }
+      if (transaction.selection && !folded) for (const item of items) {
+        if (transaction.state.selection.ranges.some((range) => range.head > item.foldFrom && range.head < item.to)) collapsed.delete(item.from);
+      }
+      if (!changed && collapsed.size === value.collapsed.size && [...collapsed].every((from) => value.collapsed.has(from))) return value;
+      return listState(items, collapsed);
+    },
+    provide: (field) => [
+      EditorView.decorations.from(field, (value) => value.decorations),
+      EditorView.atomicRanges.of((view2) => view2.state.field(field).decorations)
+    ]
+  });
+  function markdownListRangeHidden(state, range) {
+    return state.field(markdownListField, false)?.hidden.some((hidden) => range.from > hidden.from && range.to <= hidden.to) ?? false;
+  }
+  function toggleList(view2, from) {
+    if (view2.composing || view2.compositionStarted) return;
+    const value = view2.state.field(markdownListField), item = value.items.find((item2) => item2.from === from);
+    if (!item || item.to <= item.foldFrom) return;
+    const collapsed = !value.collapsed.has(from);
+    const inside = collapsed && view2.state.selection.ranges.some((range) => range.from <= item.to && range.to > item.foldFrom);
+    view2.dispatch({
+      effects: markdownListFoldEffect.of({ from, collapsed }),
+      ...inside ? { selection: EditorSelection.cursor(item.foldFrom) } : {}
+    });
+    view2.focus();
+  }
+  var ListFoldControl = class extends WidgetType {
+    constructor(from, collapsed) {
+      super();
+      this.from = from;
+      this.collapsed = collapsed;
+    }
+    from;
+    collapsed;
+    eq(other) {
+      return other.from === this.from && other.collapsed === this.collapsed;
+    }
+    toDOM(view2) {
+      const anchor = view2.dom.ownerDocument.createElement("span");
+      anchor.className = "mlrt-list-fold-anchor";
+      const button = view2.dom.ownerDocument.createElement("button");
+      button.type = "button";
+      button.className = "mlrt-list-fold-control";
+      button.dataset.listFrom = String(this.from);
+      button.setAttribute("aria-expanded", String(!this.collapsed));
+      button.setAttribute("aria-label", `${this.collapsed ? "Expand" : "Collapse"} nested list content`);
+      button.title = `${this.collapsed ? "Expand" : "Collapse"} nested content`;
+      button.addEventListener("pointerdown", (event) => {
+        if (event.button === 0) event.preventDefault();
+      });
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleList(view2, this.from);
+      });
+      button.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          event.stopPropagation();
+          toggleList(view2, this.from);
+        }
+      });
+      anchor.append(button);
+      return anchor;
+    }
+    ignoreEvent() {
+      return true;
+    }
+  };
+  var ListView = class {
+    constructor(view2) {
+      this.view = view2;
+      this.guides = view2.dom.ownerDocument.createElement("div");
+      this.guides.className = "mlrt-list-guides";
+      this.guides.setAttribute("aria-hidden", "true");
+      view2.scrollDOM.append(this.guides);
+      view2.dom.addEventListener("pointermove", this.move);
+      view2.dom.addEventListener("pointerleave", this.leave);
+      this.build();
+    }
+    view;
+    decorations = Decoration.none;
+    guides;
+    hover = null;
+    destroyed = false;
+    move = (event) => this.pointerMove(event);
+    leave = () => this.pointerLeave();
+    update(update) {
+      if (update.state.field(markdownListField).composing) {
+        this.decorations = this.decorations.map(update.changes);
+        return;
+      }
+      if (update.docChanged) this.hover = null;
+      if (update.docChanged || update.selectionSet || update.viewportChanged || update.geometryChanged || update.state.field(markdownListField) !== update.startState.field(markdownListField)) this.build();
+    }
+    build() {
+      const view2 = this.view, value = view2.state.field(markdownListField), ranges = [];
+      const activeLine = view2.state.doc.lineAt(view2.state.selection.main.head).from;
+      for (const item of value.items) {
+        if (!view2.visibleRanges.some((range) => item.from >= range.from && item.from <= range.to) || markdownListRangeHidden(view2.state, item)) continue;
+        const collapsed = value.collapsed.has(item.from);
+        ranges.push(Decoration.line({
+          class: `mlrt-list-row${activeLine === item.lineFrom ? " mlrt-list-caret-row" : ""}${collapsed ? " mlrt-list-collapsed" : ""}`,
+          attributes: { style: `--mlrt-list-source-column:calc(${item.columns} * var(--mlrt-list-column-width));--mlrt-list-render-column:calc(${item.renderColumns} * var(--mlrt-list-column-width));--mlrt-list-source-prefix:calc(${item.contentColumns - item.columns} * var(--mlrt-list-column-width));--mlrt-list-render-prefix:calc(${item.renderedPrefixColumns} * var(--mlrt-list-column-width))` }
+        }).range(item.lineFrom));
+        const leading = view2.state.doc.sliceString(item.lineFrom, item.from);
+        if (leading.includes("	") && /^[ \t]+$/u.test(leading))
+          ranges.push(Decoration.mark({ class: "mlrt-list-leading-space" }).range(item.lineFrom, item.from));
+        if (item.to > item.foldFrom) ranges.push(Decoration.widget({ widget: new ListFoldControl(item.from, collapsed), side: -1 }).range(item.from));
+      }
+      this.decorations = Decoration.set(ranges, true);
+      this.measure();
+    }
+    pointerMove(event) {
+      if (event.buttons) return;
+      const control = event.target.closest("[data-list-from]");
+      const position = control ? Number(control.dataset.listFrom) : this.view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (position !== this.hover) {
+        this.hover = position;
+        this.measure();
+      }
+    }
+    pointerLeave() {
+      this.hover = null;
+      this.measure();
+    }
+    measure() {
+      this.view.requestMeasure({
+        key: this,
+        read: () => {
+          const view2 = this.view, value = view2.state.field(markdownListField);
+          const scroller = view2.scrollDOM.getBoundingClientRect(), content2 = view2.contentDOM.getBoundingClientRect();
+          const guideAt = (position) => {
+            if (position === null) return;
+            const current = value.items.filter((item) => position >= item.lineFrom && position <= item.to).at(-1);
+            return current?.from;
+          };
+          const active = /* @__PURE__ */ new Set([guideAt(view2.state.selection.main.head), guideAt(this.hover)]);
+          return value.items.filter((item) => item.to > item.foldFrom && !value.collapsed.has(item.from) && !markdownListRangeHidden(view2.state, item)).map((item) => {
+            const start = view2.lineBlockAt(item.lineFrom), end = view2.lineBlockAt(item.to);
+            const top2 = view2.documentTop + start.bottom, bottom = view2.documentTop + end.bottom;
+            const marker = view2.dom.querySelector(`[data-list-from="${item.from}"]`)?.parentElement?.getBoundingClientRect();
+            return {
+              from: item.from,
+              active: active.has(item.from),
+              left: (marker?.left ?? content2.left + item.renderColumns * view2.defaultCharacterWidth) + view2.defaultCharacterWidth - scroller.left + view2.scrollDOM.scrollLeft,
+              top: Math.max(top2, scroller.top) - scroller.top + view2.scrollDOM.scrollTop,
+              height: Math.min(bottom, scroller.bottom) - Math.max(top2, scroller.top)
+            };
+          }).filter((guide) => guide.height > 0);
+        },
+        write: (guides) => {
+          if (this.destroyed) return;
+          this.guides.replaceChildren(...guides.map((guide) => {
+            const element = this.view.dom.ownerDocument.createElement("div");
+            element.className = `mlrt-list-guide${guide.active ? " mlrt-list-guide-active" : ""}`;
+            element.dataset.listFrom = String(guide.from);
+            element.style.cssText = `left:${guide.left}px;top:${guide.top}px;height:${guide.height}px`;
+            return element;
+          }));
+        }
+      });
+    }
+    destroy() {
+      this.destroyed = true;
+      this.guides.remove();
+      this.view.dom.removeEventListener("pointermove", this.move);
+      this.view.dom.removeEventListener("pointerleave", this.leave);
+    }
+  };
+  function createMarkdownListStructure(screenReaderOptimized) {
+    return screenReaderOptimized ? [] : [markdownListField, ViewPlugin.fromClass(ListView, {
+      decorations: (value) => value.decorations,
+      eventHandlers: {
+        scroll() {
+          this.pointerLeave();
+        }
+      }
+    })];
+  }
+
   // src/editor/markdown/markdownLivePreview.ts
   var overlaps = (a, b) => a.from < b.to && b.from < a.to;
   var layoutNodes = /* @__PURE__ */ new Set([
@@ -32361,6 +32641,7 @@ ${text3}`;
     const ranges = [];
     let coveredTo = -1;
     for (const part of value.parts) {
+      if (markdownListRangeHidden(state, part)) continue;
       const active = previewOwnerActive(part.owner, state.selection, value.focused, value.projected);
       if (part.fence) {
         if (part.kind === "code-header") ranges.push(Decoration.widget({
@@ -32425,7 +32706,7 @@ ${text3}`;
       if (composing) return { ...value, focused, composing, projected, folds, windows: windows2, decorations: value.decorations.map(transaction.changes) };
       const syntaxChanged = transaction.docChanged || value.composing && !composing || markdownRenderTree(transaction.state) !== markdownRenderTree(transaction.startState);
       const changed = syntaxChanged || windows2 !== value.windows || transaction.state.facet(headingMarkersFacet) !== transaction.startState.facet(headingMarkersFacet);
-      if (!changed && !transaction.selection && focused === value.focused && composing === value.composing && projected === value.projected && folds === value.folds) return value;
+      if (!changed && !transaction.selection && focused === value.focused && composing === value.composing && projected === value.projected && folds === value.folds && transaction.state.field(markdownListField, false) === transaction.startState.field(markdownListField, false)) return value;
       let parts = value.parts;
       if (transaction.docChanged && !value.composing) {
         const changedWindows = markdownChangedWindows(transaction);
@@ -32448,6 +32729,7 @@ ${text3}`;
     const number2 = current.number + (forward ? 1 : -1);
     if (number2 < 1 || number2 > state.doc.lines) return null;
     const line = state.doc.line(number2);
+    if (markdownListRangeHidden(state, line)) return null;
     if (forward ? nextHead < line.from : nextHead > line.to) return null;
     const part = state.field(markdownPreviewField, false)?.parts.find((part2) => part2.from === line.from && part2.fence && (part2.kind === "code-header" || !forward && part2.kind === "code-end"));
     return part?.fence?.to ?? null;
@@ -34331,6 +34613,7 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       createMarkdownListEditing(options.readOnly),
       markdown({ extensions: [markdownParserExtensions, markdownBlockLanguageExtensions], codeLanguages: markdownCodeLanguages }),
       markdownRenderTreeField,
+      createMarkdownListStructure(options.screenReaderOptimized),
       createMarkdownPresentationExtensions(),
       createMarkdownBlockExtensions(),
       createMarkdownLivePreviewExtensions(options.screenReaderOptimized, options.showHeadingMarkers),
@@ -34417,67 +34700,69 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
     view2.plugin(markerPlugin)?.invalidateContext();
   }
   var TaskControl = class extends WidgetType {
-    constructor(marker, disabled) {
+    constructor(marker, disabled, visible) {
       super();
       this.marker = marker;
       this.disabled = disabled;
+      this.visible = visible;
     }
     marker;
     disabled;
+    visible;
     eq(other) {
-      return this.marker.from === other.marker.from && this.marker.checked === other.marker.checked && this.marker.label === other.marker.label && this.marker.source === other.marker.source && this.disabled === other.disabled;
+      return this.marker.from === other.marker.from && this.marker.checked === other.marker.checked && this.marker.label === other.marker.label && this.marker.source === other.marker.source && this.disabled === other.disabled && this.visible === other.visible;
     }
     toDOM() {
       const element = document.createElement("span");
       element.className = "mlrt-markdown-task-anchor";
+      if (!this.visible) return element;
       const button = document.createElement("button");
       button.type = "button";
       button.tabIndex = -1;
       button.className = "mlrt-markdown-task-control";
       button.setAttribute("role", "checkbox");
-      const sizer = document.createElement("span");
-      sizer.className = "mlrt-markdown-task-sizer";
-      sizer.setAttribute("aria-hidden", "true");
-      button.append(sizer);
       element.append(button);
       this.updateDOM(element);
       return element;
     }
     updateDOM(element) {
+      if (this.visible !== !!element.firstElementChild) return false;
+      if (!this.visible) return true;
       const button = element.firstElementChild;
+      if (button.dataset.markdownTaskFrom !== void 0 && Number(button.dataset.markdownTaskFrom) !== this.marker.from) return false;
       button.dataset.markdownTaskFrom = String(this.marker.from);
       button.setAttribute("aria-label", this.marker.label || "Task");
       button.setAttribute("aria-checked", String(this.marker.checked));
       button.setAttribute("aria-disabled", String(this.disabled));
       button.title = "Toggle task \xB7 Command Palette: Toggle Task Checkbox at Caret";
-      button.firstElementChild.setAttribute("data-source", this.marker.source);
-      button.style.width = "max-content";
-      button.style.height = "1lh";
       return true;
     }
     ignoreEvent(event) {
       return event.type === "selectionchange";
     }
   };
+  var sameWindows = (a, b) => a === b || !!a && !!b && a.length === b.length && a.every((range, i2) => range.from === b[i2].from && range.to === b[i2].to);
   var markerContextEffect = StateEffect.define();
   function markerDecorations(state, value) {
-    const ranges = [], taskLines = new Set(value.markers.filter((marker) => marker.kind === "task").map((marker) => state.doc.lineAt(marker.from).number));
-    if (state.facet(optionsFacet).screenReaderOptimized) return Decoration.none;
+    const ranges = [], tasks = new Map(value.markers.filter((marker) => marker.kind === "task").map((marker) => [state.doc.lineAt(marker.from).number, marker]));
+    if (value.failed || state.facet(optionsFacet).screenReaderOptimized) return Decoration.none;
     for (const marker of value.markers) {
       const line = state.doc.lineAt(marker.from);
-      if (/[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff]/u.test(line.text) || value.projected && value.projected.from < marker.to && value.projected.to > marker.from || state.selection.ranges.some((range) => range.empty ? value.focused && range.head >= marker.from && range.head <= marker.to && value.focusedFrom !== marker.from : range.from < marker.to && range.to > marker.from)) continue;
-      if (marker.kind === "bullet" && taskLines.has(line.number)) {
-        ranges.push(Decoration.mark({ class: "mlrt-markdown-marker mlrt-markdown-task-list-prefix", attributes: { "aria-hidden": "true" } }).range(marker.from, marker.to));
+      const task = tasks.get(line.number);
+      const reveal = task ? { from: task.itemFrom, to: task.to } : marker;
+      if (/[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff]/u.test(line.text) || value.projected && value.projected.from < marker.to && value.projected.to > marker.from || state.selection.ranges.some((range) => range.empty ? value.focused && range.head >= reveal.from && range.head <= reveal.to && value.focusedFrom !== task?.from : range.from < reveal.to && range.to > reveal.from)) continue;
+      if (marker.kind === "bullet" && tasks.has(line.number)) {
         continue;
       }
       if (marker.kind === "rule") ranges.push(Decoration.line({ class: "mlrt-markdown-rule-row" }).range(line.from));
       ranges.push(Decoration.mark({
         class: `mlrt-markdown-marker mlrt-markdown-${marker.kind}`,
         attributes: { "aria-hidden": "true" }
-      }).range(marker.from, marker.to));
+      }).range(marker.kind === "task" ? marker.itemFrom : marker.from, marker.to));
+      if (marker.kind !== "rule") ranges.push(Decoration.line({ class: `mlrt-list-${marker.kind}-rendered` }).range(line.from));
       if (marker.kind === "task") {
         if (marker.checked && marker.to < line.to) ranges.push(Decoration.mark({ class: "mlrt-markdown-task-complete" }).range(marker.to, line.to));
-        ranges.push(Decoration.widget({ widget: new TaskControl(marker, value.disabled || state.readOnly || state.facet(optionsFacet).readOnly), side: -1 }).range(marker.from));
+        ranges.push(Decoration.widget({ widget: new TaskControl(marker, value.disabled || state.readOnly || state.facet(optionsFacet).readOnly, !value.windows || value.windows.some((range) => marker.from >= range.from && marker.from <= range.to)), side: 0 }).range(marker.itemFrom));
       }
     }
     return Decoration.set(ranges, true);
@@ -34490,7 +34775,9 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
         focusedFrom: null,
         disabled: false,
         projected: null,
-        composing: false
+        composing: false,
+        windows: null,
+        failed: false
       };
       return { ...value, decorations: markerDecorations(state, value) };
     },
@@ -34499,13 +34786,14 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       if (transaction.docChanged) context = {
         ...context,
         focusedFrom: context.focusedFrom === null ? null : transaction.changes.mapPos(context.focusedFrom),
+        windows: context.windows?.map((range) => ({ from: transaction.changes.mapPos(range.from), to: transaction.changes.mapPos(range.to) })) ?? null,
         projected: context.projected && { from: transaction.changes.mapPos(context.projected.from), to: transaction.changes.mapPos(context.projected.to) }
       };
       for (const effect of transaction.effects) if (effect.is(markerContextEffect)) context = effect.value;
       const composing = markdownComposing(transaction, value.composing);
       if (composing) return { ...value, ...context, composing, decorations: value.decorations.map(transaction.changes) };
       const sourceChanged = transaction.docChanged || value.composing || markdownRenderTree(transaction.state) !== markdownRenderTree(transaction.startState);
-      if (!sourceChanged && !transaction.selection && context.focused === value.focused && context.focusedFrom === value.focusedFrom && context.disabled === value.disabled && context.projected?.from === value.projected?.from && context.projected?.to === value.projected?.to && transaction.state.readOnly === transaction.startState.readOnly && transaction.state.facet(optionsFacet) === transaction.startState.facet(optionsFacet)) return value;
+      if (!sourceChanged && !transaction.selection && context.focused === value.focused && context.focusedFrom === value.focusedFrom && context.disabled === value.disabled && context.projected?.from === value.projected?.from && context.projected?.to === value.projected?.to && context.failed === value.failed && sameWindows(context.windows, value.windows) && transaction.state.readOnly === transaction.startState.readOnly && transaction.state.facet(optionsFacet) === transaction.startState.facet(optionsFacet)) return value;
       const markers = sourceChanged ? classifyMarkdownMarkers(transaction.state.doc, markdownRenderTree(transaction.state), getParsedTables(transaction.state.doc)) : value.markers;
       const next2 = { ...context, markers, composing: false };
       return { ...next2, decorations: markerDecorations(transaction.state, next2) };
@@ -34559,6 +34847,7 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
     metricSignature = "";
     observer = null;
     metricObserver = null;
+    focusedControl = null;
     pointer = null;
     preserveControlSelection = (event) => {
       if (this.pointer && !this.pointer.dragged && !this.composing && this.view.state.selection === this.pointer.selection) event.stopImmediatePropagation();
@@ -34608,7 +34897,8 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       );
     }
     readyWindows() {
-      return this.view.visibleRanges;
+      const viewport = this.view.viewport;
+      return this.view.visibleRanges.map((range) => ({ from: Math.max(range.from, viewport.from), to: Math.min(range.to, viewport.to) })).filter((range) => range.from < range.to);
     }
     key(marker) {
       return `${marker.from}:${marker.to}:${marker.source}`;
@@ -34617,16 +34907,17 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       const view2 = this.view;
       if (view2.state.facet(optionsFacet).screenReaderOptimized) return true;
       const selection = view2.state.selection;
+      const reveal = marker.kind === "task" ? { from: marker.itemFrom, to: marker.to } : marker;
       const projected = getDocumentSelectionProjection(view2.dom.ownerDocument, selection.main);
       if (projected && projected.anchor !== projected.head && Math.min(projected.anchor, projected.head) < marker.to && Math.max(projected.anchor, projected.head) > marker.from) return true;
       for (const range of selection.ranges) {
         if (!range.empty && range.from < marker.to && range.to > marker.from) return true;
-        if (range.empty && view2.hasFocus && range.head >= marker.from && range.head <= marker.to && this.focusedFrom !== marker.from) return true;
+        if (range.empty && view2.hasFocus && range.head >= reveal.from && range.head <= reveal.to && this.focusedFrom !== marker.from) return true;
       }
       return false;
     }
     build() {
-      if (this.focusedFrom !== null && !this.wantsFocus && !this.markers.some((marker) => marker.kind === "task" && marker.from === this.focusedFrom && !this.literal(marker) && !this.rejectedSizes.has(this.key(marker))))
+      if (this.focusedFrom !== null && !this.wantsFocus && !this.markers.some((marker) => marker.kind === "task" && marker.from === this.focusedFrom && !this.literal(marker) && !this.rejectedSizes.has(this.key(marker)) && !this.view.bidiSpans(this.view.state.doc.lineAt(marker.from)).some((span) => span.level % 2)))
         this.releaseFocus();
     }
     invalidateMetrics() {
@@ -34634,11 +34925,13 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       this.schedule();
     }
     refresh() {
-      if (this.destroyed || this.failed) return;
+      if (this.destroyed) return;
       const projected = getDocumentSelectionProjection(this.view.dom.ownerDocument, this.view.state.selection.main);
       this.view.dispatch({ effects: markerContextEffect.of({
         focused: this.view.hasFocus,
         focusedFrom: this.focusedFrom,
+        windows: this.readyWindows(),
+        failed: this.failed,
         disabled: !canAct(this.view),
         projected: projected && projected.anchor !== projected.head ? { from: Math.min(projected.anchor, projected.head), to: Math.max(projected.anchor, projected.head) } : null
       }) });
@@ -34676,6 +34969,12 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
               }
               const line = this.view.state.doc.lineAt(marker.from);
               if (marker.to > line.to || this.view.bidiSpans(line).some((span) => span.level % 2)) continue;
+              if (marker.kind === "task" && !this.literal(marker)) {
+                const control = this.view.dom.querySelector(`[data-markdown-task-from="${marker.from}"]`);
+                const box = control?.getBoundingClientRect();
+                if (box && box.width > 0) result.set(this.key(marker), { width: box.width, height: box.height });
+                continue;
+              }
               const start = this.view.domAtPos(marker.from, 1);
               const end = this.view.domAtPos(marker.to, -1);
               const range = this.view.dom.ownerDocument.createRange();
@@ -34716,14 +35015,16 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
           this.sizes = sizes;
           const focused = this.markers.find((marker) => marker.from === this.focusedFrom && marker.kind === "task");
           const focusedGeometryRejected = !!focused && !sizes.has(this.key(focused));
-          if (changed || this.wantsFocus || focusedGeometryRejected) queueMicrotask(() => {
+          if (changed || this.wantsFocus || focusedGeometryRejected || this.view.state.field(markdownMarkerField).focused !== this.view.hasFocus || !sameWindows(this.view.state.field(markdownMarkerField).windows, this.readyWindows())) queueMicrotask(() => {
             if (this.destroyed || this.failed || this.composing || this.view.compositionStarted) return;
             this.refresh();
             if (this.wantsFocus) {
               const control = this.view.dom.querySelector(`[data-markdown-task-from="${this.focusedFrom}"]`);
               this.wantsFocus = false;
-              if (control) control.focus({ preventScroll: true });
-              else {
+              if (control) {
+                control.focus({ preventScroll: true });
+                this.focusedControl = control;
+              } else {
                 this.focusedFrom = null;
                 this.bookmark = null;
                 explainTaskFocusFallback(this.view);
@@ -34738,13 +35039,14 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       return !!active && this.view.dom.contains(active) && active.matches(".mlrt-markdown-task-control");
     }
     releaseFocus() {
-      const owned = this.ownsControlFocus();
+      const owned = this.ownsControlFocus() || !!this.focusedControl && !this.focusedControl.isConnected && this.view.dom.ownerDocument.activeElement === this.view.dom.ownerDocument.body;
       const originalOwner = this.view.dom.ownerDocument.activeElement;
       const bookmark = this.bookmark;
       const selection = this.view.state.selection;
       this.focusedFrom = null;
       this.bookmark = null;
       this.wantsFocus = false;
+      this.focusedControl = null;
       if (owned) queueMicrotask(() => {
         const doc2 = this.view.dom.ownerDocument;
         if (!this.view.dom.isConnected || !doc2.hasFocus() || doc2.activeElement !== originalOwner && doc2.activeElement !== doc2.body) return;
@@ -34849,6 +35151,9 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       this.decorations = Decoration.none;
       this.markers = [];
       this.sizes.clear();
+      queueMicrotask(() => {
+        if (!this.destroyed) this.refresh();
+      });
       console.warn("Markdown rendering disabled for this view after a presentation failure.");
     }
     destroy() {
@@ -34863,6 +35168,10 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
   };
   var markerPlugin = ViewPlugin.fromClass(MarkerView, {
     eventHandlers: {
+      focus() {
+        this.schedule();
+        return false;
+      },
       pointerdown(event) {
         return this.pointerDown(event);
       },
@@ -44917,6 +45226,7 @@ ${replacement}
     const line = view2.state.doc.lineAt(head);
     const tables2 = getParsedTables(view2.state.doc);
     for (const table2 of tables2) {
+      if (markdownListRangeHidden(view2.state, table2)) continue;
       if (direction === "down" && head === table2.to) {
         selectVisibleTableBoundary(view2, table2, "after");
         return true;
@@ -48708,17 +49018,20 @@ ${replacement}
   function createTableDecorations(heightEstimateMetrics = createTableHeightEstimateMetrics()) {
     const field = StateField.define({
       create(state) {
-        return buildTableDecorations(state.doc, heightEstimateMetrics);
+        return buildTableDecorations(state, heightEstimateMetrics);
       },
       update(value, transaction) {
-        if (!transaction.docChanged) {
+        const hidden = transaction.state.field(markdownListField, false)?.hidden ?? [];
+        const previous = transaction.startState.field(markdownListField, false)?.hidden ?? [];
+        const foldsChanged = hidden.length !== previous.length || hidden.some((range, index) => range.from !== transaction.changes.mapPos(previous[index].from) || range.to !== transaction.changes.mapPos(previous[index].to));
+        if (!transaction.docChanged && !foldsChanged) {
           return value;
         }
-        if (transaction.annotation(tableCellLiveEditAnnotation)) {
+        if (transaction.annotation(tableCellLiveEditAnnotation) && !foldsChanged) {
           return value.map(transaction.changes);
         }
         return buildTableDecorations(
-          transaction.state.doc,
+          transaction.state,
           heightEstimateMetrics
         );
       },
@@ -48731,9 +49044,9 @@ ${replacement}
     });
     return field;
   }
-  function buildTableDecorations(doc2, heightEstimateMetrics) {
+  function buildTableDecorations(state, heightEstimateMetrics) {
     return Decoration.set(
-      getParsedTables(doc2).map(
+      getParsedTables(state.doc).filter((table2) => !markdownListRangeHidden(state, table2)).map(
         (table2) => Decoration.replace({
           widget: new RenderedTableWidget(table2, heightEstimateMetrics),
           block: true

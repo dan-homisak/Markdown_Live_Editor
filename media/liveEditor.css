@@ -773,14 +773,62 @@ body,
   color: transparent;
   text-shadow: none;
 }
+.cm-content .mlrt-markdown-bullet { display: inline-block; width: calc(2 * var(--mlrt-list-column-width)); }
 .cm-content .mlrt-markdown-bullet::after {
-  content: "•";
-  position: absolute;
-  inset: 0;
-  color: var(--mlrt-markdown-marker);
-  text-align: center;
-  pointer-events: none;
+  content: ""; position: absolute; left: 50%; top: 50%; width: 0.3em; height: 0.3em;
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: var(--mlrt-markdown-marker); pointer-events: none;
 }
+.cm-editor {
+  --mlrt-list-accent: var(--vscode-editorInfo-foreground, #3794ff);
+  --mlrt-list-column-width: calc(1ch + var(--mlrt-editor-letter-spacing, 0px));
+}
+/* A common marker slot and minimum four-column nest give the fold target its
+   own space between the ancestor guide and the marker. Source reveal expands
+   the prefix; wrapped text continues at the current label column. */
+.cm-content .cm-line.mlrt-list-row {
+  --mlrt-list-prefix: var(--mlrt-list-source-prefix);
+  position: relative;
+  padding-left: calc(var(--mlrt-list-render-column) + var(--mlrt-list-prefix));
+  text-indent: calc(-1 * (var(--mlrt-list-source-column) + var(--mlrt-list-prefix)));
+}
+.cm-content .cm-line.mlrt-list-bullet-rendered,
+.cm-content .cm-line.mlrt-list-task-rendered { --mlrt-list-prefix: var(--mlrt-list-render-prefix); }
+.cm-content .mlrt-list-leading-space { display: inline-block; width: var(--mlrt-list-source-column); text-indent: 0; white-space: pre; }
+.cm-content .mlrt-list-fold-anchor, .cm-content .mlrt-list-fold-hint,
+.cm-content .mlrt-markdown-marker, .cm-content .mlrt-markdown-task-anchor { text-indent: 0; }
+.cm-content .mlrt-list-fold-anchor { position: relative; display: inline-block; width: 0; height: 0; vertical-align: baseline; overflow: visible; }
+.cm-content .mlrt-list-fold-control {
+  position: absolute; left: -18px; top: -0.85em; width: 16px; height: 1lh;
+  padding: 0; margin: 0; border: 0; background: transparent;
+  color: var(--vscode-descriptionForeground, #858585); cursor: pointer;
+  opacity: 0; z-index: 250; display: flex; align-items: center; justify-content: center;
+}
+.cm-content .mlrt-list-fold-control::after {
+  content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg);
+}
+.cm-content .mlrt-list-row:hover .mlrt-list-fold-control,
+.cm-content .mlrt-list-caret-row .mlrt-list-fold-control,
+.cm-content .mlrt-list-fold-control:focus-visible,
+.cm-content .mlrt-list-fold-control[aria-expanded="false"] { opacity: 1; }
+.cm-content .mlrt-list-fold-control:hover,
+.cm-content .mlrt-list-fold-control:focus-visible,
+.cm-content .mlrt-list-fold-control[aria-expanded="false"],
+.cm-content .mlrt-list-fold-hint { color: var(--mlrt-list-accent); }
+.cm-content .mlrt-list-fold-control[aria-expanded="false"]::after { transform: translateX(-2px) rotate(-45deg); }
+.cm-content .mlrt-list-fold-control:focus-visible { outline: 1px solid var(--mlrt-markdown-focus); }
+.cm-content .mlrt-list-row:has(.mlrt-list-fold-control:hover) .mlrt-markdown-bullet::after,
+.cm-content .mlrt-list-collapsed .mlrt-markdown-bullet::after {
+  background: var(--mlrt-list-accent); transform: translate(-50%, -50%) scale(1.2);
+}
+.cm-content .mlrt-list-row:has(.mlrt-list-fold-control:hover) .mlrt-markdown-task-control::after {
+  border-color: var(--mlrt-list-accent);
+}
+.cm-content .mlrt-list-fold-hint { user-select: none; cursor: default; }
+.mlrt-list-guides { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.mlrt-list-guide { position: absolute; width: 1px; background: var(--vscode-editorIndentGuide-background1, #404040); }
+.mlrt-list-guide-active { background: var(--mlrt-list-accent); }
 .cm-content .mlrt-markdown-rule-row { position: relative; }
 .cm-content .mlrt-markdown-rule-row::after {
   content: "";
@@ -792,15 +840,19 @@ body,
   pointer-events: none;
 }
 .cm-content .mlrt-markdown-task-anchor {
-  position: absolute;
+  position: relative;
+  display: inline-block;
   z-index: 1;
-  width: 0;
-  height: 0;
+  width: calc(2 * var(--mlrt-list-column-width));
+  height: 1lh;
+  vertical-align: top;
 }
 .cm-content .mlrt-markdown-task-control {
   position: absolute;
   top: 0;
   left: 0;
+  width: calc(2 * var(--mlrt-list-column-width));
+  height: 1lh;
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -828,14 +880,7 @@ body,
   line-height: 0.85em;
   text-align: center;
 }
-.cm-content .mlrt-markdown-task-sizer {
-  visibility: hidden;
-  white-space: pre;
-  font: inherit;
-  pointer-events: none;
-}
-.cm-content .mlrt-markdown-task-sizer::before { content: attr(data-source); }
-.cm-content .mlrt-markdown-task { white-space: pre; }
+.cm-content .mlrt-markdown-task { font-size: 0; line-height: 0; letter-spacing: 0; white-space: pre; }
 .cm-content .mlrt-markdown-task-control[aria-checked="true"]::after {
   border-color: #2376c5;
   background: #2376c5;
