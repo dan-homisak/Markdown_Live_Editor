@@ -237,9 +237,13 @@ class ListView {
             const top = view.documentTop + start.bottom, bottom = view.documentTop + end.bottom;
             // A task's compact widget and literal prefix share a source offset.
             // The fold anchor precedes both and is the stable marker origin.
-            const marker = view.dom.querySelector<HTMLElement>(`[data-list-from="${item.from}"]`)?.parentElement?.getBoundingClientRect();
+            const anchor = view.dom.querySelector<HTMLElement>(`[data-list-from="${item.from}"]`)?.parentElement;
+            const marker = anchor?.getBoundingClientRect();
+            // Bullets use a normal-width glyph after the half-column inset.
+            // Tasks retain the two-column anchor even while source is revealed.
+            const bullet = anchor?.closest(".cm-line")?.querySelector(".mlrt-list-bullet-slot")?.getBoundingClientRect();
             return { from: item.from, active: active.has(item.from),
-              left: (marker?.left ?? content.left + item.renderColumns * view.defaultCharacterWidth) + view.defaultCharacterWidth - scroller.left + view.scrollDOM.scrollLeft,
+              left: (bullet ? bullet.left + bullet.width / 2 : (marker?.left ?? content.left + item.renderColumns * view.defaultCharacterWidth) + view.defaultCharacterWidth) - scroller.left + view.scrollDOM.scrollLeft,
               top: Math.max(top, scroller.top) - scroller.top + view.scrollDOM.scrollTop,
               height: Math.min(bottom, scroller.bottom) - Math.max(top, scroller.top) };
           }).filter(guide => guide.height > 0);

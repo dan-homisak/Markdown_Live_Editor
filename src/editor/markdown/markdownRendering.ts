@@ -1,6 +1,6 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { syntaxTreeAvailable } from "@codemirror/language";
-import { Annotation, Compartment, EditorSelection, EditorState, Extension, Facet, Range, StateEffect, StateField } from "@codemirror/state";
+import { Annotation, Compartment, EditorSelection, EditorState, Extension, Facet, Prec, Range, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { getParsedTables } from "../../shared/tableModel";
 import { documentSelectionProjectionTransaction, getDocumentSelectionProjection } from "../documentSelectionState";
@@ -237,11 +237,22 @@ function markerDecorations(state: EditorState, value: Omit<MarkerState, "decorat
     const reveal = task ? { from: task.itemFrom, to: task.to } : marker;
     // Keep complex bidi source literal; compact controls cannot safely share
     // a marker position across reordered text runs.
-    if (/[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff]/u.test(line.text) ||
+    const literal = /[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff]/u.test(line.text) ||
         value.projected && value.projected.from < marker.to && value.projected.to > marker.from ||
         state.selection.ranges.some(range => range.empty
           ? value.focused && range.head >= reveal.from && range.head <= reveal.to && value.focusedFrom !== task?.from
-          : range.from < reveal.to && range.to > reveal.from)) continue;
+          : range.from < reveal.to && range.to > reveal.from);
+    if (marker.kind === "bullet" && !task) {
+      // Revealing a bullet changes its glyph, not its marker or label column.
+      // Only task prefixes need extra room for their editable source syntax.
+      ranges.push(Decoration.mark({ class: `mlrt-list-bullet-slot${literal ? "" : " mlrt-markdown-marker mlrt-markdown-bullet"}`,
+        ...(literal ? {} : { attributes: { "aria-hidden": "true" } }) }).range(marker.from, marker.to));
+      if (state.doc.sliceString(marker.to, marker.to + 1) === " ")
+        ranges.push(Decoration.mark({ class: "mlrt-list-bullet-gap" }).range(marker.to, marker.to + 1));
+      ranges.push(Decoration.line({ class: "mlrt-list-bullet-row" }).range(line.from));
+      continue;
+    }
+    if (literal) continue;
     if (marker.kind === "bullet" && tasks.has(line.number)) {
       continue;
     }
@@ -285,7 +296,8 @@ export const markdownMarkerField = StateField.define<MarkerState>({
     const next = { ...context, markers, composing: false };
     return { ...next, decorations: markerDecorations(transaction.state, next) };
   },
-  provide: field => EditorView.decorations.from(field, value => value.decorations),
+  // Marker slots nest inside the continuous selection paint for the whole row.
+  provide: field => Prec.high(EditorView.decorations.from(field, value => value.decorations)),
 });
 
 class MarkerView {
