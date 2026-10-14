@@ -773,7 +773,14 @@ body,
   color: transparent;
   text-shadow: none;
 }
-.cm-content .mlrt-markdown-bullet { display: inline-block; width: calc(2 * var(--mlrt-list-column-width)); }
+.cm-content .mlrt-list-bullet-slot {
+  display: inline-block;
+  width: var(--mlrt-list-column-width);
+  text-indent: 0;
+}
+/* Keep the dash's right edge at its real caret boundary. Reserve the remaining
+   half column in the following space, where it belongs to the separator. */
+.cm-content .mlrt-list-bullet-gap { word-spacing: calc(0.5 * var(--mlrt-list-column-width)); }
 .cm-content .mlrt-markdown-bullet::after {
   content: ""; position: absolute; left: 50%; top: 50%; width: 0.3em; height: 0.3em;
   transform: translate(-50%, -50%); border-radius: 50%;
@@ -784,16 +791,19 @@ body,
   --mlrt-list-column-width: calc(1ch + var(--mlrt-editor-letter-spacing, 0px));
 }
 /* A common marker slot and minimum four-column nest give the fold target its
-   own space between the ancestor guide and the marker. Source reveal expands
-   the prefix; wrapped text continues at the current label column. */
+   own space between the ancestor guide and the marker. Only task source reveal
+   expands the prefix; wrapped text continues at the current label column. */
 .cm-content .cm-line.mlrt-list-row {
   --mlrt-list-prefix: var(--mlrt-list-source-prefix);
   position: relative;
   padding-left: calc(var(--mlrt-list-render-column) + var(--mlrt-list-prefix));
   text-indent: calc(-1 * (var(--mlrt-list-source-column) + var(--mlrt-list-prefix)));
 }
-.cm-content .cm-line.mlrt-list-bullet-rendered,
+.cm-content .cm-line.mlrt-list-bullet-row,
 .cm-content .cm-line.mlrt-list-task-rendered { --mlrt-list-prefix: var(--mlrt-list-render-prefix); }
+.cm-content .cm-line.mlrt-list-bullet-row {
+  text-indent: calc(-1 * (var(--mlrt-list-source-column) + var(--mlrt-list-prefix)) + 0.5 * var(--mlrt-list-column-width));
+}
 .cm-content .mlrt-list-leading-space { display: inline-block; width: var(--mlrt-list-source-column); text-indent: 0; white-space: pre; }
 .cm-content .mlrt-list-fold-anchor, .cm-content .mlrt-list-fold-hint,
 .cm-content .mlrt-markdown-marker, .cm-content .mlrt-markdown-task-anchor { text-indent: 0; }
@@ -808,6 +818,7 @@ body,
   content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg);
 }
+.cm-content .mlrt-list-bullet-row .mlrt-list-fold-control { left: calc(-18px - 0.5 * var(--mlrt-list-column-width)); }
 .cm-content .mlrt-list-row:hover .mlrt-list-fold-control,
 .cm-content .mlrt-list-caret-row .mlrt-list-fold-control,
 .cm-content .mlrt-list-fold-control:focus-visible,

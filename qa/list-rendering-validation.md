@@ -21,11 +21,11 @@ Validation performed in an isolated VS Code Extension Development Host:
   deleted-parent, EOF, mixed-list, code/quote/table descendant tests.
 - `node scripts/edh-visual-check.mjs`: passed stock/live geometry and editing
   regressions. Inspected `edh-stock.png` and `edh-live.png` in the same layout.
-- `node scripts/edh-markdown-release-check.mjs --lists-only`: 9/9 passed.
+- `node scripts/edh-markdown-release-check.mjs --lists-only`: 10/10 passed.
   Inspected hover, collapsed, task-source, nested-block and wrapped screenshots.
   Gutter width stayed 68.325 CSS px before/after folding; hidden source line
   numbers disappeared. Wrapped guide endpoints matched their row boxes.
-- The original eight list checks pass with `--large-metrics` (20px font, 30px line
+- All ten list checks pass with `--large-metrics` (20px font, 30px line
   height, 1px letter spacing). Marker/label columns and guides align within
   0.5 CSS px. Caret targets clear the ancestor guide by at least 3 CSS px.
 - The caret-guide regression passes across three nesting levels, up/down arrow
@@ -39,8 +39,17 @@ Validation performed in an isolated VS Code Extension Development Host:
   presentation failure removes marker decorations while preserving editable
   source and tables. Ordinary task-prefix arrow navigation also passes.
 - Marker geometry checks pass at 20px with 1px letter spacing, zoom level 1,
-  and a narrow editor. Source reveal intentionally shifts labels; leaving the
-  prefix restores the exact rendered glyph positions and wrapping.
+  and a narrow editor. Only checkbox source reveal shifts labels. Bullet source
+  uses a normal-width literal `-`, `+`, or `*` centered on the rendered dot.
+  Half-column spacing before the marker and in the following separator keeps
+  labels and wrapped lines fixed while the caret meets both glyph edges.
+  Numbered lists stay fixed.
+- The source-reveal regression checks top-level and nested bullets, numbered
+  lists, glyph centers, both caret edges and associations, wrapping, both
+  arrow-entry directions, and unchanged
+  Markdown source. Its screenshots show rendered lists and literal dash/star
+  markers in the same VS Code workbench. Continuous multiline selection paint
+  also passes with the fixed bullet slots nested inside the selection marks.
 
 The focused checks preserve Markdown source exactly while folding. They cover
 bullet, ordered and checkbox lists, retained child folds, keyboard traversal,

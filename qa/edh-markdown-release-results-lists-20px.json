@@ -1,6 +1,6 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-nr01Xx",
-  "port": 57205,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-jPEP3P",
+  "port": 61253,
   "checks": [
     {
       "name": "list structure: hover controls, blue guide and unchanged layout",
@@ -12,6 +12,22 @@
         "background": "rgb(89, 164, 249)",
         "guides": 9,
         "active": 1
+      }
+    },
+    {
+      "name": "list structure: caret guides stay blue independently of hover and follow arrow navigation",
+      "pass": true,
+      "detail": {
+        "keyboardLevels": 3,
+        "currentRowGuide": true,
+        "leafDoesNotHighlightAncestor": true,
+        "caretSurvivesHover": true,
+        "kinds": [
+          "bullet",
+          "task",
+          "ordered"
+        ],
+        "sourcePreserved": true
       }
     },
     {
@@ -109,9 +125,9 @@
         "metrics": [
           {
             "label": "Bullet list",
-            "center": 98.46874904632568,
+            "center": 98.4749984741211,
             "guide": 98.4625015258789,
-            "text": 122.45000457763672
+            "text": 122.4625015258789
           },
           {
             "label": "Task parent",
@@ -127,9 +143,9 @@
           },
           {
             "label": "nested",
-            "center": 146.45625972747803,
+            "center": 146.46250915527344,
             "guide": 146.4499969482422,
-            "text": 170.4375
+            "text": 170.4499969482422
           },
           {
             "label": "Task child",
@@ -147,7 +163,7 @@
         "gaps": [
           {
             "child": "nested further",
-            "gap": 17,
+            "gap": 18.800003051757812,
             "caret": "rgb(89, 164, 249)",
             "guide": "rgb(89, 164, 249)",
             "bullet": "rgb(89, 164, 249)"
@@ -176,6 +192,152 @@
         "resting": 122.45000457763672,
         "expanded": 158.4499969482422,
         "shift": 35.99999237060547
+      }
+    },
+    {
+      "name": "list structure: bullets and numbers stay fixed when source is revealed",
+      "pass": true,
+      "detail": {
+        "resting": {
+          "Dash bullet": {
+            "x": 122.4625015258789,
+            "y": 3.200000047683716,
+            "height": 180,
+            "markerCenter": 98.4749984741211,
+            "rendered": true
+          },
+          "Number parent": {
+            "x": 122.4625015258789,
+            "y": 243.1999969482422,
+            "height": 30,
+            "markerCenter": null,
+            "rendered": false
+          },
+          "Checkbox parent": {
+            "x": 122.45000457763672,
+            "y": 303.20001220703125,
+            "height": 30,
+            "markerCenter": 98.46874904632568,
+            "rendered": true
+          },
+          "Plus child": {
+            "x": 170.4499969482422,
+            "y": 183.1999969482422,
+            "height": 30,
+            "markerCenter": 146.46250915527344,
+            "rendered": true
+          },
+          "Number child": {
+            "x": 170.4499969482422,
+            "y": 273.20001220703125,
+            "height": 30,
+            "markerCenter": null,
+            "rendered": false
+          },
+          "Checkbox child": {
+            "x": 170.4375,
+            "y": 333.20001220703125,
+            "height": 30,
+            "markerCenter": 146.45625972747803,
+            "rendered": true
+          }
+        },
+        "results": [
+          {
+            "label": "Dash bullet",
+            "before": {
+              "x": 122.4625015258789,
+              "y": 3.200000047683716,
+              "height": 180,
+              "markerCenter": 98.4749984741211,
+              "rendered": true
+            },
+            "after": {
+              "x": 122.4625015258789,
+              "y": 3.200000047683716,
+              "height": 180,
+              "markerCenter": 98.4749984741211,
+              "rendered": true
+            }
+          },
+          {
+            "label": "Plus child",
+            "before": {
+              "x": 170.4499969482422,
+              "y": 183.1999969482422,
+              "height": 30,
+              "markerCenter": 146.46250915527344,
+              "rendered": true
+            },
+            "after": {
+              "x": 170.4499969482422,
+              "y": 183.1999969482422,
+              "height": 30,
+              "markerCenter": 146.46250915527344,
+              "rendered": true
+            }
+          },
+          {
+            "label": "Star grandchild",
+            "before": {
+              "x": 218.4375,
+              "y": 213.1999969482422,
+              "height": 30,
+              "markerCenter": 194.4499969482422,
+              "rendered": true
+            },
+            "after": {
+              "x": 218.4375,
+              "y": 213.1999969482422,
+              "height": 30,
+              "markerCenter": 194.4499969482422,
+              "rendered": true
+            }
+          },
+          {
+            "label": "Number parent",
+            "before": {
+              "x": 122.4625015258789,
+              "y": 243.1999969482422,
+              "height": 30,
+              "markerCenter": null,
+              "rendered": false
+            },
+            "after": {
+              "x": 122.4625015258789,
+              "y": 243.1999969482422,
+              "height": 30,
+              "markerCenter": null,
+              "rendered": false
+            }
+          },
+          {
+            "label": "Number child",
+            "before": {
+              "x": 170.4499969482422,
+              "y": 273.20001220703125,
+              "height": 30,
+              "markerCenter": null,
+              "rendered": false
+            },
+            "after": {
+              "x": 170.4499969482422,
+              "y": 273.20001220703125,
+              "height": 30,
+              "markerCenter": null,
+              "rendered": false
+            }
+          },
+          {
+            "label": "Checkbox parent",
+            "shift": 35.99999237060547
+          },
+          {
+            "label": "Checkbox child",
+            "shift": 36
+          }
+        ],
+        "sourcePreserved": true
       }
     },
     {
@@ -238,6 +400,6 @@
   ],
   "finalSourceMatches": true,
   "console": [],
-  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:57205/devtools/browser/8ce97438-6c0d-4a24-9cb5-10e687b1f88e\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T05:28:29.762Z] [node-compile-cache] main: packaged cache enabled (status: enabled, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main\\v24.21.0-x64-c3a7e8f2)\n[main 2026-10-14T05:28:29.805Z] StorageMainService: creating application shared storage\n[main 2026-10-14T05:28:29.826Z] Error: Error mutex already exists\n    at ea.installMutex (file:///C:/Users/thema/AppData/Local/Programs/Microsoft%20VS%20Code/7baac39ec3/resources/app/out/mainImpl.js:159:30240)\n[main 2026-10-14T05:28:29.837Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T05:28:29.837Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-nr01Xx\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T05:28:29.845Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T05:28:30.500Z] update#setState idle\n[main 2026-10-14T05:28:30.515Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T05:28:30.870Z] [AgentHost:stderr] (node:30976) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:32408) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n",
+  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:61253/devtools/browser/3daa0360-01bd-41c7-981d-b8aa8c90338b\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T23:03:11.320Z] [node-compile-cache] main: packaged cache inactive (status: missing, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: none)\n[main 2026-10-14T23:03:11.345Z] StorageMainService: creating application shared storage\n[main 2026-10-14T23:03:11.369Z] Error: Error mutex already exists\n    at ea.installMutex (file:///C:/Users/thema/AppData/Local/Programs/Microsoft%20VS%20Code/16507d91be/resources/app/out/mainImpl.js:159:30240)\n[main 2026-10-14T23:03:11.381Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T23:03:11.381Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-jPEP3P\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T23:03:11.390Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T23:03:12.050Z] update#setState idle\n[main 2026-10-14T23:03:12.065Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T23:03:12.350Z] [AgentHost:stderr] (node:11028) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:32952) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n[main 2026-10-14T23:03:42.078Z] update#setState checking for updates\n[main 2026-10-14T23:03:42.153Z] update#setState idle\n",
   "passed": true
 }

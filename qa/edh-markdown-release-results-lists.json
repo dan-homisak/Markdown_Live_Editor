@@ -1,6 +1,6 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-lgxeqd",
-  "port": 53071,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-eQ4xd7",
+  "port": 61026,
   "checks": [
     {
       "name": "list structure: hover controls, blue guide and unchanged layout",
@@ -125,9 +125,9 @@
         "metrics": [
           {
             "label": "Bullet list",
-            "center": 76.01875448226929,
+            "center": 76.0250015258789,
             "guide": 76.01250457763672,
-            "text": 91.4000015258789
+            "text": 91.4124984741211
           },
           {
             "label": "Task parent",
@@ -143,8 +143,8 @@
           },
           {
             "label": "nested",
-            "center": 106.81874990463257,
-            "guide": 106.8125,
+            "center": 106.8125,
+            "guide": 106.80000305175781,
             "text": 122.20000457763672
           },
           {
@@ -163,7 +163,7 @@
         "gaps": [
           {
             "child": "nested further",
-            "gap": 4.099998474121094,
+            "gap": 4.2624969482421875,
             "caret": "rgb(89, 164, 249)",
             "guide": "rgb(89, 164, 249)",
             "bullet": "rgb(89, 164, 249)"
@@ -192,6 +192,152 @@
         "resting": 91.4000015258789,
         "expanded": 114.5,
         "shift": 23.099998474121094
+      }
+    },
+    {
+      "name": "list structure: bullets and numbers stay fixed when source is revealed",
+      "pass": true,
+      "detail": {
+        "resting": {
+          "Dash bullet": {
+            "x": 91.4124984741211,
+            "y": 0.800000011920929,
+            "height": 75.5999984741211,
+            "markerCenter": 76.0250015258789,
+            "rendered": true
+          },
+          "Number parent": {
+            "x": 91.4124984741211,
+            "y": 114.20000457763672,
+            "height": 18.899999618530273,
+            "markerCenter": null,
+            "rendered": false
+          },
+          "Checkbox parent": {
+            "x": 91.4000015258789,
+            "y": 152,
+            "height": 18.899999618530273,
+            "markerCenter": 76.01875448226929,
+            "rendered": true
+          },
+          "Plus child": {
+            "x": 122.20000457763672,
+            "y": 76.4000015258789,
+            "height": 18.899999618530273,
+            "markerCenter": 106.8125,
+            "rendered": true
+          },
+          "Number child": {
+            "x": 122.2125015258789,
+            "y": 133.10000610351562,
+            "height": 18.899999618530273,
+            "markerCenter": null,
+            "rendered": false
+          },
+          "Checkbox child": {
+            "x": 122.20000457763672,
+            "y": 170.90000915527344,
+            "height": 18.899999618530273,
+            "markerCenter": 106.81874990463257,
+            "rendered": true
+          }
+        },
+        "results": [
+          {
+            "label": "Dash bullet",
+            "before": {
+              "x": 91.4124984741211,
+              "y": 0.800000011920929,
+              "height": 75.5999984741211,
+              "markerCenter": 76.0250015258789,
+              "rendered": true
+            },
+            "after": {
+              "x": 91.4124984741211,
+              "y": 0.800000011920929,
+              "height": 75.5999984741211,
+              "markerCenter": 76.0250015258789,
+              "rendered": true
+            }
+          },
+          {
+            "label": "Plus child",
+            "before": {
+              "x": 122.20000457763672,
+              "y": 76.4000015258789,
+              "height": 18.899999618530273,
+              "markerCenter": 106.8125,
+              "rendered": true
+            },
+            "after": {
+              "x": 122.20000457763672,
+              "y": 76.4000015258789,
+              "height": 18.899999618530273,
+              "markerCenter": 106.8125,
+              "rendered": true
+            }
+          },
+          {
+            "label": "Star grandchild",
+            "before": {
+              "x": 153,
+              "y": 95.30000305175781,
+              "height": 18.899999618530273,
+              "markerCenter": 137.6125030517578,
+              "rendered": true
+            },
+            "after": {
+              "x": 153,
+              "y": 95.30000305175781,
+              "height": 18.899999618530273,
+              "markerCenter": 137.6125030517578,
+              "rendered": true
+            }
+          },
+          {
+            "label": "Number parent",
+            "before": {
+              "x": 91.4124984741211,
+              "y": 114.20000457763672,
+              "height": 18.899999618530273,
+              "markerCenter": null,
+              "rendered": false
+            },
+            "after": {
+              "x": 91.4124984741211,
+              "y": 114.20000457763672,
+              "height": 18.899999618530273,
+              "markerCenter": null,
+              "rendered": false
+            }
+          },
+          {
+            "label": "Number child",
+            "before": {
+              "x": 122.2125015258789,
+              "y": 133.10000610351562,
+              "height": 18.899999618530273,
+              "markerCenter": null,
+              "rendered": false
+            },
+            "after": {
+              "x": 122.2125015258789,
+              "y": 133.10000610351562,
+              "height": 18.899999618530273,
+              "markerCenter": null,
+              "rendered": false
+            }
+          },
+          {
+            "label": "Checkbox parent",
+            "shift": 23.099998474121094
+          },
+          {
+            "label": "Checkbox child",
+            "shift": 23.087501525878906
+          }
+        ],
+        "sourcePreserved": true
       }
     },
     {
@@ -254,6 +400,6 @@
   ],
   "finalSourceMatches": true,
   "console": [],
-  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:53071/devtools/browser/2c0942c8-968f-487c-acc6-bdd86b81f2e7\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T05:44:49.326Z] [node-compile-cache] main: packaged cache enabled (status: enabled, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main\\v24.21.0-x64-c3a7e8f2)\n[main 2026-10-14T05:44:49.373Z] StorageMainService: creating application shared storage\n[main 2026-10-14T05:44:49.399Z] Error: Error mutex already exists\n    at ea.installMutex (file:///C:/Users/thema/AppData/Local/Programs/Microsoft%20VS%20Code/7baac39ec3/resources/app/out/mainImpl.js:159:30240)\n[main 2026-10-14T05:44:49.403Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T05:44:49.403Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-lgxeqd\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T05:44:49.417Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T05:44:50.084Z] update#setState idle\n[main 2026-10-14T05:44:50.099Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T05:44:50.490Z] [AgentHost:stderr] (node:27912) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:32688) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n",
+  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:61026/devtools/browser/d068b1f6-543b-4c9d-aa55-fd1670885794\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T23:02:30.544Z] [node-compile-cache] main: packaged cache inactive (status: missing, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: none)\n[main 2026-10-14T23:02:30.570Z] StorageMainService: creating application shared storage\n[main 2026-10-14T23:02:30.594Z] Error: Error mutex already exists\n    at ea.installMutex (file:///C:/Users/thema/AppData/Local/Programs/Microsoft%20VS%20Code/16507d91be/resources/app/out/mainImpl.js:159:30240)\n[main 2026-10-14T23:02:30.598Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T23:02:30.598Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-eQ4xd7\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T23:02:30.613Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T23:02:31.286Z] update#setState idle\n[main 2026-10-14T23:02:31.303Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T23:02:31.594Z] [AgentHost:stderr] (node:33584) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:3704) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n[main 2026-10-14T23:03:01.311Z] update#setState checking for updates\n[main 2026-10-14T23:03:01.382Z] update#setState idle\n",
   "passed": true
 }

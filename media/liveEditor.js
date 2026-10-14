@@ -32241,11 +32241,13 @@ ${text3}`;
           return value.items.filter((item) => item.to > item.foldFrom && !value.collapsed.has(item.from) && !markdownListRangeHidden(view2.state, item)).map((item) => {
             const start = view2.lineBlockAt(item.lineFrom), end = view2.lineBlockAt(item.to);
             const top2 = view2.documentTop + start.bottom, bottom = view2.documentTop + end.bottom;
-            const marker = view2.dom.querySelector(`[data-list-from="${item.from}"]`)?.parentElement?.getBoundingClientRect();
+            const anchor = view2.dom.querySelector(`[data-list-from="${item.from}"]`)?.parentElement;
+            const marker = anchor?.getBoundingClientRect();
+            const bullet = anchor?.closest(".cm-line")?.querySelector(".mlrt-list-bullet-slot")?.getBoundingClientRect();
             return {
               from: item.from,
               active: active.has(item.from),
-              left: (marker?.left ?? content2.left + item.renderColumns * view2.defaultCharacterWidth) + view2.defaultCharacterWidth - scroller.left + view2.scrollDOM.scrollLeft,
+              left: (bullet ? bullet.left + bullet.width / 2 : (marker?.left ?? content2.left + item.renderColumns * view2.defaultCharacterWidth) + view2.defaultCharacterWidth) - scroller.left + view2.scrollDOM.scrollLeft,
               top: Math.max(top2, scroller.top) - scroller.top + view2.scrollDOM.scrollTop,
               height: Math.min(bottom, scroller.bottom) - Math.max(top2, scroller.top)
             };
@@ -34750,7 +34752,18 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       const line = state.doc.lineAt(marker.from);
       const task = tasks.get(line.number);
       const reveal = task ? { from: task.itemFrom, to: task.to } : marker;
-      if (/[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff]/u.test(line.text) || value.projected && value.projected.from < marker.to && value.projected.to > marker.from || state.selection.ranges.some((range) => range.empty ? value.focused && range.head >= reveal.from && range.head <= reveal.to && value.focusedFrom !== task?.from : range.from < reveal.to && range.to > reveal.from)) continue;
+      const literal2 = /[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff]/u.test(line.text) || value.projected && value.projected.from < marker.to && value.projected.to > marker.from || state.selection.ranges.some((range) => range.empty ? value.focused && range.head >= reveal.from && range.head <= reveal.to && value.focusedFrom !== task?.from : range.from < reveal.to && range.to > reveal.from);
+      if (marker.kind === "bullet" && !task) {
+        ranges.push(Decoration.mark({
+          class: `mlrt-list-bullet-slot${literal2 ? "" : " mlrt-markdown-marker mlrt-markdown-bullet"}`,
+          ...literal2 ? {} : { attributes: { "aria-hidden": "true" } }
+        }).range(marker.from, marker.to));
+        if (state.doc.sliceString(marker.to, marker.to + 1) === " ")
+          ranges.push(Decoration.mark({ class: "mlrt-list-bullet-gap" }).range(marker.to, marker.to + 1));
+        ranges.push(Decoration.line({ class: "mlrt-list-bullet-row" }).range(line.from));
+        continue;
+      }
+      if (literal2) continue;
       if (marker.kind === "bullet" && tasks.has(line.number)) {
         continue;
       }
@@ -34798,7 +34811,8 @@ ${item.prefix}${item.indent}${next2} ${item.task ? "[ ] " : ""}`;
       const next2 = { ...context, markers, composing: false };
       return { ...next2, decorations: markerDecorations(transaction.state, next2) };
     },
-    provide: (field) => EditorView.decorations.from(field, (value) => value.decorations)
+    // Marker slots nest inside the continuous selection paint for the whole row.
+    provide: (field) => Prec.high(EditorView.decorations.from(field, (value) => value.decorations))
   });
   var MarkerView = class {
     constructor(view2) {

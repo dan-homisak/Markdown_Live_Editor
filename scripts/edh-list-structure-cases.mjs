@@ -94,7 +94,7 @@ export async function runListStructureChecks({check, liveEval, select, screensho
     const labels=['Bullet list','Task parent','Ordered parent','nested','Task child','Ordered child'];
     const metrics=[];
     for(const label of labels) {
-      metrics.push(await liveEval(`const from=${marker(label)},button=root.querySelector('[data-list-from="'+from+'"]'),anchor=button.parentElement.getBoundingClientRect(),line=button.closest('.cm-line'),slot=line.querySelector('.mlrt-markdown-task-control,.mlrt-markdown-bullet'),guide=root.querySelector('.mlrt-list-guide[data-list-from="'+from+'"]'),box=slot?.getBoundingClientRect();const a=view.domAtPos(${from(label)},1),b=view.domAtPos(${from(label)+1},-1),range=root.createRange();range.setStart(a.node,a.offset);range.setEnd(b.node,b.offset);return {label:${JSON.stringify(label)},center:box?box.x+box.width/2:anchor.left+view.defaultCharacterWidth,guide:guide?.getBoundingClientRect().x,text:range.getBoundingClientRect().x};`));
+      metrics.push(await liveEval(`const from=${marker(label)},button=root.querySelector('[data-list-from="'+from+'"]'),anchor=button.parentElement.getBoundingClientRect(),line=button.closest('.cm-line'),slot=line.querySelector('.mlrt-markdown-task-control,.mlrt-markdown-bullet'),guide=root.querySelector('.mlrt-list-guide[data-list-from="'+from+'"]'),glyph=root.createRange();if(slot)glyph.selectNodeContents(slot);const box=slot?.matches('.mlrt-list-bullet-slot')?glyph.getBoundingClientRect():slot?.getBoundingClientRect();const a=view.domAtPos(${from(label)},1),b=view.domAtPos(${from(label)+1},-1),range=root.createRange();range.setStart(a.node,a.offset);range.setEnd(b.node,b.offset);return {label:${JSON.stringify(label)},center:box?box.x+box.width/2:anchor.left+view.defaultCharacterWidth,guide:guide?.getBoundingClientRect().x,text:range.getBoundingClientRect().x};`));
     }
     for(const group of [metrics.slice(0,3),metrics.slice(3)]) for(const item of group) {
       assert(Math.abs(item.center-group[0].center)<=0.5,JSON.stringify(group));
@@ -122,6 +122,69 @@ export async function runListStructureChecks({check, liveEval, select, screensho
     assert(Math.abs(await glyph()-expanded)<=0.5,'entering from the left reveals the same source prefix');
     await select(from(label));assert(Math.abs(await glyph()-resting)<=0.5);await select(from('Resting caret.'));
     return {resting,expanded,shift:expanded-resting};
+  });
+  await check('list structure: bullets and numbers stay fixed when source is revealed', async () => {
+    const fixture = ['- Dash bullet ' + 'wrapped words '.repeat(8), '  + Plus child', '    * Star grandchild',
+      '1. Number parent', '   1. Number child', '- [ ] Checkbox parent', '  - [x] Checkbox child', '', 'Resting caret.'].join('\n');
+    const position = label => fixture.indexOf(label);
+    const start = label => {
+      const row = fixture.lastIndexOf('\n', position(label)) + 1;
+      return row + fixture.slice(row, position(label)).search(/\S/);
+    };
+    const sample = label => liveEval(`const a=view.domAtPos(${position(label)},1),b=view.domAtPos(${position(label)+1},-1),range=root.createRange();range.setStart(a.node,a.offset);range.setEnd(b.node,b.offset);const text=range.getBoundingClientRect(),line=(a.node.nodeType===3?a.node.parentElement:a.node).closest('.cm-line'),slot=line.querySelector('.mlrt-list-bullet-slot,.mlrt-markdown-task-control'),glyph=root.createRange();if(slot)glyph.selectNodeContents(slot);const box=slot?.matches('.mlrt-list-bullet-slot')?glyph.getBoundingClientRect():slot?.getBoundingClientRect();return {x:text.x,y:text.y,height:line.getBoundingClientRect().height,markerCenter:box?box.x+box.width/2:null,rendered:!!line.querySelector('.mlrt-markdown-marker,.mlrt-markdown-task-control')};`);
+    const results=[];
+    try {
+      await writeFixture(fixture);
+      await liveEval("view.dom.style.width='450px';return true;");
+      await select(position('Resting caret.'));
+      await liveEval('view.scrollDOM.scrollTop=0;return true;');await sleep(150);
+      const resting=Object.fromEntries(await Promise.all(['Dash bullet','Number parent','Checkbox parent','Plus child','Number child','Checkbox child'].map(async label=>[label,await sample(label)])));
+      for(const labels of [['Dash bullet','Number parent','Checkbox parent'],['Plus child','Number child','Checkbox child']]) {
+        for(const label of labels) assert(Math.abs(resting[label].x-resting[labels[0]].x)<=0.5,JSON.stringify(resting));
+        assert(Math.abs(resting[labels[0]].markerCenter-resting[labels[2]].markerCenter)<=0.5,'bullet and checkbox marker centers align');
+      }
+      await screenshot('lists-markers-fixed-rendered');
+      for(const label of ['Dash bullet','Plus child','Star grandchild','Number parent','Number child']) {
+        const markerStart=start(label),markerEnd=markerStart+(label.startsWith('Number')?2:1);
+        await select(position(label));const before=await sample(label);
+        await select(markerEnd+1);await key('ArrowLeft','ArrowLeft',37);
+        if(label==='Dash bullet') await screenshot('lists-marker-right-caret');
+        for(let head=markerEnd;head>=markerStart;head--) {
+          assert.equal(await liveEval('return view.state.selection.main.head;'),head);
+          const literal=await sample(label);
+          for(const metric of ['x','height']) assert(Math.abs(literal[metric]-before[metric])<=0.5,JSON.stringify({label,head,before,literal}));
+          if(before.markerCenter!==null) {
+            assert.equal(literal.rendered,false);
+            assert(Math.abs(literal.markerCenter-before.markerCenter)<=0.5,JSON.stringify({label,before,literal}));
+            const center=await liveEval(`const a=view.domAtPos(${markerStart},1),b=view.domAtPos(${markerEnd},-1),range=root.createRange();range.setStart(a.node,a.offset);range.setEnd(b.node,b.offset);const box=range.getBoundingClientRect();return box.x+box.width/2;`);
+            assert(Math.abs(center-before.markerCenter)<=0.5,'literal bullet glyph keeps the rendered marker center');
+            const caret=await liveEval(`const a=view.domAtPos(${markerStart},1),b=view.domAtPos(${markerEnd},-1),range=root.createRange();range.setStart(a.node,a.offset);range.setEnd(b.node,b.offset);const box=range.getBoundingClientRect(),expected=${head===markerStart?'box.left':'box.right'};return {defaultGap:view.coordsAtPos(${head}).left-expected,reverseGap:view.coordsAtPos(${head},-1).left-expected};`);
+            for(const gap of Object.values(caret)) assert(Math.abs(gap)<=0.5,JSON.stringify({label,head,caret}));
+          }
+          if(head>markerStart) await key('ArrowLeft','ArrowLeft',37);
+        }
+        if(label==='Dash bullet'||label==='Star grandchild') await screenshot(`lists-markers-fixed-source-${label==='Dash bullet'?'dash':'star'}`);
+        if(markerStart>0) {
+          await select(markerStart-1);await key('ArrowRight','ArrowRight',39);
+          assert.equal(await liveEval('return view.state.selection.main.head;'),markerStart);
+          assert(Math.abs((await sample(label)).x-before.x)<=0.5,'entering from the left keeps the label column');
+        }
+        await select(position(label));const after=await sample(label);
+        assert(Math.abs(after.x-before.x)<=0.5);
+        results.push({label,before,after});
+      }
+      for(const label of ['Checkbox parent','Checkbox child']) {
+        await select(position(label));const before=await sample(label);
+        await select(start(label));const literal=await sample(label);
+        assert(literal.x-before.x>20,'only checkbox labels expand for source syntax');
+        results.push({label,shift:literal.x-before.x});
+      }
+      assert.equal(await liveEval('return view.state.doc.toString();'),fixture);
+      return {resting,results,sourcePreserved:true};
+    } finally {
+      await liveEval("view.dom.style.width='';return true;");
+      await restore();
+    }
   });
   await check('list structure: literal bullets and all task-prefix caret boundaries', async () => {
     const observations=[];
