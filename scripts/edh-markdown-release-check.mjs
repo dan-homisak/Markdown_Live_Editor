@@ -19,7 +19,8 @@ const theme = process.argv.find(arg => arg.startsWith("--theme="))?.slice(8) || 
 const themeSuffix = theme === "Default Dark Modern" ? "" : "-" + theme.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 const scrollOnly = process.argv.includes("--scroll-only");
 const fenceNavigationOnly = process.argv.includes("--fence-navigation-only");
-const livePreviewOnly = fenceNavigationOnly || process.argv.includes("--live-preview-only");
+const selectionBackgroundOnly = process.argv.includes("--selection-background-only");
+const livePreviewOnly = fenceNavigationOnly || selectionBackgroundOnly || process.argv.includes("--live-preview-only");
 const nestedGuideOnly = process.argv.includes("--nested-guide-only");
 const listsOnly = process.argv.includes("--lists-only");
 const largeListMetrics = listsOnly && process.argv.includes("--large-metrics");
@@ -171,6 +172,7 @@ async function sample(position) {
   return liveEval(`const pos=${position},a=view.domAtPos(pos,1),b=view.domAtPos(pos+1,-1),r=root.createRange();r.setStart(a.node,a.offset);r.setEnd(b.node,b.offset);const box=r.getBoundingClientRect(),el=a.node.nodeType===3?a.node.parentElement:a.node,css=win.getComputedStyle(el),line=el.closest('.cm-line');return {position:pos,text:r.toString(),classes:el.className,line:line?.textContent,lineClasses:line?.className,fontSize:css.fontSize,fontFamily:css.fontFamily,lineHeight:css.lineHeight,fontWeight:css.fontWeight,fontStyle:css.fontStyle,color:css.color,background:css.backgroundColor,decoration:css.textDecorationLine,x:box.x,y:box.y,height:box.height};`);
 }
 async function check(name, action) {
+  if (selectionBackgroundOnly && !name.startsWith("live preview: selections preserve block backgrounds")) return;
   if (propertiesOnly && !name.startsWith("properties:")) return;
   if (listsOnly && !name.startsWith("list structure:")) return;
   if (scrollOnly && !name.startsWith("scroll rendering:")) return;
@@ -487,7 +489,7 @@ try {
 finally {
   report.launchOutput = launchOutput;
   report.passed = checks.length > 0 && checks.every(check => check.pass) && !(report.console?.length);
-  const reportName=`edh-markdown-release-results${propertiesOnly ? "-properties" : listsOnly ? largeListMetrics ? "-lists-20px" : "-lists" : scrollOnly ? "-scroll" : fenceNavigationOnly ? "-fence-navigation" : livePreviewOnly ? "-live-preview" : nestedGuideOnly ? "-nested-guides" : codeOnly ? "-code-diagnostic" : measureDiagnostic ? "-measure-diagnostic" : paintOnly ? "-paint" : ""}.json`;
+  const reportName=`edh-markdown-release-results${propertiesOnly ? "-properties" : listsOnly ? largeListMetrics ? "-lists-20px" : "-lists" : scrollOnly ? "-scroll" : fenceNavigationOnly ? "-fence-navigation" : selectionBackgroundOnly ? "-selection-background" : livePreviewOnly ? "-live-preview" : nestedGuideOnly ? "-nested-guides" : codeOnly ? "-code-diagnostic" : measureDiagnostic ? "-measure-diagnostic" : paintOnly ? "-paint" : ""}.json`;
   const savedReportName = reportName.replace(/\.json$/, `${themeSuffix}.json`);
   await writeFile(path.join(qa, savedReportName), JSON.stringify(report, null, 2));
   for (const client of clients) client.socket.close(); child.kill();

@@ -22883,7 +22883,8 @@
         padding: "0"
       },
       ".cm-activeLine, .mlrt-prose-active-line": {
-        backgroundColor: "transparent",
+        // Hiding the cursor-row highlight must retain code/YAML/callout fills.
+        backgroundColor: "var(--mlrt-line-background, transparent)",
         backgroundImage: "none"
       },
       "&:where(.mlrt-line-highlight-enabled) :is(.cm-activeLine, .mlrt-prose-active-line)": {
@@ -22907,18 +22908,18 @@
         marginLeft: "0"
       },
       "&.mlrt-table-cell-focused :is(.cm-activeLine, .mlrt-prose-active-line)": {
-        backgroundColor: "transparent",
+        backgroundColor: "var(--mlrt-line-background, transparent)",
         backgroundImage: "none"
       },
       "&.mlrt-selection-active :is(.cm-activeLine, .mlrt-prose-active-line)": {
-        backgroundColor: "transparent",
+        backgroundColor: "var(--mlrt-line-background, transparent)",
         backgroundImage: "none"
       },
       // A positive focus state wins over any stale negative class left behind
       // by a long-lived webview focus transition. This is intentionally after
       // the suppression rules: when the editable CodeMirror content itself
       // owns an empty cursor, its line highlight is authoritative.
-      "&:where(.mlrt-line-highlight-enabled):is(.cm-focused, .mlrt-prose-cursor-focused) :is(.cm-activeLine, .mlrt-prose-active-line)": {
+      "&:where(.mlrt-line-highlight-enabled):is(.cm-focused:not(.mlrt-selection-active), .mlrt-prose-cursor-focused) :is(.cm-activeLine, .mlrt-prose-active-line)": {
         backgroundColor: "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
         backgroundImage: "linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent))"
       },
