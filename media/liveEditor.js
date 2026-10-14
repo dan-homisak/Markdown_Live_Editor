@@ -32449,7 +32449,7 @@ ${text3}`;
     if (number2 < 1 || number2 > state.doc.lines) return null;
     const line = state.doc.line(number2);
     if (forward ? nextHead < line.from : nextHead > line.to) return null;
-    const part = state.field(markdownPreviewField, false)?.parts.find((part2) => part2.from === line.from && part2.fence && part2.kind === (forward ? "code-header" : "code-end"));
+    const part = state.field(markdownPreviewField, false)?.parts.find((part2) => part2.from === line.from && part2.fence && (part2.kind === "code-header" || !forward && part2.kind === "code-end"));
     return part?.fence?.to ?? null;
   }
   function enterMarkdownFence(view2, forward) {

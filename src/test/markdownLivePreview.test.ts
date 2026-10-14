@@ -45,7 +45,7 @@ const fenceDecorations: { from: number; to: number; spec: Record<string, unknown
 fenceState.field(markdownPreviewField).decorations.between(0, fenceState.doc.length, (from, to, decoration) => { fenceDecorations.push({ from, to, spec: decoration.spec }); });
 assert(fenceDecorations.every(decoration => !decoration.spec.block), 'fence decorations never insert or replace block rows');
 assert.deepEqual(fenceDecorations.filter(decoration => decoration.spec.class === 'mlrt-preview-code-fence-hidden').map(({ from, to }) => fenceState.doc.sliceString(from, to)), ['```ts', '```'], 'the complete opening fence, including its language, hides without removing source columns');
-// Arrow entry uses the source fence end, independently of the preferred column.
+// Fence boundary movement uses the source fence end, independently of the preferred column.
 for (const [opening, closing] of [['```python', '```'], ['```', '```'], ['~~~~js', '~~~~  '], ['> ```python', '> ```']]) {
   const source = ['Before the code block.', opening, opening.startsWith('>') ? '> body' : 'body', closing, 'After the code block.'].join('\n');
   const create = (line: number) => EditorState.create({ doc: source, selection: { anchor: text(source).line(line).from },
@@ -55,6 +55,9 @@ for (const [opening, closing] of [['```python', '```'], ['```', '```'], ['~~~~js
   assert.equal(markdownFenceEntry(up, false, up.doc.line(3).to), up.doc.line(4).from + closing.trimEnd().length, 'up includes the closing fence even if native movement skips it');
   assert.equal(markdownFenceEntry(down, true, down.doc.line(1).to), null, 'wrapped prose stays on its own visual row');
   assert.equal(markdownFenceEntry(up, false, up.doc.line(5).from), null, 'up within wrapped prose stays on its own visual row');
+  const body = create(3);
+  assert.equal(markdownFenceEntry(body, false, body.doc.line(2).from), body.doc.line(2).to, 'up leaves the code body after the full opening fence');
+  assert.equal(markdownFenceEntry(body, false, body.doc.line(3).from), null, 'up within wrapped code stays on its own visual row');
   assert.equal(markdownFenceEntry(create(3), true, down.doc.line(4).to), null, 'ordinary movement out of the code body stays native');
 }
 const unclosedFence = EditorState.create({ doc: 'Before\n```python\nbody', extensions: [markdown({ extensions: markdownParserExtensions }), createMarkdownLivePreviewExtensions(false)] });

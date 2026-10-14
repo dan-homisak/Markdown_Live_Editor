@@ -61,6 +61,7 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
   });
   await check('live preview: arrows enter opening and closing code fences at the source text end', async () => {
     const observations=[];
+    const caretSnapshot=()=>liveEval('const head=view.state.selection.main.head,point=view.domAtPos(head,-1),range=root.createRange();range.setStart(point.node,point.offset);range.setEnd(point.node,point.offset);const textBox=range.getBoundingClientRect(),caret=view.coordsAtPos(head,view.state.selection.main.assoc);return {head,assoc:view.state.selection.main.assoc,caretLeft:caret?.left,textRight:textBox.right,line:view.state.doc.lineAt(head).number,source:view.state.doc.toString(),toolbar:root.querySelector(".mlrt-preview-code-copy")?.getBoundingClientRect().left};');
     for (const [opening,closing,body] of [['```python','```','print("hello")'],['```','```','plain code'],['~~~~js','~~~~  ','const n = 1;'],['> ```python','> ```','> print("hello")']]) {
       const before='Before the code block with a long line of text.',after='After the code block with a long line of text.';
       const sample=[before,opening,body,closing,after].join('\n');
@@ -70,7 +71,7 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
         await select(from+Math.min(column,forward?before.length:after.length));
         await key(forward?'ArrowDown':'ArrowUp',forward?'ArrowDown':'ArrowUp',forward?40:38);
         const expected=forward?before.length+1+opening.length:sample.lastIndexOf(closing)+closing.trimEnd().length;
-        const actual=await liveEval('const head=view.state.selection.main.head,point=view.domAtPos(head,-1),range=root.createRange();range.setStart(point.node,point.offset);range.setEnd(point.node,point.offset);const textBox=range.getBoundingClientRect(),caret=view.coordsAtPos(head,view.state.selection.main.assoc);return {head,assoc:view.state.selection.main.assoc,caretLeft:caret?.left,textRight:textBox.right,line:view.state.doc.lineAt(head).number,source:view.state.doc.toString(),toolbar:root.querySelector(".mlrt-preview-code-copy")?.getBoundingClientRect().left};');
+        const actual=await caretSnapshot();
         assert.equal(actual.head,expected,JSON.stringify({opening,column,forward,actual}));
         assert.equal(actual.source,sample,'navigation preserves the complete document');
         assert(Math.abs(actual.caretLeft-actual.textRight)<=0.5,'caret sits at the last source glyph: '+JSON.stringify(actual));
@@ -78,6 +79,21 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
         if(opening==='```python'&&column===before.length)await screenshot(forward?'fence-arrow-down':'fence-arrow-up');
         await key(forward?'ArrowDown':'ArrowUp',forward?'ArrowDown':'ArrowUp',forward?40:38);
         assert.equal(await liveEval('return view.state.doc.lineAt(view.state.selection.main.head).number;'),3,'the following arrow reaches the code body');
+      }
+      for (const column of [body.length,0,6]) {
+        await select(before.length+opening.length+2+Math.min(column,body.length));
+        await key('ArrowUp','ArrowUp',38);
+        const actual=await caretSnapshot();
+        if(opening==='```python'&&column===body.length)await screenshot('fence-arrow-up-exit');
+        assert.equal(actual.head,before.length+1+opening.length,'up from code lands after the language: '+JSON.stringify({opening,column,actual}));
+        assert.equal(actual.assoc,-1,'up from code stays before the language/copy widget');
+        assert(Math.abs(actual.caretLeft-actual.textRight)<=0.5,'up from code sits at the last source glyph: '+JSON.stringify(actual));
+        const entry=observations.find(row=>row.opening===opening&&row.forward);
+        assert(Math.abs(actual.caretLeft-entry.caretLeft)<=0.5,'entering and leaving code share the opening-fence caret position');
+        assert.equal(actual.source,sample,'leaving code preserves the complete document');
+        observations.push({opening,column,exit:true,...actual,source:undefined});
+        await key('ArrowUp','ArrowUp',38);
+        assert.equal(await liveEval('return view.state.doc.lineAt(view.state.selection.main.head).number;'),1,'the following arrow exits into prose');
       }
     }
     const wrapped=['Long prose '.repeat(180),'```python','print("hello")','```','Long prose '.repeat(180)].join('\n');

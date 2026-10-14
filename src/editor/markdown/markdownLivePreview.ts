@@ -384,7 +384,7 @@ export function isMarkdownPreviewActive(view: EditorView, range: MarkdownRange):
   return !!value && !previewOwnerActive(range, view.state.selection, view.hasFocus, value.projected);
 }
 
-/** Enter fence source rows before browser hit testing can skip hidden glyphs or hit the toolbar. */
+/** Land on fence source rows before browser hit testing can skip glyphs or hit the toolbar. */
 export function markdownFenceEntry(state: EditorState, forward: boolean, nextHead: number): number | null {
   const current = state.doc.lineAt(state.selection.main.head);
   const number = current.number + (forward ? 1 : -1);
@@ -393,7 +393,8 @@ export function markdownFenceEntry(state: EditorState, forward: boolean, nextHea
   // A wrapped visual row still belongs to the current source line.
   if (forward ? nextHead < line.from : nextHead > line.to) return null;
   const part = state.field(markdownPreviewField, false)?.parts.find(part =>
-    part.from === line.from && part.fence && part.kind === (forward ? "code-header" : "code-end"));
+    part.from === line.from && part.fence &&
+    (part.kind === "code-header" || !forward && part.kind === "code-end"));
   return part?.fence?.to ?? null;
 }
 
