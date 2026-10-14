@@ -1,11 +1,11 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-markdown-edh-qKGXvp",
-  "port": 9973,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-markdown-edh-WvgRo1",
+  "port": 9914,
   "environment": {
     "dpr": 1.25,
     "width": 1204,
     "height": 804,
-    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.140.0 Chrome/150.0.7871.250 Electron/43.7.3 Safari/537.36",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.141.1 Chrome/150.0.7871.250 Electron/43.7.7 Safari/537.36",
     "settings": {
       "markdownLiveRenderTables.markdownRendering.enabled": true,
       "markdownLiveRenderTables.debug": true,
@@ -90,74 +90,40 @@
     },
     {
       "name": "focused external task deletion returns to a valid source boundary",
-      "pass": false,
-      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    {\n+     anchor: 119,\n+     head: 119\n-     anchor: 116,\n-     head: 116\n    }\n  ]\n",
-      "state": {
-        "source": "Ordinary source before markers.\n\n- Bullet alpha and ordinary following text that should retain its exact placement.\n- [ ] Task alpha with enough following text to exercise source wrapping at narrow widths.\n- [X] Task beta\n  - Nested bullet\n\t- Tab nested bullet\n\n***\n\nAfter rule.\n\n| Marker | Content |\n| --- | --- |\n| - [ ] | Table stays owned |\n\n```md\n- [ ] Literal fenced task\n***\n```\n\nEnd source.\n",
-        "selection": {
-          "ranges": [
-            {
-              "anchor": 0,
-              "head": 0
-            }
-          ],
-          "main": 0
+      "pass": true,
+      "detail": {
+        "externalFileWrite": true,
+        "deleted": {
+          "from": 116,
+          "to": 206
         },
-        "active": "<div spellcheck=\"false\" autocorrect=\"off\" autocapitalize=\"off\" writingsuggestions=\"false\" translate=\"no\" contenteditable=\"true\" style=\"tab-size: 4;\" class=\"cm-c",
-        "markers": 8,
-        "controls": 2,
-        "options": {
-          "lineWrapping": true,
-          "scrollBeyondLastLine": true,
-          "clipboardDocumentToken": "7b1d482a-0b99-4dc4-9fd4-a49be7f84b95",
-          "markdownRendering": {
-            "enabled": true,
-            "screenReaderOptimized": false,
-            "readOnly": false
-          },
-          "tableNavigationModifierKey": "F2",
-          "defaultCopyMode": "smart",
-          "defaultPasteMode": "auto"
-        },
-        "plugins": [
-          {
-            "markers": 8,
-            "sizes": 8,
-            "decorations": 10,
-            "firstLiteral": false,
-            "scheduled": false,
-            "failed": false,
-            "destroyed": false,
-            "composing": false,
-            "viewComposing": false,
-            "compositionStarted": false,
-            "treeLength": 399,
-            "visibleRanges": [
+        "mappedBoundary": 119,
+        "state": {
+          "selection": {
+            "ranges": [
               {
-                "from": 0,
-                "to": 280
-              },
-              {
-                "from": 344,
-                "to": 399
+                "anchor": 119,
+                "head": 119
               }
-            ]
-          }
-        ],
-        "messages": [
-          {
-            "source": "host",
-            "revision": 3
+            ],
+            "main": 0
           },
-          {
-            "source": "host",
-            "revision": 4
-          },
-          {
-            "source": "host",
-            "revision": 5
-          }
-        ]
+          "sourceFocus": true,
+          "documentFocus": true,
+          "active": "cm-content cm-lineWrapping",
+          "controls": 0,
+          "scrollTop": 0,
+          "visibleRanges": [
+            {
+              "from": 0,
+              "to": 190
+            },
+            {
+              "from": 254,
+              "to": 309
+            }
+          ]
+        }
       }
     },
     {
@@ -280,61 +246,81 @@
     },
     {
       "name": "focused checkbox viewport eviction releases focus without scrolling back",
-      "pass": true,
-      "detail": {
-        "fixtureTasks": 2002,
-        "before": {
-          "selection": {
-            "ranges": [
-              {
-                "anchor": 124,
-                "head": 124
-              }
-            ],
-            "main": 0
-          },
-          "sourceFocus": true,
-          "documentFocus": true,
-          "active": "cm-content cm-lineWrapping",
-          "controls": 92,
-          "scrollTop": 3065.60009765625,
-          "visibleRanges": [
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: {\"before\":{\"selection\":{\"ranges\":[{\"anchor\":124,\"head\":124}],\"main\":0},\"sourceFocus\":true,\"documentFocus\":true,\"active\":\"cm-content cm-lineWrapping\",\"controls\":92,\"scrollTop\":3065.60009765625,\"visibleRanges\":[{\"from\":3115,\"to\":5414}]},\"after\":{\"selection\":{\"ranges\":[{\"anchor\":124,\"head\":124}],\"main\":0},\"sourceFocus\":true,\"documentFocus\":true,\"active\":\"cm-content cm-lineWrapping\",\"controls\":92,\"scrollTop\":3065.60009765625,\"visibleRanges\":[{\"from\":3115,\"to\":5414}]},\"projection\":{\"oldControlConnected\":true,\"oldControlPresent\":false,\"markers\":184,\"sizes\":92,\"controls\":92}}\n\ntrue !== false\n",
+      "state": {
+        "source": "Ordinary source before markers.\n\n- Bullet alpha and ordinary following text that should retain its exact placement.\n- [ ] Task alpha with enough following text to exercise source wrapping at narrow widths.\n- [X] Task beta\n  - Nested bullet\n\t- Tab nested bullet\n\n***\n\nAfter rule.\n\n| Marker | Content |\n| --- | --- |\n| - [ ] | Table stays owned |\n\n```md\n- [ ] Literal fenced task\n***\n```\n\nEnd source.\n",
+        "selection": {
+          "ranges": [
             {
-              "from": 3115,
-              "to": 5414
+              "anchor": 0,
+              "head": 0
             }
-          ]
+          ],
+          "main": 0
         },
-        "after": {
-          "selection": {
-            "ranges": [
-              {
-                "anchor": 124,
-                "head": 124
-              }
-            ],
-            "main": 0
+        "active": "<div spellcheck=\"false\" autocorrect=\"off\" autocapitalize=\"off\" writingsuggestions=\"false\" translate=\"no\" contenteditable=\"true\" style=\"tab-size: 4;\" class=\"cm-c",
+        "markers": 6,
+        "controls": 2,
+        "options": {
+          "lineWrapping": true,
+          "lineHighlight": false,
+          "scrollBeyondLastLine": true,
+          "clipboardDocumentToken": "ff158377-5842-4a30-9350-45a5c30558f9",
+          "markdownLinks": {
+            "documentUri": "file:///c%3A/Users/thema/AppData/Local/Temp/mlrt-markdown-edh-WvgRo1/MarkdownMarkers.md",
+            "multiCursorModifier": "alt",
+            "isMac": false
           },
-          "sourceFocus": true,
-          "documentFocus": true,
-          "active": "cm-content cm-lineWrapping",
-          "controls": 92,
-          "scrollTop": 3065.60009765625,
-          "visibleRanges": [
-            {
-              "from": 3115,
-              "to": 5414
-            }
-          ]
+          "markdownRendering": {
+            "showHeadingMarkers": true,
+            "enabled": true,
+            "screenReaderOptimized": false,
+            "readOnly": false
+          },
+          "tableNavigationModifierKey": "F2",
+          "defaultCopyMode": "smart",
+          "defaultPasteMode": "auto"
         },
-        "projection": {
-          "oldControlConnected": false,
-          "oldControlPresent": false,
-          "markers": 184,
-          "sizes": 184,
-          "controls": 92
-        },
-        "sourcePreserved": true
+        "plugins": [
+          {
+            "markers": 8,
+            "sizes": 6,
+            "decorations": 0,
+            "firstLiteral": false,
+            "scheduled": false,
+            "failed": false,
+            "destroyed": false,
+            "composing": false,
+            "viewComposing": false,
+            "compositionStarted": false,
+            "treeLength": 399,
+            "visibleRanges": [
+              {
+                "from": 0,
+                "to": 280
+              },
+              {
+                "from": 344,
+                "to": 399
+              }
+            ]
+          }
+        ],
+        "messages": [
+          {
+            "source": "host",
+            "revision": 7
+          },
+          {
+            "source": "host",
+            "revision": 8
+          },
+          {
+            "source": "host",
+            "revision": 9
+          }
+        ]
       }
     },
     {
@@ -376,7 +362,7 @@
   ],
   "limitations": [
     "No actual OS IME or screen reader was exercised by this script.",
-    "This focused prototype script does not replace the stock/live baseline gate or the complete release matrix."
+    "These focused marker checks do not replace the stock/live baseline gate or the complete release matrix."
   ],
   "finalSourceMatches": true,
   "runtimeErrors": [],

@@ -1,0 +1,259 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-lgxeqd",
+  "port": 53071,
+  "checks": [
+    {
+      "name": "list structure: hover controls, blue guide and unchanged layout",
+      "pass": true,
+      "detail": {
+        "opacity": "1",
+        "color": "rgb(89, 164, 249)",
+        "hit": true,
+        "background": "rgb(89, 164, 249)",
+        "guides": 9,
+        "active": 1
+      }
+    },
+    {
+      "name": "list structure: caret guides stay blue independently of hover and follow arrow navigation",
+      "pass": true,
+      "detail": {
+        "keyboardLevels": 3,
+        "currentRowGuide": true,
+        "leafDoesNotHighlightAncestor": true,
+        "caretSurvivesHover": true,
+        "kinds": [
+          "bullet",
+          "task",
+          "ordered"
+        ],
+        "sourcePreserved": true
+      }
+    },
+    {
+      "name": "list structure: nested folding preserves sibling rows, child state and gutter spacing",
+      "pass": true,
+      "detail": {
+        "before": {
+          "width": 68.32500457763672,
+          "rows": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            35,
+            36,
+            37,
+            38,
+            39
+          ]
+        },
+        "after": {
+          "width": 68.32500457763672,
+          "rows": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            35,
+            36,
+            37,
+            38,
+            39
+          ]
+        },
+        "sourcePreserved": true
+      }
+    },
+    {
+      "name": "list structure: shared marker columns, clear carets and matching accent colors",
+      "pass": true,
+      "detail": {
+        "metrics": [
+          {
+            "label": "Bullet list",
+            "center": 76.01875448226929,
+            "guide": 76.01250457763672,
+            "text": 91.4000015258789
+          },
+          {
+            "label": "Task parent",
+            "center": 76.01875448226929,
+            "guide": 76.01250457763672,
+            "text": 91.4000015258789
+          },
+          {
+            "label": "Ordered parent",
+            "center": 76.02279797722312,
+            "guide": 76.01250457763672,
+            "text": 91.4124984741211
+          },
+          {
+            "label": "nested",
+            "center": 106.81874990463257,
+            "guide": 106.8125,
+            "text": 122.20000457763672
+          },
+          {
+            "label": "Task child",
+            "center": 106.81874990463257,
+            "guide": 106.8125,
+            "text": 122.20000457763672
+          },
+          {
+            "label": "Ordered child",
+            "center": 106.8227933995864,
+            "guide": 106.8125,
+            "text": 122.2125015258789
+          }
+        ],
+        "gaps": [
+          {
+            "child": "nested further",
+            "gap": 4.099998474121094,
+            "caret": "rgb(89, 164, 249)",
+            "guide": "rgb(89, 164, 249)",
+            "bullet": "rgb(89, 164, 249)"
+          },
+          {
+            "child": "Task child",
+            "gap": 4.112495422363281,
+            "caret": "rgb(89, 164, 249)",
+            "guide": "rgb(89, 164, 249)",
+            "bullet": null
+          },
+          {
+            "child": "Ordered child",
+            "gap": 4.112495422363281,
+            "caret": "rgb(89, 164, 249)",
+            "guide": "rgb(89, 164, 249)",
+            "bullet": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "list structure: compact checkboxes expand when entered from either direction",
+      "pass": true,
+      "detail": {
+        "resting": 91.4000015258789,
+        "expanded": 114.5,
+        "shift": 23.099998474121094
+      }
+    },
+    {
+      "name": "list structure: literal bullets and all task-prefix caret boundaries",
+      "pass": true,
+      "detail": {
+        "boundaries": 14
+      }
+    },
+    {
+      "name": "list structure: ordered and checkbox parents fold all descendants",
+      "pass": true,
+      "detail": {
+        "kinds": [
+          "ordered",
+          "task",
+          "mixed"
+        ]
+      }
+    },
+    {
+      "name": "list structure: continuation, callout, code and table widgets collapse together",
+      "pass": true,
+      "detail": {
+        "allNestedBlocksHidden": true,
+        "sourcePreserved": true
+      }
+    },
+    {
+      "name": "list structure: wrapped rows and viewport changes keep guides aligned",
+      "pass": true,
+      "detail": {
+        "geometry": {
+          "top": 189,
+          "parentBottom": 189,
+          "height": 264.6000061035156,
+          "parentHeight": 189,
+          "lineHeight": 18.899999618530273
+        },
+        "after": {
+          "top": 75.5999984741211,
+          "parentBottom": 75.5999984741211
+        }
+      }
+    }
+  ],
+  "environment": {
+    "stock": {
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "19px",
+      "dpr": 1.25,
+      "width": 1204,
+      "height": 804
+    }
+  },
+  "limitations": [
+    "OS IME and an actual screen reader are not exercised by this automated script.",
+    "Forced colors uses Chromium emulation, not a changed Windows system theme."
+  ],
+  "finalSourceMatches": true,
+  "console": [],
+  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:53071/devtools/browser/2c0942c8-968f-487c-acc6-bdd86b81f2e7\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T05:44:49.326Z] [node-compile-cache] main: packaged cache enabled (status: enabled, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main\\v24.21.0-x64-c3a7e8f2)\n[main 2026-10-14T05:44:49.373Z] StorageMainService: creating application shared storage\n[main 2026-10-14T05:44:49.399Z] Error: Error mutex already exists\n    at ea.installMutex (file:///C:/Users/thema/AppData/Local/Programs/Microsoft%20VS%20Code/7baac39ec3/resources/app/out/mainImpl.js:159:30240)\n[main 2026-10-14T05:44:49.403Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T05:44:49.403Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-lgxeqd\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T05:44:49.417Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T05:44:50.084Z] update#setState idle\n[main 2026-10-14T05:44:50.099Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T05:44:50.490Z] [AgentHost:stderr] (node:27912) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:32688) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n",
+  "passed": true
+}

@@ -1,7 +1,7 @@
 import {
   Extension,
+  EditorState,
   StateField,
-  Text,
 } from "@codemirror/state";
 import {
   Decoration,
@@ -11,6 +11,7 @@ import {
 import { getParsedTables } from "../shared/tableModel";
 import { tableCellLiveEditAnnotation } from "./tableEditAnnotations";
 import { RenderedTableWidget } from "./table/TableWidget";
+import { markdownListField, markdownListRangeHidden } from "./markdown/markdownListStructure";
 import {
   createTableHeightEstimateMetrics,
   TableHeightEstimateMetrics,
@@ -38,17 +39,21 @@ export function createTableDecorations(
 ): Extension {
   const field = StateField.define<DecorationSet>({
     create(state) {
-      return buildTableDecorations(state.doc, heightEstimateMetrics);
+      return buildTableDecorations(state, heightEstimateMetrics);
     },
     update(value, transaction) {
-      if (!transaction.docChanged) {
+      const hidden = transaction.state.field(markdownListField, false)?.hidden ?? [];
+      const previous = transaction.startState.field(markdownListField, false)?.hidden ?? [];
+      const foldsChanged = hidden.length !== previous.length || hidden.some((range, index) =>
+        range.from !== transaction.changes.mapPos(previous[index].from) || range.to !== transaction.changes.mapPos(previous[index].to));
+      if (!transaction.docChanged && !foldsChanged) {
         return value;
       }
-      if (transaction.annotation(tableCellLiveEditAnnotation)) {
+      if (transaction.annotation(tableCellLiveEditAnnotation) && !foldsChanged) {
         return value.map(transaction.changes);
       }
       return buildTableDecorations(
-        transaction.state.doc,
+        transaction.state,
         heightEstimateMetrics,
       );
     },
@@ -64,11 +69,11 @@ export function createTableDecorations(
 }
 
 function buildTableDecorations(
-  doc: Text,
+  state: EditorState,
   heightEstimateMetrics: TableHeightEstimateMetrics,
 ): DecorationSet {
   return Decoration.set(
-    getParsedTables(doc).map((table) =>
+    getParsedTables(state.doc).filter(table => !markdownListRangeHidden(state, table)).map((table) =>
       Decoration.replace({
         widget: new RenderedTableWidget(table, heightEstimateMetrics),
         block: true,
