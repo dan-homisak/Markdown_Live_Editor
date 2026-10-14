@@ -21,7 +21,7 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
     assert(!visible.includes('**bold**')); assert(!visible.includes('*italic*')); assert(!visible.includes('`inline code`'));
     assert(!visible.includes('](./LinkedTarget.md)')); assert(!visible.includes('[[LinkedTarget')); assert(!visible.includes('```'));
     assert(visible.includes('bold')); assert(visible.includes('inline code')); assert(visible.includes('Wiki alias'));
-    assert.equal(await liveEval('return root.querySelectorAll(".mlrt-preview-properties").length;'),1);
+    assert.equal(await liveEval('return root.querySelectorAll(".mlrt-markdown-block-frontmatter").length;'),6);
     assert.equal(await liveEval('return view.state.doc.toString();'),source);
     await screenshot('live-preview-resting'); return {visible,sourceExact:true};
   });
@@ -51,12 +51,12 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
     await restore(); assert(!(await content()).includes('**bold**'));
     return {observations};
   });
-  await check('live preview: property editing reveals exact YAML then restores the property view', async () => {
-    await liveEval('root.querySelector(".mlrt-preview-property").click();return true;'); await sleep(250);
-    assert.equal(await liveEval('return root.querySelectorAll(".mlrt-preview-properties").length;'),0);
+  await check('live preview: properties stay source-editable without focus-driven replacement', async () => {
+    await select(source.indexOf('title:')+7); await sleep(250);
+    assert.equal(await liveEval('return root.querySelectorAll(".mlrt-markdown-block-frontmatter").length;'),6);
     assert((await content()).includes('title: "Live preview"'));
     await screenshot('live-preview-yaml-edit'); await restore();
-    assert.equal(await liveEval('return root.querySelectorAll(".mlrt-preview-properties").length;'),1);
+    assert.equal(await liveEval('return root.querySelectorAll(".mlrt-markdown-block-frontmatter").length;'),6);
     return {sourceExact:await liveEval('return view.state.doc.toString();')===source};
   });
   await check('live preview: arrows enter opening and closing code fences at the source text end', async () => {
@@ -212,7 +212,7 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
     } finally { await writeSettings(); await restore(); }
   });
   await check('live preview: Obsidian task treatment and expandable callouts', async () => {
-    const task=await liveEval('const el=root.querySelector(".mlrt-markdown-task-control[aria-checked=true]"),css=win.getComputedStyle(el,"::after");return {radius:css.borderRadius,fill:css.backgroundColor,prefixes:root.querySelectorAll(".mlrt-markdown-task-list-prefix").length};');
+    const task=await liveEval('const el=root.querySelector(".mlrt-markdown-task-control[aria-checked=true]"),css=win.getComputedStyle(el,"::after");return {radius:css.borderRadius,fill:css.backgroundColor,prefixes:root.querySelectorAll(".mlrt-markdown-task").length};');
     assert.equal(task.radius,'3px'); assert.equal(task.prefixes,2);
     assert(!(await content()).includes('Hidden callout body'));
     await liveEval('root.querySelector(".mlrt-preview-callout-fold").click();return true;'); await sleep(200);

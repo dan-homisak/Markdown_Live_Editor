@@ -1,0 +1,144 @@
+{
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-3812FK",
+  "port": 56366,
+  "checks": [
+    {
+      "name": "properties: source rendering keeps exact text and stable row geometry at rest and while editing",
+      "pass": true,
+      "detail": {
+        "resting": [
+          {
+            "text": "---",
+            "x": 68.32500457763672,
+            "y": 0,
+            "height": 18.899999618530273,
+            "font": "Consolas, \"Courier New\", monospace",
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          {
+            "text": "title: Standard Markdown Fixture",
+            "x": 68.32500457763672,
+            "y": 18.899999618530273,
+            "height": 18.899999618530273,
+            "font": "Consolas, \"Courier New\", monospace",
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          {
+            "text": "tags:",
+            "x": 68.32500457763672,
+            "y": 37.79999923706055,
+            "height": 18.899999618530273,
+            "font": "Consolas, \"Courier New\", monospace",
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          {
+            "text": "  - markdown",
+            "x": 68.32500457763672,
+            "y": 56.70000076293945,
+            "height": 18.899999618530273,
+            "font": "Consolas, \"Courier New\", monospace",
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          {
+            "text": "  - fixture",
+            "x": 68.32500457763672,
+            "y": 75.5999984741211,
+            "height": 18.899999618530273,
+            "font": "Consolas, \"Courier New\", monospace",
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          {
+            "text": "  - render-test",
+            "x": 68.32500457763672,
+            "y": 94.5,
+            "height": 18.899999618530273,
+            "font": "Consolas, \"Courier New\", monospace",
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          {
+            "text": "created: 2026-06-30",
+            "x": 68.32500457763672,
+            "y": 113.4000015258789,
+            "height": 18.899999618530273,
+            "font": "Consolas, \"Courier New\", monospace",
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          {
+            "text": "---",
+            "x": 68.32500457763672,
+            "y": 132.3000030517578,
+            "height": 18.899999618530273,
+            "font": "Consolas, \"Courier New\", monospace",
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          }
+        ],
+        "stable": true
+      }
+    },
+    {
+      "name": "properties: a typed opener protects body text, suggests tags, and participates in host undo and redo",
+      "pass": true,
+      "detail": {
+        "bodyPreserved": true,
+        "undoRedo": true,
+        "tagsFirst": true,
+        "listContinuation": true,
+        "arrowCompletion": true
+      }
+    },
+    {
+      "name": "properties: punctuation, custom keys, spaces and canonical formatting preserve YAML values",
+      "pass": true,
+      "detail": {
+        "spacing": true,
+        "spacesOnly": true,
+        "scalarValuesPreserved": true,
+        "bodyExact": true
+      }
+    },
+    {
+      "name": "properties: malformed YAML is visibly diagnosed and retained for correction",
+      "pass": true,
+      "detail": {
+        "visibleErrors": true,
+        "noLossyRepair": true,
+        "recovery": true
+      }
+    },
+    {
+      "name": "properties: multiline source and ordinary Markdown remain ordinary text",
+      "pass": true,
+      "detail": {
+        "literalContentsPreserved": true,
+        "bodyUnaffected": true,
+        "disabledModeUnaffected": true
+      }
+    }
+  ],
+  "environment": {
+    "stock": {
+      "font": "Consolas, \"Courier New\", monospace",
+      "fontSize": "14px",
+      "lineHeight": "19px",
+      "dpr": 1.25,
+      "width": 1204,
+      "height": 804
+    }
+  },
+  "limitations": [
+    "OS IME and an actual screen reader are not exercised by this automated script.",
+    "Forced colors uses Chromium emulation, not a changed Windows system theme."
+  ],
+  "finalSourceMatches": false,
+  "console": [],
+  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:56366/devtools/browser/3d4b0758-d4c5-4027-841f-8ab0f5ed5616\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T23:25:33.704Z] [node-compile-cache] main: packaged cache inactive (status: missing, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: none)\n[main 2026-10-14T23:25:33.728Z] StorageMainService: creating application shared storage\n[main 2026-10-14T23:25:33.753Z] Error: Error mutex already exists\n    at ea.installMutex (file:///C:/Users/thema/AppData/Local/Programs/Microsoft%20VS%20Code/16507d91be/resources/app/out/mainImpl.js:159:30240)\n[main 2026-10-14T23:25:33.764Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T23:25:33.765Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-3812FK\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T23:25:33.773Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T23:25:34.500Z] update#setState idle\n[main 2026-10-14T23:25:34.517Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T23:25:34.807Z] [AgentHost:stderr] (node:31552) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:9180) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n",
+  "passed": true
+}

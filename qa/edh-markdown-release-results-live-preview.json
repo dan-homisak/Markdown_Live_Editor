@@ -1,12 +1,12 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-ObdKYI",
-  "port": 57716,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-VBrkQq",
+  "port": 58743,
   "checks": [
     {
       "name": "live preview: resting syntax is removed, properties and semantic content render",
       "pass": true,
       "detail": {
-        "visible": "PropertiestitleLive previewtagsnotes · editor# Live previewPlain bold, italic, strike and inline code.Local target and Wiki alias.- Parent  - Child    - GrandchildAfter list- [ ] Open task- [x] Done task✓ A useful calloutStyled content.▸ⓘ Folded titlejsconst answer = 42;// exact code32AB34**Table bold**valueResting caret.",
+        "visible": "---title: \"Live preview\"tags:  - notes  - editor---# Live previewPlain bold, italic, strike and inline code.Local target and Wiki alias.- Parent  - Child    - GrandchildAfter list- [ ] Open task- [x] Done task✓ A useful calloutStyled content.▸ⓘ Folded titlejsconst answer = 42;// exact code32AB34**Table bold**valueResting caret.",
         "sourceExact": true
       }
     },
@@ -226,7 +226,7 @@
       }
     },
     {
-      "name": "live preview: property editing reveals exact YAML then restores the property view",
+      "name": "live preview: properties stay source-editable without focus-driven replacement",
       "pass": true,
       "detail": {
         "sourceExact": true
@@ -304,6 +304,39 @@
             "toolbar": 735.0125122070312
           },
           {
+            "opening": "```python",
+            "column": 14,
+            "exit": true,
+            "head": 57,
+            "assoc": -1,
+            "caretLeft": 149.6125030517578,
+            "textRight": 149.60000610351562,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```python",
+            "column": 0,
+            "exit": true,
+            "head": 57,
+            "assoc": -1,
+            "caretLeft": 149.6125030517578,
+            "textRight": 149.60000610351562,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```python",
+            "column": 6,
+            "exit": true,
+            "head": 57,
+            "assoc": -1,
+            "caretLeft": 149.6125030517578,
+            "textRight": 149.60000610351562,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
             "opening": "```",
             "column": 0,
             "forward": true,
@@ -367,6 +400,39 @@
             "caretLeft": 103.42500305175781,
             "textRight": 103.4124984741211,
             "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 10,
+            "exit": true,
+            "head": 51,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 0,
+            "exit": true,
+            "head": 51,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 6,
+            "exit": true,
+            "head": 51,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 2,
             "toolbar": 735.0125122070312
           },
           {
@@ -436,6 +502,39 @@
             "toolbar": 735.0125122070312
           },
           {
+            "opening": "~~~~js",
+            "column": 12,
+            "exit": true,
+            "head": 54,
+            "assoc": -1,
+            "caretLeft": 126.5250015258789,
+            "textRight": 126.51250457763672,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "~~~~js",
+            "column": 0,
+            "exit": true,
+            "head": 54,
+            "assoc": -1,
+            "caretLeft": 126.5250015258789,
+            "textRight": 126.51250457763672,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "~~~~js",
+            "column": 6,
+            "exit": true,
+            "head": 54,
+            "assoc": -1,
+            "caretLeft": 126.5250015258789,
+            "textRight": 126.51250457763672,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
             "opening": "> ```python",
             "column": 0,
             "forward": true,
@@ -499,6 +598,39 @@
             "caretLeft": 118.82500457763672,
             "textRight": 118.8125,
             "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 16,
+            "exit": true,
+            "head": 59,
+            "assoc": -1,
+            "caretLeft": 165.0124969482422,
+            "textRight": 165,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 0,
+            "exit": true,
+            "head": 59,
+            "assoc": -1,
+            "caretLeft": 165.0124969482422,
+            "textRight": 165,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 6,
+            "exit": true,
+            "head": 59,
+            "assoc": -1,
+            "caretLeft": 165.0124969482422,
+            "textRight": 165,
+            "line": 2,
             "toolbar": 735.0125122070312
           }
         ],
@@ -667,14 +799,14 @@
               "role": "mlrt-preview-code-copy-label",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.40907,
+              "opacity": 0.454836,
               "transitionDuration": "0.16s"
             },
             {
               "role": "mlrt-preview-code-copy-action",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.59093,
+              "opacity": 0.545164,
               "transitionDuration": "0.16s"
             },
             {
@@ -857,14 +989,14 @@
               "role": "mlrt-preview-code-copy-label",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.00953131,
+              "opacity": 0.00944411,
               "transitionDuration": "0.16s"
             },
             {
               "role": "mlrt-preview-code-copy-action",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.968466,
+              "opacity": 0.990556,
               "transitionDuration": "0.16s"
             },
             {
@@ -1370,6 +1502,6 @@
   ],
   "finalSourceMatches": true,
   "console": [],
-  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:57716/devtools/browser/60bd7f1b-1e20-43c9-8194-0dc21a73c04b\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T03:34:36.913Z] [node-compile-cache] main: packaged cache enabled (status: enabled, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main\\v24.21.0-x64-c3a7e8f2)\n[main 2026-10-14T03:34:36.941Z] StorageMainService: creating application shared storage\n[main 2026-10-14T03:34:36.993Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T03:34:36.995Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-ObdKYI\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T03:34:37.009Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T03:34:37.681Z] update#setState idle\n[main 2026-10-14T03:34:37.700Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T03:34:37.990Z] [AgentHost:stderr] (node:12428) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:24432) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n[main 2026-10-14T03:35:07.691Z] update#setState checking for updates\n[main 2026-10-14T03:35:07.764Z] update#setState idle\n",
+  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:58743/devtools/browser/9ece321a-1a45-4c5d-9364-5b9ddbce9ff2\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T23:26:31.685Z] [node-compile-cache] main: packaged cache inactive (status: missing, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: none)\n[main 2026-10-14T23:26:31.709Z] StorageMainService: creating application shared storage\n[main 2026-10-14T23:26:31.734Z] Error: Error mutex already exists\n    at ea.installMutex (file:///C:/Users/thema/AppData/Local/Programs/Microsoft%20VS%20Code/16507d91be/resources/app/out/mainImpl.js:159:30240)\n[main 2026-10-14T23:26:31.737Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T23:26:31.737Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-VBrkQq\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T23:26:31.753Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T23:26:32.424Z] update#setState idle\n[main 2026-10-14T23:26:32.441Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T23:26:32.736Z] [AgentHost:stderr] (node:33360) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:32256) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n[main 2026-10-14T23:27:02.442Z] update#setState checking for updates\n[main 2026-10-14T23:27:02.514Z] update#setState idle\n",
   "passed": true
 }
