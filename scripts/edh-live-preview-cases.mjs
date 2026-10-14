@@ -59,6 +59,53 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
     assert.equal(await liveEval('return root.querySelectorAll(".mlrt-markdown-block-frontmatter").length;'),6);
     return {sourceExact:await liveEval('return view.state.doc.toString();')===source};
   });
+  await check('live preview: selections preserve block backgrounds at either endpoint', async () => {
+    const sample = ['---', 'title: Selection fixture', 'tags:', '  - markdown', '  - fixture', '  - renderer-test', '---', '',
+      'Before code.', '```ts', 'type TableRow = {', '  id: string;', '  label: string;', '', '  enabled: boolean;', '};', '```', '',
+      '    const indented = 1;', '    const next = 2;', '', '> [!NOTE] Selected callout', '> First callout row.', '> Second callout row.', '', 'Resting caret.'].join('\n');
+    const cases = [
+      ['yaml', sample.indexOf('markdown'), sample.indexOf('  - fixture') + 8],
+      ['fence', sample.indexOf('type TableRow'), sample.indexOf('label:') + 4],
+      ['fence-same-row', sample.indexOf('id:'), sample.indexOf('id:') + 5],
+      ['fence-blank-row', sample.indexOf('type TableRow'), sample.indexOf('\n\n  enabled') + 1],
+      ['indented', sample.indexOf('const indented'), sample.indexOf('const next') + 5],
+      ['callout', sample.indexOf('First callout'), sample.indexOf('Second callout') + 6],
+      ['across-blocks', sample.indexOf('  - fixture') + 8, sample.indexOf('label:') + 4],
+    ];
+    const paint = () => liveEval(`return Array.from(view.contentDOM.querySelectorAll('.cm-line:is(.mlrt-markdown-block-code,.mlrt-markdown-block-alert)')).map(line=>{
+      const css=win.getComputedStyle(line);
+      return {background:css.backgroundColor,image:css.backgroundImage,shadow:css.boxShadow,height:line.getBoundingClientRect().height};
+    });`);
+    const observations = [];
+    try {
+      await writeFixture(sample);
+      for (const enabled of [false, true]) {
+        await writeSettings({ 'markdownLiveRenderTables.lineHighlight.enabled': enabled });
+        await waitFor(() => liveEval(`return view.dom.classList.contains('mlrt-line-highlight-enabled')===${enabled};`), 'line highlight setting');
+        for (const [name, from, to] of cases) for (const backward of [false, true]) {
+          await select(sample.indexOf('Resting caret'));
+          await liveEval('view.scrollDOM.scrollTop=0;return true;'); await sleep(100);
+          const passive = await paint();
+          const anchor = backward ? to : from, head = backward ? from : to;
+          await liveEval(`view.focus();view.dispatch({selection:{anchor:${anchor},head:${head}}});return true;`); await sleep(100);
+          const selected = await paint();
+          const label = `${name}, ${backward ? 'backward' : 'forward'}, highlight ${enabled}`;
+          if (JSON.stringify(selected) !== JSON.stringify(passive)) await screenshot('selection-background-failure');
+          assert.deepEqual(selected, passive, `selection must retain every row's surface: ${label}`);
+          assert.equal(await liveEval('return view.dom.classList.contains("mlrt-selection-active");'), true);
+          await liveEval('view.contentDOM.blur();return true;'); await sleep(100);
+          assert.deepEqual(await paint(), passive, `blur must retain the selected block surface: ${label}`);
+          const background = await liveEval(`const point=view.domAtPos(${head}),line=(point.node.nodeType===3?point.node.parentElement:point.node).closest('.cm-line');return win.getComputedStyle(line).backgroundColor;`);
+          observations.push({ name, backward, enabled, head, background });
+          if (!enabled && !backward && ['yaml', 'fence', 'callout'].includes(name)) await screenshot(`selection-background-${name}`);
+        }
+      }
+      assert.equal(await liveEval('return view.state.doc.toString();'), sample);
+      return { observations, sourceExact: true };
+    } finally {
+      await writeSettings(); await restore();
+    }
+  });
   await check('live preview: arrows enter opening and closing code fences at the source text end', async () => {
     const observations=[];
     const caretSnapshot=()=>liveEval('const head=view.state.selection.main.head,point=view.domAtPos(head,-1),range=root.createRange();range.setStart(point.node,point.offset);range.setEnd(point.node,point.offset);const textBox=range.getBoundingClientRect(),caret=view.coordsAtPos(head,view.state.selection.main.assoc);return {head,assoc:view.state.selection.main.assoc,caretLeft:caret?.left,textRight:textBox.right,line:view.state.doc.lineAt(head).number,source:view.state.doc.toString(),toolbar:root.querySelector(".mlrt-preview-code-copy")?.getBoundingClientRect().left};');

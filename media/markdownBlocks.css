@@ -18,10 +18,12 @@
 .mlrt-markdown-block-alert-caution,
 .cm-line.mlrt-markdown-block-alert-caution { --mlrt-markdown-block-accent: var(--mlrt-markdown-alert-caution, var(--vscode-editor-foreground)); }
 
+/* The editor theme restores this fill when it suppresses cursor-row highlights. */
 .cm-line.mlrt-markdown-block-alert {
   --mlrt-markdown-block-guide-width: 2px;
+  --mlrt-line-background: color-mix(in srgb, var(--mlrt-markdown-block-accent) 9%, transparent);
   box-shadow: inset var(--mlrt-markdown-block-guide-width) 0 var(--mlrt-markdown-block-accent);
-  background-color: color-mix(in srgb, var(--mlrt-markdown-block-accent) 9%, transparent);
+  background-color: var(--mlrt-line-background);
 }
 
 .cm-content .mlrt-markdown-block-alert-label,
@@ -35,7 +37,8 @@
   position: relative;
   --mlrt-markdown-block-top-edge: transparent;
   --mlrt-markdown-block-bottom-edge: transparent;
-  background-color: var(--mlrt-markdown-code-background, var(--vscode-textCodeBlock-background, var(--vscode-editor-background)));
+  --mlrt-line-background: var(--mlrt-markdown-code-background, var(--vscode-textCodeBlock-background, var(--vscode-editor-background)));
+  background-color: var(--mlrt-line-background);
   /* Code owns the fill; an enclosing quote/alert retains its single guide. */
   box-shadow: inset var(--mlrt-markdown-block-guide-width, 0px) 0 var(--mlrt-markdown-block-accent, transparent), inset 0 1px var(--mlrt-markdown-block-top-edge), inset 0 -1px var(--mlrt-markdown-block-bottom-edge);
   color: var(--mlrt-markdown-foreground, var(--vscode-editor-foreground));
@@ -266,12 +269,6 @@
 .cm-line.mlrt-markdown-block-start { --mlrt-markdown-block-top-edge: var(--mlrt-markdown-edge, var(--vscode-editor-foreground)); }
 .cm-line.mlrt-markdown-block-end { --mlrt-markdown-block-bottom-edge: var(--mlrt-markdown-edge, var(--vscode-editor-foreground)); }
 
-/* Active-line treatment is an overlay above code/alert background. The existing
-   CodeMirror selection and cursor layers retain their own paint order. */
-:where(.mlrt-line-highlight-enabled) .cm-line.cm-activeLine:is(.mlrt-markdown-block-code, .mlrt-markdown-block-alert) {
-  background-image: linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent));
-}
-
 .mlrt-markdown-block-code-source {
   font-weight: var(--mlrt-editor-font-weight, normal);
   font-style: normal;
@@ -295,7 +292,7 @@
 
 @media (forced-colors: active) {
   .cm-line.mlrt-markdown-block-code,
-  .cm-line.mlrt-markdown-block-alert { background-color: Canvas; }
+  .cm-line.mlrt-markdown-block-alert { --mlrt-line-background: Canvas; background-color: var(--mlrt-line-background); }
   .cm-line.mlrt-markdown-block-quote { --mlrt-markdown-block-accent: CanvasText; }
   .cm-line.mlrt-markdown-block-start { --mlrt-markdown-block-top-edge: CanvasText; }
   .cm-line.mlrt-markdown-block-end { --mlrt-markdown-block-bottom-edge: CanvasText; }
