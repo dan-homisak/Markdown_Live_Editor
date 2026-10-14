@@ -1,6 +1,6 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-jChn8d",
-  "port": 60743,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-syGVci",
+  "port": 59144,
   "checks": [
     {
       "name": "live preview: arrows enter opening and closing code fences at the source text end",
@@ -74,6 +74,39 @@
             "toolbar": 735.0125122070312
           },
           {
+            "opening": "```python",
+            "column": 14,
+            "exit": true,
+            "head": 57,
+            "assoc": -1,
+            "caretLeft": 149.6125030517578,
+            "textRight": 149.60000610351562,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```python",
+            "column": 0,
+            "exit": true,
+            "head": 57,
+            "assoc": -1,
+            "caretLeft": 149.6125030517578,
+            "textRight": 149.60000610351562,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```python",
+            "column": 6,
+            "exit": true,
+            "head": 57,
+            "assoc": -1,
+            "caretLeft": 149.6125030517578,
+            "textRight": 149.60000610351562,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
             "opening": "```",
             "column": 0,
             "forward": true,
@@ -137,6 +170,39 @@
             "caretLeft": 103.42500305175781,
             "textRight": 103.4124984741211,
             "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 10,
+            "exit": true,
+            "head": 51,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 0,
+            "exit": true,
+            "head": 51,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "```",
+            "column": 6,
+            "exit": true,
+            "head": 51,
+            "assoc": -1,
+            "caretLeft": 103.42500305175781,
+            "textRight": 103.4124984741211,
+            "line": 2,
             "toolbar": 735.0125122070312
           },
           {
@@ -206,6 +272,39 @@
             "toolbar": 735.0125122070312
           },
           {
+            "opening": "~~~~js",
+            "column": 12,
+            "exit": true,
+            "head": 54,
+            "assoc": -1,
+            "caretLeft": 126.5250015258789,
+            "textRight": 126.51250457763672,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "~~~~js",
+            "column": 0,
+            "exit": true,
+            "head": 54,
+            "assoc": -1,
+            "caretLeft": 126.5250015258789,
+            "textRight": 126.51250457763672,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "~~~~js",
+            "column": 6,
+            "exit": true,
+            "head": 54,
+            "assoc": -1,
+            "caretLeft": 126.5250015258789,
+            "textRight": 126.51250457763672,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
             "opening": "> ```python",
             "column": 0,
             "forward": true,
@@ -269,6 +368,39 @@
             "caretLeft": 118.82500457763672,
             "textRight": 118.8125,
             "line": 4,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 16,
+            "exit": true,
+            "head": 59,
+            "assoc": -1,
+            "caretLeft": 165.0124969482422,
+            "textRight": 165,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 0,
+            "exit": true,
+            "head": 59,
+            "assoc": -1,
+            "caretLeft": 165.0124969482422,
+            "textRight": 165,
+            "line": 2,
+            "toolbar": 735.0125122070312
+          },
+          {
+            "opening": "> ```python",
+            "column": 6,
+            "exit": true,
+            "head": 59,
+            "assoc": -1,
+            "caretLeft": 165.0124969482422,
+            "textRight": 165,
+            "line": 2,
             "toolbar": 735.0125122070312
           }
         ],
@@ -292,5 +424,6 @@
   ],
   "finalSourceMatches": true,
   "console": [],
+  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:59144/devtools/browser/75c5169c-a9fa-4b7f-a6e5-3cc7dd0ddde4\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T04:02:38.067Z] [node-compile-cache] main: packaged cache enabled (status: enabled, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main\\v24.21.0-x64-c3a7e8f2)\n[main 2026-10-14T04:02:38.094Z] StorageMainService: creating application shared storage\n[main 2026-10-14T04:02:38.126Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T04:02:38.126Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-syGVci\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T04:02:38.139Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T04:02:38.805Z] update#setState idle\n[main 2026-10-14T04:02:38.824Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T04:02:39.090Z] [AgentHost:stderr] (node:19928) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:15160) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n",
   "passed": true
 }
