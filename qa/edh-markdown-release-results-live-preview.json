@@ -1,6 +1,6 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-PrvYBZ",
-  "port": 60136,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-ObdKYI",
+  "port": 57716,
   "checks": [
     {
       "name": "live preview: resting syntax is removed, properties and semantic content render",
@@ -667,14 +667,14 @@
               "role": "mlrt-preview-code-copy-label",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.454201,
+              "opacity": 0.40907,
               "transitionDuration": "0.16s"
             },
             {
               "role": "mlrt-preview-code-copy-action",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.545799,
+              "opacity": 0.59093,
               "transitionDuration": "0.16s"
             },
             {
@@ -857,14 +857,14 @@
               "role": "mlrt-preview-code-copy-label",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.0245422,
+              "opacity": 0.00953131,
               "transitionDuration": "0.16s"
             },
             {
               "role": "mlrt-preview-code-copy-action",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
-              "opacity": 0.958683,
+              "opacity": 0.968466,
               "transitionDuration": "0.16s"
             },
             {
@@ -1370,5 +1370,6 @@
   ],
   "finalSourceMatches": true,
   "console": [],
+  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:57716/devtools/browser/60bd7f1b-1e20-43c9-8194-0dc21a73c04b\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T03:34:36.913Z] [node-compile-cache] main: packaged cache enabled (status: enabled, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main\\v24.21.0-x64-c3a7e8f2)\n[main 2026-10-14T03:34:36.941Z] StorageMainService: creating application shared storage\n[main 2026-10-14T03:34:36.993Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T03:34:36.995Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-ObdKYI\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T03:34:37.009Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T03:34:37.681Z] update#setState idle\n[main 2026-10-14T03:34:37.700Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T03:34:37.990Z] [AgentHost:stderr] (node:12428) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:24432) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n[main 2026-10-14T03:35:07.691Z] update#setState checking for updates\n[main 2026-10-14T03:35:07.764Z] update#setState idle\n",
   "passed": true
 }

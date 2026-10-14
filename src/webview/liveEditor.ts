@@ -33,6 +33,7 @@ import {
 import { markdownListLine } from "../editor/markdown/markdownListEditing";
 import { markdownPreviewField } from "../editor/markdown/markdownLivePreview";
 import { createVscodeCodeHighlighting } from "../editor/markdown/vscodeCodeHighlighting";
+import { InitialCodeHighlighting } from "../shared/codeHighlighting";
 import { MarkdownOpenLinkRequest } from "../shared/markdownLinkValidation";
 import {
   tableNavigationModifierCompartment,
@@ -82,6 +83,7 @@ declare function acquireVsCodeApi(): {
 declare global {
   interface Window {
     __MLRT_INITIAL_DOCUMENT__?: unknown;
+    __MLRT_CODE_HIGHLIGHTING__?: InitialCodeHighlighting;
     __MLRT_EDITOR_OPTIONS__?: unknown;
     __MLRT_DEBUG__?: unknown;
     __MLRT_DEBUG_EVENTS__?: DebugEvent[];
@@ -226,7 +228,9 @@ window.__MLRT_TEST_SET_HOST_ISOLATION__ = (isolated: boolean): void => {
   }
 };
 
+async function initializeEditor(app: HTMLElement): Promise<void> {
 try {
+  await codeHighlighting.initialize(window.__MLRT_CODE_HIGHLIGHTING__ ?? undefined);
   const editorExtensions = createLiveEditorExtensions({
     ...editorOptions,
     markdownRendering: appliedMarkdownRenderingOptions,
@@ -312,8 +316,7 @@ try {
       preview: view.state.field(markdownPreviewField, false)?.focused,
       link: x === undefined || y === undefined ? null : markdownLinkDiagnostics(view, x, y) };
   };
-  // Explicit debug-only harness observation keeps parse convergence separate
-  // from frame timing. Normal editing never forces a full-document parse.
+  // Explicit debug-only harness observation of the configured language tree.
   window.__MLRT_TEST_MARKDOWN_PARSE__ = (force = false) => {
     if (!debugEnabled) return null;
     if (force) forceParsing(view, view.state.doc.length, 25);
@@ -355,8 +358,16 @@ try {
   app.replaceChildren(renderStartupError(error));
   throw error;
 }
+}
+let editorInitialized = false;
+const startupMessages: MessageEvent<unknown>[] = [];
+void initializeEditor(app).then(() => {
+  editorInitialized = true;
+  for (const event of startupMessages.splice(0)) handleHostMessage(event);
+  vscode.postMessage({ type: "ready" });
+});
 
-window.addEventListener("message", (event: MessageEvent<unknown>) => {
+function handleHostMessage(event: MessageEvent<unknown>): void {
   const message = event.data;
   if (codeHighlighting.accept(view, message)) return;
   if (message && typeof message === "object" && "type" in message &&
@@ -450,9 +461,12 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
     return;
   }
   setEditorDocument(message.text, source);
-});
+}
 
-vscode.postMessage({ type: "ready" });
+window.addEventListener("message", (event: MessageEvent<unknown>) => {
+  if (editorInitialized) handleHostMessage(event);
+  else startupMessages.push(event);
+});
 
 function setEditorDocument(
   hostText: string,

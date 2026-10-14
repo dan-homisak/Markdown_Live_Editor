@@ -1,6 +1,6 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-h5MsuS",
-  "port": 65437,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-pxLBCp",
+  "port": 50168,
   "checks": [
     {
       "name": "default-enabled literal source, parser frontmatter, HTML and image isolation",
@@ -20,26 +20,26 @@
         "Important": {
           "position": 80,
           "text": "I",
-          "classes": "mlrt-markdown-source mlrt-markdown-role-heading mlrt-markdown-bold",
-          "line": "## **Important** [deployment](./LinkedTarget.md \"title\") `settings` ##",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-heading mlrt-markdown-heading-2 mlrt-markdown-bold",
+          "line": "## Important deployment settings ##",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
           "lineHeight": "18.9px",
           "fontWeight": "700",
           "fontStyle": "normal",
-          "color": "rgb(77, 170, 252)",
+          "color": "rgb(78, 201, 176)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 106.82500457763672,
+          "x": 91.42500305175781,
           "y": 133.10000610351562,
           "height": 16
         },
         "deployment": {
           "position": 93,
           "text": "d",
-          "classes": "mlrt-markdown-source mlrt-markdown-role-link mlrt-markdown-bold",
-          "line": "## **Important** [deployment](./LinkedTarget.md \"title\") `settings` ##",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-link mlrt-markdown-heading-2 mlrt-markdown-bold",
+          "line": "## Important deployment settings ##",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -49,40 +49,40 @@
           "color": "rgb(77, 170, 252)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 206.91250610351562,
+          "x": 168.41250610351562,
           "y": 133.10000610351562,
           "height": 16
         },
         "settings": {
           "position": 133,
           "text": "s",
-          "classes": "mlrt-markdown-source mlrt-markdown-role-code mlrt-markdown-code-font mlrt-markdown-inline-code",
-          "line": "## **Important** [deployment](./LinkedTarget.md \"title\") `settings` ##",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-code mlrt-markdown-heading-2 mlrt-markdown-code-font",
+          "line": "## Important deployment settings ##",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
           "lineHeight": "18.9px",
           "fontWeight": "400",
           "fontStyle": "normal",
-          "color": "rgb(208, 208, 208)",
-          "background": "rgba(60, 60, 60, 0.18)",
+          "color": "rgb(181, 206, 168)",
+          "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 514.8375244140625,
+          "x": 257.0874938964844,
           "y": 133.10000610351562,
           "height": 16
         },
         "Setext": {
           "position": 146,
           "text": "S",
-          "classes": "mlrt-markdown-source mlrt-markdown-role-heading mlrt-markdown-bold",
-          "line": "Setext *heading*",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-heading mlrt-markdown-heading-1 mlrt-markdown-bold",
+          "line": "Setext heading",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
           "lineHeight": "18.9px",
           "fontWeight": "700",
           "fontStyle": "normal",
-          "color": "rgb(77, 170, 252)",
+          "color": "rgb(86, 156, 214)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
           "x": 68.32500457763672,
@@ -92,18 +92,18 @@
         "heading": {
           "position": 154,
           "text": "h",
-          "classes": "mlrt-markdown-source mlrt-markdown-role-heading mlrt-markdown-bold mlrt-markdown-italic",
-          "line": "Setext *heading*",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-heading mlrt-markdown-heading-1 mlrt-markdown-bold mlrt-markdown-italic",
+          "line": "Setext heading",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
           "lineHeight": "18.9px",
           "fontWeight": "700",
           "fontStyle": "italic",
-          "color": "rgb(77, 170, 252)",
+          "color": "rgb(86, 156, 214)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 129.91250610351562,
+          "x": 122.2125015258789,
           "y": 152,
           "height": 16
         },
@@ -111,7 +111,7 @@
           "position": 176,
           "text": "b",
           "classes": "mlrt-markdown-source mlrt-markdown-bold",
-          "line": "Plain **bold**, *italic*, ***both***, ~~strike *nested*~~ and `  exact  `.",
+          "line": "Plain bold, italic, both, strike nested and   exact  .",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -121,15 +121,15 @@
           "color": "rgb(204, 204, 204)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 129.91250610351562,
-          "y": 208.6999969482422,
+          "x": 114.51250457763672,
+          "y": 189.8000030517578,
           "height": 16
         },
         "italic": {
           "position": 185,
           "text": "i",
           "classes": "mlrt-markdown-source mlrt-markdown-italic",
-          "line": "Plain **bold**, *italic*, ***both***, ~~strike *nested*~~ and `  exact  `.",
+          "line": "Plain bold, italic, both, strike nested and   exact  .",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -139,15 +139,15 @@
           "color": "rgb(204, 204, 204)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 199.21250915527344,
-          "y": 208.6999969482422,
+          "x": 160.71250915527344,
+          "y": 189.8000030517578,
           "height": 16
         },
         "both": {
           "position": 197,
           "text": "b",
           "classes": "mlrt-markdown-source mlrt-markdown-bold mlrt-markdown-italic",
-          "line": "Plain **bold**, *italic*, ***both***, ~~strike *nested*~~ and `  exact  `.",
+          "line": "Plain bold, italic, both, strike nested and   exact  .",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -157,15 +157,15 @@
           "color": "rgb(204, 204, 204)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 291.6000061035156,
-          "y": 208.6999969482422,
+          "x": 222.3000030517578,
+          "y": 189.8000030517578,
           "height": 16
         },
         "nested": {
           "position": 216,
           "text": "n",
           "classes": "mlrt-markdown-source mlrt-markdown-italic mlrt-markdown-strike",
-          "line": "Plain **bold**, *italic*, ***both***, ~~strike *nested*~~ and `  exact  `.",
+          "line": "Plain bold, italic, both, strike nested and   exact  .",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -175,33 +175,33 @@
           "color": "rgb(204, 204, 204)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "line-through",
-          "x": 437.88751220703125,
-          "y": 208.6999969482422,
+          "x": 322.38751220703125,
+          "y": 189.8000030517578,
           "height": 16
         },
         "  exact  ": {
           "position": 231,
           "text": " ",
-          "classes": "mlrt-markdown-source mlrt-markdown-role-code mlrt-markdown-code-font mlrt-markdown-inline-code",
-          "line": "Plain **bold**, *italic*, ***both***, ~~strike *nested*~~ and `  exact  `.",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-code mlrt-markdown-code-font",
+          "line": "Plain bold, italic, both, strike nested and   exact  .",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
           "lineHeight": "18.9px",
           "fontWeight": "400",
           "fontStyle": "normal",
-          "color": "rgb(208, 208, 208)",
-          "background": "rgba(60, 60, 60, 0.18)",
+          "color": "rgb(181, 206, 168)",
+          "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 553.3624877929688,
-          "y": 208.6999969482422,
+          "x": 411.0625,
+          "y": 189.8000030517578,
           "height": 16
         },
         "span": {
           "position": 252,
           "text": "s",
           "classes": "mlrt-markdown-source mlrt-markdown-role-tag mlrt-markdown-code-font",
-          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">**prose**</span> <!-- source comment -->",
+          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">prose</span> <!-- source comment -->",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -212,14 +212,14 @@
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
           "x": 137.6125030517578,
-          "y": 227.60000610351562,
+          "y": 208.6999969482422,
           "height": 16
         },
         "title=": {
           "position": 257,
           "text": "t",
           "classes": "mlrt-markdown-source mlrt-markdown-role-variable mlrt-markdown-code-font",
-          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">**prose**</span> <!-- source comment -->",
+          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">prose</span> <!-- source comment -->",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -230,14 +230,14 @@
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
           "x": 176.1125030517578,
-          "y": 227.60000610351562,
+          "y": 208.6999969482422,
           "height": 16
         },
         "prose": {
           "position": 303,
           "text": "p",
           "classes": "mlrt-markdown-source mlrt-markdown-bold",
-          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">**prose**</span> <!-- source comment -->",
+          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">prose</span> <!-- source comment -->",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -247,15 +247,15 @@
           "color": "rgb(204, 204, 204)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 530.2250366210938,
-          "y": 227.60000610351562,
+          "x": 514.8250122070312,
+          "y": 208.6999969482422,
           "height": 16
         },
         "source comment": {
           "position": 323,
           "text": "s",
           "classes": "mlrt-markdown-source mlrt-markdown-role-comment",
-          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">**prose**</span> <!-- source comment -->",
+          "line": "Literal <span title=\"safe\" data-markdown-source=\"literal\">prose</span> <!-- source comment -->",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -265,8 +265,8 @@
           "color": "rgb(145, 152, 161)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 684.1875,
-          "y": 227.60000610351562,
+          "x": 653.3875122070312,
+          "y": 208.6999969482422,
           "height": 16
         }
       }
@@ -349,7 +349,7 @@
             "value": {
               "position": 825,
               "text": "c",
-              "classes": "mlrt-markdown-block-token-declaration",
+              "classes": "mlrt-markdown-block-code-source",
               "line": "const jsValue = \"string\";",
               "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
               "fontSize": "14px",
@@ -357,29 +357,43 @@
               "lineHeight": "18.9px",
               "fontWeight": "400",
               "fontStyle": "normal",
-              "color": "rgb(210, 168, 255)",
+              "color": "rgb(86, 156, 214)",
               "background": "rgba(0, 0, 0, 0)",
               "decoration": "none",
-              "x": 68.32500457763672,
-              "y": 661,
+              "x": 80.32500457763672,
+              "y": 660.7999877929688,
               "height": 16
             },
             "tokens": [
               {
                 "text": "const",
-                "classes": "mlrt-markdown-block-token-declaration"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(86, 156, 214)"
+              },
+              {
+                "text": " ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "jsValue",
-                "classes": "mlrt-markdown-block-token-variable"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(79, 193, 255)"
+              },
+              {
+                "text": " = ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "\"string\"",
-                "classes": "mlrt-markdown-block-token-string"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(206, 145, 120)"
               },
               {
                 "text": ";",
-                "classes": "mlrt-markdown-block-token-punctuation"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               }
             ]
           },
@@ -388,7 +402,7 @@
             "value": {
               "position": 893,
               "text": "c",
-              "classes": "mlrt-markdown-block-token-declaration",
+              "classes": "mlrt-markdown-block-code-source",
               "line": "const tsValue: number = 12;",
               "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
               "fontSize": "14px",
@@ -396,37 +410,53 @@
               "lineHeight": "18.9px",
               "fontWeight": "400",
               "fontStyle": "normal",
-              "color": "rgb(210, 168, 255)",
+              "color": "rgb(86, 156, 214)",
               "background": "rgba(0, 0, 0, 0)",
               "decoration": "none",
-              "x": 68.32500457763672,
-              "y": 660.7999877929688,
+              "x": 80.32500457763672,
+              "y": 660.6000366210938,
               "height": 16
             },
             "tokens": [
               {
                 "text": "const",
-                "classes": "mlrt-markdown-block-token-declaration"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(86, 156, 214)"
+              },
+              {
+                "text": " ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "tsValue",
-                "classes": "mlrt-markdown-block-token-variable"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(79, 193, 255)"
               },
               {
-                "text": ":",
-                "classes": "mlrt-markdown-block-token-punctuation"
+                "text": ": ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "number",
-                "classes": "mlrt-markdown-block-token-declaration"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(78, 201, 176)"
+              },
+              {
+                "text": " = ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "12",
-                "classes": "mlrt-markdown-block-token-constant"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(181, 206, 168)"
               },
               {
                 "text": ";",
-                "classes": "mlrt-markdown-block-token-punctuation"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               }
             ]
           },
@@ -435,7 +465,7 @@
             "value": {
               "position": 934,
               "text": "{",
-              "classes": "mlrt-markdown-block-token-punctuation",
+              "classes": "mlrt-markdown-block-code-source",
               "line": "{ \"jsonKey\": true, \"count\": 12 }",
               "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
               "fontSize": "14px",
@@ -443,49 +473,58 @@
               "lineHeight": "18.9px",
               "fontWeight": "400",
               "fontStyle": "normal",
-              "color": "rgb(145, 152, 161)",
+              "color": "rgb(212, 212, 212)",
               "background": "rgba(0, 0, 0, 0)",
               "decoration": "none",
-              "x": 68.32500457763672,
-              "y": 661.2000122070312,
+              "x": 80.32500457763672,
+              "y": 661,
               "height": 16
             },
             "tokens": [
               {
-                "text": "{",
-                "classes": "mlrt-markdown-block-token-punctuation"
+                "text": "{ ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "\"jsonKey\"",
-                "classes": "mlrt-markdown-block-token-variable"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(156, 220, 254)"
               },
               {
-                "text": ":",
-                "classes": "mlrt-markdown-block-token-punctuation"
+                "text": ": ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "true",
-                "classes": "mlrt-markdown-block-token-constant"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(86, 156, 214)"
               },
               {
-                "text": ",",
-                "classes": "mlrt-markdown-block-token-punctuation"
+                "text": ", ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "\"count\"",
-                "classes": "mlrt-markdown-block-token-variable"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(156, 220, 254)"
               },
               {
-                "text": ":",
-                "classes": "mlrt-markdown-block-token-punctuation"
+                "text": ": ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "12",
-                "classes": "mlrt-markdown-block-token-constant"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(181, 206, 168)"
               },
               {
-                "text": "}",
-                "classes": "mlrt-markdown-block-token-punctuation"
+                "text": " }",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               }
             ]
           },
@@ -494,7 +533,7 @@
             "value": {
               "position": 996,
               "text": "e",
-              "classes": "mlrt-markdown-block-token-variable",
+              "classes": "mlrt-markdown-block-code-source",
               "line": "echo \"$HOME\"",
               "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
               "fontSize": "14px",
@@ -502,29 +541,38 @@
               "lineHeight": "18.9px",
               "fontWeight": "400",
               "fontStyle": "normal",
-              "color": "rgb(255, 166, 87)",
+              "color": "rgb(220, 220, 170)",
               "background": "rgba(0, 0, 0, 0)",
               "decoration": "none",
-              "x": 68.32500457763672,
-              "y": 661.2999877929688,
+              "x": 80.32500457763672,
+              "y": 661.1000366210938,
               "height": 16
             },
             "tokens": [
               {
                 "text": "echo",
-                "classes": "mlrt-markdown-block-token-variable"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(220, 220, 170)"
+              },
+              {
+                "text": " ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "\"",
-                "classes": "mlrt-markdown-block-token-string"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(206, 145, 120)"
               },
               {
                 "text": "$HOME",
-                "classes": "mlrt-markdown-block-token-variable"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(156, 220, 254)"
               },
               {
                 "text": "\"",
-                "classes": "mlrt-markdown-block-token-string"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(206, 145, 120)"
               }
             ]
           },
@@ -533,7 +581,7 @@
             "value": {
               "position": 1024,
               "text": "d",
-              "classes": "mlrt-markdown-block-token-declaration",
+              "classes": "mlrt-markdown-block-code-source",
               "line": "def python_value():",
               "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
               "fontSize": "14px",
@@ -541,29 +589,33 @@
               "lineHeight": "18.9px",
               "fontWeight": "400",
               "fontStyle": "normal",
-              "color": "rgb(210, 168, 255)",
+              "color": "rgb(86, 156, 214)",
               "background": "rgba(0, 0, 0, 0)",
               "decoration": "none",
-              "x": 68.32500457763672,
-              "y": 660.9000244140625,
+              "x": 80.32500457763672,
+              "y": 660.7000122070312,
               "height": 16
             },
             "tokens": [
               {
                 "text": "def",
-                "classes": "mlrt-markdown-block-token-declaration"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(86, 156, 214)"
+              },
+              {
+                "text": " ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "python_value",
-                "classes": "mlrt-markdown-block-token-variable"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(220, 220, 170)"
               },
               {
-                "text": "(",
-                "classes": "mlrt-markdown-block-token-punctuation"
-              },
-              {
-                "text": ")",
-                "classes": "mlrt-markdown-block-token-punctuation"
+                "text": "():",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               }
             ]
           },
@@ -572,7 +624,7 @@
             "value": {
               "position": 1076,
               "text": "y",
-              "classes": "mlrt-markdown-block-token-variable",
+              "classes": "mlrt-markdown-block-code-source",
               "line": "yaml_key: \"quoted\"",
               "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
               "fontSize": "14px",
@@ -580,25 +632,28 @@
               "lineHeight": "18.9px",
               "fontWeight": "400",
               "fontStyle": "normal",
-              "color": "rgb(255, 166, 87)",
+              "color": "rgb(86, 156, 214)",
               "background": "rgba(0, 0, 0, 0)",
               "decoration": "none",
-              "x": 68.32500457763672,
-              "y": 661,
+              "x": 80.32500457763672,
+              "y": 660.7999877929688,
               "height": 16
             },
             "tokens": [
               {
                 "text": "yaml_key",
-                "classes": "mlrt-markdown-block-token-variable"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(86, 156, 214)"
               },
               {
-                "text": ":",
-                "classes": "mlrt-markdown-block-token-punctuation"
+                "text": ": ",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(212, 212, 212)"
               },
               {
                 "text": "\"quoted\"",
-                "classes": "mlrt-markdown-block-token-string"
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(206, 145, 120)"
               }
             ]
           },
@@ -618,11 +673,17 @@
               "color": "rgb(204, 204, 204)",
               "background": "rgba(0, 0, 0, 0)",
               "decoration": "none",
-              "x": 68.32500457763672,
-              "y": 661.1000366210938,
+              "x": 80.32500457763672,
+              "y": 660.9000244140625,
               "height": 16
             },
-            "tokens": []
+            "tokens": [
+              {
+                "text": "**unknown language stays code**",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(204, 204, 204)"
+              }
+            ]
           },
           {
             "language": "indented",
@@ -631,7 +692,7 @@
               "text": "i",
               "classes": "mlrt-markdown-block-code-source",
               "line": "    indented **literal**",
-              "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+              "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code mlrt-markdown-block-end",
               "fontSize": "14px",
               "fontFamily": "Consolas, \"Courier New\", monospace",
               "lineHeight": "18.9px",
@@ -640,11 +701,17 @@
               "color": "rgb(204, 204, 204)",
               "background": "rgba(0, 0, 0, 0)",
               "decoration": "none",
-              "x": 99.125,
-              "y": 661,
+              "x": 111.125,
+              "y": 660.7999877929688,
               "height": 16
             },
-            "tokens": []
+            "tokens": [
+              {
+                "text": "indented **literal**",
+                "classes": "mlrt-vscode-code-token",
+                "color": "rgb(204, 204, 204)"
+              }
+            ]
           }
         ],
         "blankRows": 1
@@ -685,7 +752,7 @@
           "tableRetained": true,
           "foreground": "rgba(204, 204, 204, 1)",
           "codeFill": "rgba(43, 43, 43, 0.22)",
-          "outline": "none"
+          "outline": "inset 0 0 0 1px #242424"
         }
       ]
     },
@@ -696,8 +763,8 @@
         "value": {
           "position": 133,
           "text": "s",
-          "classes": "mlrt-markdown-source mlrt-markdown-role-code mlrt-markdown-code-font mlrt-markdown-inline-code",
-          "line": "## **Important** [deployment](./LinkedTarget.md \"title\") `settings` ##",
+          "classes": "mlrt-markdown-source mlrt-markdown-role-code mlrt-markdown-heading-2 mlrt-markdown-code-font",
+          "line": "## Important deployment settings ##",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -707,7 +774,7 @@
           "color": "rgb(255, 255, 255)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "none",
-          "x": 514.8375244140625,
+          "x": 257.0874938964844,
           "y": 133.10000610351562,
           "height": 16
         },
@@ -717,20 +784,512 @@
           "color": "rgb(255, 255, 255)",
           "expected": "0.8px"
         },
+        "blockEdges": {
+          "quote": {
+            "left": "0.8px",
+            "top": "0px",
+            "bottom": "0px",
+            "style": "solid",
+            "pointerEvents": "none",
+            "rowBorder": "0px"
+          },
+          "start": {
+            "left": "0px",
+            "top": "0.8px",
+            "bottom": "0px",
+            "style": "solid",
+            "pointerEvents": "none",
+            "rowBorder": "0px"
+          },
+          "end": {
+            "left": "0px",
+            "top": "0px",
+            "bottom": "0.8px",
+            "style": "solid",
+            "pointerEvents": "none",
+            "rowBorder": "0px"
+          }
+        },
         "emulated": true
+      }
+    },
+    {
+      "name": "actual code token foreground wins identical-range source wrappers",
+      "pass": true,
+      "detail": [
+        {
+          "needle": "// javascript comment",
+          "actual": {
+            "position": 855,
+            "text": "j",
+            "classes": "mlrt-markdown-block-code-source",
+            "line": "// javascript comment",
+            "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+            "fontSize": "14px",
+            "fontFamily": "Consolas, \"Courier New\", monospace",
+            "lineHeight": "18.9px",
+            "fontWeight": "400",
+            "fontStyle": "normal",
+            "color": "rgb(106, 153, 85)",
+            "background": "rgba(0, 0, 0, 0)",
+            "decoration": "none",
+            "x": 103.4124984741211,
+            "y": 1,
+            "height": 16
+          },
+          "expected": "rgb(106, 153, 85)"
+        },
+        {
+          "needle": "# shell comment",
+          "actual": {
+            "position": 983,
+            "text": "h",
+            "classes": "mlrt-markdown-block-code-source",
+            "line": "# shell comment",
+            "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code",
+            "fontSize": "14px",
+            "fontFamily": "Consolas, \"Courier New\", monospace",
+            "lineHeight": "18.9px",
+            "fontWeight": "400",
+            "fontStyle": "normal",
+            "color": "rgb(106, 153, 85)",
+            "background": "rgba(0, 0, 0, 0)",
+            "decoration": "none",
+            "x": 103.4124984741211,
+            "y": 0.6000000238418579,
+            "height": 16
+          },
+          "expected": "rgb(106, 153, 85)"
+        },
+        {
+          "needle": "# metadata comment",
+          "actual": {
+            "position": 54,
+            "text": "e",
+            "classes": "mlrt-markdown-block-token-comment",
+            "line": "# metadata comment",
+            "lineClasses": "cm-line cm-activeLine mlrt-prose-active-line mlrt-markdown-block-code mlrt-markdown-block-frontmatter",
+            "fontSize": "14px",
+            "fontFamily": "Consolas, \"Courier New\", monospace",
+            "lineHeight": "18.9px",
+            "fontWeight": "400",
+            "fontStyle": "normal",
+            "color": "rgb(145, 152, 161)",
+            "background": "rgba(0, 0, 0, 0)",
+            "decoration": "none",
+            "x": 103.4124984741211,
+            "y": 0.4000000059604645,
+            "height": 16
+          },
+          "expected": "rgb(145, 152, 161)"
+        }
+      ]
+    },
+    {
+      "name": "nested quote and alert code retain guides without horizontal borders",
+      "pass": true,
+      "detail": {
+        "normal": {
+          "quoteStart": {
+            "line": "> > ```javascriptCopiedjavascriptCopy",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code mlrt-markdown-block-start",
+            "shadow": "rgb(97, 97, 97) 1px 0px 0px 0px inset",
+            "guide": "1px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 57.5,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "quoteBody": {
+            "line": "> > const quoteCode = 1;",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code",
+            "shadow": "rgb(97, 97, 97) 1px 0px 0px 0px inset",
+            "guide": "1px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 76.4000015258789,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "quoteEnd": {
+            "line": "> > ```",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code mlrt-markdown-block-end",
+            "shadow": "rgb(97, 97, 97) 1px 0px 0px 0px inset",
+            "guide": "1px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 95.30000305175781,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertStart": {
+            "line": "> ```javascriptCopiedjavascriptCopy",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code mlrt-markdown-block-start",
+            "shadow": "rgb(204, 167, 0) 2px 0px 0px 0px inset",
+            "guide": "2px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 189.8000030517578,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertBody": {
+            "line": "> const alertCode = 2;",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code",
+            "shadow": "rgb(204, 167, 0) 2px 0px 0px 0px inset",
+            "guide": "2px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 208.6999969482422,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertEnd": {
+            "line": "> ```",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code mlrt-markdown-block-end",
+            "shadow": "rgb(204, 167, 0) 2px 0px 0px 0px inset",
+            "guide": "2px",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 227.60000610351562,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "standalone": {
+            "line": "const standaloneCode = 3;",
+            "classes": "cm-line mlrt-markdown-block-code",
+            "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px inset",
+            "guide": "",
+            "fill": "rgba(43, 43, 43, 0.22)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "auto"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 303.20001220703125,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          }
+        },
+        "forced": {
+          "quoteStart": {
+            "line": "> > ```javascriptCopiedjavascriptCopy",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code mlrt-markdown-block-start",
+            "shadow": "none",
+            "guide": "1px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0.8px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 57.5,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "quoteBody": {
+            "line": "> > const quoteCode = 1;",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code",
+            "shadow": "none",
+            "guide": "1px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0.8px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 76.4000015258789,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "quoteEnd": {
+            "line": "> > ```",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-code mlrt-markdown-block-end",
+            "shadow": "none",
+            "guide": "1px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0.8px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 95.30000305175781,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertStart": {
+            "line": "> ```javascriptCopiedjavascriptCopy",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code mlrt-markdown-block-start",
+            "shadow": "none",
+            "guide": "2px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "1.6px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 189.8000030517578,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertBody": {
+            "line": "> const alertCode = 2;",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code",
+            "shadow": "none",
+            "guide": "2px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "1.6px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 208.6999969482422,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "alertEnd": {
+            "line": "> ```",
+            "classes": "cm-line mlrt-markdown-block-quote mlrt-markdown-block-alert mlrt-markdown-block-alert-warning mlrt-markdown-block-code mlrt-markdown-block-end",
+            "shadow": "none",
+            "guide": "2px",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "1.6px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 227.60000610351562,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          },
+          "standalone": {
+            "line": "const standaloneCode = 3;",
+            "classes": "cm-line mlrt-markdown-block-code",
+            "shadow": "none",
+            "guide": "",
+            "fill": "rgb(0, 0, 0)",
+            "top": "transparent",
+            "bottom": "transparent",
+            "border": [
+              "0px",
+              "0px"
+            ],
+            "pseudo": {
+              "left": "0px",
+              "top": "0px",
+              "bottom": "0px",
+              "pointerEvents": "none"
+            },
+            "glyph": {
+              "x": 80.32500457763672,
+              "y": 303.20001220703125,
+              "width": 7.6999969482421875,
+              "height": 16
+            },
+            "fontSize": "14px",
+            "lineHeight": "18.9px"
+          }
+        },
+        "probes": {
+          "one": "0.8px",
+          "two": "1.6px"
+        },
+        "maxGeometryDelta": 0,
+        "sourceUnchanged": true
       }
     },
     {
       "name": "modifier hover is actionable only for validated destinations",
       "pass": true,
       "detail": {
-        "valid": "[Local target](./LinkedTarget.md)",
+        "valid": "Local target",
         "unsupported": "",
         "struck": {
           "position": 570,
           "text": "s",
           "classes": "mlrt-markdown-source mlrt-markdown-role-link mlrt-markdown-strike",
-          "line": "~~[struck link](./LinkedTarget.md)~~",
+          "line": "struck link",
           "lineClasses": "cm-line",
           "fontSize": "14px",
           "fontFamily": "Consolas, \"Courier New\", monospace",
@@ -740,8 +1299,8 @@
           "color": "rgb(77, 170, 252)",
           "background": "rgba(0, 0, 0, 0)",
           "decoration": "underline line-through",
-          "x": 91.42500305175781,
-          "y": 322.1000061035156,
+          "x": 68.32500457763672,
+          "y": 284.3000183105469,
           "height": 16
         }
       }
@@ -807,6 +1366,50 @@
           "## Tables"
         ]
       }
+    },
+    {
+      "name": "scroll rendering: every element is prepared before mounting and scrolling never rebuilds its decorations",
+      "pass": true,
+      "detail": {
+        "frames": 80,
+        "samples": 735,
+        "preMountRoles": 13,
+        "scrollRebuilds": 0,
+        "paintOrGeometryDrifts": 0,
+        "sourceExact": true
+      }
+    },
+    {
+      "name": "scroll rendering: cold jumps, live edits and undo paint complete elements on every frame",
+      "pass": true,
+      "detail": {
+        "frames": 66,
+        "codeSamples": 124,
+        "elementSamples": 368,
+        "unstyledFrames": 0,
+        "sourceExact": true
+      }
+    },
+    {
+      "name": "scroll rendering: code rows keep their paint and geometry on entry and return",
+      "pass": true,
+      "detail": {
+        "phases": [
+          {
+            "direction": 1,
+            "frames": 145,
+            "codeSamples": 3064
+          },
+          {
+            "direction": -1,
+            "frames": 145,
+            "codeSamples": 3065
+          }
+        ],
+        "unstyledFrames": 0,
+        "geometryDriftFrames": 0,
+        "sourceExact": true
+      }
     }
   ],
   "environment": {
@@ -825,5 +1428,6 @@
   ],
   "finalSourceMatches": true,
   "console": [],
+  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:50168/devtools/browser/817cd813-aae8-4eed-a266-60a757c84653\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T03:43:57.683Z] [node-compile-cache] main: packaged cache enabled (status: enabled, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main\\v24.21.0-x64-c3a7e8f2)\n[main 2026-10-14T03:43:57.710Z] StorageMainService: creating application shared storage\n[main 2026-10-14T03:43:57.751Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T03:43:57.751Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-pxLBCp\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T03:43:57.767Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T03:43:58.464Z] update#setState idle\n[main 2026-10-14T03:43:58.479Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T03:43:58.747Z] [AgentHost:stderr] (node:27224) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:4188) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n[main 2026-10-14T03:44:28.474Z] update#setState checking for updates\n[main 2026-10-14T03:44:28.546Z] update#setState idle\n",
   "passed": true
 }

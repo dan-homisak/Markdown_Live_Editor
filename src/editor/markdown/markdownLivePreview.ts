@@ -1,5 +1,5 @@
-import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
-import { EditorSelection, EditorState, Extension, Facet, Range, StateEffect, StateField, Text } from "@codemirror/state";
+import { markdownChangedWindows, markdownRenderTree as syntaxTree } from "./markdownRenderTree";
+import { ChangeDesc, EditorSelection, EditorState, Extension, Facet, Range, StateEffect, StateField, Text } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, keymap, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { SyntaxNode, Tree } from "@lezer/common";
 import { getParsedTables } from "../../shared/tableModel";
@@ -23,13 +23,29 @@ export interface PreviewPart extends MarkdownRange {
   copy?: { from: number; to: number; prefix: string; indented: boolean };
 }
 const overlaps = (a: MarkdownRange, b: MarkdownRange): boolean => a.from < b.to && b.from < a.to;
+const layoutNodes = new Set(["Document", "Blockquote", "BulletList", "OrderedList", "ListItem",
+  "MarkdownFrontmatter", "FencedCode", "CodeBlock", "SetextHeading1", "SetextHeading2"]);
 
 /** Recognition uses the configured tree. Only the requested windows are visited. */
-export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly MarkdownRange[], windows: readonly MarkdownRange[], showHeadingMarkers = true): PreviewPart[] {
+export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly MarkdownRange[], windows: readonly MarkdownRange[], showHeadingMarkers = true, layoutOnly = false): PreviewPart[] {
   const parts: PreviewPart[] = [], seen = new Set<string>();
+  const protectedTables = [...tables].sort((a, b) => a.from - b.from);
+  const tableAt = (position: number): MarkdownRange | undefined => {
+    let from = 0, to = protectedTables.length;
+    while (from < to) {
+      const middle = (from + to) >>> 1;
+      if (protectedTables[middle].to <= position) from = middle + 1;
+      else to = middle;
+    }
+    return protectedTables[from];
+  };
+  const overlapsTable = (range: MarkdownRange): boolean => {
+    const table = tableAt(range.from);
+    return !!table && table.from < range.to;
+  };
   const read = (from: number, to: number): string => doc.sliceString(from, to);
   const add = (part: PreviewPart): void => {
-    if (part.from >= part.to || tables.some(table => overlaps(part, table))) return;
+    if (part.from >= part.to || overlapsTable(part)) return;
     const key = `${part.kind}:${part.from}:${part.to}`;
     if (!seen.has(key)) { seen.add(key); parts.push(part); }
   };
@@ -37,15 +53,18 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
   const whitespaceAfter = (to: number): number => to + (/^[ \t]*/u.exec(read(to, doc.lineAt(to).to))?.[0].length ?? 0);
   for (const window of windows) tree.iterate({ from: window.from, to: window.to, enter(ref) {
     const node = ref.node;
-    if (node.to <= window.from || node.from >= window.to || tables.some(table => table.from <= node.from && table.to >= node.to)) return false;
+    if (layoutOnly && !layoutNodes.has(node.name)) return false;
+    const table = tableAt(node.from);
+    if (node.to <= window.from || node.from >= window.to || table && table.from <= node.from && table.to >= node.to) return false;
     const owner = { from: node.from, to: node.to };
     if (["HTMLBlock", "HTMLTag", "Comment", "WikiEmbed"].includes(node.name)) return false;
     if (node.name === "MarkdownFrontmatter") {
-      if (!tables.some(table => overlaps(node, table))) add({ ...owner, owner, kind: "properties", block: true,
+      if (!overlapsTable(node)) add({ ...owner, owner, kind: "properties", block: true,
         content: read(node.from, node.to), editAt: node.firstChild?.to ? node.firstChild.to + 1 : node.from });
       return false;
     }
     if (node.name === "FencedCode" || node.name === "CodeBlock") {
+      if (layoutOnly && node.name === "FencedCode") return false;
       const marks = node.getChildren("CodeMark"), info = node.getChild("CodeInfo");
       const first = doc.lineAt(node.from), last = doc.lineAt(node.to);
       // A list marker on the opening row becomes continuation whitespace on
@@ -67,6 +86,7 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
         // Indented code keeps its source rows but removes the structural indent.
         if (first.from <= window.to && first.to >= window.from) add({ from: first.from, to: first.to, owner, kind: "code-header", block: true, insertion: true, label: "text", copy, editAt: node.from });
       }
+      if (layoutOnly) return false;
       // Strip enclosing quote prefixes/structural indentation from body rows only.
       for (let from = Math.max(start, doc.lineAt(window.from).from); from < Math.min(end, window.to);) {
         const line = doc.lineAt(from);
@@ -80,8 +100,8 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
       const alert = markdownAlertForQuote(doc, node);
       if (alert) add({ from: alert.from, to: alert.headerTo ?? alert.to, owner, kind: "callout",
         label: alert.title || (alert.name ?? alert.type).replace(/^./u, char => char.toUpperCase()),
-        accent: alert.type, editAt: alert.from, foldTo: tables.some(table => overlaps(table, node)) ? undefined : node.to,
-        collapsed: tables.some(table => overlaps(table, node)) ? undefined : alert.collapsed });
+        accent: alert.type, editAt: alert.from, foldTo: overlapsTable(node) ? undefined : node.to,
+        collapsed: overlapsTable(node) ? undefined : alert.collapsed });
     }
     if (node.name === "QuoteMark") {
       const line = doc.lineAt(node.from);
@@ -118,6 +138,25 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
     } else if (node.name === "Escape") hide(node.from, node.from + 1, owner);
   } });
   return parts.sort((a, b) => a.from - b.from || b.to - a.to);
+}
+
+/** Like tables, height-changing preview decorations must exist independently
+ * of DOM visibility. Visit only structural owners in the incremental tree;
+ * retain one small descriptor per block, never its code body or inline marks. */
+export function classifyMarkdownPreviewLayout(doc: Text, tree: Tree, tables: readonly MarkdownRange[]): PreviewPart[] {
+  return classifyMarkdownPreview(doc, tree, tables, [{ from: 0, to: tree.length }], true, true);
+}
+
+function previewParts(state: EditorState, windows: readonly MarkdownRange[]): PreviewPart[] {
+  return classifyMarkdownPreview(state.doc, syntaxTree(state), getParsedTables(state.doc), windows, state.facet(headingMarkersFacet));
+}
+
+function mapPreviewPart(part: PreviewPart, changes: ChangeDesc): PreviewPart {
+  const range = (value: MarkdownRange): MarkdownRange => ({ from: changes.mapPos(value.from, 1), to: changes.mapPos(value.to, -1) });
+  return { ...part, ...range(part), owner: range(part.owner),
+    fence: part.fence && range(part.fence), copy: part.copy && { ...part.copy, ...range(part.copy) },
+    editAt: part.editAt === undefined ? undefined : changes.mapPos(part.editAt),
+    foldTo: part.foldTo === undefined ? undefined : changes.mapPos(part.foldTo) };
 }
 
 /** Remove only structural columns, retaining any additional code indentation. */
@@ -164,7 +203,6 @@ export function frontmatterPropertyRows(source: string): PropertyRow[] {
 }
 
 const activityEffect = StateEffect.define<{ focused: boolean; composing: boolean; projected: MarkdownRange | null }>();
-const windowEffect = StateEffect.define<readonly MarkdownRange[]>();
 const foldEffect = StateEffect.define<{ from: number; collapsed: boolean }>();
 interface PreviewState {
   decorations: DecorationSet;
@@ -261,11 +299,15 @@ class PreviewWidget extends WidgetType {
     return wrapper;
   }
   ignoreEvent(): boolean { return true; }
-  get estimatedHeight(): number { return this.part.kind === "properties" ? 30 + frontmatterPropertyRows(this.part.content ?? "").length * 28 : -1; }
+  get estimatedHeight(): number { return this.part.kind === "properties" ? 30 + frontmatterPropertyRows(this.part.content ?? "").length * 28
+    : this.part.kind === "code-header" && this.part.block ? 28 : -1; }
 }
 
 function decorations(state: EditorState, value: Omit<PreviewState, "decorations">): DecorationSet {
-  const ranges: Range<Decoration>[] = [], covered: MarkdownRange[] = [];
+  const ranges: Range<Decoration>[] = [];
+  // Parts are source ordered. A single endpoint handles nested replacements
+  // without rescanning every earlier block on each selection/scroll update.
+  let coveredTo = -1;
   for (const part of value.parts) {
     const active = previewOwnerActive(part.owner, state.selection, value.focused, value.projected);
     // Fence rows belong to the document and gutter in both modes. Concealing
@@ -284,15 +326,15 @@ function decorations(state: EditorState, value: Omit<PreviewState, "decorations"
       ranges.push(Decoration.widget({ block: true, side: -1, widget: new PreviewWidget(part, state.doc.sliceString(part.from, part.to)) }).range(part.from));
       continue;
     }
-    if (active || covered.some(range => overlaps(range, part))) continue;
+    if (active || part.from < coveredTo) continue;
     const collapsed = value.folds.get(part.from) ?? part.collapsed ?? false;
     ranges.push(Decoration.replace({ block: part.block, inclusive: part.block === true,
       ...(part.kind !== "hide" ? { widget: new PreviewWidget(part, state.doc.sliceString(part.from, part.to), collapsed) } : {}) }).range(part.from, part.to));
-    covered.push(part);
+    coveredTo = Math.max(coveredTo, part.to);
     if (part.kind === "callout" && collapsed && part.foldTo && part.foldTo > part.to) {
       const from = state.doc.lineAt(part.to).to;
       ranges.push(Decoration.replace({ inclusive: false }).range(from, part.foldTo));
-      covered.push({ from, to: part.foldTo });
+      coveredTo = Math.max(coveredTo, part.foldTo);
     }
   }
   return Decoration.set(ranges, true);
@@ -302,8 +344,8 @@ const headingMarkersFacet = Facet.define<boolean, boolean>({ combine: values => 
 
 export const markdownPreviewField = StateField.define<PreviewState>({
   create(state) {
-    const windows = [{ from: 0, to: Math.min(state.doc.length, 12000) }];
-    const value = { parts: classifyMarkdownPreview(state.doc, syntaxTree(state), getParsedTables(state.doc), windows, state.facet(headingMarkersFacet)),
+    const windows = [{ from: 0, to: state.doc.length }];
+    const value = { parts: previewParts(state, windows),
       windows, focused: false, composing: false, projected: null, folds: new Map<number, boolean>() };
     return { ...value, decorations: decorations(state, value) };
   },
@@ -312,16 +354,25 @@ export const markdownPreviewField = StateField.define<PreviewState>({
     let folds = value.folds;
     for (const effect of transaction.effects) {
       if (effect.is(activityEffect)) ({ focused, composing, projected } = effect.value);
-      if (effect.is(windowEffect)) windows = effect.value;
       if (effect.is(foldEffect)) { folds = new Map(folds); (folds as Map<number, boolean>).set(effect.value.from, effect.value.collapsed); }
     }
     if (transaction.docChanged) {
-      windows = windows.map(range => ({ from: transaction.changes.mapPos(range.from), to: transaction.changes.mapPos(range.to) }));
+      windows = [{ from: 0, to: transaction.state.doc.length }];
       folds = new Map([...folds].map(([from, folded]) => [transaction.changes.mapPos(from), folded]));
     }
     if (composing) return { ...value, focused, composing, projected, folds, windows, decorations: value.decorations.map(transaction.changes) };
-    const changed = transaction.docChanged || syntaxTree(transaction.state) !== syntaxTree(transaction.startState) || windows !== value.windows || transaction.state.facet(headingMarkersFacet) !== transaction.startState.facet(headingMarkersFacet);
-    const parts = changed ? classifyMarkdownPreview(transaction.state.doc, syntaxTree(transaction.state), getParsedTables(transaction.state.doc), windows, transaction.state.facet(headingMarkersFacet)) : value.parts;
+    const syntaxChanged = transaction.docChanged || value.composing && !composing || syntaxTree(transaction.state) !== syntaxTree(transaction.startState);
+    const changed = syntaxChanged || windows !== value.windows || transaction.state.facet(headingMarkersFacet) !== transaction.startState.facet(headingMarkersFacet);
+    if (!changed && !transaction.selection && focused === value.focused && composing === value.composing &&
+        projected === value.projected && folds === value.folds) return value;
+    let parts = value.parts;
+    if (transaction.docChanged && !value.composing) {
+      const changedWindows = markdownChangedWindows(transaction);
+      parts = [...parts.map(part => mapPreviewPart(part, transaction.changes)).filter(part =>
+        part.from < part.to && part.owner.from < part.owner.to && !changedWindows.some(window => overlaps(part.owner, window))),
+        ...previewParts(transaction.state, changedWindows)]
+        .sort((a, b) => a.from - b.from || b.to - a.to);
+    } else if (changed) parts = previewParts(transaction.state, windows);
     const next = { parts, windows, focused, composing, projected, folds };
     return { ...next, decorations: decorations(transaction.state, next) };
   },
@@ -388,10 +439,6 @@ export function createMarkdownLivePreviewExtensions(screenReaderOptimized: boole
         this.queued = false;
         if (this.destroyed || this.view.dom.ownerDocument.hidden || isTablePointerSelectionActive(this.view.dom.ownerDocument)) return;
         const view = this.view, field = view.state.field(markdownPreviewField);
-        // Overscan by source lines, so hiding/revealing a delimiter never oscillates the viewport boundary.
-        const windows = [{ from: view.state.doc.line(Math.max(1, view.state.doc.lineAt(view.viewport.from).number - 30)).from,
-          to: view.state.doc.line(Math.min(view.state.doc.lines, view.state.doc.lineAt(view.viewport.to).number + 30)).to }]
-          .filter(range => syntaxTreeAvailable(view.state, Math.min(range.to, view.viewport.to)));
         const effects = [];
         const focused = view.hasFocus || !!view.dom.ownerDocument.activeElement?.closest(".mlrt-preview-code-header");
         // Mixed table/prose selections already publish their exact linear
@@ -399,7 +446,6 @@ export function createMarkdownLivePreviewExtensions(screenReaderOptimized: boole
         // presentation transaction: it would recreate a native browser range
         // after the table's pointer controller deliberately cleared it.
         if (field.focused !== focused || field.composing !== this.composing) effects.push(activityEffect.of({ focused, composing: this.composing, projected: null }));
-        if (JSON.stringify(field.windows) !== JSON.stringify(windows)) effects.push(windowEffect.of(windows));
         if (effects.length) view.dispatch({ effects });
       });
     }

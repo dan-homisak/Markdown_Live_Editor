@@ -1,3 +1,17 @@
+import type { IRawGrammar, IRawTheme } from "vscode-textmate";
+
+export interface CodeHighlightingConfiguration {
+  readonly scopeName: string;
+  readonly grammars: readonly IRawGrammar[];
+  readonly injections: Readonly<Record<string, readonly string[]>>;
+  readonly theme: IRawTheme;
+}
+
+export interface InitialCodeHighlighting {
+  readonly configuration: CodeHighlightingConfiguration;
+  readonly wasm: string;
+}
+
 export interface CodeHighlightRange {
   readonly from: number;
   readonly to: number;

@@ -14,6 +14,7 @@ import { WebSocket } from "undici";
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const qa = path.join(repo, "qa");
 const codeOnly = process.argv.includes("--code-only");
+const scrollOnly = process.argv.includes("--scroll-only");
 const fenceNavigationOnly = process.argv.includes("--fence-navigation-only");
 const livePreviewOnly = fenceNavigationOnly || process.argv.includes("--live-preview-only");
 const nestedGuideOnly = process.argv.includes("--nested-guide-only");
@@ -70,7 +71,11 @@ const env = { ...process.env, ELECTRON_NO_ATTACH_CONSOLE: "1" };
 for (const key of Object.keys(env)) if (key.startsWith("npm_") || ["NODE_OPTIONS", "ELECTRON_RUN_AS_NODE"].includes(key)) delete env[key];
 const child = spawn(code, [`--extensionDevelopmentPath=${repo}`, `--user-data-dir=${profile}`,
   `--extensions-dir=${extensions}`, `--remote-debugging-port=${port}`, "--new-window", "--disable-workspace-trust",
-  "--skip-release-notes", "--skip-welcome", fixture], { stdio: "ignore", env, windowsHide: true });
+  "--skip-release-notes", "--skip-welcome", fixture], { stdio: ["ignore", "pipe", "pipe"], env, windowsHide: true });
+let launchOutput = '';
+child.stdout.on('data', data => { launchOutput += data; });
+child.stderr.on('data', data => { launchOutput += data; });
+child.on('error', error => { launchOutput += String(error); });
 const clients = [], checks = [];
 const report = { profile, port, checks, environment: {}, limitations: [
   "OS IME and an actual screen reader are not exercised by this automated script.",
@@ -121,7 +126,8 @@ async function key(client, key, code, vk, modifiers = 0) {
 }
 async function palette(title) {
   await key(wb, "F1", "F1", 112); await sleep(180); await wb.send("Input.insertText", { text: title });
-  await sleep(350); await key(wb, "Enter", "Enter", 13); await sleep(450);
+  await waitFor(() => evaluate(wb, `Array.from(document.querySelectorAll('.quick-input-list .monaco-list-row')).some(row=>row.textContent.includes(${JSON.stringify(title)}))`), `palette command ${title}`, 20000);
+  await key(wb, "Enter", "Enter", 13); await sleep(450);
 }
 async function reconnectLive() {
   return waitFor(async () => {
@@ -159,6 +165,7 @@ async function sample(position) {
   return liveEval(`const pos=${position},a=view.domAtPos(pos,1),b=view.domAtPos(pos+1,-1),r=root.createRange();r.setStart(a.node,a.offset);r.setEnd(b.node,b.offset);const box=r.getBoundingClientRect(),el=a.node.nodeType===3?a.node.parentElement:a.node,css=win.getComputedStyle(el),line=el.closest('.cm-line');return {position:pos,text:r.toString(),classes:el.className,line:line?.textContent,lineClasses:line?.className,fontSize:css.fontSize,fontFamily:css.fontFamily,lineHeight:css.lineHeight,fontWeight:css.fontWeight,fontStyle:css.fontStyle,color:css.color,background:css.backgroundColor,decoration:css.textDecorationLine,x:box.x,y:box.y,height:box.height};`);
 }
 async function check(name, action) {
+  if (scrollOnly && !name.startsWith("scroll rendering:")) return;
   if (fenceNavigationOnly && !name.startsWith("live preview: arrows enter")) return;
   if (livePreviewOnly && !name.startsWith("live preview:")) return;
   if (nestedGuideOnly && !name.startsWith("nested quote and alert")) return;
@@ -179,15 +186,15 @@ async function writeFixture(source) {
 
 try {
   console.log(`Release EDH port ${port}; profile ${profile}`);
-  const target = await waitFor(async () => (await targets()).find(item => item.type === "page" && /workbench\.html/.test(item.url)), "workbench", 30000);
+  const target = await waitFor(async () => (await targets()).find(item => item.type === "page" && /workbench\.html/.test(item.url)), "workbench", 60000);
   wb = await connect(target.webSocketDebuggerUrl); await wb.send("Page.enable"); await sleep(1800);
   // First-run prompts, if present, are dismissed before measurements.
   await key(wb, "Escape", "Escape", 27);
   assert(await evaluate(wb, "!!document.querySelector('.view-lines')"), "stock Monaco must be active");
   report.environment.stock = await evaluate(wb, "(()=>{const el=document.querySelector('.view-lines'),css=getComputedStyle(el);return {font:css.fontFamily,fontSize:css.fontSize,lineHeight:css.lineHeight,dpr:devicePixelRatio,width:innerWidth,height:innerHeight};})()");
   await screenshot("stock");
-  await key(wb, "m", "KeyM", 77, process.platform === "darwin" ? 6 : 3); await sleep(1800);
-  assert(await evaluate(wb, "!!document.querySelector('iframe')"));
+  await palette("Markdown Live Editor: Toggle Markdown Live Editor");
+  await waitFor(() => evaluate(wb, "!!document.querySelector('iframe')"), "live editor activation", 20000);
   live = await waitFor(async () => {
     for (const item of (await targets()).filter(item => item.type !== "service_worker" && /vscode-webview/.test(item.url))) {
       if (!item.webSocketDebuggerUrl) continue;
@@ -199,7 +206,7 @@ try {
   }, "live context");
   await liveEval("win.__MLRT_RELEASE_MESSAGES=[];win.addEventListener('message',event=>win.__MLRT_RELEASE_MESSAGES.push(event.data));return true;");
   await select(0);
-  await waitFor(async () => liveEval("return !!root.querySelector('.mlrt-markdown-role-heading')&&!!root.querySelector('.mlrt-markdown-block-frontmatter');"), "default-enabled semantic presentation");
+  await waitFor(async () => liveEval("return !!root.querySelector('.mlrt-markdown-role-heading')&&!!root.querySelector('.mlrt-markdown-block-frontmatter,.mlrt-preview-properties');"), "default-enabled semantic presentation");
   await screenshot("readable");
 
   if (livePreviewOnly) {
@@ -226,10 +233,14 @@ try {
     assert.match(samples.span.classes, /role-tag/); assert.match(samples["title="].classes, /role-variable/);
     assert.equal(samples.prose.fontWeight, "700"); assert.match(samples["source comment"].classes, /role-comment/);
     for (const value of Object.values(samples)) { assert.equal(value.fontSize, "14px"); assert.equal(value.lineHeight, "18.9px"); }
-    assert.match(samples["  exact  "].line, /`  exact  `/); assert.match(samples.Important.line, /^## \*\*Important\*\*/);
+    assert.match(samples["  exact  "].line, /  exact  /); assert.match(samples.Important.line, /^## Important/);
+    assert.equal(await liveEval("return view.state.doc.toString();"),text);
     return samples;
   });
   await check("recovery switch retains source row positions and table DOM", async () => {
+    // Compare revealed source in both modes. Resting Live Preview deliberately
+    // collapses properties and Setext delimiters and therefore has different y.
+    await liveEval("view.dispatch({selection:{anchor:0,head:view.state.doc.length}});return true;"); await sleep(200);
     const positions = [text.indexOf("Important"), text.indexOf("Setext"), text.indexOf("Plain"), text.indexOf("Literal")];
     const before = await Promise.all(positions.map(sample));
     await select(text.indexOf("| **Header"));
@@ -239,14 +250,15 @@ try {
     assert(await liveEval("return win.__MLRT_RELEASE_TABLE===root.querySelector('.mlrt-table');"));
     await select(0);
     const after = await Promise.all(positions.map(sample));
-    for (let index = 0; index < before.length; index++) assert(Math.abs(before[index].y - after[index].y) <= 0.5, "source row y remains fixed");
     await writeSettings();
     await waitFor(async () => liveEval("return !!root.querySelector('.mlrt-markdown-role-heading');"), "enabled layer");
     assert.equal(await liveEval("return view.state.doc.toString();"), text);
+    for (let index = 0; index < before.length; index++) assert(Math.abs(before[index].y - after[index].y) <= 0.5, "revealed source row y remains fixed");
     return { sourceRows: positions.length, maxYDelta: Math.max(...before.map((value, index) => Math.abs(value.y - after[index].y))), tableRetained: true };
   });
   await check("quote guides and five alert labels occupy source rows", async () => {
     await select(text.indexOf("> A quote"));
+    await liveEval("view.dispatch({selection:{anchor:0,head:view.state.doc.length}});return true;"); await sleep(200);
     const data = await liveEval("return {quotes:root.querySelectorAll('.cm-line.mlrt-markdown-block-quote').length,labels:Array.from(root.querySelectorAll('.mlrt-markdown-block-alert-label')).map(el=>({text:el.textContent,weight:win.getComputedStyle(el).fontWeight,lineHeight:win.getComputedStyle(el).lineHeight,color:win.getComputedStyle(el).color,edge:win.getComputedStyle(el.closest('.cm-line')).boxShadow})),guides:Array.from(root.querySelectorAll('.cm-line.mlrt-markdown-block-quote')).map(el=>win.getComputedStyle(el).boxShadow)};");
     assert(data.quotes >= 13); assert.equal(data.labels.length, 5); assert(data.labels.every(label => label.weight === "600" && label.lineHeight === "18.9px"));
     assert(data.guides.every(value => value !== "none")); assert(new Set(data.labels.map(label=>label.color)).size>1);
@@ -263,9 +275,9 @@ try {
         await sleep(150); value.afterRemovingMultilineCodeSource = await sample(position);
       }
       assert.match(value.lineClasses, /mlrt-markdown-block-code/, `${language}: ${JSON.stringify(value)}`); assert.equal(value.fontSize, "14px"); assert.equal(value.fontWeight, "400");
-      const tokens = await liveEval(`const a=view.domAtPos(${position},1),el=a.node.nodeType===3?a.node.parentElement:a.node,line=el.closest('.cm-line');return Array.from(line.querySelectorAll('[class*=mlrt-markdown-block-token]')).map(el=>({text:el.textContent,classes:el.className}));`);
+      const tokens = await liveEval(`const a=view.domAtPos(${position},1),el=a.node.nodeType===3?a.node.parentElement:a.node,line=el.closest('.cm-line');return Array.from(line.querySelectorAll('.mlrt-vscode-code-token,[class*=mlrt-markdown-block-token]')).map(el=>({text:el.textContent,classes:el.className,color:el.style.color}));`);
       if (!["unknown", "indented"].includes(language)) assert(tokens.length > 0, `${language} has actual mounted token decoration`);
-      else assert.equal(tokens.length, 0, `${language} has no guessed language`);
+      else assert(!tokens.some(token=>token.classes.includes('mlrt-markdown-block-token')), `${language} has no guessed language`);
       data.push({ language, value, tokens });
     }
     await showSection(text.indexOf("const jsValue"));
@@ -309,7 +321,7 @@ try {
     for (const needle of ["// javascript comment", "# shell comment", "# metadata comment"]) {
       const position = text.indexOf(needle); await showSection(position);
       const actual = await sample(position + 3);
-      const expected = await liveEval("const probe=root.createElement('i');probe.style.color='var(--mlrt-markdown-code-comment)';view.dom.appendChild(probe);const color=win.getComputedStyle(probe).color;probe.remove();return color;");
+      const expected = await liveEval(`const a=view.domAtPos(${position}+3,1),el=a.node.nodeType===3?a.node.parentElement:a.node,token=el.closest('.mlrt-vscode-code-token'),probe=root.createElement('i');probe.style.color=token?.style.color||'var(--mlrt-markdown-code-comment)';view.dom.appendChild(probe);const color=win.getComputedStyle(probe).color;probe.remove();return color;`);
       assert.equal(actual.color, expected, `${needle} actual leaf foreground`); samples.push({ needle, actual, expected });
     }
     await showSection(text.indexOf("const jsValue")); await screenshot("code-languages"); return samples;
@@ -443,12 +455,17 @@ try {
     await writeFile(path.join(qa,`edh-markdown-paint-results${measureDiagnostic?'-measure-diagnostic':''}.json`),JSON.stringify(metrics,null,2));
     return {fixtures:metrics.fixtures.map(fixture=>({lineCount:fixture.lineCount,enabled:fixture.enabled,classes:Object.fromEntries(Object.entries(fixture.classes).map(([name,value])=>[name,value.firstPaintOpportunity]))})),acknowledgedEdits:metrics.acknowledgedEdits?.acknowledgement};
   });
+  if (!codeOnly && !livePreviewOnly && !nestedGuideOnly && !paintOnly) {
+    const { runMarkdownScrollChecks } = await import('./edh-markdown-scroll-cases.mjs');
+    await runMarkdownScrollChecks({ check, liveEval, writeFixture, select, sleep, screenshot, palette, text });
+  }
   report.finalSourceMatches = await liveEval(`return view.state.doc.toString()===${JSON.stringify(text)};`);
   report.console = live.events;
 } catch (error) { checks.push({ name: "harness initialization/completion", pass: false, error: String(error) }); console.error(error); }
 finally {
+  report.launchOutput = launchOutput;
   report.passed = checks.length > 0 && checks.every(check => check.pass) && !(report.console?.length);
-  const reportName=`edh-markdown-release-results${fenceNavigationOnly ? "-fence-navigation" : livePreviewOnly ? "-live-preview" : nestedGuideOnly ? "-nested-guides" : codeOnly ? "-code-diagnostic" : measureDiagnostic ? "-measure-diagnostic" : paintOnly ? "-paint" : ""}.json`;
+  const reportName=`edh-markdown-release-results${scrollOnly ? "-scroll" : fenceNavigationOnly ? "-fence-navigation" : livePreviewOnly ? "-live-preview" : nestedGuideOnly ? "-nested-guides" : codeOnly ? "-code-diagnostic" : measureDiagnostic ? "-measure-diagnostic" : paintOnly ? "-paint" : ""}.json`;
   await writeFile(path.join(qa, reportName), JSON.stringify(report, null, 2));
   for (const client of clients) client.socket.close(); child.kill();
   console.log(`Saved qa/${reportName}; ${checks.filter(check => check.pass).length}/${checks.length} checks passed.`);

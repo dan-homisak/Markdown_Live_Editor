@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { parse } from "jsonc-parser/lib/esm/main.js";
 import { IRawTheme, parseRawGrammar } from "vscode-textmate";
 import * as vscode from "vscode";
-import { CodeHighlightRange, CodeHighlightToken } from "../shared/codeHighlighting";
+import { CodeHighlightingConfiguration, CodeHighlightRange, CodeHighlightToken } from "../shared/codeHighlighting";
 import { GrammarFile, TextmateCodeHighlighter } from "./textmateHighlighting";
 
 type ThemeRule = IRawTheme["settings"][number];
@@ -72,6 +72,14 @@ export class VscodeCodeHighlighting implements vscode.Disposable {
     void old?.then(engine => engine.dispose(), () => {});
   }
   dispose(): void { this.invalidate(); }
+
+  async configuration(themeName?: string): Promise<CodeHighlightingConfiguration | null> {
+    if (themeName !== this.themeName) { this.invalidate(); this.themeName = themeName; }
+    const generation = this.generation;
+    this.engine ??= this.createEngine();
+    const configuration = await (await this.engine).configuration();
+    return generation === this.generation ? configuration : null;
+  }
 
   async highlight(source: string, ranges: readonly CodeHighlightRange[], themeName?: string): Promise<CodeHighlightToken[] | null> {
     if (themeName !== this.themeName) { this.invalidate(); this.themeName = themeName; }

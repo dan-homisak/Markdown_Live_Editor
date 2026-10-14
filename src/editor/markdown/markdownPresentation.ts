@@ -1,10 +1,11 @@
-import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
-import { Extension, Range, RangeSet, Text } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import { markdownRenderTree as syntaxTree } from "./markdownRenderTree";
+import { EditorState, Extension, Range, StateField, Text } from "@codemirror/state";
+import { Decoration, DecorationSet, EditorView, ViewPlugin } from "@codemirror/view";
 import { NodeProp, SyntaxNode, Tree } from "@lezer/common";
 import { getParsedTables } from "../../shared/tableModel";
 import { MarkdownRange, MarkdownSource } from "./markdownSyntax";
 import { markdownAlertForQuote } from "./markdownBlockSyntax";
+import { markdownChangedWindows, markdownComposing, updateMarkdownDecorations } from "./markdownRenderTree";
 import { MarkdownThemeAdapter } from "./presentationTheme";
 
 type Foreground = "heading" | "punctuation" | "link" | "destination" | "title" |
@@ -231,99 +232,44 @@ export function markdownInlineCodeDecorations(document: Text, runs: readonly Mar
   return Decoration.set(ranges, true);
 }
 
-class MarkdownPresentationView {
-  decorations: DecorationSet = Decoration.none;
-  inlineCodeDecorations: DecorationSet = Decoration.none;
-  private document: Text;
-  private tree: Tree;
-  private windows = "";
-  private composing = false;
-  private destroyed = false;
-  private failed = false;
-  private theme: MarkdownThemeAdapter | null = null;
-  constructor(readonly view: EditorView) {
-    this.document = view.state.doc;
-    this.tree = syntaxTree(view.state);
-    try {
-      this.theme = new MarkdownThemeAdapter(view);
-      this.rebuild();
-    } catch { this.fail(); }
-  }
-  private rebuild(): boolean {
-    const windows = this.view.visibleRanges.filter(range => syntaxTreeAvailable(this.view.state, range.to));
-    this.windows = windows.map(range => `${range.from}:${range.to}`).join(",");
-    const runs = classifyMarkdownPresentation(this.view.state.doc, this.tree,
-      getParsedTables(this.view.state.doc), windows);
-    const next = markdownPresentationDecorations(this.view.state.doc, runs);
-    const inlineCode = markdownInlineCodeDecorations(this.view.state.doc, runs);
-    const changed = !RangeSet.eq([this.decorations, this.inlineCodeDecorations], [next, inlineCode]);
-    this.decorations = next;
-    this.inlineCodeDecorations = inlineCode;
-    return changed;
-  }
-  update(update: ViewUpdate): void {
-    if (this.failed) return;
-    try {
-      if (this.composing || update.view.compositionStarted) {
-        this.decorations = this.decorations.map(update.changes);
-        this.inlineCodeDecorations = this.inlineCodeDecorations.map(update.changes);
-        return;
-      }
-      if (!update.view.inView) {
-        this.decorations = this.decorations.map(update.changes);
-        this.inlineCodeDecorations = this.inlineCodeDecorations.map(update.changes);
-        this.windows = "hidden";
-        return;
-      }
-      this.theme?.resume();
-      const tree = syntaxTree(update.state);
-      const windows = this.view.visibleRanges.filter(range => syntaxTreeAvailable(update.state, range.to))
-        .map(range => `${range.from}:${range.to}`).join(",");
-      if (this.document === update.state.doc && this.tree === tree && windows === this.windows) return;
-      const lateStyle = this.document === update.state.doc && this.tree !== tree && !update.viewportChanged && !update.selectionSet;
-      const anchor = lateStyle ? this.view.scrollSnapshot() : null;
-      this.document = update.state.doc;
-      this.tree = tree;
-      const changed = this.rebuild();
-      if (anchor && changed) {
-        const document = this.document, selection = update.state.selection;
-        const scrollTop = this.view.scrollDOM.scrollTop, scrollLeft = this.view.scrollDOM.scrollLeft;
-        queueMicrotask(() => {
-          if (this.destroyed || this.failed || this.view.state.doc !== document ||
-              this.view.state.selection !== selection || this.view.scrollDOM.scrollTop !== scrollTop ||
-              this.view.scrollDOM.scrollLeft !== scrollLeft) return;
-          this.view.dispatch({ effects: anchor });
-        });
-      }
-    } catch { this.fail(); }
-  }
-  compositionStart(): void { this.composing = true; }
-  compositionEnd(): void {
-    this.composing = false;
-    // Invalidate the doc key even if the final IME transaction has no changes.
-    this.windows = "composition-ended";
-    queueMicrotask(() => {
-      if (!this.destroyed && !this.failed) this.view.dispatch({});
-    });
-  }
-  private fail(): void {
-    this.decorations = Decoration.none;
-    this.inlineCodeDecorations = Decoration.none;
-    if (!this.failed) console.warn("Markdown readable source styling disabled after an internal failure.");
-    this.failed = true;
-    this.theme?.destroy(); this.theme = null;
-  }
-  destroy(): void { this.destroyed = true; this.theme?.destroy(); }
+
+interface PresentationState {
+  decorations: DecorationSet;
+  inlineCodeDecorations: DecorationSet;
+  composing: boolean;
+}
+function presentation(state: EditorState, windows?: readonly MarkdownRange[]): PresentationState {
+  const runs = classifyMarkdownPresentation(state.doc, syntaxTree(state), getParsedTables(state.doc), windows);
+  return { decorations: markdownPresentationDecorations(state.doc, runs),
+    inlineCodeDecorations: markdownInlineCodeDecorations(state.doc, runs), composing: false };
 }
 
-/** Install only inside the enabled Markdown-rendering compartment. */
+/** Complete document decorations, like tables. CodeMirror can build its height
+ * map and mount a row with every font and inline surface already attached. */
+export const markdownPresentationField = StateField.define<PresentationState>({
+  create: presentation,
+  update(value, transaction) {
+    const composing = markdownComposing(transaction, value.composing);
+    if (composing) return { composing, decorations: value.decorations.map(transaction.changes),
+      inlineCodeDecorations: value.inlineCodeDecorations.map(transaction.changes) };
+    if (transaction.docChanged && !value.composing) {
+      const windows = markdownChangedWindows(transaction), changed = presentation(transaction.state, windows);
+      return { composing: false,
+        decorations: updateMarkdownDecorations(value.decorations, transaction, changed.decorations, windows),
+        inlineCodeDecorations: updateMarkdownDecorations(value.inlineCodeDecorations, transaction, changed.inlineCodeDecorations, windows) };
+    }
+    if (transaction.docChanged || value.composing || syntaxTree(transaction.state) !== syntaxTree(transaction.startState))
+      return presentation(transaction.state);
+    return value;
+  },
+  provide: field => [EditorView.decorations.from(field, value => value.decorations),
+    EditorView.outerDecorations.from(field, value => value.inlineCodeDecorations)],
+});
+
 export function createMarkdownPresentationExtensions(): Extension {
-  return ViewPlugin.fromClass(MarkdownPresentationView, {
-    decorations: value => value.decorations,
-    provide: plugin => EditorView.outerDecorations.of(view => view.plugin(plugin)?.inlineCodeDecorations ?? Decoration.none),
-    eventHandlers: {
-      compositionstart() { this.compositionStart(); return false; },
-      compositionend() { this.compositionEnd(); return false; },
-    },
-  });
+  return [markdownPresentationField, ViewPlugin.fromClass(class {
+    private readonly theme: MarkdownThemeAdapter;
+    constructor(view: EditorView) { this.theme = new MarkdownThemeAdapter(view); }
+    destroy(): void { this.theme.destroy(); }
+  })];
 }

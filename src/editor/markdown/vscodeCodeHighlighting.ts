@@ -1,8 +1,9 @@
-import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
-import { Facet, Range, StateEffect, Text } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
-import { CodeHighlightRange, CodeHighlightRequest, CodeHighlightResponse, CodeHighlightToken } from "../../shared/codeHighlighting";
+import { EditorState, Facet, StateEffect, StateField } from "@codemirror/state";
+import { Decoration, DecorationSet, EditorView, ViewPlugin } from "@codemirror/view";
+import { CodeHighlightingConfiguration, CodeHighlightToken, InitialCodeHighlighting } from "../../shared/codeHighlighting";
 import { getParsedTables } from "../../shared/tableModel";
+import { BrowserCodeHighlighter, createBrowserCodeHighlighter } from "./browserCodeHighlighting";
+import { markdownComposing, markdownRenderTree } from "./markdownRenderTree";
 
 export const nativeCodeHighlightingFacet = Facet.define<boolean, boolean>({ combine: values => values.some(Boolean) });
 const refreshCodeHighlighting = StateEffect.define<null>();
@@ -13,23 +14,17 @@ export function codeTokenStyle(token: CodeHighlightToken): string {
     `font-weight:${token.fontStyle & 2 ? "bold" : "var(--mlrt-editor-font-weight, normal)"};text-decoration:${decoration}`;
 }
 
-/** Only ready, visible code text is sent to the host. The full Markdown context
- * stays in the authoritative VS Code document and its incremental token cache. */
-function visibleCodeRanges(view: EditorView): CodeHighlightRange[] {
-  const ranges: { from: number; to: number }[] = [];
-  const protectedRanges = getParsedTables(view.state.doc);
-  for (const window of view.visibleRanges) {
-    if (!syntaxTreeAvailable(view.state, window.to)) continue;
-    syntaxTree(view.state).iterate({ from: window.from, to: window.to, enter(reference) {
-      const node = reference.node;
-      if (node.name !== "FencedCode" && node.name !== "CodeBlock") return;
-      for (const child of node.getChildren("CodeText")) {
-        const from = Math.max(child.from, window.from), to = Math.min(child.to, window.to);
-        if (from < to && !protectedRanges.some(range => range.from < to && range.to > from)) ranges.push({ from, to });
-      }
-      return false;
-    } });
-  }
+function codeRanges(state: EditorState): { from: number; to: number }[] {
+  const ranges: { from: number; to: number }[] = [], protectedRanges = getParsedTables(state.doc);
+  markdownRenderTree(state).iterate({ enter(reference) {
+    const node = reference.node;
+    if (node.name !== "FencedCode" && node.name !== "CodeBlock") return;
+    for (const child of node.getChildren("CodeText")) {
+      const from = child.from, to = child.to;
+      if (from < to && !protectedRanges.some(range => range.from < to && range.to > from)) ranges.push({ from, to });
+    }
+    return false;
+  } });
   ranges.sort((a, b) => a.from - b.from || a.to - b.to);
   const merged: { from: number; to: number }[] = [];
   for (const range of ranges) {
@@ -37,74 +32,61 @@ function visibleCodeRanges(view: EditorView): CodeHighlightRange[] {
     if (last && last.to >= range.from) last.to = Math.max(last.to, range.to);
     else merged.push({ ...range });
   }
-  return merged.map(range => ({ ...range, text: view.state.doc.sliceString(range.from, range.to) }));
+  return merged;
 }
 
-export function createVscodeCodeHighlighting(post: (message: CodeHighlightRequest) => void) {
+export function createVscodeCodeHighlighting(post: (message: { type: "requestCodeHighlightingConfiguration"; themeName?: string }) => void) {
+  let engine: BrowserCodeHighlighter | undefined;
+  const highlight = (state: EditorState): DecorationSet => Decoration.set(
+    (engine?.highlight(state.doc, codeRanges(state)) ?? []).map(token => Decoration.mark({ class: "mlrt-vscode-code-token",
+      attributes: { style: codeTokenStyle(token) } }).range(token.from, token.to)), true);
+  const field = StateField.define<{ decorations: DecorationSet; composing: boolean }>({
+    create: state => ({ decorations: highlight(state), composing: false }),
+    update(value, transaction) {
+      const composing = markdownComposing(transaction, value.composing);
+      if (composing) return { composing, decorations: value.decorations.map(transaction.changes) };
+      if (transaction.docChanged || value.composing || markdownRenderTree(transaction.state) !== markdownRenderTree(transaction.startState) ||
+          transaction.effects.some(effect => effect.is(refreshCodeHighlighting)))
+        return { composing: false, decorations: highlight(transaction.state) };
+      return value;
+    },
+    provide: field => EditorView.decorations.from(field, value => value.decorations),
+  });
   class NativeCodeHighlighting {
-    decorations: DecorationSet = Decoration.none;
-    private id = 0;
-    private snapshot: Text | null = null;
-    private requested: readonly CodeHighlightRange[] = [];
-    private timer: ReturnType<typeof setTimeout> | undefined;
-    private tree: ReturnType<typeof syntaxTree>;
     private destroyed = false;
+    private generation = 0;
     private readonly themeObserver: MutationObserver;
     constructor(readonly view: EditorView) {
-      this.tree = syntaxTree(view.state);
-      this.themeObserver = new MutationObserver(() => { this.id++; this.schedule(); });
+      this.themeObserver = new MutationObserver(() => this.requestConfiguration());
       this.themeObserver.observe(view.dom.ownerDocument.body, { attributes: true,
         attributeFilter: ["data-vscode-theme-id", "data-vscode-theme-name"] });
-      this.schedule();
     }
-    schedule(): void {
-      if (this.timer) clearTimeout(this.timer);
-      this.timer = setTimeout(() => {
-        this.timer = undefined;
-        if (this.destroyed || this.view.compositionStarted || this.view.composing) return;
-        this.snapshot = this.view.state.doc;
-        this.requested = visibleCodeRanges(this.view);
-        this.id++;
-        if (this.requested.length) post({ type: "requestCodeHighlighting", id: this.id, ranges: this.requested,
-          themeName: this.view.dom.ownerDocument.body.dataset.vscodeThemeId ??
-            this.view.dom.ownerDocument.body.dataset.vscodeThemeName });
-      }, 40);
-    }
-    update(update: ViewUpdate): void {
-      const tree = syntaxTree(update.state);
-      if (update.docChanged) {
-        this.id++;
-        this.snapshot = null;
-        this.decorations = Decoration.none;
-      }
-      if (update.docChanged || update.viewportChanged || tree !== this.tree) this.schedule();
-      this.tree = tree;
+    requestConfiguration(): void {
+      if (!this.destroyed) post({ type: "requestCodeHighlightingConfiguration",
+        themeName: this.view.dom.ownerDocument.body.dataset.vscodeThemeId ?? this.view.dom.ownerDocument.body.dataset.vscodeThemeName });
     }
     accept(message: unknown): boolean {
       if (!message || typeof message !== "object" || !("type" in message)) return false;
-      if (message.type === "refreshCodeHighlighting") { this.id++; this.schedule(); return true; }
-      if (message.type !== "codeHighlighting") return false;
-      const response = message as CodeHighlightResponse;
-      if (this.destroyed || response.id !== this.id || this.snapshot !== this.view.state.doc || !Array.isArray(response.tokens)) return true;
-      const ranges: Range<Decoration>[] = [];
-      for (const token of response.tokens) {
-        if (!token || !Number.isInteger(token.from) || !Number.isInteger(token.to) || token.from >= token.to ||
-            !/^#[\da-f]{6}(?:[\da-f]{2})?$/iu.test(token.color) || !Number.isInteger(token.fontStyle) || token.fontStyle < 0 || token.fontStyle > 15 ||
-            !this.requested.some(range => token.from >= range.from && token.to <= range.to)) continue;
-        ranges.push(Decoration.mark({ class: "mlrt-vscode-code-token", attributes: { style: codeTokenStyle(token) } }).range(token.from, token.to));
-      }
-      this.decorations = Decoration.set(ranges, true);
-      this.view.dispatch({ effects: refreshCodeHighlighting.of(null) });
+      if (message.type === "refreshCodeHighlighting") { this.requestConfiguration(); return true; }
+      if (message.type !== "codeHighlightingConfiguration" || !("configuration" in message)) return false;
+      const generation = ++this.generation;
+      // Keep the current colors while a theme loads, then replace them in one
+      // update. Edits and scrolls continue using synchronous tokenization.
+      void createBrowserCodeHighlighter(message.configuration as CodeHighlightingConfiguration).then(next => {
+        if (this.destroyed || generation !== this.generation) { next.dispose(); return; }
+        engine?.dispose(); engine = next;
+        this.view.dispatch({ effects: refreshCodeHighlighting.of(null) });
+      }).catch(error => console.warn(`Code highlighting theme reload failed: ${String(error)}`));
       return true;
     }
-    destroy(): void { this.destroyed = true; this.themeObserver.disconnect(); if (this.timer) clearTimeout(this.timer); }
+    destroy(): void { this.destroyed = true; this.themeObserver.disconnect(); engine?.dispose(); engine = undefined; }
   }
-  const plugin = ViewPlugin.fromClass(NativeCodeHighlighting, {
-    decorations: value => value.decorations,
-    eventHandlers: { compositionend() { this.schedule(); return false; } },
-  });
+  const plugin = ViewPlugin.fromClass(NativeCodeHighlighting);
   return {
-    extension: [nativeCodeHighlightingFacet.of(true), plugin],
+    async initialize(initial?: InitialCodeHighlighting): Promise<void> {
+      if (initial) engine = await createBrowserCodeHighlighter(initial.configuration, initial.wasm);
+    },
+    get extension() { return [nativeCodeHighlightingFacet.of(!!engine), field, plugin]; },
     accept: (view: EditorView, message: unknown): boolean => view.plugin(plugin)?.accept(message) ?? false,
   };
 }

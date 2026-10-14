@@ -1,6 +1,6 @@
 import { markdown } from "@codemirror/lang-markdown";
-import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
-import { Annotation, Compartment, EditorSelection, Extension, Facet, Range } from "@codemirror/state";
+import { syntaxTreeAvailable } from "@codemirror/language";
+import { Annotation, Compartment, EditorSelection, EditorState, Extension, Facet, Range, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { getParsedTables } from "../../shared/tableModel";
 import { documentSelectionProjectionTransaction, getDocumentSelectionProjection } from "../documentSelectionState";
@@ -10,6 +10,7 @@ import { createMarkdownPresentationExtensions } from "./markdownPresentation";
 import { createMarkdownLivePreviewExtensions } from "./markdownLivePreview";
 import { createMarkdownListEditing } from "./markdownListEditing";
 import { createMarkdownSelectionWrapping } from "./markdownSelectionWrapping";
+import { createMarkdownCompositionTracking, markdownComposing, markdownRenderTreeField, markdownRenderTree as syntaxTree } from "./markdownRenderTree";
 import { createMarkdownBlockExtensions, markdownBlockLanguageExtensions, markdownCodeLanguages } from "./markdownBlocks";
 import {
   classifyMarkdownMarkers, findTaskAtCaret, markdownParserExtensions,
@@ -70,11 +71,12 @@ const editingOwnerTracker = ViewPlugin.fromClass(class {
 
 /** Recovery restores the original parser/input configuration as well as appearance. */
 export function createMarkdownRenderingExtensions(options: MarkdownRenderingOptions): Extension {
-  return [optionsFacet.of(options), editingOwnerTracker, createMarkdownSelectionWrapping(options.readOnly), options.enabled
+  return [optionsFacet.of(options), editingOwnerTracker, createMarkdownCompositionTracking(), createMarkdownSelectionWrapping(options.readOnly), options.enabled
     ? [createMarkdownListEditing(options.readOnly),
       markdown({ extensions: [markdownParserExtensions, markdownBlockLanguageExtensions], codeLanguages: markdownCodeLanguages }),
+      markdownRenderTreeField,
       createMarkdownPresentationExtensions(), createMarkdownBlockExtensions(),
-      createMarkdownLivePreviewExtensions(options.screenReaderOptimized, options.showHeadingMarkers), markerPlugin]
+      createMarkdownLivePreviewExtensions(options.screenReaderOptimized, options.showHeadingMarkers), markdownMarkerField, markerPlugin]
     : markdown()];
 }
 
@@ -172,11 +174,10 @@ interface MarkerSize { width: number; height: number }
  * Overlays occupy no inline space. This implementation deliberately avoids
  * atomic replacements and character-count estimates of the marker's advance. */
 class TaskControl extends WidgetType {
-  constructor(readonly marker: MarkdownTaskMarker, readonly size: MarkerSize, readonly disabled: boolean) { super(); }
+  constructor(readonly marker: MarkdownTaskMarker, readonly disabled: boolean) { super(); }
   eq(other: TaskControl): boolean {
     return this.marker.from === other.marker.from && this.marker.checked === other.marker.checked &&
-      this.marker.label === other.marker.label && this.size.width === other.size.width &&
-      this.size.height === other.size.height && this.disabled === other.disabled;
+      this.marker.label === other.marker.label && this.marker.source === other.marker.source && this.disabled === other.disabled;
   }
   toDOM(): HTMLElement {
     const element = document.createElement("span");
@@ -186,6 +187,10 @@ class TaskControl extends WidgetType {
     button.tabIndex = -1;
     button.className = "mlrt-markdown-task-control";
     button.setAttribute("role", "checkbox");
+    const sizer = document.createElement("span");
+    sizer.className = "mlrt-markdown-task-sizer";
+    sizer.setAttribute("aria-hidden", "true");
+    button.append(sizer);
     element.append(button);
     this.updateDOM(element);
     return element;
@@ -197,17 +202,89 @@ class TaskControl extends WidgetType {
     button.setAttribute("aria-checked", String(this.marker.checked));
     button.setAttribute("aria-disabled", String(this.disabled));
     button.title = "Toggle task · Command Palette: Toggle Task Checkbox at Caret";
-    button.style.width = `${this.size.width}px`;
-    button.style.height = `${this.size.height}px`;
+    button.firstElementChild!.setAttribute("data-source", this.marker.source);
+    button.style.width = "max-content";
+    button.style.height = "1lh";
     return true;
   }
   ignoreEvent(event: Event): boolean { return event.type === "selectionchange"; }
 }
 
+interface MarkerContext {
+  focused: boolean;
+  focusedFrom: number | null;
+  disabled: boolean;
+  projected: { from: number; to: number } | null;
+}
+const markerContextEffect = StateEffect.define<MarkerContext>();
+interface MarkerState extends MarkerContext {
+  markers: readonly MarkdownMarker[];
+  decorations: DecorationSet;
+  composing: boolean;
+}
+
+function markerDecorations(state: EditorState, value: Omit<MarkerState, "decorations">): DecorationSet {
+  const ranges: Range<Decoration>[] = [], taskLines = new Set(value.markers.filter(marker => marker.kind === "task")
+    .map(marker => state.doc.lineAt(marker.from).number));
+  if (state.facet(optionsFacet).screenReaderOptimized) return Decoration.none;
+  for (const marker of value.markers) {
+    const line = state.doc.lineAt(marker.from);
+    // Keep complex bidi source literal. The layout sizer uses the exact marker
+    // glyphs and inherited font; it never changes dimensions after mounting.
+    if (/[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff]/u.test(line.text) ||
+        value.projected && value.projected.from < marker.to && value.projected.to > marker.from ||
+        state.selection.ranges.some(range => range.empty
+          ? value.focused && range.head >= marker.from && range.head <= marker.to && value.focusedFrom !== marker.from
+          : range.from < marker.to && range.to > marker.from)) continue;
+    if (marker.kind === "bullet" && taskLines.has(line.number)) {
+      ranges.push(Decoration.mark({ class: "mlrt-markdown-marker mlrt-markdown-task-list-prefix", attributes: { "aria-hidden": "true" } }).range(marker.from, marker.to));
+      continue;
+    }
+    if (marker.kind === "rule") ranges.push(Decoration.line({ class: "mlrt-markdown-rule-row" }).range(line.from));
+    ranges.push(Decoration.mark({ class: `mlrt-markdown-marker mlrt-markdown-${marker.kind}`,
+      attributes: { "aria-hidden": "true" } }).range(marker.from, marker.to));
+    if (marker.kind === "task") {
+      if (marker.checked && marker.to < line.to) ranges.push(Decoration.mark({ class: "mlrt-markdown-task-complete" }).range(marker.to, line.to));
+      ranges.push(Decoration.widget({ widget: new TaskControl(marker, value.disabled || state.readOnly ||
+        state.facet(optionsFacet).readOnly), side: -1 }).range(marker.from));
+    }
+  }
+  return Decoration.set(ranges, true);
+}
+
+/** Source-ordered decorations exist before rows enter CodeMirror's height map,
+ * just as table decorations do. The view plugin only owns input and hit testing. */
+export const markdownMarkerField = StateField.define<MarkerState>({
+  create(state) {
+    const value = { markers: classifyMarkdownMarkers(state.doc, syntaxTree(state), getParsedTables(state.doc)),
+      focused: false, focusedFrom: null, disabled: false, projected: null, composing: false };
+    return { ...value, decorations: markerDecorations(state, value) };
+  },
+  update(value, transaction) {
+    let context: MarkerContext = value;
+    if (transaction.docChanged) context = { ...context,
+      focusedFrom: context.focusedFrom === null ? null : transaction.changes.mapPos(context.focusedFrom),
+      projected: context.projected && { from: transaction.changes.mapPos(context.projected.from), to: transaction.changes.mapPos(context.projected.to) } };
+    for (const effect of transaction.effects) if (effect.is(markerContextEffect)) context = effect.value;
+    const composing = markdownComposing(transaction, value.composing);
+    if (composing) return { ...value, ...context, composing, decorations: value.decorations.map(transaction.changes) };
+    const sourceChanged = transaction.docChanged || value.composing || syntaxTree(transaction.state) !== syntaxTree(transaction.startState);
+    if (!sourceChanged && !transaction.selection && context.focused === value.focused && context.focusedFrom === value.focusedFrom &&
+        context.disabled === value.disabled && context.projected?.from === value.projected?.from && context.projected?.to === value.projected?.to &&
+        transaction.state.readOnly === transaction.startState.readOnly &&
+        transaction.state.facet(optionsFacet) === transaction.startState.facet(optionsFacet)) return value;
+    const markers = sourceChanged ? classifyMarkdownMarkers(transaction.state.doc, syntaxTree(transaction.state), getParsedTables(transaction.state.doc)) : value.markers;
+    const next = { ...context, markers, composing: false };
+    return { ...next, decorations: markerDecorations(transaction.state, next) };
+  },
+  provide: field => EditorView.decorations.from(field, value => value.decorations),
+});
+
 class MarkerView {
   decorations: DecorationSet = Decoration.none;
   markers: MarkdownMarker[] = [];
   sizes = new Map<string, MarkerSize>();
+  private rejectedSizes = new Set<string>();
   tree: ReturnType<typeof syntaxTree>;
   focusedFrom: number | null = null;
   bookmark: number | null = null;
@@ -219,7 +296,6 @@ class MarkerView {
   private scheduled = false;
   private classifiedWindows = "";
   private metricSignature = "";
-  private focusedSize: MarkerSize | null = null;
   private observer: ResizeObserver | null = null;
   private metricObserver: MutationObserver | null = null;
   private pointer: { from: number; pointerId: number; x: number; y: number; owner: Element | null; selection: EditorSelection; dragged: boolean } | null = null;
@@ -275,6 +351,7 @@ class MarkerView {
           this.classifiedWindows !== this.readyWindows().map(range => `${range.from}:${range.to}`).join(",")) {
         this.tree = nextTree;
         this.sizes.clear();
+        this.rejectedSizes.clear();
         this.classify();
       }
       if (update.selectionSet && this.focusedFrom !== null && !this.ownsControlFocus()) {
@@ -294,7 +371,7 @@ class MarkerView {
   }
 
   private readyWindows(): readonly { from: number; to: number }[] {
-    return this.view.visibleRanges.filter(range => syntaxTreeAvailable(this.view.state, range.to));
+    return this.view.visibleRanges;
   }
 
   private key(marker: MarkdownMarker): string { return `${marker.from}:${marker.to}:${marker.source}`; }
@@ -314,35 +391,9 @@ class MarkerView {
   }
 
   private build(): void {
-    const ranges: Range<Decoration>[] = [];
-    let retainedFocus = false;
-    for (const marker of this.markers) {
-      const size = this.sizes.get(this.key(marker)) ??
-        (marker.kind === "task" && marker.from === this.focusedFrom ? this.focusedSize : null);
-      if (!size || this.literal(marker)) continue;
-      // A task's checkbox replaces the list bullet visually, as in Live Preview.
-      if (marker.kind === "bullet" && this.markers.some(task => task.kind === "task" &&
-          this.view.state.doc.lineAt(task.from).number === this.view.state.doc.lineAt(marker.from).number)) {
-        ranges.push(Decoration.mark({ class: "mlrt-markdown-marker mlrt-markdown-task-list-prefix", attributes: { "aria-hidden": "true" } }).range(marker.from, marker.to));
-        continue;
-      }
-      if (marker.kind === "rule") {
-        ranges.push(Decoration.line({ class: "mlrt-markdown-rule-row" }).range(this.view.state.doc.lineAt(marker.from).from));
-      }
-      const attributes: Record<string, string> = { "aria-hidden": "true" };
-      ranges.push(Decoration.mark({ class: `mlrt-markdown-marker mlrt-markdown-${marker.kind}`, attributes }).range(marker.from, marker.to));
-      if (marker.kind === "task") {
-        const textEnd = this.view.state.doc.lineAt(marker.from).to;
-        if (marker.checked && marker.to < textEnd) ranges.push(Decoration.mark({ class: "mlrt-markdown-task-complete" }).range(marker.to, textEnd));
-        ranges.push(Decoration.widget({ widget: new TaskControl(marker, size,
-          !canAct(this.view) || !this.sizes.has(this.key(marker))), side: -1 }).range(marker.from));
-        retainedFocus ||= this.focusedFrom === marker.from;
-        if (this.focusedFrom === marker.from) this.focusedSize = size;
-      }
-    }
-    // Measurement may not be ready for a requested focus yet.
-    if (this.focusedFrom !== null && !retainedFocus && !this.wantsFocus) this.releaseFocus();
-    this.decorations = Decoration.set(ranges, true);
+    if (this.focusedFrom !== null && !this.wantsFocus && !this.markers.some(marker =>
+        marker.kind === "task" && marker.from === this.focusedFrom && !this.literal(marker) && !this.rejectedSizes.has(this.key(marker))))
+      this.releaseFocus();
   }
 
   private invalidateMetrics(): void {
@@ -354,7 +405,10 @@ class MarkerView {
 
   refresh(): void {
     if (this.destroyed || this.failed) return;
-    this.view.dispatch({});
+    const projected = getDocumentSelectionProjection(this.view.dom.ownerDocument, this.view.state.selection.main);
+    this.view.dispatch({ effects: markerContextEffect.of({ focused: this.view.hasFocus, focusedFrom: this.focusedFrom,
+      disabled: !canAct(this.view), projected: projected && projected.anchor !== projected.head
+        ? { from: Math.min(projected.anchor, projected.head), to: Math.max(projected.anchor, projected.head) } : null }) });
     this.schedule();
   }
 
@@ -402,6 +456,10 @@ class MarkerView {
           return;
         }
         const { sizes, metricSignature } = measurement;
+        this.rejectedSizes = new Set(this.markers.filter(marker => {
+          const line = this.view.state.doc.lineAt(marker.from);
+          return line.from >= this.view.viewport.from && line.to <= this.view.viewport.to && !sizes.has(this.key(marker));
+        }).map(marker => this.key(marker)));
         this.metricSignature = metricSignature;
         const changed = sizes.size !== this.sizes.size || [...sizes].some(([key, size]) => {
           const previous = this.sizes.get(key);
@@ -410,12 +468,11 @@ class MarkerView {
         this.sizes = sizes;
         const focused = this.markers.find(marker => marker.from === this.focusedFrom && marker.kind === "task");
         const focusedGeometryRejected = !!focused && !sizes.has(this.key(focused));
-        if (focusedGeometryRejected) this.focusedSize = null;
         // CodeMirror runs measurement writes inside its update phase. Dispatch
         // only after that phase, then focus the freshly projected control.
         if (changed || this.wantsFocus || focusedGeometryRejected) queueMicrotask(() => {
           if (this.destroyed || this.failed || this.composing || this.view.compositionStarted) return;
-          this.view.dispatch({});
+          this.refresh();
           if (this.wantsFocus) {
             const control = this.view.dom.querySelector<HTMLButtonElement>(`[data-markdown-task-from="${this.focusedFrom}"]`);
             this.wantsFocus = false;
@@ -440,7 +497,6 @@ class MarkerView {
     this.focusedFrom = null;
     this.bookmark = null;
     this.wantsFocus = false;
-    this.focusedSize = null;
     if (owned) queueMicrotask(() => {
       const doc = this.view.dom.ownerDocument;
       if (!this.view.dom.isConnected || !doc.hasFocus() ||
@@ -515,7 +571,8 @@ class MarkerView {
 
   private controlGeometryReady(from: number): boolean {
     const marker = this.markers.find(candidate => candidate.kind === "task" && candidate.from === from);
-    return !!marker && this.sizes.has(this.key(marker));
+    return !!marker && !this.rejectedSizes.has(this.key(marker)) &&
+      !this.view.bidiSpans(this.view.state.doc.lineAt(marker.from)).some(span => span.level % 2);
   }
 
   compositionStart(): void {
@@ -560,7 +617,6 @@ class MarkerView {
 }
 
 const markerPlugin = ViewPlugin.fromClass(MarkerView, {
-  decorations: plugin => plugin.decorations,
   eventHandlers: {
     pointerdown(event) { return this.pointerDown(event); },
     pointermove(event) { return this.pointerMove(event); },
