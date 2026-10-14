@@ -132,14 +132,14 @@
 }
 /* A quiet frame around real YAML source; focusing never replaces/reflows it. */
 .cm-line.mlrt-markdown-block-frontmatter {
-  box-shadow: inset 1px 0 var(--vscode-widget-border, #80808040), inset -1px 0 var(--vscode-widget-border, #80808040), inset 0 1px var(--mlrt-markdown-block-top-edge), inset 0 -1px var(--mlrt-markdown-block-bottom-edge);
+  box-shadow: inset 1px 0 var(--mlrt-markdown-edge, #80808040), inset -1px 0 var(--mlrt-markdown-edge, #80808040), inset 0 1px var(--mlrt-markdown-block-top-edge), inset 0 -1px var(--mlrt-markdown-block-bottom-edge);
 }
 .cm-line.mlrt-markdown-block-frontmatter.mlrt-markdown-block-start::after {
   content: "Properties";
   position: absolute;
   right: 12px;
   top: 0;
-  color: var(--vscode-descriptionForeground, inherit);
+  color: var(--mlrt-markdown-punctuation, var(--vscode-descriptionForeground, inherit));
   font: inherit;
   font-size: 0.85em;
   pointer-events: none;
@@ -157,6 +157,90 @@
   color: var(--vscode-editorSuggestWidget-selectedForeground, var(--vscode-editor-foreground));
 }
 .cm-tooltip-autocomplete .cm-completionDetail { color: var(--vscode-descriptionForeground); font-style: normal; }
+
+/* Properties share the document's semantic palette: heading-colored names,
+   ordinary text values, and quiet structural punctuation. Code fences retain
+   their own syntax colors. These paint rules do not change source geometry. */
+.cm-content .mlrt-markdown-block-frontmatter .mlrt-markdown-block-token-variable,
+.cm-content .mlrt-markdown-block-frontmatter .mlrt-markdown-block-token-declaration {
+  color: var(--mlrt-markdown-heading-1, var(--mlrt-markdown-heading));
+}
+.cm-content .mlrt-markdown-block-frontmatter .mlrt-markdown-block-token-string {
+  color: var(--mlrt-markdown-foreground, var(--vscode-editor-foreground));
+}
+.cm-content .mlrt-markdown-block-frontmatter .mlrt-markdown-block-token-constant {
+  color: var(--mlrt-markdown-inline-code-foreground, var(--mlrt-markdown-foreground));
+}
+.cm-content .mlrt-markdown-block-frontmatter .mlrt-markdown-block-delimiter,
+.cm-content .mlrt-markdown-block-frontmatter .mlrt-markdown-block-token-punctuation,
+.cm-content .mlrt-markdown-block-frontmatter .mlrt-markdown-block-token-comment {
+  color: var(--mlrt-markdown-punctuation, var(--vscode-descriptionForeground));
+}
+
+.cm-editor .cm-tooltip.cm-tooltip-autocomplete.mlrt-property-suggestions {
+  /* Match the clipboard menu's compact, neutral workbench styling. */
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background, #252526));
+  color: var(--vscode-menu-foreground, var(--vscode-foreground, #cccccc));
+  border-color: var(--vscode-menu-border, var(--vscode-editorWidget-border, #454545));
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 2px 9px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.4));
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: 12px;
+  user-select: none;
+}
+.cm-editor .cm-tooltip.mlrt-property-suggestions > ul {
+  box-sizing: border-box;
+  min-width: min(280px, calc(100vw - 24px));
+  max-width: min(360px, calc(100vw - 24px));
+  max-height: min(288px, 60vh);
+  padding: 4px;
+  font: inherit;
+}
+.cm-editor .cm-tooltip.mlrt-property-suggestions > ul > li.mlrt-property-option {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  min-height: 24px;
+  box-sizing: border-box;
+  padding: 2px 9px;
+  border-radius: 3px;
+  line-height: 20px;
+  color: inherit;
+}
+.cm-editor .mlrt-property-suggestions .cm-completionLabel {
+  font: inherit;
+  font-weight: 400;
+  color: inherit;
+}
+.cm-editor .mlrt-property-suggestions .cm-completionDetail {
+  margin-left: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: 11px;
+  font-weight: 400;
+  font-style: normal;
+  color: var(--vscode-descriptionForeground, inherit);
+}
+.cm-editor .mlrt-property-suggestions > ul > li.mlrt-property-option:hover,
+.cm-editor .mlrt-property-suggestions > ul > li.mlrt-property-option[aria-selected] {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground, rgba(90, 93, 94, 0.31)));
+  color: var(--vscode-menu-selectionForeground, inherit);
+}
+.cm-editor .mlrt-property-suggestions li:hover .cm-completionDetail,
+.cm-editor .mlrt-property-suggestions li[aria-selected] .cm-completionDetail {
+  color: inherit;
+}
+@media (forced-colors: active) {
+  .cm-editor .cm-tooltip.mlrt-property-suggestions { background: Canvas; border-color: CanvasText; }
+  .cm-editor .mlrt-property-suggestions .cm-completionLabel,
+  .cm-editor .mlrt-property-suggestions .cm-completionDetail { color: CanvasText; }
+  .cm-editor .mlrt-property-suggestions > ul > li.mlrt-property-option[aria-selected] { background: Highlight; color: HighlightText; }
+  .cm-editor .mlrt-property-suggestions li[aria-selected] .cm-completionLabel,
+  .cm-editor .mlrt-property-suggestions li[aria-selected] .cm-completionDetail { color: HighlightText; }
+}
 .cm-diagnostic { font-family: var(--vscode-font-family, sans-serif); }
 /* Native underlines work under the webview CSP (the lint package's default
    squiggles use SVG data images, which this editor intentionally disallows). */
