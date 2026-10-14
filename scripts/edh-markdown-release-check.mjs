@@ -15,6 +15,8 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const qa = path.join(repo, "qa");
 const codeOnly = process.argv.includes("--code-only");
 const propertiesOnly = process.argv.includes("--properties-only");
+const theme = process.argv.find(arg => arg.startsWith("--theme="))?.slice(8) || "Default Dark Modern";
+const themeSuffix = theme === "Default Dark Modern" ? "" : "-" + theme.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 const scrollOnly = process.argv.includes("--scroll-only");
 const fenceNavigationOnly = process.argv.includes("--fence-navigation-only");
 const livePreviewOnly = fenceNavigationOnly || process.argv.includes("--live-preview-only");
@@ -60,7 +62,7 @@ const text = [
 const settings = { "markdownLiveRenderTables.debug": true,
   "editor.fontFamily": "Consolas, 'Courier New', monospace", "editor.fontSize": largeListMetrics ? 20 : 14,
   ...(largeListMetrics ? { "editor.lineHeight": 30, "editor.letterSpacing": 1 } : {}),
-  "editor.wordWrap": "on", "workbench.startupEditor": "none", "workbench.colorTheme": "Default Dark Modern" };
+  "editor.wordWrap": "on", "workbench.startupEditor": "none", "workbench.colorTheme": theme };
 await Promise.all([mkdir(qa, { recursive: true }), mkdir(user, { recursive: true }), mkdir(extensions, { recursive: true })]);
 await writeFile(fixture, text);
 await writeFile(path.join(profile, "LinkedTarget.md"), "# Safe local target\n");
@@ -154,7 +156,7 @@ async function reopenFixture() {
 }
 async function screenshot(name) {
   const shot = await wb.send("Page.captureScreenshot", { format: "png" });
-  await writeFile(path.join(qa, `edh-markdown-release-${name}.png`), Buffer.from(shot.data, "base64"));
+  await writeFile(path.join(qa, `edh-markdown-release-${name}${themeSuffix}.png`), Buffer.from(shot.data, "base64"));
 }
 async function select(position) {
   await liveEval(`view.dispatch({selection:{anchor:${position}},scrollIntoView:true});view.focus();return true;`);
@@ -486,8 +488,9 @@ finally {
   report.launchOutput = launchOutput;
   report.passed = checks.length > 0 && checks.every(check => check.pass) && !(report.console?.length);
   const reportName=`edh-markdown-release-results${propertiesOnly ? "-properties" : listsOnly ? largeListMetrics ? "-lists-20px" : "-lists" : scrollOnly ? "-scroll" : fenceNavigationOnly ? "-fence-navigation" : livePreviewOnly ? "-live-preview" : nestedGuideOnly ? "-nested-guides" : codeOnly ? "-code-diagnostic" : measureDiagnostic ? "-measure-diagnostic" : paintOnly ? "-paint" : ""}.json`;
-  await writeFile(path.join(qa, reportName), JSON.stringify(report, null, 2));
+  const savedReportName = reportName.replace(/\.json$/, `${themeSuffix}.json`);
+  await writeFile(path.join(qa, savedReportName), JSON.stringify(report, null, 2));
   for (const client of clients) client.socket.close(); child.kill();
-  console.log(`Saved qa/${reportName}; ${checks.filter(check => check.pass).length}/${checks.length} checks passed.`);
+  console.log(`Saved qa/${savedReportName}; ${checks.filter(check => check.pass).length}/${checks.length} checks passed.`);
   if (!report.passed) process.exitCode = 1;
 }

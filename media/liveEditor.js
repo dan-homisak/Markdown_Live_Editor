@@ -41764,13 +41764,13 @@ ${end.comment}` : end.comment;
     return literal2;
   }
   var suggestions = [
-    { key: "tags", detail: "list of tags", list: true },
-    { key: "aliases", detail: "alternative names", list: true },
-    { key: "title", detail: "text" },
-    { key: "description", detail: "text" },
-    { key: "created", detail: "date" },
-    { key: "updated", detail: "date" },
-    { key: "cssclasses", detail: "list of classes", list: true }
+    { key: "tags", detail: "List of tags", list: true },
+    { key: "aliases", detail: "Alternative note names", list: true },
+    { key: "title", detail: "Note title" },
+    { key: "description", detail: "Short summary" },
+    { key: "created", detail: "Creation date" },
+    { key: "updated", detail: "Last edited date" },
+    { key: "cssclasses", detail: "CSS class names", list: true }
   ];
   function propertyCompletions(context) {
     const { state, pos } = context, bounds = propertyBounds(state.doc), line = state.doc.lineAt(pos);
@@ -41916,7 +41916,15 @@ ${suffix}`;
   function createMarkdownProperties(readOnly2 = false) {
     return [linter((view2) => propertyDiagnostics(view2.state.doc), { delay: 250 }), readOnly2 ? [] : [
       propertyInputFilter,
-      autocompletion({ override: [propertyCompletions], defaultKeymap: false, icons: false, activateOnTypingDelay: 80, interactionDelay: 0 }),
+      autocompletion({
+        override: [propertyCompletions],
+        defaultKeymap: false,
+        icons: false,
+        tooltipClass: () => "mlrt-property-suggestions",
+        optionClass: () => "mlrt-property-option",
+        activateOnTypingDelay: 80,
+        interactionDelay: 0
+      }),
       Prec.highest(keymap.of(completionKeymap)),
       Prec.high(keymap.of([
         { key: "Enter", run(view2) {

@@ -68,13 +68,13 @@ function literalLine(doc: Text, bounds: MarkdownFrontmatterBounds, from: number)
 }
 
 const suggestions = [
-  { key: "tags", detail: "list of tags", list: true },
-  { key: "aliases", detail: "alternative names", list: true },
-  { key: "title", detail: "text" },
-  { key: "description", detail: "text" },
-  { key: "created", detail: "date" },
-  { key: "updated", detail: "date" },
-  { key: "cssclasses", detail: "list of classes", list: true },
+  { key: "tags", detail: "List of tags", list: true },
+  { key: "aliases", detail: "Alternative note names", list: true },
+  { key: "title", detail: "Note title" },
+  { key: "description", detail: "Short summary" },
+  { key: "created", detail: "Creation date" },
+  { key: "updated", detail: "Last edited date" },
+  { key: "cssclasses", detail: "CSS class names", list: true },
 ];
 
 export function propertyCompletions(context: CompletionContext): CompletionResult | null {
@@ -217,7 +217,9 @@ class PropertyEditing {
 export function createMarkdownProperties(readOnly = false): Extension {
   return [linter(view => propertyDiagnostics(view.state.doc), { delay: 250 }), readOnly ? [] : [
     propertyInputFilter,
-    autocompletion({ override: [propertyCompletions], defaultKeymap: false, icons: false, activateOnTypingDelay: 80, interactionDelay: 0 }),
+    autocompletion({ override: [propertyCompletions], defaultKeymap: false, icons: false,
+      tooltipClass: () => "mlrt-property-suggestions", optionClass: () => "mlrt-property-option",
+      activateOnTypingDelay: 80, interactionDelay: 0 }),
     Prec.highest(keymap.of(completionKeymap)),
     Prec.high(keymap.of([
       { key: "Enter", run(view) { if (view.composing || view.compositionStarted) return false; const plan = planPropertyEnter(view.state); if (!plan) return false; view.dispatch(plan); return true; } },
