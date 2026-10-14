@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { createOnigScanner, createOnigString, loadWASM } from "vscode-oniguruma";
-import { IGrammar, IRawTheme, parseRawGrammar, Registry, StateStack } from "vscode-textmate";
-import { CodeHighlightRange, CodeHighlightToken } from "../shared/codeHighlighting";
+import { IGrammar, IRawGrammar, IRawTheme, parseRawGrammar, Registry, StateStack } from "vscode-textmate";
+import { CodeHighlightingConfiguration, CodeHighlightRange, CodeHighlightToken } from "../shared/codeHighlighting";
 
 export interface GrammarFile {
   readonly scopeName: string;
@@ -24,7 +24,10 @@ export class TextmateCodeHighlighter {
   private readonly registry: Registry;
   private readonly grammar: Promise<IGrammar | null>;
   private lines: CachedLine[] = [];
-  constructor(files: readonly GrammarFile[], theme: IRawTheme, wasmPath: string) {
+  private readonly loadedGrammars = new Map<string, IRawGrammar>();
+  private readonly injections: Record<string, readonly string[]> = {};
+  private readonly scopeName: string;
+  constructor(files: readonly GrammarFile[], private readonly theme: IRawTheme, wasmPath: string) {
     const byScope = new Map(files.map(file => [file.scopeName, file]));
     oniguruma ??= readFile(wasmPath).then(bytes => loadWASM(bytes));
     this.registry = new Registry({
@@ -32,13 +35,22 @@ export class TextmateCodeHighlighter {
       onigLib: oniguruma.then(() => ({ createOnigScanner, createOnigString })),
       loadGrammar: async scope => {
         const file = byScope.get(scope);
-        return file ? parseRawGrammar(await readFile(file.path, "utf8"), file.path) : null;
+        if (!file) return null;
+        const grammar = parseRawGrammar(await readFile(file.path, "utf8"), file.path);
+        this.loadedGrammars.set(scope, grammar);
+        return grammar;
       },
-      getInjections: scope => files.filter(file => file.injectTo?.some(target =>
+      getInjections: scope => this.injections[scope] = files.filter(file => file.injectTo?.some(target =>
         scope === target || scope.startsWith(`${target}.`))).map(file => file.scopeName),
     });
     const markdown = files.find(file => file.language === "markdown");
+    this.scopeName = markdown?.scopeName ?? "";
     this.grammar = markdown ? this.registry.loadGrammar(markdown.scopeName) : Promise.resolve(null);
+  }
+
+  async configuration(): Promise<CodeHighlightingConfiguration> {
+    await this.grammar;
+    return { scopeName: this.scopeName, grammars: [...this.loadedGrammars.values()], injections: this.injections, theme: this.theme };
   }
 
   async highlight(source: string, ranges: readonly CodeHighlightRange[]): Promise<CodeHighlightToken[]> {

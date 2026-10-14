@@ -2,14 +2,28 @@ import assert from "node:assert/strict";
 import { markdown } from "@codemirror/lang-markdown";
 import { Compartment, EditorSelection, EditorState, Text } from "@codemirror/state";
 import { markdownParserExtensions, markdownRenderingParser } from "../editor/markdown/markdownSyntax";
-import { markdownFenceEntry, classifyMarkdownPreview, createMarkdownLivePreviewExtensions, markdownPreviewField, previewOwnerActive, frontmatterPropertyRows, codeBlockText, PreviewPart } from "../editor/markdown/markdownLivePreview";
+import { markdownFenceEntry, classifyMarkdownPreview, classifyMarkdownPreviewLayout, createMarkdownLivePreviewExtensions, markdownPreviewField, previewOwnerActive, frontmatterPropertyRows, codeBlockText, PreviewPart } from "../editor/markdown/markdownLivePreview";
 import { markdownListLine, planMarkdownListEdit } from "../editor/markdown/markdownListEditing";
 import { getParsedTables } from "../shared/tableModel";
+import { markdownRenderTreeField, markdownRenderTree } from "../editor/markdown/markdownRenderTree";
 
 const text = (source: string): Text => Text.of(source.split("\n"));
 const project = (source: string, showHeadingMarkers = true) => { const doc = text(source); return classifyMarkdownPreview(doc, markdownRenderingParser.parse(source), getParsedTables(doc), [{ from: 0, to: doc.length }], showHeadingMarkers); };
 const source = '# Header\n\n**bold *nested*** ` code ` [label](file.md "title") [[Note|Alias]]\n\n```js\nconst n = 1;\n```\n\n> [!INFO]- Title\n> body\n';
 const parts = project(source);
+const distantSource = "Resting caret.\n\n" + "An unchanged paragraph.\n\n".repeat(1500) + "**Distant bold**\n\n```js\nconst distantValue = 1;\n```\n";
+const distantState = EditorState.create({ doc: distantSource, extensions: [
+  markdown({ extensions: markdownParserExtensions }), markdownRenderTreeField, createMarkdownLivePreviewExtensions(false),
+] });
+assert.equal(markdownRenderTree(distantState).length, distantSource.length, "full structure is ready before a distant row mounts");
+assert(distantState.field(markdownPreviewField).parts.some(part => part.kind === "hide" && part.from === distantSource.indexOf("**Distant")),
+  "distant syntax hiding is declared before any viewport discovery");
+const openerEdit = distantState.update({ changes: { from: 0, to: 0, insert: "```js\n" } }).state;
+assert(!openerEdit.field(markdownPreviewField).parts.some(part => part.kind === "hide" && part.from === openerEdit.doc.toString().indexOf("**Distant")),
+  "an offscreen opener edit immediately changes distant prose to literal code");
+const restoredState = openerEdit.update({ changes: { from: 0, to: 6, insert: "" } }).state;
+assert(restoredState.field(markdownPreviewField).parts.some(part => part.kind === "hide" && part.from === distantSource.indexOf("**Distant")),
+  "undo restores distant preview without a warm viewport");
 for (const syntax of ["**", "`", '[', '](file.md "title")', '[[Note|', ']]']) {
   assert(parts.some(part => part.kind === "hide" && source.slice(part.from, part.to) === syntax), syntax);
 }
@@ -77,6 +91,19 @@ for (const [source, expected] of [
 const huge = '```\n'+'line\n'.repeat(10000)+'```';
 const hugeDoc = text(huge), window = {from:hugeDoc.line(7000).from,to:hugeDoc.line(7005).to};
 assert.equal(classifyMarkdownPreview(hugeDoc,markdownRenderingParser.parse(huge),[],[window]).length,0,'offscreen code toolbar does not copy or retain a full block');
+assert.equal(classifyMarkdownPreviewLayout(hugeDoc,markdownRenderingParser.parse(huge),[]).length,0,'fenced code preserves source height without global code marks');
+const longIndented = 'Resting caret.\n\n' + '    const value = "code";\n'.repeat(10000);
+const indentedDoc = text(longIndented);
+const layout = classifyMarkdownPreviewLayout(indentedDoc, markdownRenderingParser.parse(longIndented), []);
+assert.equal(layout.length,1,'one stable layout descriptor for a long indented code block');
+assert.equal(layout[0].kind,'code-header'); assert.equal(layout[0].block,true);
+assert.equal(layout[0].content,undefined,'offscreen geometry never retains the code body');
+assert(layout[0].to-layout[0].from<100,'only the opening row belongs to the toolbar');
+const layoutSource = yaml+'\n\nTitle\n=====\n\n> [!INFO]- Folded\n> body\n\n'+table;
+const layoutDoc = text(layoutSource);
+const structural = classifyMarkdownPreviewLayout(layoutDoc,markdownRenderingParser.parse(layoutSource),getParsedTables(layoutDoc));
+assert.deepEqual(structural.map(part=>part.kind),['properties','hide','callout'],'all height-changing owners are declared outside viewport discovery');
+assert(structural.every(part=>part.to<=layoutSource.indexOf(table)),'tables retain exclusive layout ownership');
 
 function state(source: string, position = source.length): EditorState {
   return EditorState.create({ doc: source, selection: { anchor: position }, extensions: markdown({ extensions: markdownParserExtensions }) });

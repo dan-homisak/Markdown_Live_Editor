@@ -146,51 +146,35 @@ const themeColorNames = ["editor.background", "editor.foreground", "textLink.for
   "contrastBorder", "focusBorder", "contrastActiveBorder", "checkbox.background", "checkbox.foreground",
   "checkbox.border", "editorInfo.foreground", "testing.iconPassed", "editorWarning.foreground", "editorError.foreground"];
 
+
 export class MarkdownThemeAdapter {
-  private destroyed = false;
-  private scheduled = false;
-  private pending = true;
-  private observer: MutationObserver | null = null;
+  private readonly observer: MutationObserver;
   private readonly applied = new Map<string, string>();
   constructor(private readonly view: EditorView) {
-    this.observer = new MutationObserver(() => this.schedule());
+    this.observer = new MutationObserver(() => this.apply());
     const document = view.dom.ownerDocument;
     this.observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
     this.observer.observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
-    this.schedule();
+    // Theme roles affect paint, not measured geometry. Resolve them before the
+    // first row mounts instead of recoloring an already visible editor later.
+    this.apply();
   }
-  private schedule(): void {
-    this.pending = true;
-    if (this.destroyed || this.scheduled || !this.view.inView) return;
-    this.scheduled = true;
-    this.pending = false;
-    this.view.requestMeasure({
-      key: this,
-      read: () => {
-        if (this.destroyed) return null;
-        const document = this.view.dom.ownerDocument;
-        const style = document.defaultView!.getComputedStyle(this.view.dom);
-        const classes = document.body.classList;
-        const colors = Object.fromEntries(themeColorNames.map(name =>
-          [name, style.getPropertyValue(`--vscode-${name.replace(/\./g, "-")}`).trim()]));
-        return resolveMarkdownTheme({ colors, dark: !classes.contains("vscode-light"),
-          highContrast: classes.contains("vscode-high-contrast") || classes.contains("vscode-high-contrast-light") });
-      },
-      write: roles => {
-        this.scheduled = false;
-        if (this.destroyed || !roles) return;
-        for (const [name, value] of Object.entries(roles)) {
-          if (this.applied.get(name) === value) continue;
-          this.view.dom.style.setProperty(name, value);
-          this.applied.set(name, value);
-        }
-      },
-    });
+  private apply(): void {
+    const document = this.view.dom.ownerDocument;
+    const style = document.defaultView!.getComputedStyle(this.view.dom);
+    const classes = document.body.classList;
+    const colors = Object.fromEntries(themeColorNames.map(name =>
+      [name, style.getPropertyValue("--vscode-" + name.replace(/\./g, "-")).trim()]));
+    const roles = resolveMarkdownTheme({ colors, dark: !classes.contains("vscode-light"),
+      highContrast: classes.contains("vscode-high-contrast") || classes.contains("vscode-high-contrast-light") });
+    for (const [name, value] of Object.entries(roles)) {
+      if (this.applied.get(name) === value) continue;
+      this.view.dom.style.setProperty(name, value);
+      this.applied.set(name, value);
+    }
   }
-  resume(): void { if (this.pending) this.schedule(); }
   destroy(): void {
-    this.destroyed = true;
-    this.observer?.disconnect(); this.observer = null;
+    this.observer.disconnect();
     for (const [name, value] of this.applied) {
       if (this.view.dom.style.getPropertyValue(name) === value) this.view.dom.style.removeProperty(name);
     }

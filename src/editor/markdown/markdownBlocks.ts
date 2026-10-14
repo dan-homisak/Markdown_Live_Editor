@@ -1,10 +1,10 @@
-import { Language, StreamLanguage, StreamParser, syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
+import { Language, StreamLanguage, StreamParser } from "@codemirror/language";
 import { javascriptLanguage, typescriptLanguage } from "@codemirror/lang-javascript";
 import { jsonLanguage } from "@codemirror/lang-json";
 import { pythonLanguage } from "@codemirror/lang-python";
 import { yamlLanguage } from "@codemirror/lang-yaml";
-import { Extension, Range, StateEffect, Text } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import { EditorState, Extension, Range, StateField, Text } from "@codemirror/state";
+import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { parseMixed, SyntaxNode, Tree } from "@lezer/common";
 import { highlightTree, styleTags, Tag, tagHighlighter, tags } from "@lezer/highlight";
 import { MarkdownExtension } from "@lezer/markdown";
@@ -12,6 +12,7 @@ import { getParsedTables } from "../../shared/tableModel";
 import type { MarkdownRange } from "./markdownSyntax";
 import { markdownAlertForQuote, MarkdownAlertType } from "./markdownBlockSyntax";
 import { nativeCodeHighlightingFacet } from "./vscodeCodeHighlighting";
+import { markdownChangedWindows, markdownComposing, markdownRenderTree as syntaxTree, updateMarkdownDecorations } from "./markdownRenderTree";
 
 // legacy-modes publishes a CJS runtime with ESM-only declaration identity.
 // Use its documented require export with this editor's StreamParser type.
@@ -227,77 +228,31 @@ export function classifyMarkdownBlocks(
   };
 }
 
-const refreshBlocks = StateEffect.define<null>();
-class MarkdownBlockView {
-  decorations: DecorationSet = Decoration.none;
-  private tree: Tree | null = null;
-  private windows = "";
-  private composing = false;
-  private destroyed = false;
-  private failed = false;
-  private dirty = true;
-  private readonly visibilityChanged = (): void => {
-    if (!this.view.dom.ownerDocument.hidden) this.refresh();
-  };
-  constructor(readonly view: EditorView) {
-    view.dom.ownerDocument.addEventListener("visibilitychange", this.visibilityChanged);
-    this.rebuild();
-    queueMicrotask(() => this.refresh());
-  }
-  private refresh(): void {
-    if (this.destroyed || this.failed || this.view.dom.ownerDocument.hidden) return;
-    this.view.dispatch({ effects: refreshBlocks.of(null) });
-  }
-  update(update: ViewUpdate): void {
-    if (this.failed) return;
-    if (this.composing || this.view.compositionStarted || this.view.dom.ownerDocument.hidden) {
-      this.decorations = this.decorations.map(update.changes);
-      this.dirty ||= update.docChanged || update.viewportChanged;
-      return;
-    }
-    const windows = this.readyWindows().map(range => `${range.from}:${range.to}`).join(",");
-    if (this.dirty || update.docChanged || update.viewportChanged ||
-        this.tree !== syntaxTree(update.state) || this.windows !== windows ||
-        update.transactions.some(transaction => transaction.effects.some(effect => effect.is(refreshBlocks)))) {
-      this.rebuild();
-    }
-  }
-  private readyWindows(): readonly MarkdownRange[] {
-    return this.view.visibleRanges.filter(range => syntaxTreeAvailable(this.view.state, range.to));
-  }
-  private rebuild(): void {
-    if (this.destroyed || this.failed || this.view.dom.ownerDocument.hidden) return;
-    try {
-      this.tree = syntaxTree(this.view.state);
-      const windows = this.readyWindows();
-      this.windows = windows.map(range => `${range.from}:${range.to}`).join(",");
-      const projection = classifyMarkdownBlocks(this.view.state.doc, this.tree, getParsedTables(this.view.state.doc), windows,
-        this.view.state.facet(nativeCodeHighlightingFacet));
-      const ranges: Range<Decoration>[] = projection.rows.map(row => Decoration.line({ class: row.classes }).range(row.from));
-      ranges.push(...projection.marks.map(mark => Decoration.mark({ class: mark.classes }).range(mark.from, mark.to)));
-      this.decorations = Decoration.set(ranges, true);
-      this.dirty = false;
-    } catch {
-      this.failed = true;
-      this.decorations = Decoration.none;
-      console.warn("Markdown block rendering disabled for this view after a presentation failure.");
-    }
-  }
-  compositionStart(): void { this.composing = true; }
-  compositionEnd(): void { this.composing = false; this.dirty = true; queueMicrotask(() => this.refresh()); }
-  destroy(): void {
-    this.destroyed = true;
-    this.view.dom.ownerDocument.removeEventListener("visibilitychange", this.visibilityChanged);
-  }
+
+interface BlockState { decorations: DecorationSet; composing: boolean }
+function blockDecorations(state: EditorState, windows: readonly MarkdownRange[] = [{ from: 0, to: state.doc.length }]): BlockState {
+  const projection = classifyMarkdownBlocks(state.doc, syntaxTree(state), getParsedTables(state.doc),
+    windows, state.facet(nativeCodeHighlightingFacet));
+  const ranges: Range<Decoration>[] = projection.rows.map(row => Decoration.line({ class: row.classes }).range(row.from));
+  ranges.push(...projection.marks.map(mark => Decoration.mark({ class: mark.classes }).range(mark.from, mark.to)));
+  return { decorations: Decoration.set(ranges, true), composing: false };
 }
 
-const blockPlugin = ViewPlugin.fromClass(MarkdownBlockView, {
-  decorations: plugin => plugin.decorations,
-  eventHandlers: {
-    compositionstart() { this.compositionStart(); return false; },
-    compositionend() { this.compositionEnd(); return false; },
+export const markdownBlockField = StateField.define<BlockState>({
+  create: blockDecorations,
+  update(value, transaction) {
+    const composing = markdownComposing(transaction, value.composing);
+    if (composing) return { composing, decorations: value.decorations.map(transaction.changes) };
+    if (transaction.docChanged && !value.composing) {
+      const windows = markdownChangedWindows(transaction), changed = blockDecorations(transaction.state, windows);
+      return { composing: false, decorations: updateMarkdownDecorations(value.decorations, transaction, changed.decorations, windows) };
+    }
+    if (transaction.docChanged || value.composing || syntaxTree(transaction.state) !== syntaxTree(transaction.startState) ||
+        transaction.state.facet(nativeCodeHighlightingFacet) !== transaction.startState.facet(nativeCodeHighlightingFacet))
+      return blockDecorations(transaction.state);
+    return value;
   },
+  provide: field => EditorView.decorations.from(field, value => value.decorations),
 });
 
-/** Installed only inside the enabled Markdown rendering compartment. */
-export function createMarkdownBlockExtensions(): Extension { return blockPlugin; }
+export function createMarkdownBlockExtensions(): Extension { return markdownBlockField; }

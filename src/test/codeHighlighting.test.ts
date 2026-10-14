@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { TextmateCodeHighlighter } from "../highlighting/textmateHighlighting";
-import { codeTokenStyle } from "../editor/markdown/vscodeCodeHighlighting";
+import { codeTokenStyle, createVscodeCodeHighlighting } from "../editor/markdown/vscodeCodeHighlighting";
 import { CodeHighlightRange, isCodeHighlightRequest } from "../shared/codeHighlighting";
+import { EditorState, Text } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { createMarkdownRenderingExtensions } from "../editor/markdown/markdownRendering";
+import { createBrowserCodeHighlighter } from "../editor/markdown/browserCodeHighlighting";
 
 function range(source: string, needle: string): CodeHighlightRange {
   const from = source.indexOf(needle);
@@ -55,6 +59,35 @@ async function main(): Promise<void> {
     const prose = range(source, "const prose");
     assert.equal((await highlighter.highlight(source, [prose]))[0].color, "#111111", "embedded language stops at the closing fence");
     assert.deepEqual(await highlighter.highlight(source, []), []);
+    const browser = await createBrowserCodeHighlighter(await highlighter.configuration(),
+      (await readFile(require.resolve("vscode-oniguruma/release/onig.wasm"))).toString("base64"));
+    try {
+      for (const snapshot of [source, changed, unknown, source]) {
+        const requested = [range(snapshot, "const value"), range(snapshot, "const commented = 1;"), range(snapshot, "const after")];
+        const actual = browser.highlight(Text.of(snapshot.split("\n")), requested);
+        assert.deepEqual(actual, await highlighter.highlight(snapshot, requested),
+          "synchronous browser tokens match host scopes on first visit, opener edits, language changes and undo");
+      }
+    } finally { browser.dispose(); }
+    const native = createVscodeCodeHighlighting(() => { throw new Error("Rendering must not request viewport tokens"); });
+    await native.initialize({ configuration: await highlighter.configuration(),
+      wasm: (await readFile(require.resolve("vscode-oniguruma/release/onig.wasm"))).toString("base64") });
+    const distant = "Resting caret.\n\n" + "Prose without code.\n\n".repeat(900) + source;
+    let state = EditorState.create({ doc: distant, extensions: [
+      createMarkdownRenderingExtensions({ enabled: true, screenReaderOptimized: false, readOnly: false }), native.extension,
+    ] });
+    const colorAt = (snapshot: EditorState, needle: string): string | undefined => {
+      const position = snapshot.doc.toString().indexOf(needle);
+      let color: string | undefined;
+      for (const set of snapshot.facet(EditorView.decorations)) if (typeof set !== "function") set.between(position, position + 1, (_from, _to, decoration) => {
+        if (decoration.spec.class === "mlrt-vscode-code-token") color = decoration.spec.attributes.style;
+      });
+      return color;
+    };
+    assert.match(colorAt(state, "const commented")!, /#008000/, "distant code has final tokens in document state before a viewport exists");
+    const start = distant.indexOf("/* offscreen opener");
+    state = state.update({ changes: { from: start, to: start + 2, insert: "  " } }).state;
+    assert.match(colorAt(state, "const commented")!, /#AA00AA/, "editing an offscreen opener changes downstream tokens in the same transaction");
     const style = codeTokenStyle({ from: 0, to: 1, color: "#A31515", fontStyle: 15 });
     assert.match(style, /font-style:italic/); assert.match(style, /font-weight:bold/);
     assert.match(style, /text-decoration:underline line-through/);

@@ -2,7 +2,7 @@ import * as fs from "fs";
 import { randomUUID } from "crypto";
 import * as vscode from "vscode";
 import { VscodeCodeHighlighting } from "./highlighting/vscodeCodeHighlighting";
-import { isCodeHighlightRequest } from "./shared/codeHighlighting";
+import { InitialCodeHighlighting, isCodeHighlightRequest } from "./shared/codeHighlighting";
 import {
   mapNormalizedDocumentChangesToHost,
   normalizeDocumentText,
@@ -151,6 +151,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
     disposables.push(codeHighlighting);
     let highlightQueue: Promise<void> = Promise.resolve();
     let latestHighlightRequest = 0;
+    let highlightConfigurationRequest = 0;
     let disposed = false;
     let readOnlyQueryGeneration = 0;
     // Remote/filesystem permission queries can outlive an editor opened and
@@ -555,6 +556,16 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
         }
       }),
       webview.onDidReceiveMessage((message: unknown) => {
+        if (message && typeof message === "object" && "type" in message && message.type === "requestCodeHighlightingConfiguration") {
+          const request = ++highlightConfigurationRequest;
+          const themeName = "themeName" in message && typeof message.themeName === "string" ? message.themeName : undefined;
+          void codeHighlighting.configuration(themeName).then(configuration => {
+            if (configuration && !disposed && request === highlightConfigurationRequest)
+              return webview.postMessage({ type: "codeHighlightingConfiguration", configuration });
+            return undefined;
+          }).catch(error => logDebug(`Code highlighting configuration failed: ${String(error)}`));
+          return;
+        }
         if (isCodeHighlightRequest(message)) {
           latestHighlightRequest = message.id;
           const pendingEdits = applyQueue;
@@ -647,6 +658,13 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
       }),
     );
 
+    let initialHighlighting: InitialCodeHighlighting | undefined;
+    try {
+      const configuration = await codeHighlighting.configuration();
+      if (configuration) initialHighlighting = { configuration,
+        wasm: fs.readFileSync(this.context.asAbsolutePath("dist/onig.wasm")).toString("base64") };
+    } catch (error) { logDebug(`Code highlighting initialization failed: ${String(error)}`); }
+    if (disposed || document.isClosed) return;
     webview.html = getEditorHtml(
       webview,
       scriptText,
@@ -655,6 +673,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
       document.uri,
       clipboardDocumentToken,
       knownReadOnly,
+      initialHighlighting,
     );
 
   }
@@ -1008,6 +1027,7 @@ function getEditorHtml(
   documentUri: vscode.Uri,
   clipboardDocumentToken: string,
   readOnly: boolean,
+  initialHighlighting?: InitialCodeHighlighting,
 ): string {
   const nonce = getNonce();
   const initialDocumentScript = JSON.stringify(initialText).replace(
@@ -1019,13 +1039,14 @@ function getEditorHtml(
     getEditorOptions(documentUri, clipboardDocumentToken, readOnly),
   );
   const inlineScript = scriptText.replace(/<\/script/gi, "<\\/script");
+  const highlightingScript = JSON.stringify(initialHighlighting ?? null).replace(/<\/script/gi, "<\\/script");
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta
     http-equiv="Content-Security-Policy"
-    content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' ${webview.cspSource};"
+    content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' 'wasm-unsafe-eval' ${webview.cspSource};"
   >
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -1041,6 +1062,7 @@ ${styleText}
   <script nonce="${nonce}">
     window.__MLRT_INITIAL_DOCUMENT__ = ${initialDocumentScript};
     window.__MLRT_EDITOR_OPTIONS__ = ${editorOptionsScript};
+    window.__MLRT_CODE_HIGHLIGHTING__ = ${highlightingScript};
   </script>
   <script nonce="${nonce}">
 ${inlineScript}

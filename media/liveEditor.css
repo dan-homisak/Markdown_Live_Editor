@@ -816,6 +816,7 @@ body,
 }
 .cm-content .mlrt-markdown-task-control::after {
   content: "";
+  position: absolute;
   display: block;
   width: 1em;
   height: 1em;
@@ -827,6 +828,14 @@ body,
   line-height: 0.85em;
   text-align: center;
 }
+.cm-content .mlrt-markdown-task-sizer {
+  visibility: hidden;
+  white-space: pre;
+  font: inherit;
+  pointer-events: none;
+}
+.cm-content .mlrt-markdown-task-sizer::before { content: attr(data-source); }
+.cm-content .mlrt-markdown-task { white-space: pre; }
 .cm-content .mlrt-markdown-task-control[aria-checked="true"]::after {
   border-color: #2376c5;
   background: #2376c5;

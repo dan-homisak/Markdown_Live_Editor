@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree } from "@codemirror/language";
+import { markdownPresentationField } from "../editor/markdown/markdownPresentation";
+import { markdownBlockField } from "../editor/markdown/markdownBlocks";
+import { markdownMarkerField } from "../editor/markdown/markdownRendering";
+import { markdownPreviewField } from "../editor/markdown/markdownLivePreview";
 import { EditorSelection, EditorState, Text } from "@codemirror/state";
 import {
   createMarkdownRenderingExtensions,
@@ -222,4 +226,63 @@ const shortDoc = Text.of(["short"]);
 assert.equal(taskFocusReturnSelection(shortDoc, releasedSelection, releasedSelection, 50, []).main.head, 5,
   "a vanished task's bookmark is bounded by the current document");
 
-console.log("Markdown marker classification and task edit tests passed.");
+const preparedSource = "Resting caret.\n\n" + "Distant approach paragraph.\n\n".repeat(850) +
+  "## Ready heading\n\nReady **bold**, *italic*, `inline` and [link](./target.md).\n\n- Ready bullet\n- [ ] Ready task\n\n---\n\n> Ready quote\n\n```js\nconst readyValue = 1;\n```\n";
+const prepared = EditorState.create({ doc: preparedSource, extensions: createMarkdownRenderingExtensions({
+  enabled: true, screenReaderOptimized: false, readOnly: false,
+}) });
+const presentation = prepared.field(markdownPresentationField), blocks = prepared.field(markdownBlockField), markerState = prepared.field(markdownMarkerField);
+const hasClass = (set: typeof presentation.decorations, position: number, expected: string): boolean => {
+  let found = false;
+  set.between(position, position + 1, (_from, _to, value) => { if (value.spec.class?.includes(expected)) found = true; });
+  return found;
+};
+for (const [needle, expected] of [["Ready heading", "role-heading"], ["bold", "markdown-bold"], ["italic", "markdown-italic"], ["link", "role-link"]])
+  assert(hasClass(presentation.decorations, preparedSource.indexOf(needle), expected), `${needle} styling exists before any view mounts`);
+assert(hasClass(presentation.inlineCodeDecorations, preparedSource.indexOf("inline"), "markdown-inline-code"));
+assert(hasClass(blocks.decorations, preparedSource.indexOf("const readyValue"), "block-code"));
+assert(hasClass(blocks.decorations, preparedSource.indexOf("> Ready quote"), "block-quote"));
+assert(hasClass(markerState.decorations, preparedSource.indexOf("- Ready bullet"), "markdown-bullet"));
+assert(hasClass(markerState.decorations, preparedSource.indexOf("[ ] Ready task"), "markdown-task"));
+assert(hasClass(markerState.decorations, preparedSource.indexOf("---\n"), "rule-row"));
+const sameDocument = prepared.update({}).state;
+assert.equal(sameDocument.field(markdownPresentationField), presentation, "view-only updates retain complete presentation sets");
+assert.equal(sameDocument.field(markdownBlockField), blocks, "view-only updates retain complete block sets");
+assert.equal(sameDocument.field(markdownMarkerField), markerState, "view-only updates retain complete marker sets");
+const boldFrom = preparedSource.indexOf("**bold**");
+const edited = prepared.update({ changes: { from: boldFrom, to: boldFrom + 8, insert: "plain" } }).state;
+assert(!hasClass(edited.field(markdownPresentationField).decorations, boldFrom, "markdown-bold"), "an offscreen edit removes obsolete styles immediately");
+
+const changingSource = ['---','title: Ready','---','', '# Heading', '', 'Text **bold** and `inline` [reference][ref].', '',
+  '- [ ] Task', '- Bullet', '', '> [!NOTE]', '> Content', '', '```js', 'const value = "text";', '```', '',
+  'Setext', '---', '', '| A | B |', '| --- | --- |', '| **cell** | source |', '', '[ref]: ./note.md', ''].join('\n');
+const makeRenderingState = (doc: string) => EditorState.create({ doc, extensions: createMarkdownRenderingExtensions({
+  enabled: true, screenReaderOptimized: false, readOnly: false,
+}) });
+const signature = (snapshot: EditorState): string => {
+  const sets = [snapshot.field(markdownPresentationField).decorations, snapshot.field(markdownPresentationField).inlineCodeDecorations,
+    snapshot.field(markdownBlockField).decorations, snapshot.field(markdownMarkerField).decorations, snapshot.field(markdownPreviewField).decorations];
+  const canonical = (value: unknown): unknown => !value || typeof value !== 'object' ? value : Array.isArray(value)
+    ? value.map(canonical) : Object.fromEntries(Object.entries(value).filter(([,item]) => typeof item !== 'function' && item !== undefined)
+      .sort(([a],[b]) => a.localeCompare(b)).map(([key,item]) => [key,canonical(item)]));
+  return JSON.stringify(sets.map(set => {
+    const result: unknown[] = [];
+    for (let cursor=set.iter();cursor.value;cursor.next()) result.push([cursor.from,cursor.to,canonical(cursor.value.spec)]);
+    return result;
+  }));
+};
+let changing = makeRenderingState(changingSource), randomSeed = 743;
+for (let operation=0;operation<80;operation++) {
+  randomSeed = (Math.imul(randomSeed,1664525)+1013904223)>>>0;
+  const from = randomSeed % (changing.doc.length+1), to=Math.min(changing.doc.length,from+(operation%4));
+  const insert = ['', '*', '\n', '`', '> ', '[', '|', 'plain'][operation%8];
+  changing = changing.update({ changes: { from,to,insert } }).state;
+  assert.equal(signature(changing), signature(makeRenderingState(changing.doc.toString())),
+    `incremental decorations match a fresh complete rendering after edit ${operation} at ${from}`);
+}
+for (const replacement of ['# Replacement\n\n> Quote\n\n```js\nconst n=1;\n```', '', '---\ntitle: New\n---\n\n# New heading', changingSource]) {
+  changing = changing.update({ changes: { from: 0,to:changing.doc.length,insert:replacement } }).state;
+  assert.equal(signature(changing), signature(makeRenderingState(replacement)), "whole-document replacements cannot retain collapsed or inverted preview ranges");
+}
+
+console.log("Markdown marker classification, source edits, and complete pre-mount decoration tests passed.");
