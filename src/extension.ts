@@ -8,6 +8,7 @@ import {
   normalizeDocumentText,
 } from "./shared/documentChangeMapping";
 import { validateDocumentChangeClaim } from "./shared/documentChangeValidation";
+import { EditorViewState, isEditorViewState } from "./shared/editorViewState";
 import { parseMarkdownTables } from "./shared/tableModel";
 import {
   findMarkdownLinkAt,
@@ -41,6 +42,7 @@ let debugOutputChannel: vscode.OutputChannel | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new MarkdownLiveEditorProvider(context);
+  let toggleQueue: Promise<void> = Promise.resolve();
   debugOutputChannel = vscode.window.createOutputChannel(
     "Markdown Live Editor",
   );
@@ -60,7 +62,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(
       "markdownLiveRenderTables.toggleEditor",
       async (uri?: vscode.Uri) => {
-        await toggleEditor(uri, provider);
+        toggleQueue = toggleQueue.catch(() => {}).then(() => toggleEditor(uri, provider));
+        await toggleQueue;
       },
     ),
     vscode.commands.registerCommand(
@@ -89,9 +92,44 @@ export function deactivate(): void {}
 class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
   private readonly panelsByDocument = new Map<string, vscode.WebviewPanel>();
   private readonly mediaTextByFileName = new Map<string, string>();
+  private readonly initialViewStates = new Map<string, EditorViewState>();
+  private readonly viewStateReaders = new Map<string, () => Promise<EditorViewState | undefined>>();
+  private readonly initialHighlightingByDocument = new Map<string, Promise<InitialCodeHighlighting | undefined>>();
+  private highlightingWasm: string | undefined;
   private activeLiveDocumentUri: vscode.Uri | undefined;
 
-  public constructor(private readonly context: vscode.ExtensionContext) {}
+  public constructor(private readonly context: vscode.ExtensionContext) {
+    // Raw grammar/theme data can be reused after its panel is disposed. Keep
+    // only a few documents, and invalidate even while no live panel is open.
+    const invalidate = (): void => this.initialHighlightingByDocument.clear();
+    context.subscriptions.push(
+      vscode.window.onDidChangeActiveColorTheme(invalidate),
+      vscode.extensions.onDidChange(invalidate),
+      vscode.workspace.onDidChangeConfiguration(invalidate),
+    );
+  }
+
+  private initialHighlighting(documentKey: string, highlighting: VscodeCodeHighlighting): Promise<InitialCodeHighlighting | undefined> {
+    const cached = this.initialHighlightingByDocument.get(documentKey);
+    if (cached) return cached;
+    const pending = highlighting.configuration().then(configuration => {
+      if (!configuration) {
+        this.initialHighlightingByDocument.delete(documentKey);
+        return undefined;
+      }
+      this.highlightingWasm ??= fs.readFileSync(this.context.asAbsolutePath("dist/onig.wasm")).toString("base64");
+      return { configuration, wasm: this.highlightingWasm };
+    }).catch(error => {
+      this.initialHighlightingByDocument.delete(documentKey);
+      logDebug(`Code highlighting initialization failed: ${String(error)}`);
+      return undefined;
+    });
+    if (this.initialHighlightingByDocument.size >= 3) {
+      this.initialHighlightingByDocument.delete(this.initialHighlightingByDocument.keys().next().value!);
+    }
+    this.initialHighlightingByDocument.set(documentKey, pending);
+    return pending;
+  }
 
   public getActiveDocumentUri(): vscode.Uri | undefined {
     return this.activeLiveDocumentUri;
@@ -99,6 +137,21 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
 
   public getViewColumn(uri: vscode.Uri): vscode.ViewColumn | undefined {
     return this.panelsByDocument.get(uri.toString())?.viewColumn;
+  }
+
+  public rememberSourceView(uri: vscode.Uri): void {
+    const editor = vscode.window.activeTextEditor;
+    if (editor?.document.uri.toString() !== uri.toString()) return;
+    const top = editor.visibleRanges[0]?.start ?? editor.selection.active;
+    this.initialViewStates.set(uri.toString(), {
+      top: { line: top.line, character: top.character },
+      anchor: { line: editor.selection.anchor.line, character: editor.selection.anchor.character },
+      head: { line: editor.selection.active.line, character: editor.selection.active.character },
+    });
+  }
+
+  public captureLiveView(uri: vscode.Uri): Promise<EditorViewState | undefined> {
+    return this.viewStateReaders.get(uri.toString())?.() ?? Promise.resolve(undefined);
   }
 
   public async runMarkdownTaskCommand(
@@ -140,11 +193,12 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel: vscode.WebviewPanel,
   ): Promise<void> {
     const webview = webviewPanel.webview;
-    const scriptText = this.readMediaText("liveEditor.js");
     const styleText = ["liveEditor.css", "markdownPresentation.css", "markdownBlocks.css"]
       .filter(fileName => fs.existsSync(vscode.Uri.joinPath(this.context.extensionUri, "media", fileName).fsPath))
       .map(fileName => this.readMediaText(fileName)).join("\n");
     const documentKey = document.uri.toString();
+    const initialViewState = this.initialViewStates.get(documentKey);
+    this.initialViewStates.delete(documentKey);
     const clipboardDocumentToken = randomUUID();
     const disposables: vscode.Disposable[] = [];
     const codeHighlighting = new VscodeCodeHighlighting(this.context, document.uri);
@@ -161,6 +215,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
       readOnlyQueryGeneration++;
       if (this.panelsByDocument.get(documentKey) === webviewPanel) {
         this.panelsByDocument.delete(documentKey);
+        this.viewStateReaders.delete(documentKey);
         if (this.activeLiveDocumentUri?.toString() === documentKey) {
           this.activeLiveDocumentUri = undefined;
         }
@@ -185,6 +240,26 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
 
     let applyingFromWebview = false;
     let applyQueue: Promise<void> = Promise.resolve();
+    let liveViewState = initialViewState;
+    let viewStateRequest = 0;
+    let webviewReady = false;
+    const pendingViewStates = new Map<number, (state: EditorViewState | undefined) => void>();
+    this.viewStateReaders.set(documentKey, async () => {
+      if (!webviewReady || disposed) return liveViewState;
+      const requestId = ++viewStateRequest;
+      return new Promise<EditorViewState | undefined>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          pendingViewStates.delete(requestId);
+          reject(new Error("The live editor is still finishing input. Try toggling again."));
+        }, 1500);
+        pendingViewStates.set(requestId, state => { clearTimeout(timer); resolve(state); });
+        void webview.postMessage({ type: "captureViewState", requestId });
+      });
+    });
+    disposables.push(new vscode.Disposable(() => {
+      for (const finish of pendingViewStates.values()) finish(liveViewState);
+      pendingViewStates.clear();
+    }));
     let documentRevision = 0;
     let lastMarkdownLinkRequestId = 0;
     // Once a claim is rejected, every message sent before the webview receives
@@ -556,6 +631,19 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
         }
       }),
       webview.onDidReceiveMessage((message: unknown) => {
+        if (isMessageRecord(message) && message.type === "viewState" && isEditorViewState(message.state)) {
+          liveViewState = message.state;
+          const requestId = message.requestId;
+          if (typeof requestId === "number") {
+            // The webview flushes edits before replying. Drain those edits
+            // before disposing its panel so a quick toggle cannot lose input.
+            void applyQueue.then(() => {
+              pendingViewStates.get(requestId)?.(liveViewState);
+              pendingViewStates.delete(requestId);
+            });
+          }
+          return;
+        }
         if (message && typeof message === "object" && "type" in message && message.type === "requestCodeHighlightingConfiguration") {
           const request = ++highlightConfigurationRequest;
           const themeName = "themeName" in message && typeof message.themeName === "string" ? message.themeName : undefined;
@@ -584,6 +672,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
           return;
         }
         if (isReadyMessage(message)) {
+          webviewReady = true;
           postDocument();
           void refreshReadOnly();
           return;
@@ -658,22 +747,18 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
       }),
     );
 
-    let initialHighlighting: InitialCodeHighlighting | undefined;
-    try {
-      const configuration = await codeHighlighting.configuration();
-      if (configuration) initialHighlighting = { configuration,
-        wasm: fs.readFileSync(this.context.asAbsolutePath("dist/onig.wasm")).toString("base64") };
-    } catch (error) { logDebug(`Code highlighting initialization failed: ${String(error)}`); }
+    const initialHighlighting = await this.initialHighlighting(documentKey, codeHighlighting);
     if (disposed || document.isClosed) return;
     webview.html = getEditorHtml(
       webview,
-      scriptText,
+      webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, "media", "liveEditor.js")),
       styleText,
       normalizeDocumentText(document.getText()),
       document.uri,
       clipboardDocumentToken,
       knownReadOnly,
       initialHighlighting,
+      initialViewState,
     );
 
   }
@@ -754,6 +839,8 @@ async function openLiveEditor(
     provider.getViewColumn(targetUri) ??
     vscode.ViewColumn.Active;
 
+  provider.rememberSourceView(targetUri);
+
   if (tabToClose && tabMatchesUri(tabToClose, targetUri)) {
     await reopenActiveEditorWith(LIVE_EDITOR_VIEW_TYPE);
     return;
@@ -786,16 +873,32 @@ async function openSourceEditor(
     return;
   }
 
+  const viewColumn = provider.getViewColumn(targetUri) ?? vscode.ViewColumn.Active;
+  const viewState = await provider.captureLiveView(targetUri);
   if (tabToClose && tabMatchesUri(tabToClose, targetUri)) {
     await reopenActiveEditorWith(DEFAULT_EDITOR_ID);
-    return;
   }
-
-  await vscode.window.showTextDocument(targetUri, {
-    viewColumn: provider.getViewColumn(targetUri) ?? vscode.ViewColumn.Active,
-    preview: false,
-    preserveFocus: false,
-  });
+  const editor = vscode.window.activeTextEditor?.document.uri.toString() === targetUri.toString()
+    ? vscode.window.activeTextEditor
+    : await vscode.window.showTextDocument(targetUri, { viewColumn, preview: false, preserveFocus: false });
+  if (editor && viewState) {
+    const position = (value: { line: number; character: number }): vscode.Position =>
+      editor.document.validatePosition(new vscode.Position(value.line, value.character));
+    editor.selection = new vscode.Selection(position(viewState.anchor), position(viewState.head));
+    const top = position(viewState.top);
+    const currentTop = editor.visibleRanges[0]?.start.line;
+    if (currentTop !== undefined) {
+      // revealRange(AtTop) adds cursor/sticky-header context (usually five
+      // lines). Scroll by source lines to restore the actual reading position
+      // without pulling an offscreen caret back into view.
+      const delta = top.line - currentTop;
+      await vscode.commands.executeCommand("editorScroll", {
+        to: delta < 0 ? "up" : "down", by: "line", value: Math.abs(delta), revealCursor: false,
+      });
+    } else {
+      editor.revealRange(new vscode.Range(top, top), vscode.TextEditorRevealType.AtTop);
+    }
+  }
 }
 
 function tabMatchesUri(tab: vscode.Tab, uri: vscode.Uri): boolean {
@@ -1021,13 +1124,14 @@ async function reopenActiveEditorWith(editorId: string): Promise<void> {
 
 function getEditorHtml(
   webview: vscode.Webview,
-  scriptText: string,
+  scriptUri: vscode.Uri,
   styleText: string,
   initialText: string,
   documentUri: vscode.Uri,
   clipboardDocumentToken: string,
   readOnly: boolean,
   initialHighlighting?: InitialCodeHighlighting,
+  initialViewState?: EditorViewState,
 ): string {
   const nonce = getNonce();
   const initialDocumentScript = JSON.stringify(initialText).replace(
@@ -1038,7 +1142,6 @@ function getEditorHtml(
   const editorOptionsScript = JSON.stringify(
     getEditorOptions(documentUri, clipboardDocumentToken, readOnly),
   );
-  const inlineScript = scriptText.replace(/<\/script/gi, "<\\/script");
   const highlightingScript = JSON.stringify(initialHighlighting ?? null).replace(/<\/script/gi, "<\\/script");
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1063,10 +1166,9 @@ ${styleText}
     window.__MLRT_INITIAL_DOCUMENT__ = ${initialDocumentScript};
     window.__MLRT_EDITOR_OPTIONS__ = ${editorOptionsScript};
     window.__MLRT_CODE_HIGHLIGHTING__ = ${highlightingScript};
+    window.__MLRT_INITIAL_VIEW_STATE__ = ${JSON.stringify(initialViewState ?? null)};
   </script>
-  <script nonce="${nonce}">
-${inlineScript}
-  </script>
+  <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
 }

@@ -478,7 +478,7 @@ try {
   });
   if (!propertiesOnly && !codeOnly && !livePreviewOnly && !nestedGuideOnly && !paintOnly && !listsOnly) {
     const { runMarkdownScrollChecks } = await import('./edh-markdown-scroll-cases.mjs');
-    await runMarkdownScrollChecks({ check, liveEval, writeFixture, select, sleep, screenshot, palette, text });
+    await runMarkdownScrollChecks({ check, liveEval, liveClient: live, writeFixture, select, sleep, screenshot, palette, text });
   }
   report.finalSourceMatches = await liveEval(`return view.state.doc.toString()===${JSON.stringify(text)};`);
   report.console = live.events;

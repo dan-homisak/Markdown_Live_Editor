@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 
 // Sample actual paint opportunities, including the first frame after a row
 // enters the viewport. A settled screenshot misses delayed syntax colors.
-export async function runMarkdownScrollChecks({ check, liveEval, writeFixture, select, sleep, screenshot, palette, text }) {
-  await check('scroll rendering: every element is prepared before mounting and scrolling never rebuilds its decorations', async () => {
+export async function runMarkdownScrollChecks({ check, liveEval, liveClient, writeFixture, select, sleep, screenshot, palette, text }) {
+  await check('scroll rendering: layout decorations stay prepared and visible text has stable paint', async () => {
     const section = index => [`## Ready heading ${index}`, '',
       `Ready **bold ${index}**, *italic ${index}*, ~~strike ${index}~~, \`inline ${index}\` and [link ${index}](./LinkedTarget.md). ` + 'Long wrapping content. '.repeat(16), '',
       `- Ready bullet ${index}`, `- [ ] Ready task ${index}`, '', '---', '',
@@ -19,12 +19,19 @@ export async function runMarkdownScrollChecks({ check, liveEval, writeFixture, s
         const direct=()=>view.state.facet(ctor.decorations).filter(set=>typeof set!=='function');
         const outer=()=>view.state.facet(ctor.outerDecorations).filter(set=>typeof set!=='function');
         const before=[...direct(),...outer()],unprepared=[];
+        // Task/bullet slots have always incorporated viewport measurements.
+        // Check their actual glyph geometry below; the remaining source/block
+        // projections must stay unchanged while scrolling.
+        const structural=sets=>sets.filter(set=>{for(let cursor=set.iter();cursor.value;cursor.next())if(cursor.value.spec.widget?.constructor.name==='TaskControl')return false;return true;});
+        const structuralBefore=structural(before);
+        // Include offscreen code colors: waiting for a viewport update is too
+        // late when native/compositor scrolling exposes already mounted rows.
         const checks=[['Ready heading 69','role-heading'],['bold 69','markdown-bold'],['italic 69','markdown-italic'],['strike 69','markdown-strike'],['inline 69','markdown-inline-code'],['link 69','role-link'],['- Ready bullet 69','markdown-bullet'],['[ ] Ready task 69','markdown-task'],['> Ready quote 69','block-quote'],['> Ready alert 69','block-alert'],['const readyValue69','block-code'],['const readyValue69','vscode-code-token'],['---\\n','rule-row']];
         for(const [needle,role] of checks){const pos=source.indexOf(needle);let found=false;for(const set of before)set.between(pos,pos+1,(_from,_to,value)=>{if(value.spec.class?.includes(role))found=true;});if(!found)unprepared.push({needle,role});}
         const drifts=[],rebuilds=[],positions=new Map();let frames=0,samples=0;
         const observe=label=>{
-          frames++;const now=[...direct(),...outer()];
-          if(now.length!==before.length||now.some((set,index)=>set!==before[index]))rebuilds.push(label);
+          frames++;const now=structural([...direct(),...outer()]);
+          if(now.length!==structuralBefore.length||now.some((set,index)=>set!==structuralBefore[index]))rebuilds.push(label);
           const scroller=view.scrollDOM.getBoundingClientRect();
           for(const row of root.querySelectorAll('.cm-line')){
             const box=row.getBoundingClientRect();if(box.bottom<=scroller.top||box.top>=scroller.bottom||!row.textContent.includes('Ready')&&!row.textContent.includes('readyValue'))continue;
@@ -44,11 +51,71 @@ export async function runMarkdownScrollChecks({ check, liveEval, writeFixture, s
         return {unprepared,drifts,rebuilds,frames,samples,sourceExact:view.state.doc.toString()===source};
       })();`);
       assert.deepEqual(result.unprepared,[],'all distant elements must have their final decoration in document state before mounting');
-      assert.deepEqual(result.rebuilds,[],'scrolling and wrapping must not replace decoration sets');
+      assert.deepEqual(result.rebuilds,[],'scrolling and wrapping must preserve layout decorations');
       assert.deepEqual(result.drifts.slice(0,6),[],'first-mounted text colors and glyph boxes must remain stable on following frames');
       assert(result.samples>150&&result.sourceExact); await screenshot('scroll-all-elements');
       return {frames:result.frames,samples:result.samples,preMountRoles:13,scrollRebuilds:0,paintOrGeometryDrifts:0,sourceExact:true};
     } finally { await liveEval("view.dom.style.removeProperty('width');return true;"); await writeFixture(text); await select(0); }
+  });
+  await check('scroll rendering: native wheel scrolling keeps heavy code prepared under CPU throttling', async () => {
+    const source = ['Resting caret.', '', ...Array.from({ length: 12 }, (_, section) => [
+      ...Array.from({ length: 18 }, (_, row) => `Wheel approach ${section}/${row}.`), '',
+      `## Heavy code ${section}`, '', '```javascript',
+      ...Array.from({ length: 55 }, (_, row) => `const wheelValue${section}_${row} = "${'Long wrapped string. '.repeat(8)}";`),
+      '```', '', '> [!NOTE]', '> Heavy code below.', '',
+      '    const wheelIndented = "indented code";', '',
+    ].join('\n'))].join('\n');
+    try {
+      await writeFixture(source); await select(0);
+      await liveEval(`view.scrollDOM.scrollTop=0;return true;`); await sleep(100);
+      const point = await liveEval(`const r=view.scrollDOM.getBoundingClientRect();return {x:r.left+Math.min(350,r.width/2),y:r.top+r.height/2};`);
+      await liveClient.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+      await liveEval(`
+        const result={frames:0,codeSamples:0,missing:[],paintDrifts:[],scrollEvents:0,minTop:Infinity,maxTop:0,running:true};
+        const styles=new Map();
+        const onScroll=()=>result.scrollEvents++;
+        view.scrollDOM.addEventListener('scroll',onScroll,{passive:true});
+        result.stop=()=>{result.running=false;view.scrollDOM.removeEventListener('scroll',onScroll);};
+        win.__MLRT_WHEEL_PAINT__=result;
+        const sample=()=>{
+          if(!result.running)return;
+          result.frames++;result.minTop=Math.min(result.minTop,view.scrollDOM.scrollTop);result.maxTop=Math.max(result.maxTop,view.scrollDOM.scrollTop);
+          const scroller=view.scrollDOM.getBoundingClientRect();
+          for(const row of root.querySelectorAll('.cm-line')){
+            const box=row.getBoundingClientRect();if(box.bottom<=scroller.top||box.top>=scroller.bottom||!row.textContent.includes('const wheel'))continue;
+            result.codeSamples++;
+            if(!row.classList.contains('mlrt-markdown-block-code')||!row.querySelector('.mlrt-vscode-code-token')){
+              if(result.missing.length<10)result.missing.push({frame:result.frames,text:row.textContent.slice(0,70)});
+            }
+            const key=view.posAtDOM(row),signature=[...row.querySelectorAll('.mlrt-vscode-code-token')].map(el=>{
+              const css=win.getComputedStyle(el);return [el.textContent,css.color,css.fontWeight,css.fontStyle];
+            });
+            const previous=styles.get(key),current=JSON.stringify(signature);
+            if(previous&&previous!==current&&result.paintDrifts.length<10)result.paintDrifts.push({frame:result.frames,key});
+            styles.set(key,current);
+          }
+          win.requestAnimationFrame(sample);
+        };win.requestAnimationFrame(sample);return true;
+      `);
+      for (const direction of [1, -1]) {
+        for (let step = 0; step < 28; step++) {
+          await liveClient.send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...point, deltaX: 0, deltaY: direction * (step % 6 === 0 ? 1600 : 460) });
+          await sleep(35);
+        }
+        await screenshot(direction === 1 ? 'scroll-native-wheel-down' : 'scroll-native-wheel-up');
+      }
+      const result = await liveEval(`const r=win.__MLRT_WHEEL_PAINT__;r.stop();delete win.__MLRT_WHEEL_PAINT__;
+        return {frames:r.frames,codeSamples:r.codeSamples,missing:r.missing,paintDrifts:r.paintDrifts,scrollEvents:r.scrollEvents,travel:r.maxTop-r.minTop};`);
+      assert(result.frames>30&&result.codeSamples>100&&result.scrollEvents>10&&result.travel>8000,
+        `native scrolling must exercise cold heavy code: ${JSON.stringify(result)}`);
+      assert.deepEqual(result.missing,[], 'native-wheel frames must contain fully colored code');
+      assert.deepEqual(result.paintDrifts,[], 'code colors must remain stable after first entry');
+      return {...result,cpuThrottling:4};
+    } finally {
+      await liveClient.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+      await liveEval(`win.__MLRT_WHEEL_PAINT__?.stop();delete win.__MLRT_WHEEL_PAINT__;return true;`);
+      await writeFixture(text); await select(0);
+    }
   });
   await check('scroll rendering: cold jumps, live edits and undo paint complete elements on every frame', async () => {
     const sections = Array.from({length:32}, (_,i)=>[

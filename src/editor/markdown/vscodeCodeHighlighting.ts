@@ -40,6 +40,9 @@ export function createVscodeCodeHighlighting(post: (message: { type: "requestCod
   const highlight = (state: EditorState): DecorationSet => Decoration.set(
     (engine?.highlight(state.doc, codeRanges(state)) ?? []).map(token => Decoration.mark({ class: "mlrt-vscode-code-token",
       attributes: { style: codeTokenStyle(token) } }).range(token.from, token.to)), true);
+  // Native scrolling can reveal mounted/overscan rows before a ViewPlugin
+  // receives its viewport update. Prepare colors for the complete document in
+  // state, so entering the viewport never triggers first-time code coloring.
   const field = StateField.define<{ decorations: DecorationSet; composing: boolean }>({
     create: state => ({ decorations: highlight(state), composing: false }),
     update(value, transaction) {

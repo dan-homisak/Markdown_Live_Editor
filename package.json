@@ -2,7 +2,7 @@
   "name": "markdown-live-render-tables",
   "displayName": "Markdown Live Editor",
   "description": "A VS Code extension for editing markdown in a live rendered editor.",
-  "version": "0.1.216",
+  "version": "0.1.218",
   "publisher": "dan-homisak",
   "license": "MIT",
   "engines": {
@@ -144,7 +144,7 @@
     }
   },
   "scripts": {
-    "bundle:webview": "esbuild ./src/webview/liveEditor.ts --bundle --format=iife --platform=browser --target=es2022 --outfile=./media/liveEditor.js",
+    "bundle:webview": "esbuild ./src/webview/liveEditor.ts --bundle --minify-syntax --minify-whitespace --format=iife --platform=browser --target=es2022 --outfile=./media/liveEditor.js",
     "compile": "tsc -p ./ && npm run bundle:webview && npm run bundle:extension",
     "package": "vsce package --allow-missing-repository --out markdown-live-render-tables-latest.vsix",
     "package:windows": "npm run package && node scripts/prepare-windows-install-bundle.mjs",
@@ -152,6 +152,7 @@
     "qa:cursor": "npm run compile && node scripts/render-live-editor-harness.mjs --debug",
     "qa:screenshot": "npm run compile && node scripts/render-live-editor-harness.mjs --screenshot",
     "qa:clipboard": "npm run compile && node scripts/edh-visual-check.mjs",
+    "qa:toggle": "npm run compile && node scripts/edh-toggle-check.mjs",
     "qa:editing": "npm run compile && node scripts/edh-visual-check.mjs --editing-reliability-only",
     "qa:keyboard": "npm run compile && node scripts/edh-visual-check.mjs --keyboard-navigation-only",
     "qa:gutter-scroll": "npm run compile && node scripts/edh-visual-check.mjs --gutter-scroll-only",

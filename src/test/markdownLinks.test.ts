@@ -190,7 +190,7 @@ async function host(initialText = "[site](https://example.test)") {
   const document = { uri: makeUri("test:///work/readme.md"), fileName: "readme.md", isClosed: false, isUntitled: false,
     eol: 1, version: 1, getText: () => text };
   const panel: any = { active: true, viewColumn: 1, onDidDispose: closed.event, onDidChangeViewState: viewState.event,
-    webview: { cspSource: "test:", onDidReceiveMessage: received.event,
+    webview: { cspSource: "test:", asWebviewUri: (uri: { fsPath: string }) => uri.fsPath, onDidReceiveMessage: received.event,
       postMessage: (message: unknown) => { messages.push(message); return Promise.resolve(true); }, html: "" } };
   class TabInputCustom { constructor(public uri: any, public viewType: string) {} }
   class WorkspaceEdit {
