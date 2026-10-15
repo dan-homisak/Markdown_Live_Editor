@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocket } from "undici";
+import { edhLaunchFlags, edhSettings, resolveEdhExecutable } from "./edh-isolation.mjs";
 
 const repo = fileURLToPath(new URL("../", import.meta.url));
 const qa = path.join(repo, "qa");
@@ -22,6 +23,7 @@ const blocks = [...source.matchAll(/^```([^\n]*)\n([\s\S]*?)^```/gm)].filter(mat
   return { language: match[1], from, body: match[2], line: source.slice(0, from).split("\n").length };
 });
 const settings = {
+  ...edhSettings,
   "workbench.startupEditor": "none", "workbench.colorTheme": "Dark+",
   "editor.minimap.enabled": false, "editor.wordWrap": "off", "editor.fontSize": 14,
   "editor.renderWhitespace": "none", "editor.bracketPairColorization.enabled": false,
@@ -33,15 +35,11 @@ await mkdir(user, { recursive: true });
 await mkdir(path.join(profile, "extensions"), { recursive: true });
 await writeFile(fixture, source);
 await writeFile(path.join(user, "settings.json"), JSON.stringify(settings));
-const code = process.env.MLRT_CODE_BIN || [
-  process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, "Programs", "Microsoft VS Code", "Code.exe"),
-  process.env.ProgramFiles && path.join(process.env.ProgramFiles, "Microsoft VS Code", "Code.exe"),
-  "/Applications/Visual Studio Code.app/Contents/MacOS/Code", "/usr/share/code/code",
-].filter(Boolean).find(existsSync);
+const code = resolveEdhExecutable(repo);
 assert(code, "VS Code executable is required");
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE; delete env.NODE_OPTIONS;
-const child = spawn(code, [`--extensionDevelopmentPath=${repo}`, `--user-data-dir=${profile}`,
+const child = spawn(code, [...edhLaunchFlags, `--extensionDevelopmentPath=${repo}`, `--user-data-dir=${profile}`,
   `--extensions-dir=${path.join(profile, "extensions")}`, `--remote-debugging-port=${port}`,
   "--new-window", "--disable-workspace-trust", "--skip-release-notes", "--skip-welcome", fixture],
 { stdio: "ignore", env, windowsHide: true });

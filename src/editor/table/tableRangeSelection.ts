@@ -33,9 +33,12 @@ import { getPendingClipboardCut } from "../clipboardCutState";
 import { selectVisibleTableBoundary } from "../tableBoundaryInput";
 import { syncTableSelectionOverlay } from "./tableSelectionOverlay";
 import { getTableWidgetTable } from "./tableWidgetState";
+import { TableSelectionKind } from "../../shared/tableDeletion";
+import { rectangleCells, selectedCellsBounds, tableCellKey, toggleSelectedCells } from "../../shared/tableSelectionSet";
 
 export const TABLE_SELECTION_CHANGE_EVENT = "mlrt:table-selection-change";
 export const TABLE_SELECTION_CLEAR_EVENT = "mlrt:table-selection-clear";
+export const TABLE_SELECTION_DELETE_EVENT = "mlrt:table-selection-delete";
 export const TABLE_CUT_CANCEL_EVENT = "mlrt:table-cut-cancel";
 
 export interface TableCellAddress {
@@ -50,6 +53,9 @@ export interface TableRangeSelectionState {
   tableFrom: number;
   anchor: TableCellAddress;
   head: TableCellAddress;
+  kind?: TableSelectionKind;
+  /** Exact union for additive selections; absent for an ordinary rectangle. */
+  cells?: TableCellAddress[];
   pendingCutToken?: string;
 }
 
@@ -126,6 +132,12 @@ export function bindTableRangeSelection(
       });
     }
     clearDocumentSelectionProjection(wrapper.ownerDocument);
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleTableSelection(wrapper, currentTable(), address, start.mode === "row" ? "rows" : "cells");
+      return;
+    }
     if (event.shiftKey) {
       const current = getTableRangeSelection(wrapper.ownerDocument);
       const focusedCell = findCell(wrapper.ownerDocument.activeElement);
@@ -137,14 +149,18 @@ export function bindTableRangeSelection(
         current?.wrapper === wrapper
           ? current.anchor
           : focusedAddress ?? address;
-      const anchor =
-        start.mode === "row" ? { row: rawAnchor.row, column: 0 } : rawAnchor;
-      const head =
-        start.mode === "row"
-          ? { row: address.row, column: currentTable().columnCount - 1 }
-          : address;
+      const kind = start.mode === "row" ? "rows" : current?.wrapper === wrapper ? current.kind ?? "cells" : "cells";
+      let anchor = rawAnchor;
+      let head = address;
+      if (kind === "rows") {
+        anchor = { row: anchor.row, column: 0 };
+        head = { row: head.row, column: currentTable().columnCount - 1 };
+      } else if (kind === "columns") {
+        anchor = { row: 0, column: anchor.column };
+        head = { row: currentTable().body.length, column: head.column };
+      }
       event.preventDefault();
-      setTableRangeSelection(wrapper, currentTable().from, anchor, head, true);
+      setTableRangeSelection(wrapper, currentTable().from, anchor, head, true, kind);
       return;
     }
     state.pointerAnchor = address;
@@ -179,6 +195,7 @@ export function bindTableRangeSelection(
         address,
         { row: address.row, column: currentTable().columnCount - 1 },
         true,
+        "rows",
       );
     }
   };
@@ -275,6 +292,7 @@ export function bindTableRangeSelection(
           state.pointerAnchor,
           address,
           true,
+          state.pointerAnchorMode === "row" ? "rows" : "cells",
         );
       }
       return;
@@ -327,6 +345,7 @@ export function bindTableRangeSelection(
             state.pointerAnchor,
             selectionHead,
             true,
+            state.pointerAnchorMode === "row" ? "rows" : "cells",
           );
         }
       }
@@ -615,6 +634,7 @@ export function bindTableRangeSelection(
   };
 
   const onMouseDown = (event: MouseEvent): void => {
+    if (event.ctrlKey || event.metaKey) { event.preventDefault(); return; }
     const state = stateFor(wrapper.ownerDocument);
     if (event.button !== 0) {
       return;
@@ -868,6 +888,7 @@ export function bindTableRangeSelection(
       const rectangle = selectionRectangle(selection);
       const rowCount = latestTable.body.length + 1;
       if (
+        selectionCells(selection).length === rowCount * latestTable.columnCount &&
         rectangle.top === 0 &&
         rectangle.bottom === rowCount - 1 &&
         rectangle.left === 0 &&
@@ -947,13 +968,22 @@ export function bindTableRangeSelection(
         },
         latestTable,
       );
-      const nextAnchor = event.shiftKey ? selection.anchor : nextHead;
+      let nextAnchor = event.shiftKey ? selection.anchor : nextHead;
+      const kind = event.shiftKey ? selection.kind ?? "cells" : "cells";
+      if (kind === "rows") {
+        nextAnchor = { row: nextAnchor.row, column: 0 };
+        nextHead.column = latestTable.columnCount - 1;
+      } else if (kind === "columns") {
+        nextAnchor = { row: 0, column: nextAnchor.column };
+        nextHead.row = latestTable.body.length;
+      }
       setTableRangeSelection(
         wrapper,
         selection.tableFrom,
         nextAnchor,
         nextHead,
         true,
+        kind,
       );
       return;
     }
@@ -971,7 +1001,7 @@ export function bindTableRangeSelection(
       event.preventDefault();
       event.stopPropagation();
       wrapper.dispatchEvent(
-        new CustomEvent(TABLE_SELECTION_CLEAR_EVENT, { bubbles: true }),
+        new CustomEvent(event.key === "Backspace" ? TABLE_SELECTION_CLEAR_EVENT : TABLE_SELECTION_DELETE_EVENT, { bubbles: true }),
       );
       return;
     }
@@ -992,6 +1022,12 @@ export function bindTableRangeSelection(
     }
   };
 
+  const onAdditiveClick = (event: MouseEvent): void => {
+    if ((event.ctrlKey || event.metaKey) && tableSelectionStart(wrapper, event)) {
+      event.preventDefault(); event.stopPropagation();
+    }
+  };
+  wrapper.addEventListener("click", onAdditiveClick, true);
   wrapper.addEventListener("pointerdown", onPointerDown);
   wrapper.addEventListener("lostpointercapture", onLostPointerCapture, true);
   wrapper.addEventListener("mousedown", onMouseDown);
@@ -1006,6 +1042,7 @@ export function bindTableRangeSelection(
   restoreSelectionClasses(wrapper);
 
   return () => {
+    wrapper.removeEventListener("click", onAdditiveClick, true);
     wrapper.removeEventListener("pointerdown", onPointerDown);
     wrapper.removeEventListener(
       "lostpointercapture",
@@ -1071,6 +1108,8 @@ export function setTableRangeSelection(
   anchor: TableCellAddress,
   head: TableCellAddress,
   focusWrapper: boolean,
+  kind: TableSelectionKind = "cells",
+  cells?: TableCellAddress[],
 ): TableRangeSelectionState {
   const doc = wrapper.ownerDocument;
   const state = stateFor(doc);
@@ -1094,6 +1133,8 @@ export function setTableRangeSelection(
     tableFrom,
     anchor,
     head,
+    kind,
+    ...(cells ? { cells: cells.map(cell => ({ ...cell })) } : {}),
   };
   state.selection = selection;
   applySelectionClasses(selection);
@@ -1110,13 +1151,20 @@ export function selectTableRow(
   tableFrom: number,
   row: number,
   columnCount: number,
+  additive = false,
 ): void {
+  if (additive) {
+    const table = getTableWidgetTable(wrapper);
+    if (table) toggleTableSelection(wrapper, table, { row, column: 0 }, "rows");
+    return;
+  }
   setTableRangeSelection(
     wrapper,
     tableFrom,
     { row, column: 0 },
     { row, column: Math.max(0, columnCount - 1) },
     true,
+    "rows",
   );
 }
 
@@ -1125,19 +1173,27 @@ export function selectTableColumn(
   tableFrom: number,
   column: number,
   rowCount: number,
+  additive = false,
 ): void {
+  if (additive) {
+    const table = getTableWidgetTable(wrapper);
+    if (table) toggleTableSelection(wrapper, table, { row: 0, column }, "columns");
+    return;
+  }
   setTableRangeSelection(
     wrapper,
     tableFrom,
     { row: 0, column },
     { row: Math.max(0, rowCount - 1), column },
     true,
+    "columns",
   );
 }
 
 export function selectionRectangle(
   selection: TableRangeSelectionState,
 ): CellRectangle {
+  if (selection.cells?.length) return selectedCellsBounds(selection.cells);
   return {
     top: Math.min(selection.anchor.row, selection.head.row),
     bottom: Math.max(selection.anchor.row, selection.head.row),
@@ -1150,6 +1206,7 @@ export function isCellInSelection(
   selection: TableRangeSelectionState,
   address: TableCellAddress,
 ): boolean {
+  if (selection.cells) return selection.cells.some(cell => cell.row === address.row && cell.column === address.column);
   const rectangle = selectionRectangle(selection);
   return (
     address.row >= rectangle.top &&
@@ -1157,6 +1214,29 @@ export function isCellInSelection(
     address.column >= rectangle.left &&
     address.column <= rectangle.right
   );
+}
+
+export function selectionCells(selection: TableRangeSelectionState): TableCellAddress[] {
+  return selection.cells ?? rectangleCells(selectionRectangle(selection));
+}
+
+export function toggleTableSelection(wrapper: HTMLElement, table: ParsedTable, address: TableCellAddress, kind: TableSelectionKind): void {
+  const doc = wrapper.ownerDocument;
+  const selection = getTableRangeSelection(doc);
+  const focused = findCell(doc.activeElement);
+  const focusedAddress = focused && wrapper.contains(focused) ? addressFromCell(focused) : null;
+  const existing = selection?.wrapper === wrapper ? selectionCells(selection) : focusedAddress ? [focusedAddress] : [];
+  const target = kind === "rows" ? { top: address.row, bottom: address.row, left: 0, right: table.columnCount - 1 }
+    : kind === "columns" ? { top: 0, bottom: table.body.length, left: address.column, right: address.column }
+    : { top: address.row, bottom: address.row, left: address.column, right: address.column };
+  const cells = toggleSelectedCells(existing, rectangleCells(target));
+  if (!cells.length) {
+    clearTableRangeSelection(doc);
+    wrapper.focus({ preventScroll: true });
+    return;
+  }
+  const head = cells.find(cell => cell.row === address.row && cell.column === address.column) ?? cells.at(-1)!;
+  setTableRangeSelection(wrapper, table.from, cells[0], head, true, "cells", cells);
 }
 
 export function clearTableRangeSelection(doc: Document): void {
@@ -1265,11 +1345,12 @@ function applySelectionClasses(selection: TableRangeSelectionState): void {
   const rectangle = selectionRectangle(selection);
   const selectedRowCount = rectangle.bottom - rectangle.top + 1;
   const selectedColumnCount = rectangle.right - rectangle.left + 1;
+  const keys = new Set(selectionCells(selection).map(tableCellKey));
   selection.wrapper.classList.remove("mlrt-document-selection-mode");
   selection.wrapper.classList.add("mlrt-table-selection-mode");
   selection.wrapper.setAttribute(
     "aria-label",
-    `${selectedRowCount} by ${selectedColumnCount} table cell selection`,
+    selection.cells ? `${keys.size} selected table cells` : `${selectedRowCount} by ${selectedColumnCount} table cell selection`,
   );
   selection.wrapper.classList.toggle(
     "mlrt-table-cut-pending",
@@ -1281,27 +1362,24 @@ function applySelectionClasses(selection: TableRangeSelectionState): void {
       const address = addressFromCell(cell);
       const selected = Boolean(
         address &&
-          address.row >= rectangle.top &&
-          address.row <= rectangle.bottom &&
-          address.column >= rectangle.left &&
-          address.column <= rectangle.right,
+          keys.has(tableCellKey(address)),
       );
       cell.classList.toggle("mlrt-table-cell-selected", selected);
       cell.classList.toggle(
         "mlrt-table-selection-top",
-        selected && Boolean(address && address.row === rectangle.top),
+        selected && Boolean(address && !keys.has(`${address.row - 1}:${address.column}`)),
       );
       cell.classList.toggle(
         "mlrt-table-selection-bottom",
-        selected && Boolean(address && address.row === rectangle.bottom),
+        selected && Boolean(address && !keys.has(`${address.row + 1}:${address.column}`)),
       );
       cell.classList.toggle(
         "mlrt-table-selection-left",
-        selected && Boolean(address && address.column === rectangle.left),
+        selected && Boolean(address && !keys.has(`${address.row}:${address.column - 1}`)),
       );
       cell.classList.toggle(
         "mlrt-table-selection-right",
-        selected && Boolean(address && address.column === rectangle.right),
+        selected && Boolean(address && !keys.has(`${address.row}:${address.column + 1}`)),
       );
       cell.classList.toggle(
         "mlrt-table-cell-selection-head",
@@ -1335,7 +1413,8 @@ function tableSelectionFitsWrapper(
 ): boolean {
   return Boolean(
     cellFromAddress(wrapper, selection.anchor) &&
-      cellFromAddress(wrapper, selection.head),
+      cellFromAddress(wrapper, selection.head) &&
+      (!selection.cells || selection.cells.every(cell => cellFromAddress(wrapper, cell))),
   );
 }
 
@@ -1538,7 +1617,7 @@ interface TableSelectionStart {
  * events so structure controls can sit above them, which means event.target
  * is often a tr/table rather than the visible gutter cell.
  */
-function tableSelectionStart(
+export function tableSelectionStart(
   wrapper: HTMLElement,
   event: PointerEvent | MouseEvent,
 ): TableSelectionStart | null {

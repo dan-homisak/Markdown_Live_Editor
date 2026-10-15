@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocket } from "undici";
+import { edhLaunchFlags, edhSettings, resolveEdhExecutable } from "./edh-isolation.mjs";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const geometryOnly = process.argv.includes("--geometry-only");
@@ -35,6 +36,7 @@ const text = [
   "```md", "- [ ] Literal fenced task", "***", "```", "", "End source.", "",
 ].join("\n");
 const initialSettings = {
+  ...edhSettings,
   "markdownLiveRenderTables.markdownRendering.enabled": true,
   "markdownLiveRenderTables.debug": true,
   "editor.fontFamily": "Consolas, 'Courier New', monospace",
@@ -51,15 +53,12 @@ await mkdir(extensions, { recursive: true });
 await mkdir(user, { recursive: true });
 await writeFile(fixture, text, "utf8");
 await writeFile(path.join(user, "settings.json"), JSON.stringify(initialSettings, null, 2));
-const code = process.env.MLRT_CODE_BIN || [
-  process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, "Programs", "Microsoft VS Code", "Code.exe"),
-  process.env.ProgramFiles && path.join(process.env.ProgramFiles, "Microsoft VS Code", "Code.exe"),
-  "/Applications/Visual Studio Code.app/Contents/MacOS/Code", "/usr/share/code/code",
-].filter(Boolean).find(existsSync);
+const code = resolveEdhExecutable(repo);
 if (!code) throw new Error("VS Code executable not found; set MLRT_CODE_BIN.");
 const env = { ...process.env, ELECTRON_NO_ATTACH_CONSOLE: "1" };
 for (const key of Object.keys(env)) if (key.startsWith("npm_") || ["NODE_OPTIONS", "ELECTRON_RUN_AS_NODE"].includes(key)) delete env[key];
 const child = spawn(code, [
+  ...edhLaunchFlags,
   `--extensionDevelopmentPath=${repo}`, `--user-data-dir=${profile}`,
   `--extensions-dir=${extensions}`, `--remote-debugging-port=${port}`,
   "--new-window", "--disable-workspace-trust", "--skip-release-notes", "--skip-welcome", fixture,

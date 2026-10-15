@@ -11,6 +11,7 @@ import {
   ClipboardGridPayload,
   ClipboardPasteMode,
   buildGridClearEdit,
+  buildTableCellsClearEdit,
   importedMarkdownToTableCellSource,
   gridToMarkdown,
   MLRT_CLIPBOARD_MIME,
@@ -26,6 +27,8 @@ import {
   parseMarkdownTables,
 } from "../shared/tableModel";
 import { allowTableSourceChange } from "../shared/tableSourceProtection";
+import { deleteBetweenTables } from "./tableBoundaryNavigation";
+import { planTableDeletion, TableDeletionBehavior } from "../shared/tableDeletion";
 import { editorDragPosition } from "./dragPosition";
 import {
   isMarkdownTaskPointerActivation,
@@ -293,12 +296,18 @@ export function installDocumentClipboard(
       !event.ctrlKey &&
       !event.altKey
     ) {
+      if (!event.defaultPrevented && deleteBetweenTables(view, event.key === "Backspace" ? -1 : 1)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       const selected = view.state.selection.main;
+      const behavior = event.key === "Backspace" ? "clear" : "clear-first";
       const projection = getDocumentSelectionProjection(doc, selected);
       if (projection) {
         event.preventDefault();
         event.stopPropagation();
-        applyCompositeSelectionDelete(view, projection);
+        applyCompositeSelectionDelete(view, projection, behavior);
         return;
       }
       const range = atomicDocumentSelection(view);
@@ -308,6 +317,17 @@ export function installDocumentClipboard(
       if (range && touchesTable) {
         event.preventDefault();
         event.stopPropagation();
+        const tables = getParsedTables(view.state.doc).filter(table => range.from < table.to && range.to > table.from);
+        const contentPlans = tables.map(table => planTableDeletion(table, fullTableRectangle(tableDimensions(table)), "cells", behavior));
+        if (contentPlans.some(plan => !plan.removed)) {
+          const edits = tables.map(table => buildGridClearEdit(table, fullTableRectangle(tableDimensions(table))))
+            .filter(edit => view.state.doc.sliceString(edit.from, edit.to) !== edit.insert);
+          if (edits.length === 0) return;
+          const changes = view.state.changes(edits);
+          view.dispatch({ changes, selection: EditorSelection.range(changes.mapPos(selected.anchor, -1), changes.mapPos(selected.head, 1)),
+            annotations: allowTableSourceChange.of(true), userEvent: "delete.selection" });
+          return;
+        }
         view.dispatch({
           changes: { from: range.from, to: range.to, insert: "" },
           selection: EditorSelection.cursor(range.from, 1),
@@ -324,8 +344,13 @@ export function installDocumentClipboard(
   const onContextMenu = (event: MouseEvent): void => {
     if (!root.contains(event.target as Node)) return;
     const preservesSelection = shouldPreserveContextSelection(event);
-    if (!preservesSelection && (findCell(event.target) || !view.state.selection.main.empty)) return;
-    const extraActions = preservesSelection ? [] : contextActions?.(event) ?? [];
+    const insideTable = event.target instanceof Element && event.target.closest(".mlrt-table-widget");
+    if (!preservesSelection && (insideTable || !view.state.selection.main.empty)) return;
+    const extraActions = preservesSelection ? [] : [...contextActions?.(event) ?? []];
+    if (!preservesSelection && !findCell(event.target) && !view.state.readOnly) {
+      const position = editorDragPosition(view, event.clientX, event.clientY) ?? view.state.selection.main.head;
+      extraActions.push({ label: "Insert table (2 × 2)", run: () => insertDefaultTable(view, position) });
+    }
     if (!atomicDocumentSelection(view) && extraActions.length === 0) return;
     event.preventDefault();
     event.stopPropagation();
@@ -1261,6 +1286,7 @@ function joinCompositeMarkdownFragments(fragments: string[]): string {
 function compositeSelectionChanges(
   view: EditorView,
   projection: DocumentSelectionProjection,
+  tableBehavior?: TableDeletionBehavior,
 ): Array<{ from: number; to: number; insert: string }> {
   if (projection.tableRegions.length === 0) {
     const from = Math.min(projection.anchor, projection.head);
@@ -1303,7 +1329,7 @@ function compositeSelectionChanges(
     }
     const full = isFullTableRegion(table, region);
     changes.push(
-      full
+      tableBehavior ? planTableDeletion(table, region, "cells", tableBehavior).edit : full
         ? { from: table.from, to: table.to, insert: "" }
         : buildGridClearEdit(table, region),
     );
@@ -1363,8 +1389,28 @@ function trimLeadingLineBreaks(
 function applyCompositeSelectionDelete(
   view: EditorView,
   projection: DocumentSelectionProjection,
+  behavior: TableDeletionBehavior,
 ): void {
-  const changes = compositeSelectionChanges(view, projection);
+  const tables = getParsedTables(view.state.doc);
+  const tablePlans = projection.tableRegions.flatMap(region => {
+    const table = tables.find(candidate => candidate.from === region.tableFrom);
+    return table ? [{ table, region, plan: planTableDeletion(table, region, "cells", behavior) }] : [];
+  });
+  if (tablePlans.some(({ plan }) => !plan.removed && plan.wholeTable)) {
+    // Keep the painted selection for the second Delete, including its exact cell geometry.
+    const edits = tablePlans.map(({ table, region }) => buildGridClearEdit(table, region))
+      .filter(edit => view.state.doc.sliceString(edit.from, edit.to) !== edit.insert);
+    if (edits.length === 0) return;
+    const changes = view.state.changes(edits);
+    const anchor = changes.mapPos(projection.anchor, -1), head = changes.mapPos(projection.head, 1);
+    setDocumentSelectionProjection(view.dom.ownerDocument, { anchor, head,
+      tableRegions: projection.tableRegions.map(region => ({ ...region, tableFrom: changes.mapPos(region.tableFrom, -1) })) });
+    view.dispatch({ changes, selection: EditorSelection.range(anchor, head),
+      annotations: [allowTableSourceChange.of(true), documentSelectionProjectionTransaction.of(true)], userEvent: "delete.selection" });
+    return;
+  }
+  const changes = compositeSelectionChanges(view, projection, behavior)
+    .filter(edit => view.state.doc.sliceString(edit.from, edit.to) !== edit.insert);
   if (changes.length === 0) {
     return;
   }
@@ -2284,12 +2330,14 @@ function dispatchTableMoveToDocument(
     sourceTable,
     pending.rectangle,
     pending.sourceDocument,
+    undefined,
+    pending.cells,
   );
   if (!sameGridPayloadText(payload, expectedPayload)) {
     return "source-changed";
   }
   const markdown = markdownForGridPayload(expectedPayload);
-  const sourceEdit = buildGridClearEdit(sourceTable, pending.rectangle);
+  const sourceEdit = pending.cells ? buildTableCellsClearEdit(sourceTable, pending.cells) : buildGridClearEdit(sourceTable, pending.rectangle);
   const changeSpecs = [
     sourceEdit,
     { from: destination.from, to: destination.to, insert: markdown },
@@ -2369,6 +2417,29 @@ export interface DocumentContextAction {
   run: () => void;
 }
 
+function insertDefaultTable(view: EditorView, requestedPosition: number): void {
+  if (view.state.readOnly) return;
+  let position = Math.min(requestedPosition, view.state.doc.length);
+  const containingTable = getParsedTables(view.state.doc).find(table => position >= table.from && position <= table.to);
+  if (containingTable) position = containingTable.to;
+  else {
+    const line = view.state.doc.lineAt(position);
+    if (line.text.trim()) position = line.to;
+  }
+  const before = view.state.doc.sliceString(0, position), after = view.state.doc.sliceString(position);
+  const prefix = before.length === 0 || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+  const suffix = after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+  const tableFrom = position + prefix.length;
+  clearTableRangeSelection(view.dom.ownerDocument);
+  view.dispatch({ changes: { from: position, insert: `${prefix}|  |  |\n| --- | --- |\n|  |  |${suffix}` },
+    selection: EditorSelection.cursor(position), annotations: allowTableSourceChange.of(true), userEvent: "input.table" });
+  const cell = view.dom.querySelector<HTMLElement>(`.mlrt-table-cell[data-table-from="${tableFrom}"][data-row-kind="header"][data-column="0"]`);
+  if (cell) {
+    cell.focus({ preventScroll: true });
+    cell.scrollIntoView({ block: "nearest" });
+  }
+}
+
 function showDocumentMenu(
   doc: Document,
   view: EditorView,
@@ -2381,6 +2452,10 @@ function showDocumentMenu(
   menu.className = "mlrt-clipboard-menu mlrt-document-clipboard-menu";
   menu.setAttribute("role", "menu");
   menu.setAttribute("aria-label", "Document actions");
+  menu.addEventListener("pointermove", event => {
+    const item = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button") : null;
+    if (item && menu.contains(item)) item.focus({ preventScroll: true });
+  });
   const close = (restoreFocus = false): void => {
     menu.remove();
     doc.removeEventListener("pointerdown", closeOnOutsidePointer, true);
@@ -2490,7 +2565,19 @@ function showDocumentMenu(
     4,
     Math.min(clientY, viewportHeight - menu.offsetHeight - 4),
   )}px`;
-  menu.querySelector<HTMLButtonElement>("button")?.focus();
+  menu.tabIndex = -1;
+  menu.addEventListener("keydown", event => {
+    if (event.target !== menu) return;
+    const items = Array.from(menu.querySelectorAll<HTMLButtonElement>("button"));
+    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+      event.preventDefault();
+      const target = event.key === "ArrowUp" || event.key === "End" ? items.at(-1) : items[0];
+      target?.focus();
+    } else if (event.key === "Escape" || event.key === "Tab") {
+      event.preventDefault(); event.stopPropagation(); close(true);
+    }
+  });
+  menu.focus({ preventScroll: true });
   documentMenuClosers.set(doc, close);
   doc.addEventListener("pointerdown", closeOnOutsidePointer, true);
 }

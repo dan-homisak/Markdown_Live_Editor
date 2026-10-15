@@ -10,6 +10,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocket } from "undici";
 import { runSelectionWrappingCheck } from "./edh-selection-wrapping-check.mjs";
+import { runTableDeletionCheck } from "./edh-table-deletion-check.mjs";
+import { runSelectionStrokeCheck } from "./edh-selection-stroke-check.mjs";
+import { edhLaunchFlags, edhSettings, resolveEdhExecutable } from "./edh-isolation.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -23,7 +26,7 @@ const gutterStressFixture = await readFile(
   path.join(repoRoot, "GutterStressTest.md"),
   "utf8",
 );
-const codeBin = resolveCodeExecutable();
+const codeBin = resolveEdhExecutable(repoRoot);
 if (!codeBin) {
   throw new Error(
     `Could not find the Visual Studio Code app executable on ${process.platform}.`,
@@ -57,6 +60,8 @@ const tableSelectionOutlineOnlyComplete = Symbol(
 );
 await mkdir(qaDir, { recursive: true });
 await mkdir(extensionsDir, { recursive: true });
+await mkdir(path.join(userDataDir, "User"), { recursive: true });
+await writeFile(path.join(userDataDir, "User", "settings.json"), JSON.stringify(edhSettings));
 const fixturePath = path.join(userDataDir, "TestTable.md");
 await writeFile(
   fixturePath,
@@ -102,39 +107,10 @@ await writeFile(
 );
 console.log(`Using Electron DevTools port ${port}`);
 
-function resolveCodeExecutable() {
-  const explicitCodeBin = process.env.MLRT_CODE_BIN;
-  if (explicitCodeBin && existsSync(explicitCodeBin)) {
-    return explicitCodeBin;
-  }
-  const localAppData = process.env.LOCALAPPDATA;
-  const programFiles = process.env.ProgramFiles;
-  const programFilesX86 = process.env["ProgramFiles(x86)"];
-  const candidates =
-    process.platform === "darwin"
-      ? [
-          "/Applications/Visual Studio Code.app/Contents/MacOS/Code",
-          "/Applications/Visual Studio Code.app/Contents/MacOS/Electron",
-        ]
-      : process.platform === "win32"
-        ? [
-            localAppData &&
-              path.join(localAppData, "Programs", "Microsoft VS Code", "Code.exe"),
-            programFiles && path.join(programFiles, "Microsoft VS Code", "Code.exe"),
-            programFilesX86 &&
-              path.join(programFilesX86, "Microsoft VS Code", "Code.exe"),
-          ]
-        : [
-            "/usr/share/code/code",
-            "/usr/bin/code",
-            "/snap/bin/code",
-          ];
-  return candidates.filter(Boolean).find(existsSync);
-}
-
 const child = spawn(
   codeBin,
   [
+    ...edhLaunchFlags,
     `--extensionDevelopmentPath=${repoRoot}`,
     `--user-data-dir=${userDataDir}`,
     `--extensions-dir=${extensionsDir}`,
@@ -355,6 +331,16 @@ try {
 
   assertPixelParity(stockMetrics, liveMetrics);
 
+  if (process.argv.includes("--selection-stroke-only")) {
+    await runSelectionStrokeCheck({ liveClient, wb, evaluateJson, qaDir });
+    throw borderOnlyComplete;
+  }
+
+  if (process.argv.includes("--table-deletion-only")) {
+    await runTableDeletionCheck({ liveClient, wb, evaluateJson, captureWorkbenchScreenshot, qaDir });
+    throw borderOnlyComplete;
+  }
+
   if (process.argv.includes("--selection-wrapping-only")) {
     await runSelectionWrappingCheck({ liveClient, wb, evaluateJson, captureWorkbenchScreenshot, qaDir });
     throw borderOnlyComplete;
@@ -365,6 +351,7 @@ try {
   const setLineHighlight = async (enabled) => {
     await mkdir(path.dirname(highlightSettingsPath), { recursive: true });
     await writeFile(highlightSettingsPath, JSON.stringify({
+      ...edhSettings,
       "markdownLiveRenderTables.lineHighlight.enabled": enabled,
     }));
     for (let attempt = 0; attempt < 50; attempt++) {
@@ -478,7 +465,7 @@ try {
       outline.scrollportBottomClearance < 0.49 ||
       outline.frameStroke === "none" ||
       outline.frameStroke === "rgba(0, 0, 0, 0)" ||
-      Number.parseFloat(outline.frameStrokeWidth) !== 1
+      Number.parseFloat(outline.frameStrokeWidth) !== outline.expectedStrokeWidth
     ) {
       throw new Error(
         `Table selection bottom-outline check failed: ${JSON.stringify(outline)}`,
@@ -4724,6 +4711,7 @@ function tableSelectionGeometryExpression() {
         framePaintedLast: overlay.lastElementChild === frame,
         frameStroke: frameStyle.stroke,
         frameStrokeWidth: frameStyle.strokeWidth,
+        expectedStrokeWidth: Number.parseFloat(cellStyles[0].borderRightWidth),
         frameCoordinatesAligned:
           nearlyEqual(Number(frame.getAttribute('x')), 0.5) &&
           nearlyEqual(Number(frame.getAttribute('y')), 0.5) &&
@@ -5020,6 +5008,7 @@ function tableSelectionBottomOutlineExpression() {
       scrollportBottomClearance: scrollRect.bottom - paintedBottom,
       frameStroke: frameStyle.stroke,
       frameStrokeWidth: frameStyle.strokeWidth,
+      expectedStrokeWidth: Number.parseFloat(root.defaultView.getComputedStyle(selected[0]).borderRightWidth),
     });
   })()`;
 }
@@ -6258,6 +6247,7 @@ function tablePointerSelectionResultExpression() {
         color: selectedStyle.color,
         borderTopColor: selectedStyle.borderTopColor,
         borderRightColor: selectedStyle.borderRightColor,
+        borderRightWidth: selectedStyle.borderRightWidth,
         borderBottomColor: selectedStyle.borderBottomColor,
         borderLeftColor: selectedStyle.borderLeftColor,
         boxShadow: selectedStyle.boxShadow,
@@ -6769,6 +6759,7 @@ function documentToTableDragResultExpression() {
         color: selectedStyle.color,
         borderTopColor: selectedStyle.borderTopColor,
         borderRightColor: selectedStyle.borderRightColor,
+        borderRightWidth: selectedStyle.borderRightWidth,
         borderBottomColor: selectedStyle.borderBottomColor,
         borderLeftColor: selectedStyle.borderLeftColor,
         boxShadow: selectedStyle.boxShadow,
@@ -12200,14 +12191,14 @@ function assertTableSelectionGeometry(result) {
     geometry.framePaintedLast &&
     geometry.frameStroke !== "none" &&
     geometry.frameStroke !== "rgba(0, 0, 0, 0)" &&
-    Number.parseFloat(geometry.frameStrokeWidth) === 1 &&
+    Number.parseFloat(geometry.frameStrokeWidth) === geometry.expectedStrokeWidth &&
     geometry.frameCoordinatesAligned &&
     geometry.bottomFrameClipClearance >= 0.49 &&
     geometry.railsAligned &&
     geometry.railCount === 3 &&
     geometry.railsTrimmedInsideFrame &&
     geometry.railEndpointsExact &&
-    Number.parseFloat(geometry.gridStrokeWidth) === 1 &&
+    Number.parseFloat(geometry.gridStrokeWidth) === geometry.expectedStrokeWidth &&
     geometry.gridStrokeLinecap === "butt" &&
     geometry.gridVectorEffect === "non-scaling-stroke" &&
     geometry.gridShapeRendering.toLowerCase() === "crispedges" &&
@@ -14904,8 +14895,8 @@ function selectionStyleIsValid(style) {
     ].every(selectionColorIsTransparent) &&
     !selectionColorIsTransparent(style.gridStroke) &&
     !selectionColorIsTransparent(style.frameStroke) &&
-    style.gridStrokeWidth === "1px" &&
-    style.frameStrokeWidth === "1px" &&
+    style.gridStrokeWidth === style.borderRightWidth &&
+    style.frameStrokeWidth === style.borderRightWidth &&
     style.boxShadow === "none"
   );
 }

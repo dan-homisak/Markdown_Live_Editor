@@ -6,6 +6,7 @@ import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import {
   buildGridClearEdit,
+  buildTableCellsClearEdit,
   buildGridPasteEdit,
   CellRectangle,
   ClipboardCell,
@@ -44,6 +45,7 @@ import {
   findCell,
   getCellSelectionOffsets,
   readCellDisplayValue,
+  setCellSelectionOffsets,
   TABLE_CELL_SELECTOR,
 } from "./cellSelection";
 import {
@@ -53,14 +55,22 @@ import {
   ensureContextCellSelection,
   getTableRangeSelection,
   selectionRectangle,
+  selectionCells,
+  isCellInSelection,
+  selectTableRow,
   setPendingCutToken,
   setTableRangeSelection,
   TABLE_CUT_CANCEL_EVENT,
   TABLE_SELECTION_CLEAR_EVENT,
+  TABLE_SELECTION_DELETE_EVENT,
   TableCellAddress,
   TableRangeSelectionState,
+  tableSelectionStart,
 } from "./tableRangeSelection";
 import { getTableWidgetTable } from "./tableWidgetState";
+import { deleteTableSelection } from "./tableDeletion";
+import { TableDeletionBehavior } from "../../shared/tableDeletion";
+import { inspectTableCellSet, rectangleCells } from "../../shared/tableSelectionSet";
 import {
   OFFICE_RICH_CELL_ALLOWED_ATTR,
   OFFICE_RICH_CELL_ALLOWED_TAGS,
@@ -184,6 +194,7 @@ export function bindTableClipboard(
       rectangle,
       readDocumentToken(doc),
       token,
+      selection.cells,
     );
     const representations = representationsForGrid(
       payload,
@@ -199,10 +210,11 @@ export function bindTableClipboard(
       sourceDocument: readDocumentToken(doc),
       tableFrom: table.from,
       rectangle,
+      cells: selection.cells,
       sourceTableText: view.state.doc.sliceString(table.from, table.to),
     });
     setPendingCutToken(doc, token);
-    markPendingCutSource(wrapper, rectangle);
+    markPendingCutSource(wrapper, rectangle, selection.cells);
     announce(
       doc,
       "Move pending. Paste in this document to move; external paste copies.",
@@ -239,20 +251,21 @@ export function bindTableClipboard(
     }
   };
 
-  const onClear = (event: Event): void => {
+  const applySelectionKey = (event: Event, behavior: TableDeletionBehavior): void => {
     const selection = getTableRangeSelection(doc);
     if (!selection || selection.wrapper !== wrapper) {
       return;
     }
     event.preventDefault();
     const table = currentTable();
-    dispatchTableEdit(view, buildGridClearEdit(table, selectionRectangle(selection)));
+    deleteTableSelection(view, table, selectionRectangle(selection), selection.kind, behavior, selection.cells);
     clearPendingClipboardCut(doc);
     setPendingCutToken(doc, undefined);
     view.dom.classList.remove("mlrt-document-cut-pending");
-    restoreSelectionAfterEdit(doc, table.from, selection.anchor, selection.head);
-    announce(doc, "Cleared selected cells.");
+    announce(doc, behavior === "clear" ? "Selected contents cleared." : "Selection deleted.");
   };
+  const onClear = (event: Event): void => applySelectionKey(event, "clear");
+  const onDelete = (event: Event): void => applySelectionKey(event, "clear-first");
 
   const onCancelCut = (event: Event): void => {
     const selection = getTableRangeSelection(doc);
@@ -298,9 +311,10 @@ export function bindTableClipboard(
 
   const onContextMenu = (event: MouseEvent): void => {
     const currentSelection = getTableRangeSelection(doc);
+    const hit = tableSelectionStart(wrapper, event);
     const cell =
-      findCell(event.target) ??
-      (currentSelection?.wrapper === wrapper
+      hit?.cell ??
+      (event.clientX === 0 && event.clientY === 0 && currentSelection?.wrapper === wrapper
         ? cellFromAddress(wrapper, currentSelection.head)
         : null);
     if (!cell || !wrapper.contains(cell)) {
@@ -309,6 +323,7 @@ export function bindTableClipboard(
     event.preventDefault();
     event.stopPropagation();
     const nativeCellSelection = hasNativeCellSelection(cell);
+    const nativeOffsets = nativeCellSelection ? getCellSelectionOffsets(cell) : null;
     const nativeRange = nativeCellSelection
       ? doc.defaultView?.getSelection()?.getRangeAt(0).cloneRange() ?? null
       : null;
@@ -317,19 +332,63 @@ export function bindTableClipboard(
         return;
       }
       cell.focus({ preventScroll: true });
+      if (nativeOffsets) {
+        setCellSelectionOffsets(cell, nativeOffsets.anchor, nativeOffsets.head);
+        return;
+      }
       const nativeSelection = doc.defaultView?.getSelection();
       nativeSelection?.removeAllRanges();
       nativeSelection?.addRange(nativeRange);
     };
     if (!nativeCellSelection) {
-      ensureContextCellSelection(
-        wrapper,
-        Number(wrapper.dataset.srcFrom ?? currentTable().from),
-        cell,
+      const table = currentTable();
+      const address = addressFromCell(cell)!;
+      const selectedRectangle = currentSelection?.wrapper === wrapper ? selectionRectangle(currentSelection) : null;
+      const preservesRows = currentSelection?.wrapper === wrapper && isCellInSelection(currentSelection, address);
+      if (hit?.mode === "row" && !preservesRows) selectTableRow(wrapper, table.from, address.row, table.columnCount);
+      else ensureContextCellSelection(wrapper, table.from, cell);
+    }
+    // Freeze what this menu describes. Focusing/clicking its buttons must not retarget the action.
+    const selection = getTableRangeSelection(doc);
+    const rectangle = selection?.wrapper === wrapper ? selectionRectangle(selection) : null;
+    const kind = selection?.kind ?? "cells";
+    const selectedTable = currentTable();
+    const selectedSource = view.state.doc.sliceString(selectedTable.from, selectedTable.to);
+    const selectedCells = selection?.wrapper === wrapper ? selectionCells(selection).map(cell => ({ ...cell })) : [];
+    const selectedInfo = inspectTableCellSet(selectedTable, selectedCells);
+    const extraActions: { label: string; action: string; run: () => void }[] = [];
+    const applySelection = (target: CellRectangle, targetKind: typeof kind, behavior: TableDeletionBehavior,
+      cells = rectangleCells(target)): void => {
+      const table = currentTable();
+      if (!rectangle || view.state.doc.sliceString(table.from, table.to) !== selectedSource) return;
+      deleteTableSelection(view, table, target, targetKind, behavior, cells);
+    };
+    if (nativeCellSelection) {
+      extraActions.push({ label: "Delete selected text", action: "delete-text", run: () => {
+        restoreNativeCellSelection();
+        doc.execCommand("delete");
+      } });
+    } else if (rectangle) {
+      const rows = selectedInfo.rows.length, columns = selectedInfo.columns.length;
+      const count = selectedCells.length;
+      const entireTable = { top: 0, bottom: selectedTable.body.length, left: 0, right: selectedTable.columnCount - 1 };
+      extraActions.push(
+        { label: count === 1 ? "Clear cell" : `Clear ${count} selected cells`, action: "delete-selection",
+          run: () => applySelection(rectangle, kind, "clear", selectedCells) },
+        { label: rows === 1 ? "Delete row" : `Delete ${rows} selected rows`, action: "delete-rows",
+          run: () => applySelection({ ...rectangle, left: 0, right: selectedTable.columnCount - 1 }, "rows", "remove",
+            selectedInfo.rows.flatMap(row => rectangleCells({ top: row, bottom: row, left: 0, right: selectedTable.columnCount - 1 }))) },
+        { label: columns === 1 ? "Delete column" : `Delete ${columns} selected columns`, action: "delete-columns",
+          run: () => applySelection({ ...rectangle, top: 0, bottom: selectedTable.body.length }, "columns", "remove",
+            selectedInfo.columns.flatMap(column => rectangleCells({ top: 0, bottom: selectedTable.body.length, left: column, right: column }))) },
+        { label: "Clear table", action: "clear-table", run: () => applySelection(entireTable, "cells", "clear") },
+        { label: "Delete table", action: "delete-table", run: () => applySelection(entireTable, "cells", "clear-first") },
       );
     }
     closeContextMenu();
     contextMenu = createClipboardMenu(doc, {
+      extraActions,
+      onClose: () => closeContextMenu(),
       defaultCopyMode: readDefaultCopyMode(doc),
       defaultPasteMode: readDefaultPasteMode(doc),
       cutLabel: nativeCellSelection
@@ -368,10 +427,6 @@ export function bindTableClipboard(
         },
     });
     wrapper.classList.add("mlrt-clipboard-menu-open");
-    contextMenu.addEventListener("click", () => setTimeout(closeContextMenu, 0), {
-      once: true,
-      capture: true,
-    });
     contextMenu.addEventListener("keydown", (menuEvent) => {
       if (menuEvent.key === "Escape" || menuEvent.key === "Tab") {
         menuEvent.preventDefault();
@@ -387,7 +442,11 @@ export function bindTableClipboard(
       event.clientX || cellRect.left,
       event.clientY || cellRect.bottom,
     );
-    contextMenu.querySelector<HTMLButtonElement>("button")?.focus();
+    contextMenu.tabIndex = -1;
+    contextMenu.addEventListener("keydown", event => {
+      if (event.target === contextMenu) navigateMenu(event, contextMenu!);
+    });
+    contextMenu.focus({ preventScroll: true });
     doc.addEventListener("pointerdown", onDocumentPointerDown, true);
   };
 
@@ -420,6 +479,7 @@ export function bindTableClipboard(
   doc.addEventListener("paste", onPaste, true);
   wrapper.addEventListener("keydown", onKeyDown);
   wrapper.addEventListener(TABLE_SELECTION_CLEAR_EVENT, onClear);
+  wrapper.addEventListener(TABLE_SELECTION_DELETE_EVENT, onDelete);
   wrapper.addEventListener(TABLE_CUT_CANCEL_EVENT, onCancelCut);
   wrapper.addEventListener("contextmenu", onContextMenu);
   restorePendingCutSource(wrapper, currentTable());
@@ -430,6 +490,7 @@ export function bindTableClipboard(
     doc.removeEventListener("paste", onPaste, true);
     wrapper.removeEventListener("keydown", onKeyDown);
     wrapper.removeEventListener(TABLE_SELECTION_CLEAR_EVENT, onClear);
+    wrapper.removeEventListener(TABLE_SELECTION_DELETE_EVENT, onDelete);
     wrapper.removeEventListener(TABLE_CUT_CANCEL_EVENT, onCancelCut);
     wrapper.removeEventListener("contextmenu", onContextMenu);
   };
@@ -448,6 +509,8 @@ function representationsForCurrentSelection(
         table,
         selectionRectangle(selection),
         readDocumentToken(doc),
+        undefined,
+        selection.cells,
       ),
       mode,
     );
@@ -686,6 +749,7 @@ function pasteClipboardData(
 
   const targetPlan = {
     rows: resolvedRows,
+    destinationCells: selection?.wrapper === wrapper ? selection.cells : undefined,
     sourceAlignments:
       movingDocumentPayload
         ? alignmentsForDocumentMove(movingDocumentPayload.markdown)
@@ -788,7 +852,7 @@ function pasteClipboardData(
   setPendingCutToken(doc, undefined);
   const anchor = { row: targetPlan.destination.top, column: targetPlan.destination.left };
   const head = { row: targetPlan.destination.bottom, column: targetPlan.destination.right };
-  restoreSelectionAfterEdit(doc, destinationTableFrom, anchor, head);
+  restoreSelectionAfterEdit(doc, destinationTableFrom, anchor, head, selection?.cells);
   announce(doc, isSameDocumentMove ? "Moved cells." : "Pasted cells.");
   return true;
 }
@@ -806,6 +870,8 @@ function dispatchMove(
         sourceTable,
         pendingCut.rectangle,
         pendingCut.sourceDocument,
+        undefined,
+        pendingCut.cells,
       )
     : null;
   if (
@@ -823,7 +889,7 @@ function dispatchMove(
     sourceAlignments: sourcePayload.alignments,
   };
   if (sourceTable.from === destinationTable.from) {
-    const cleared = buildGridClearEdit(sourceTable, pendingCut.rectangle);
+    const cleared = pendingCut.cells ? buildTableCellsClearEdit(sourceTable, pendingCut.cells) : buildGridClearEdit(sourceTable, pendingCut.rectangle);
     const clearedTable = parseMarkdownTables(cleared.insert)[0];
     if (!clearedTable) {
       return null;
@@ -836,7 +902,7 @@ function dispatchMove(
     });
     return sourceTable.from;
   }
-  const sourceEdit = buildGridClearEdit(sourceTable, pendingCut.rectangle);
+  const sourceEdit = pendingCut.cells ? buildTableCellsClearEdit(sourceTable, pendingCut.cells) : buildGridClearEdit(sourceTable, pendingCut.rectangle);
   const destinationEdit = buildGridPasteEdit(destinationTable, safeTargetPlan);
   const changeSpecs = [sourceEdit, destinationEdit]
     .sort((left, right) => left.from - right.from)
@@ -1262,6 +1328,7 @@ async function cutThroughMenu(
       rectangle,
       sourceDocument,
       token,
+      selection.cells,
     ),
     readDefaultCopyMode(doc),
   );
@@ -1270,7 +1337,7 @@ async function cutThroughMenu(
   }
   if (!representations.html) {
     representations.html = representationsForGrid(
-      tableRectanglePayload(table, rectangle, sourceDocument, token),
+      tableRectanglePayload(table, rectangle, sourceDocument, token, selection.cells),
       "smart",
     ).html;
   }
@@ -1305,10 +1372,11 @@ async function cutThroughMenu(
     sourceDocument,
     tableFrom: currentTable.from,
     rectangle,
+    cells: selection.cells,
     sourceTableText,
   });
   setPendingCutToken(doc, token);
-  markPendingCutSource(wrapper, rectangle);
+  markPendingCutSource(wrapper, rectangle, selection.cells);
   announce(
     doc,
     "Move pending. Paste in this document to move; external paste copies.",
@@ -1441,6 +1509,8 @@ async function readAsyncClipboard(): Promise<ClipboardReadData> {
 function createClipboardMenu(
   doc: Document,
   actions: {
+    extraActions: { label: string; action: string; run: () => void }[];
+    onClose: () => void;
     defaultCopyMode: ClipboardCopyMode;
     defaultPasteMode: ClipboardPasteMode;
     cutLabel: string;
@@ -1455,6 +1525,10 @@ function createClipboardMenu(
   menu.className = CLIPBOARD_MENU_CLASS;
   menu.setAttribute("role", "menu");
   menu.setAttribute("aria-label", "Table clipboard actions");
+  menu.addEventListener("pointermove", event => {
+    const item = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button") : null;
+    if (item && menu.contains(item)) item.focus({ preventScroll: true });
+  });
   const add = (label: string, action: string, callback: () => void): void => {
     const button = doc.createElement("button");
     button.type = "button";
@@ -1465,7 +1539,7 @@ function createClipboardMenu(
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      menu.remove();
+      actions.onClose();
       callback();
     });
     button.addEventListener("keydown", (event) => navigateMenu(event, menu));
@@ -1477,6 +1551,8 @@ function createClipboardMenu(
     element.setAttribute("role", "separator");
     menu.append(element);
   };
+  actions.extraActions.forEach(action => add(action.label, action.action, action.run));
+  if (actions.extraActions.length) separator();
   add(actions.cutLabel, "cut", actions.onCut);
   add(
     `Copy (${COPY_MODE_LABELS[actions.defaultCopyMode]})`,
@@ -1528,7 +1604,7 @@ function navigateMenu(event: KeyboardEvent, menu: HTMLElement): void {
   }
   event.preventDefault();
   const delta = event.key === "ArrowDown" ? 1 : -1;
-  const target = items[(index + delta + items.length) % items.length];
+  const target = index < 0 ? (delta > 0 ? items[0] : items.at(-1)) : items[(index + delta + items.length) % items.length];
   items.forEach((item) => {
     item.tabIndex = item === target ? 0 : -1;
   });
@@ -1562,6 +1638,7 @@ function restoreSelectionAfterEdit(
   previousTableFrom: number,
   anchor: TableCellAddress,
   head: TableCellAddress,
+  cells?: TableCellAddress[],
 ): void {
   setTimeout(() => {
     const wrapper = Array.from(
@@ -1573,7 +1650,7 @@ function restoreSelectionAfterEdit(
     if (!wrapper) {
       return;
     }
-    setTableRangeSelection(wrapper, previousTableFrom, anchor, head, true);
+    setTableRangeSelection(wrapper, previousTableFrom, anchor, head, true, "cells", cells);
   }, 0);
 }
 
@@ -1773,7 +1850,8 @@ function sameSelection(
       current.anchor.row === expected.anchor.row &&
       current.anchor.column === expected.anchor.column &&
       current.head.row === expected.head.row &&
-      current.head.column === expected.head.column,
+      current.head.column === expected.head.column &&
+      JSON.stringify(selectionCells(current)) === JSON.stringify(selectionCells(expected)),
   );
 }
 
@@ -1807,20 +1885,21 @@ function restorePendingCutSource(
 ): void {
   const pending = getPendingClipboardCut(wrapper.ownerDocument);
   if (pending?.kind === "table" && pending.tableFrom === table.from) {
-    markPendingCutSource(wrapper, pending.rectangle);
+    markPendingCutSource(wrapper, pending.rectangle, pending.cells);
   }
 }
 
 function markPendingCutSource(
   wrapper: HTMLElement,
   rectangle: CellRectangle,
+  cells?: TableCellAddress[],
 ): void {
   wrapper.classList.add("mlrt-table-cut-source-pending");
   wrapper.querySelectorAll<HTMLElement>(TABLE_CELL_SELECTOR).forEach((cell) => {
     const address = addressFromCell(cell);
     const selected = Boolean(
       address &&
-        address.row >= rectangle.top &&
+        (!cells || cells.some(cell => cell.row === address.row && cell.column === address.column)) && address.row >= rectangle.top &&
         address.row <= rectangle.bottom &&
         address.column >= rectangle.left &&
         address.column <= rectangle.right,

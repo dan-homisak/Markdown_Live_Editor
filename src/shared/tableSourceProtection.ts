@@ -257,7 +257,8 @@ function isTableCellFocused(
   const activeElement = view.dom.ownerDocument.activeElement;
   return (
     activeElement instanceof HTMLElement &&
-    Boolean(activeElement.closest(tableCellSelector))
+    (Boolean(activeElement.closest(`${tableCellSelector}, .mlrt-table-widget`)) ||
+      Boolean(activeElement.closest(".mlrt-clipboard-menu") && view.dom.querySelector(".mlrt-table-selection-mode")))
   );
 }
 

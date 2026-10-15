@@ -21,16 +21,20 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocket } from "undici";
+import { edhLaunchFlags, edhSettings, resolveEdhExecutable } from "./edh-isolation.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const codeBin = "/Applications/Visual Studio Code.app/Contents/MacOS/Electron";
+const codeBin = resolveEdhExecutable(repoRoot);
+if (!codeBin) throw new Error("VS Code executable not found; set MLRT_CODE_BIN.");
 const port = await findFreePort(9800, 200);
 const userDataDir = mkdtempSync(path.join(os.tmpdir(), "mlrt-edh-controls-"));
 const qaDir = path.join(repoRoot, "qa");
 await mkdir(qaDir, { recursive: true });
+await mkdir(path.join(userDataDir, "User"), { recursive: true });
+await writeFile(path.join(userDataDir, "User", "settings.json"), JSON.stringify(edhSettings));
 const fixturePath = path.join(userDataDir, "TestTable.md");
 await writeFile(
   fixturePath,
@@ -76,6 +80,7 @@ async function looksIdle(port) {
 const child = spawn(
   codeBin,
   [
+    ...edhLaunchFlags,
     `--extensionDevelopmentPath=${repoRoot}`,
     `--user-data-dir=${userDataDir}`,
     `--remote-debugging-port=${port}`,
@@ -244,36 +249,23 @@ try {
   await wb.send("Page.enable");
   await sleep(4000);
 
-  // Toggle the live editor via the command palette.
+  // Use the registered platform shortcut so first-run palette contributions
+  // cannot steal focus from this isolated test window.
   const key = async (opts) => wb.send("Input.dispatchKeyEvent", opts);
+  const toggleModifiers = process.platform === "darwin" ? 4 | 2 : 2 | 1;
   await key({
     type: "keyDown",
-    modifiers: 4 | 8,
-    key: "P",
-    code: "KeyP",
-    windowsVirtualKeyCode: 80,
+    modifiers: toggleModifiers,
+    key: "m",
+    code: "KeyM",
+    windowsVirtualKeyCode: 77,
   });
   await key({
     type: "keyUp",
-    modifiers: 4 | 8,
-    key: "P",
-    code: "KeyP",
-    windowsVirtualKeyCode: 80,
-  });
-  await sleep(800);
-  await wb.send("Input.insertText", { text: "Toggle Markdown Live Editor" });
-  await sleep(1200);
-  await key({
-    type: "keyDown",
-    key: "Enter",
-    code: "Enter",
-    windowsVirtualKeyCode: 13,
-  });
-  await key({
-    type: "keyUp",
-    key: "Enter",
-    code: "Enter",
-    windowsVirtualKeyCode: 13,
+    modifiers: toggleModifiers,
+    key: "m",
+    code: "KeyM",
+    windowsVirtualKeyCode: 77,
   });
   await sleep(5000);
 
@@ -805,7 +797,7 @@ try {
   await sleep(400);
 
   // 10. Header row handle: pointer near the left border of the header row;
-  //     menu offers only "Insert row below" with a themed icon; use it.
+  //     menu offers select, insert below, and delete with themed icons.
   await moveAndCheck(
     "HEADER ROW HANDLE READY",
     `
@@ -840,7 +832,7 @@ try {
         return JSON.stringify({ ok: false, actions });
       }
       item.click();
-      return JSON.stringify({ ok: actions.length === 2 && hasIcon, actions });
+      return JSON.stringify({ ok: JSON.stringify(actions) === JSON.stringify(["select-row", "insert-row-below", "delete-row"]) && hasIcon, actions });
     `),
   );
   expectOk("HEADER ROW MENU", headerRowMenu);

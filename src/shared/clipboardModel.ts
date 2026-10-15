@@ -57,6 +57,7 @@ export interface GridPastePlan {
   rows: ClipboardCell[][];
   sourceAlignments?: CellAlignment[];
   destination: CellRectangle;
+  destinationCells?: readonly { row: number; column: number }[];
 }
 
 const VALID_ALIGNMENTS = new Set<CellAlignment>([
@@ -337,11 +338,18 @@ export function tableRectanglePayload(
   rectangle: CellRectangle,
   sourceDocument: string,
   cutToken?: string,
+  selectedCells?: readonly { row: number; column: number }[],
 ): ClipboardGridPayload {
   const rows = tableDataRows(table);
   const selected = rows
     .slice(rectangle.top, rectangle.bottom + 1)
     .map((row) => row.slice(rectangle.left, rectangle.right + 1));
+  if (selectedCells) {
+    const keys = new Set(selectedCells.map(cell => `${cell.row}:${cell.column}`));
+    selected.forEach((row, r) => row.forEach((_, c) => {
+      if (!keys.has(`${rectangle.top + r}:${rectangle.left + c}`)) row[c] = { text: "", markdown: "  " };
+    }));
+  }
   const fullTable =
     rectangle.top === 0 &&
     rectangle.bottom === rows.length - 1 &&
@@ -354,7 +362,7 @@ export function tableRectanglePayload(
     rows: selected,
     alignments: table.alignments.slice(rectangle.left, rectangle.right + 1),
     includesHeader: rectangle.top === 0,
-    ...(fullTable
+    ...(fullTable && (!selectedCells || selectedCells.length === rows.length * table.columnCount)
       ? { exactMarkdown: tableSourceText(table) }
       : {}),
     ...(cutToken ? { cutToken } : {}),
@@ -412,11 +420,13 @@ export function buildGridPasteEdit(
       existingRawCell(dataRows[rowIndex], column),
     ),
   );
+  const selected = plan.destinationCells ? new Set(plan.destinationCells.map(cell => `${cell.row}:${cell.column}`)) : null;
 
   for (let row = 0; row < sourceHeight; row++) {
     for (let column = 0; column < sourceWidth; column++) {
       const targetRow = plan.destination.top + row;
       const targetColumn = plan.destination.left + column;
+      if (selected && !selected.has(`${targetRow}:${targetColumn}`)) continue;
       const sourceCell = plan.rows[row][column];
       const existingRaw = rawRows[targetRow][targetColumn];
       rawRows[targetRow][targetColumn] = sourceCell.markdown ??
@@ -456,6 +466,25 @@ export function buildGridClearEdit(
       ),
   );
   return buildGridPasteEdit(table, { rows, destination: rectangle });
+}
+
+/** Clears an exact cell set without touching the gaps between separate selections. */
+export function buildTableCellsClearEdit(
+  table: ParsedTable,
+  cells: readonly { row: number; column: number }[],
+): TableCellSourceEdit {
+  const selected = new Set(cells.map(cell => `${cell.row}:${cell.column}`));
+  const rows = [table.header, ...table.body];
+  const lines = rows.map((row, index) => {
+    if (!cells.some(cell => cell.row === index)) return row.text;
+    return `|${Array.from({ length: table.columnCount }, (_, column) => {
+      const raw = existingRawCell(row, column);
+      return ensureTableCellSeparatorSafe(selected.has(`${index}:${column}`)
+        ? formatDisplayCellForDestination("", raw) : raw);
+    }).join("|")}|`;
+  });
+  return { from: table.from, to: table.to,
+    insert: [lines[0], table.delimiter.text, ...lines.slice(1)].join(tableLineSeparator(table)) };
 }
 
 function tableDataRows(table: ParsedTable): ClipboardCell[][] {

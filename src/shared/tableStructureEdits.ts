@@ -4,6 +4,7 @@ import {
   ParsedRow,
   ParsedTable,
   TableCellSourceEdit,
+  ReadonlyDocText,
 } from "./tableModel";
 
 /**
@@ -23,6 +24,26 @@ const EMPTY_DATA_CELL_RAW = "  ";
 
 /** Raw text for an inserted or padded delimiter cell (left-aligned). */
 const EMPTY_DELIMITER_CELL_RAW = " --- ";
+
+/** Join compatible tables when deletion consumes their final intervening blank line. */
+export function joinTablesAcrossDeletion(
+  doc: ReadonlyDocText,
+  tables: readonly ParsedTable[],
+  from: number,
+  to: number,
+): { edit: TableCellSourceEdit; table: ParsedTable } | null {
+  for (let index = 0; index + 1 < tables.length; index++) {
+    const first = tables[index], second = tables[index + 1];
+    if (first.columnCount !== second.columnCount || from < first.to || to > second.from || from === to) continue;
+    const remaining = doc.sliceString(first.to, from) + doc.sliceString(to, second.from);
+    if (remaining.trim().length > 0 || (remaining.match(/\n/g)?.length ?? 0) > 1) continue;
+    // Retain the second header as a data row; only its structural delimiter is removed.
+    const separator = first.delimiter.from - first.header.to === 2 ? "\r\n" : "\n";
+    return { table: first, edit: { from: first.to, to: second.delimiter.to,
+      insert: separator + second.header.text } };
+  }
+  return null;
+}
 
 /**
  * Inserts an empty column so the new column has index `columnIndex`
