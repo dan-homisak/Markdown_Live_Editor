@@ -8,6 +8,7 @@ import {
 } from "@lezer/markdown";
 import { markdownFrontmatterParserExtension } from "./markdownBlockSyntax";
 import { markdownWikiExtension } from "./markdownWikiSyntax";
+import { markdownStandardSyntax } from "./markdownStandardSyntax";
 
 /** Tables deliberately keep their existing parser and interaction owner. */
 export const markdownParserExtensions: readonly MarkdownExtension[] = [
@@ -16,6 +17,7 @@ export const markdownParserExtensions: readonly MarkdownExtension[] = [
   Autolink,
   markdownFrontmatterParserExtension,
   markdownWikiExtension,
+  markdownStandardSyntax,
 ];
 
 /** For on-demand source actions and tests; the view uses its own syntaxTree. */

@@ -4,6 +4,7 @@ import { Tree } from "@lezer/common";
 import { getParsedTables } from "../../shared/tableModel";
 import { markdownComposing, markdownRenderTree } from "./markdownRenderTree";
 import { MarkdownRange } from "./markdownSyntax";
+import { markdownDocumentIndex } from "./markdownDocumentIndex";
 
 export interface MarkdownListItem {
   from: number;
@@ -21,6 +22,7 @@ export interface MarkdownListItem {
  * but never mistakes literal code, HTML, or table-cell text for a list. */
 export function classifyMarkdownLists(doc: Text, tree: Tree, tabSize = 4): MarkdownListItem[] {
   const items: MarkdownListItem[] = [], tables = getParsedTables(doc);
+  const numbers = markdownDocumentIndex(doc, tree, tables).orderedNumbers;
   tree.iterate({ enter(ref) {
     const node = ref.node;
     if (["FencedCode", "CodeBlock", "HTMLBlock", "MarkdownFrontmatter"].includes(node.name) ||
@@ -42,8 +44,10 @@ export function classifyMarkdownLists(doc: Text, tree: Tree, tabSize = 4): Markd
     const parentItem = items.find(item => item.from === parentFrom);
     const task = /\[[ xX]\]/u.test(prefix);
     const taskEnd = task ? mark.to + prefix.indexOf("]") + 1 : mark.to;
+    const number = numbers.get(node.from);
     const renderedPrefixColumns = task ? 2 + contentColumns - width(taskEnd)
-      : contentColumns - columns + (mark.to - mark.from === 1 ? 1 : 0);
+      : contentColumns - columns + (mark.to - mark.from === 1 ? 1 : 0) +
+        (number === undefined ? 0 : number.length - (mark.to - mark.from - 1));
     items.push({ from: mark.from, lineFrom: line.from, foldFrom: line.to,
       to: doc.lineAt(node.to).to, parent: parentFrom, columns, contentColumns, renderedPrefixColumns,
       renderColumns: parentItem ? parentItem.renderColumns + Math.max(4, columns - parentItem.columns) : columns });

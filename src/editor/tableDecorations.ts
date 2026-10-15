@@ -12,6 +12,7 @@ import { getParsedTables } from "../shared/tableModel";
 import { tableCellLiveEditAnnotation } from "./tableEditAnnotations";
 import { RenderedTableWidget } from "./table/TableWidget";
 import { markdownListField, markdownListRangeHidden } from "./markdown/markdownListStructure";
+import { markdownRenderingOptionsFacet } from "./markdown/markdownRendering";
 import {
   createTableHeightEstimateMetrics,
   TableHeightEstimateMetrics,
@@ -46,10 +47,12 @@ export function createTableDecorations(
       const previous = transaction.startState.field(markdownListField, false)?.hidden ?? [];
       const foldsChanged = hidden.length !== previous.length || hidden.some((range, index) =>
         range.from !== transaction.changes.mapPos(previous[index].from) || range.to !== transaction.changes.mapPos(previous[index].to));
-      if (!transaction.docChanged && !foldsChanged) {
+      const options = transaction.state.facet(markdownRenderingOptionsFacet), previousOptions = transaction.startState.facet(markdownRenderingOptionsFacet);
+      const presentationChanged = options.enabled !== previousOptions.enabled || options.screenReaderOptimized !== previousOptions.screenReaderOptimized;
+      if (!transaction.docChanged && !foldsChanged && !presentationChanged) {
         return value;
       }
-      if (transaction.annotation(tableCellLiveEditAnnotation) && !foldsChanged) {
+      if (transaction.annotation(tableCellLiveEditAnnotation) && !foldsChanged && !presentationChanged) {
         return value.map(transaction.changes);
       }
       return buildTableDecorations(

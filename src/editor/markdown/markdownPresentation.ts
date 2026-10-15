@@ -7,6 +7,8 @@ import { MarkdownRange, MarkdownSource } from "./markdownSyntax";
 import { markdownAlertForQuote } from "./markdownBlockSyntax";
 import { markdownChangedWindows, markdownComposing, updateMarkdownDecorations } from "./markdownRenderTree";
 import { MarkdownThemeAdapter } from "./presentationTheme";
+import { findMarkdownLinkAt } from "../../shared/markdownLinkValidation";
+import { markdownDocumentIndex } from "./markdownDocumentIndex";
 
 type Foreground = "heading" | "punctuation" | "link" | "destination" | "title" |
   "code" | "comment" | "tag" | "variable" | "string" | "keyword";
@@ -121,7 +123,7 @@ export function classifyMarkdownPresentation(
               ? markdownAlertForQuote(source, quote) : null;
             // Lezer also parses unresolved alert labels as shortcut links.
             // The structural alert owner supplies their foreground and weight.
-            if (alert?.from === from && alert.to === to) return false;
+            if (alert?.from === from && alert.to === to || !findMarkdownLinkAt(source, tree, from + 1, protectedWindows)) return false;
             role(from, to, "link", 50); break;
           }
           case "Image": case "Autolink": role(from, to, "link", 50); break;
@@ -253,7 +255,11 @@ export const markdownPresentationField = StateField.define<PresentationState>({
     if (composing) return { composing, decorations: value.decorations.map(transaction.changes),
       inlineCodeDecorations: value.inlineCodeDecorations.map(transaction.changes) };
     if (transaction.docChanged && !value.composing) {
-      const windows = markdownChangedWindows(transaction), changed = presentation(transaction.state, windows);
+      const before = markdownDocumentIndex(transaction.startState.doc, syntaxTree(transaction.startState), getParsedTables(transaction.startState.doc));
+      const after = markdownDocumentIndex(transaction.state.doc, syntaxTree(transaction.state), getParsedTables(transaction.state.doc));
+      const windows = before.referenceSignature !== after.referenceSignature
+        ? [{ from: 0, to: transaction.state.doc.length }] : markdownChangedWindows(transaction);
+      const changed = presentation(transaction.state, windows);
       return { composing: false,
         decorations: updateMarkdownDecorations(value.decorations, transaction, changed.decorations, windows),
         inlineCodeDecorations: updateMarkdownDecorations(value.inlineCodeDecorations, transaction, changed.inlineCodeDecorations, windows) };

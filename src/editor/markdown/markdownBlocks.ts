@@ -49,6 +49,7 @@ export const markdownBlockLanguageExtensions: MarkdownExtension = {
 export interface MarkdownBlockRow {
   readonly from: number;
   readonly classes: string;
+  readonly quoteDepth: number;
 }
 export interface MarkdownBlockMark extends MarkdownRange {
   readonly classes: string;
@@ -92,7 +93,9 @@ function unprotected(range: MarkdownRange, protectedRanges: readonly MarkdownRan
 }
 
 interface RowState {
-  quote: boolean;
+  quote: number;
+  footnote?: boolean;
+  footnoteStart?: boolean;
   alert?: MarkdownAlertType;
   alertDepth: number;
   code?: "code" | "frontmatter";
@@ -148,7 +151,7 @@ export function classifyMarkdownBlocks(
         // A line decoration is indivisible: any table ownership suppresses it.
         if (protectedRanges.some(range => range.from <= line.to && range.to > line.from)) continue;
         let row = rows.get(line.from);
-        if (!row) rows.set(line.from, row = { quote: false, alertDepth: -1, start: false, end: false });
+        if (!row) rows.set(line.from, row = { quote: 0, alertDepth: -1, start: false, end: false });
         visit(row, line.from);
         if (node.name === "CodeBlock" && line.from === lastLine) row.end = true;
         if (node.name === "FencedCode" || node.name === "MarkdownFrontmatter") {
@@ -173,10 +176,12 @@ export function classifyMarkdownBlocks(
         let depth = 0;
         for (let parent = node.parent; parent; parent = parent.parent) if (parent.name === "Blockquote") depth++;
         addRows(node, row => {
-          row.quote = true;
+          row.quote = Math.max(row.quote, depth + 1);
           if (alert && depth >= row.alertDepth) { row.alert = alert.type; row.alertDepth = depth; }
         });
         if (alert) addMark(alert, `mlrt-markdown-block-alert-label mlrt-markdown-block-alert-${alert.type}`);
+      } else if (node.name === "FootnoteDefinition") {
+        addRows(node, (row, lineFrom) => { row.footnote = true; if (lineFrom === source.lineAt(node.from).from) row.footnoteStart = true; });
       } else if (node.name === "FencedCode" || node.name === "CodeBlock" || node.name === "MarkdownFrontmatter") {
         const key = `code:${node.from}:${node.to}`;
         if (seenBlocks.has(key)) return false;
@@ -218,11 +223,13 @@ export function classifyMarkdownBlocks(
     rows: Array.from(rows, ([from, row]) => {
       const classes: string[] = [];
       if (row.quote) classes.push("mlrt-markdown-block-quote");
+      if (row.footnote) classes.push("mlrt-markdown-footnote-row");
+      if (row.footnoteStart) classes.push("mlrt-markdown-footnote-start");
       if (row.alert) classes.push("mlrt-markdown-block-alert", `mlrt-markdown-block-alert-${row.alert}`);
       if (row.code) classes.push("mlrt-markdown-block-code", ...(row.code === "frontmatter" ? ["mlrt-markdown-block-frontmatter"] : []));
       if (row.start) classes.push("mlrt-markdown-block-start");
       if (row.end) classes.push("mlrt-markdown-block-end");
-      return { from, classes: classes.join(" ") };
+      return { from, classes: classes.join(" "), quoteDepth: row.quote };
     }).sort((a, b) => a.from - b.from),
     marks: marks.sort((a, b) => a.from - b.from || a.to - b.to),
   };
@@ -233,7 +240,9 @@ interface BlockState { decorations: DecorationSet; composing: boolean }
 function blockDecorations(state: EditorState, windows: readonly MarkdownRange[] = [{ from: 0, to: state.doc.length }]): BlockState {
   const projection = classifyMarkdownBlocks(state.doc, syntaxTree(state), getParsedTables(state.doc),
     windows, state.facet(nativeCodeHighlightingFacet));
-  const ranges: Range<Decoration>[] = projection.rows.map(row => Decoration.line({ class: row.classes }).range(row.from));
+  const ranges: Range<Decoration>[] = projection.rows.map(row => Decoration.line({ class: row.classes,
+    attributes: row.quoteDepth ? { style: `--mlrt-quote-depth:${row.quoteDepth}`, "data-quote-depth": String(row.quoteDepth) } : {},
+  }).range(row.from));
   ranges.push(...projection.marks.map(mark => Decoration.mark({ class: mark.classes }).range(mark.from, mark.to)));
   return { decorations: Decoration.set(ranges, true), composing: false };
 }

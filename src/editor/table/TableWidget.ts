@@ -6,6 +6,7 @@ import {
 } from "../../shared/tableModel";
 import { measureTableColumnSizing } from "../../shared/tableColumnSizing";
 import { setCellPlainText } from "./cellSelection";
+import { bindTableCellPresentation, presentTableCell, tableCellPreviewEnabled } from "./tableCellPresentation";
 import { bindTableEditing } from "./tableCellEditing";
 import { queryCell, syncCellSourceMetadata } from "./tableCellMetadata";
 import {
@@ -83,7 +84,7 @@ export class RenderedTableWidget extends WidgetType {
       return false;
     }
 
-    patchTableDOM(dom, this.table);
+    patchTableDOM(dom, this.table, tableCellPreviewEnabled(view));
     dom.dataset.heightEstimateRevision = String(
       this.heightEstimateMetrics.revision,
     );
@@ -101,6 +102,7 @@ export class RenderedTableWidget extends WidgetType {
     );
     wrapper.dataset.estimatedHeightPx = String(this.estimatedHeight);
     wrapper.contentEditable = "false";
+    wrapper.dataset.markdownPreviewEnabled = String(tableCellPreviewEnabled(view));
     setTableWidgetTable(wrapper, this.table);
 
     const availableDataWidthCh = measureAvailableDataWidthChForView(
@@ -179,6 +181,9 @@ export class RenderedTableWidget extends WidgetType {
       view,
     );
     bindTableEditing(wrapper, view, this.table, scheduleTableLayout);
+    for (const cell of Array.from(wrapper.querySelectorAll<HTMLElement>(".mlrt-table-cell")))
+      presentTableCell(cell, cell.dataset.sourceValue ?? "", tableCellPreviewEnabled(view));
+    const presentationCleanup = bindTableCellPresentation(wrapper, view, scheduleTableLayout);
     const rangeSelectionCleanup = bindTableRangeSelection(
       wrapper,
       view,
@@ -195,6 +200,7 @@ export class RenderedTableWidget extends WidgetType {
     });
     setTableWidgetCleanup(wrapper, () => {
       layoutCleanup?.();
+      presentationCleanup();
       rangeSelectionCleanup();
       clipboardCleanup();
       structureControlsCleanup();
@@ -295,14 +301,15 @@ function canPatchActiveCell(dom: HTMLElement, table: ParsedTable): boolean {
   return (activeCell.dataset.sourceValue ?? "") === expectedValue;
 }
 
-function patchTableDOM(dom: HTMLElement, table: ParsedTable): void {
+function patchTableDOM(dom: HTMLElement, table: ParsedTable, preview: boolean): void {
   setTableWidgetTable(dom, table);
   dom.dataset.srcFrom = String(table.from);
   dom.dataset.srcTo = String(table.to);
 
-  patchTableRowDOM(dom, table, table.header, "header", 0);
+  dom.dataset.markdownPreviewEnabled = String(preview);
+  patchTableRowDOM(dom, table, table.header, "header", 0, preview);
   table.body.forEach((row, rowIndex) => {
-    patchTableRowDOM(dom, table, row, "body", rowIndex);
+    patchTableRowDOM(dom, table, row, "body", rowIndex, preview);
   });
 
 }
@@ -313,6 +320,7 @@ function patchTableRowDOM(
   sourceRow: ParsedRow,
   rowKind: "header" | "body",
   rowIndex: number,
+  preview: boolean,
 ): void {
   const tableRow =
     rowKind === "header"
@@ -344,9 +352,8 @@ function patchTableRowDOM(
       dom.ownerDocument.documentElement.dataset.mlrtApplyingHostDocument ===
       "true";
     syncCellSourceMetadata(cell, table, sourceRow, column, value);
-    if ((!isActive || isApplyingHostDocument) && cell.textContent !== value) {
-      setCellPlainText(cell, value);
-    }
+    if (isActive && isApplyingHostDocument) setCellPlainText(cell, value);
+    else if (!isActive) presentTableCell(cell, value, preview);
   }
 }
 
