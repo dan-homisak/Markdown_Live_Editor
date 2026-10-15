@@ -402,14 +402,10 @@ body,
   outline: none;
 }
 
-/* Structure handles normally sit above table content. During either kind of
-   range selection they are not actionable and can look like bright artifacts
-   at the edge of an upward drag, so remove the entire controls layer from the
-   paint and accessibility trees until the selection is cleared. */
-.mlrt-table-widget:is(
-  .mlrt-table-selection-mode,
-  .mlrt-document-selection-mode
-) > .mlrt-table-controls-layer {
+/* Keep ordinary ranges uncluttered; holding Ctrl/Cmd exposes the handles for
+   adding rows and columns. Mixed document drags retain boundary ownership. */
+.mlrt-table-widget.mlrt-document-selection-mode > .mlrt-table-controls-layer,
+.mlrt-table-widget.mlrt-table-selection-mode:not(.mlrt-table-additive-selecting) > .mlrt-table-controls-layer {
   visibility: hidden !important;
   pointer-events: none !important;
 }
@@ -440,7 +436,7 @@ body,
 .mlrt-table-selection-grid,
 .mlrt-table-selection-frame {
   fill: none;
-  stroke-width: 1;
+  stroke-width: var(--mlrt-selection-stroke-width, 1px);
   stroke-linecap: butt;
   stroke-linejoin: miter;
   vector-effect: non-scaling-stroke;

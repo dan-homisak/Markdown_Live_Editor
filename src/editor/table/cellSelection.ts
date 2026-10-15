@@ -226,8 +226,8 @@ export function focusCellAtStart(cell: HTMLElement): void {
 }
 
 /** Focuses the cell and collapses the selection to its end. */
-export function focusCellAtEnd(cell: HTMLElement): void {
-  cell.focus();
+export function focusCellAtEnd(cell: HTMLElement, preventScroll = false): void {
+  cell.focus({ preventScroll });
   setCellCaretOffset(cell, readCellDisplayValue(cell).length);
 }
 

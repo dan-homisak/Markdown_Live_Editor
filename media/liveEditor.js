@@ -21459,7 +21459,7 @@
   }
   function isTableCellFocused(view2, tableCellSelector) {
     const activeElement = view2.dom.ownerDocument.activeElement;
-    return activeElement instanceof HTMLElement && Boolean(activeElement.closest(tableCellSelector));
+    return activeElement instanceof HTMLElement && (Boolean(activeElement.closest(`${tableCellSelector}, .mlrt-table-widget`)) || Boolean(activeElement.closest(".mlrt-clipboard-menu") && view2.dom.querySelector(".mlrt-table-selection-mode")));
   }
   function isApplyingHostDocument(view2) {
     return view2.dom.ownerDocument.documentElement.dataset.mlrtApplyingHostDocument === "true";
@@ -21623,8 +21623,8 @@
     cell2.focus();
     setCellCaretOffset(cell2, 0);
   }
-  function focusCellAtEnd(cell2) {
-    cell2.focus();
+  function focusCellAtEnd(cell2, preventScroll = false) {
+    cell2.focus({ preventScroll });
     setCellCaretOffset(cell2, readCellDisplayValue(cell2).length);
   }
   function moveCellSelectionToLineBoundary(cell2, side, extend2) {
@@ -21849,6 +21849,9 @@
       existing?.remove();
       return;
     }
+    const win = wrapper.ownerDocument.defaultView;
+    const borderWidth = Number.parseFloat(win?.getComputedStyle(selected[0]).borderRightWidth ?? "1");
+    const strokeWidth = borderWidth > 0 ? borderWidth : 1 / (win?.devicePixelRatio || 1);
     const rectangles = selected.map((cell2) => cell2.getBoundingClientRect());
     const bounds = {
       left: Math.min(...rectangles.map((rect) => rect.left)),
@@ -21862,6 +21865,39 @@
       existing?.remove();
       return;
     }
+    const addresses = selected.map((cell2) => ({
+      row: cell2.dataset.rowKind === "header" ? 0 : Number(cell2.dataset.rowIndex) + 1,
+      column: Number(cell2.dataset.column)
+    }));
+    const rows = addresses.map((cell2) => cell2.row), columns = addresses.map((cell2) => cell2.column);
+    const rectangular = selected.length === (Math.max(...rows) - Math.min(...rows) + 1) * (Math.max(...columns) - Math.min(...columns) + 1);
+    if (!rectangular) {
+      const overlay2 = existing ?? wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "svg");
+      overlay2.style.setProperty("--mlrt-selection-stroke-width", `${strokeWidth}px`);
+      overlay2.classList.add("mlrt-table-selection-overlay");
+      overlay2.classList.toggle("mlrt-table-selection-overlay-cut-pending", wrapper.classList.contains("mlrt-table-cut-pending"));
+      overlay2.setAttribute("aria-hidden", "true");
+      overlay2.setAttribute("focusable", "false");
+      overlay2.setAttribute("width", formatCoordinate(width));
+      overlay2.setAttribute("height", formatCoordinate(height));
+      overlay2.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      const scrollRect2 = scroll.getBoundingClientRect();
+      overlay2.style.left = `${bounds.left - scrollRect2.left + scroll.scrollLeft}px`;
+      overlay2.style.top = `${bounds.top - scrollRect2.top + scroll.scrollTop}px`;
+      overlay2.style.width = `${width}px`;
+      overlay2.style.height = `${height}px`;
+      const { grid, frame } = connectedSelectionPaths(addresses, rectangles, bounds);
+      const gridPath2 = wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "path");
+      gridPath2.classList.add("mlrt-table-selection-grid");
+      gridPath2.setAttribute("d", grid);
+      const framePath = wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "path");
+      framePath.classList.add("mlrt-table-selection-frame");
+      framePath.setAttribute("d", frame);
+      overlay2.replaceChildren(gridPath2, framePath);
+      overlay2.dataset.geometrySignature = "sparse";
+      if (!existing) scroll.append(overlay2);
+      return;
+    }
     const verticalRails = uniqueInteriorCoordinates(
       rectangles.map((rect) => rect.left),
       bounds.left,
@@ -21873,6 +21909,7 @@
       bounds.bottom
     ).map((coordinate) => coordinate - bounds.top);
     const overlay = existing ?? wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "svg");
+    overlay.style.setProperty("--mlrt-selection-stroke-width", `${strokeWidth}px`);
     overlay.classList.add("mlrt-table-selection-overlay");
     overlay.classList.toggle(
       "mlrt-table-selection-overlay-cut-pending",
@@ -21936,6 +21973,70 @@
     if (!existing) {
       scroll.append(overlay);
     }
+  }
+  function connectedSelectionPaths(cells, rectangles, bounds) {
+    const key = (vertex) => `${vertex.row}:${vertex.column}`;
+    const selected = new Set(cells.map(key));
+    const columns = /* @__PURE__ */ new Map();
+    const rows = /* @__PURE__ */ new Map();
+    const edges = [];
+    const grid = [];
+    const bottomRow = Math.max(...cells.map((cell2) => cell2.row)) + 1;
+    for (let index = 0; index < cells.length; index++) {
+      const { row, column } = cells[index];
+      const rect = rectangles[index];
+      columns.set(column, rect.left - bounds.left);
+      columns.set(column + 1, rect.right - bounds.left);
+      rows.set(row, rect.top - bounds.top);
+      rows.set(row + 1, rect.bottom - bounds.top);
+      const candidates = [
+        { start: { row, column }, end: { row, column: column + 1 }, direction: 0 },
+        { start: { row, column: column + 1 }, end: { row: row + 1, column: column + 1 }, direction: 1 },
+        { start: { row: row + 1, column: column + 1 }, end: { row: row + 1, column }, direction: 2 },
+        { start: { row: row + 1, column }, end: { row, column }, direction: 3 }
+      ];
+      const neighbors = [
+        { row: row - 1, column },
+        { row, column: column + 1 },
+        { row: row + 1, column },
+        { row, column: column - 1 }
+      ];
+      candidates.forEach((edge, side) => {
+        if (!selected.has(key(neighbors[side]))) edges.push(edge);
+        else if (side === 1 || side === 2) {
+          grid.push(`M ${formatCoordinate(rect.right - bounds.left)} ${formatCoordinate(rect.bottom - bounds.top)} ` + (side === 1 ? `V ${formatCoordinate(rect.top - bounds.top)}` : `H ${formatCoordinate(rect.left - bounds.left)}`));
+        }
+      });
+    }
+    const outgoing = /* @__PURE__ */ new Map();
+    for (const edge of edges) {
+      const start = key(edge.start);
+      outgoing.set(start, [...outgoing.get(start) ?? [], edge]);
+    }
+    const visited = /* @__PURE__ */ new Set();
+    const frame = [];
+    const offset = (edge) => edge.direction % 2 === 0 ? rows.get(edge.start.row) + (edge.direction === 0 ? 0.5 : edge.start.row === bottomRow ? -1 : -0.5) : columns.get(edge.start.column) + (edge.direction === 3 ? 0.5 : -0.5);
+    for (const first of edges) {
+      if (visited.has(first)) continue;
+      const contour = [];
+      let edge = first;
+      while (edge && !visited.has(edge)) {
+        visited.add(edge);
+        contour.push(edge);
+        const direction = edge.direction;
+        const candidates = outgoing.get(key(edge.end)) ?? [];
+        edge = [1, 0, 3, 2].map((turn) => candidates.find((next2) => next2.direction === (direction + turn) % 4)).find(Boolean);
+      }
+      const points = contour.map((current, index) => {
+        const previous = contour[(index + contour.length - 1) % contour.length];
+        const horizontal = current.direction % 2 === 0;
+        const x = horizontal ? previous.direction % 2 === 1 ? offset(previous) : columns.get(current.start.column) : offset(current);
+        const y = horizontal ? offset(current) : previous.direction % 2 === 0 ? offset(previous) : rows.get(current.start.row);
+        return `${formatCoordinate(x)} ${formatCoordinate(y)}`;
+      });
+      frame.push(`M ${points.join(" L ")} Z`);
+    }
+    return { grid: grid.join(" "), frame: frame.join(" ") };
   }
   function uniqueInteriorCoordinates(values2, minimum, maximum) {
     const sorted = values2.filter(
@@ -38182,9 +38283,15 @@
     }).join("");
     return `${metadata}<table style="border-collapse:collapse">${body}</table>`;
   }
-  function tableRectanglePayload(table2, rectangle, sourceDocument, cutToken) {
+  function tableRectanglePayload(table2, rectangle, sourceDocument, cutToken, selectedCells) {
     const rows = tableDataRows(table2);
     const selected = rows.slice(rectangle.top, rectangle.bottom + 1).map((row) => row.slice(rectangle.left, rectangle.right + 1));
+    if (selectedCells) {
+      const keys = new Set(selectedCells.map((cell2) => `${cell2.row}:${cell2.column}`));
+      selected.forEach((row, r) => row.forEach((_, c) => {
+        if (!keys.has(`${rectangle.top + r}:${rectangle.left + c}`)) row[c] = { text: "", markdown: "  " };
+      }));
+    }
     const fullTable = rectangle.top === 0 && rectangle.bottom === rows.length - 1 && rectangle.left === 0 && rectangle.right === table2.columnCount - 1;
     return {
       version: MLRT_CLIPBOARD_VERSION,
@@ -38193,7 +38300,7 @@
       rows: selected,
       alignments: table2.alignments.slice(rectangle.left, rectangle.right + 1),
       includesHeader: rectangle.top === 0,
-      ...fullTable ? { exactMarkdown: tableSourceText(table2) } : {},
+      ...fullTable && (!selectedCells || selectedCells.length === rows.length * table2.columnCount) ? { exactMarkdown: tableSourceText(table2) } : {},
       ...cutToken ? { cutToken } : {}
     };
   }
@@ -38242,10 +38349,12 @@
         (_2, column) => existingRawCell(dataRows[rowIndex], column)
       )
     );
+    const selected = plan.destinationCells ? new Set(plan.destinationCells.map((cell2) => `${cell2.row}:${cell2.column}`)) : null;
     for (let row = 0; row < sourceHeight; row++) {
       for (let column = 0; column < sourceWidth; column++) {
         const targetRow = plan.destination.top + row;
         const targetColumn = plan.destination.left + column;
+        if (selected && !selected.has(`${targetRow}:${targetColumn}`)) continue;
         const sourceCell = plan.rows[row][column];
         const existingRaw = rawRows[targetRow][targetColumn];
         rawRows[targetRow][targetColumn] = sourceCell.markdown ?? formatDisplayCellForDestination(sourceCell.text, existingRaw);
@@ -38277,6 +38386,22 @@
       )
     );
     return buildGridPasteEdit(table2, { rows, destination: rectangle });
+  }
+  function buildTableCellsClearEdit(table2, cells) {
+    const selected = new Set(cells.map((cell2) => `${cell2.row}:${cell2.column}`));
+    const rows = [table2.header, ...table2.body];
+    const lines = rows.map((row, index) => {
+      if (!cells.some((cell2) => cell2.row === index)) return row.text;
+      return `|${Array.from({ length: table2.columnCount }, (_, column) => {
+        const raw = existingRawCell(row, column);
+        return ensureTableCellSeparatorSafe(selected.has(`${index}:${column}`) ? formatDisplayCellForDestination("", raw) : raw);
+      }).join("|")}|`;
+    });
+    return {
+      from: table2.from,
+      to: table2.to,
+      insert: [lines[0], table2.delimiter.text, ...lines.slice(1)].join(tableLineSeparator(table2))
+    };
   }
   function tableDataRows(table2) {
     return [table2.header, ...table2.body].map(
@@ -38437,9 +38562,58 @@ ${text3}`;
     });
   }
 
+  // src/shared/tableSelectionSet.ts
+  var tableCellKey = (cell2) => `${cell2.row}:${cell2.column}`;
+  function rectangleCells(rectangle) {
+    return Array.from({ length: rectangle.bottom - rectangle.top + 1 }, (_, row) => Array.from({ length: rectangle.right - rectangle.left + 1 }, (_2, column) => ({ row: rectangle.top + row, column: rectangle.left + column }))).flat();
+  }
+  function selectedCellsBounds(cells) {
+    return {
+      top: Math.min(...cells.map((cell2) => cell2.row)),
+      bottom: Math.max(...cells.map((cell2) => cell2.row)),
+      left: Math.min(...cells.map((cell2) => cell2.column)),
+      right: Math.max(...cells.map((cell2) => cell2.column))
+    };
+  }
+  function toggleSelectedCells(current, target) {
+    const selected = new Map(current.map((cell2) => [tableCellKey(cell2), cell2]));
+    const remove3 = target.every((cell2) => selected.has(tableCellKey(cell2)));
+    for (const cell2 of target) {
+      if (remove3) selected.delete(tableCellKey(cell2));
+      else selected.set(tableCellKey(cell2), cell2);
+    }
+    return [...selected.values()].sort((a, b) => a.row - b.row || a.column - b.column);
+  }
+  function inspectTableCellSet(table2, cells) {
+    const keys = new Set(cells.map(tableCellKey));
+    const rows = [...new Set(cells.map((cell2) => cell2.row))].sort((a, b) => a - b);
+    const columns = [...new Set(cells.map((cell2) => cell2.column))].sort((a, b) => a - b);
+    const fullRows = rows.filter((row) => Array.from({ length: table2.columnCount }, (_, column) => keys.has(`${row}:${column}`)).every(Boolean));
+    const fullColumns = columns.filter((column) => Array.from({ length: table2.body.length + 1 }, (_, row) => keys.has(`${row}:${column}`)).every(Boolean));
+    const data2 = [table2.header, ...table2.body];
+    const empty = cells.every((cell2) => markdownCellToDisplayText(data2[cell2.row]?.cells[cell2.column]?.raw ?? "").trim().length === 0);
+    return { rows, columns, fullRows, fullColumns, empty, wholeTable: keys.size === (table2.body.length + 1) * table2.columnCount };
+  }
+  function planTableCellSetDeletion(table2, cells, behavior) {
+    const info = inspectTableCellSet(table2, cells);
+    if (behavior === "clear" || !info.empty && behavior === "clear-first" || !info.fullRows.length && !info.fullColumns.length) {
+      return { edit: buildTableCellsClearEdit(table2, cells), removed: false, wholeTable: info.wholeTable };
+    }
+    if (info.wholeTable) return { edit: { from: table2.from, to: table2.to, insert: "" }, removed: true, wholeTable: true };
+    const rows = [table2.header, ...table2.body].filter((_, index) => !info.fullRows.includes(index));
+    const line = (row) => `|${Array.from({ length: table2.columnCount }, (_, column) => row.cells[column]?.raw ?? "  ").filter((_, column) => !info.fullColumns.includes(column)).map(ensureTableCellSeparatorSafe).join("|")}|`;
+    const edit2 = {
+      from: table2.from,
+      to: table2.to,
+      insert: [line(rows[0]), line(table2.delimiter), ...rows.slice(1).map(line)].join(table2.delimiter.from - table2.header.to === 2 ? "\r\n" : "\n")
+    };
+    return { edit: edit2, removed: true, wholeTable: false };
+  }
+
   // src/editor/table/tableRangeSelection.ts
   var TABLE_SELECTION_CHANGE_EVENT = "mlrt:table-selection-change";
   var TABLE_SELECTION_CLEAR_EVENT = "mlrt:table-selection-clear";
+  var TABLE_SELECTION_DELETE_EVENT = "mlrt:table-selection-delete";
   var TABLE_CUT_CANCEL_EVENT = "mlrt:table-cut-cancel";
   var states = /* @__PURE__ */ new WeakMap();
   function isTablePointerSelectionActive(doc2) {
@@ -38488,15 +38662,29 @@ ${text3}`;
         });
       }
       clearDocumentSelectionProjection(wrapper.ownerDocument);
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleTableSelection(wrapper, currentTable(), address, start.mode === "row" ? "rows" : "cells");
+        return;
+      }
       if (event.shiftKey) {
         const current = getTableRangeSelection(wrapper.ownerDocument);
         const focusedCell = findCell(wrapper.ownerDocument.activeElement);
         const focusedAddress = focusedCell && wrapper.contains(focusedCell) ? addressFromCell(focusedCell) : null;
         const rawAnchor = current?.wrapper === wrapper ? current.anchor : focusedAddress ?? address;
-        const anchor = start.mode === "row" ? { row: rawAnchor.row, column: 0 } : rawAnchor;
-        const head = start.mode === "row" ? { row: address.row, column: currentTable().columnCount - 1 } : address;
+        const kind = start.mode === "row" ? "rows" : current?.wrapper === wrapper ? current.kind ?? "cells" : "cells";
+        let anchor = rawAnchor;
+        let head = address;
+        if (kind === "rows") {
+          anchor = { row: anchor.row, column: 0 };
+          head = { row: head.row, column: currentTable().columnCount - 1 };
+        } else if (kind === "columns") {
+          anchor = { row: 0, column: anchor.column };
+          head = { row: currentTable().body.length, column: head.column };
+        }
         event.preventDefault();
-        setTableRangeSelection(wrapper, currentTable().from, anchor, head, true);
+        setTableRangeSelection(wrapper, currentTable().from, anchor, head, true, kind);
         return;
       }
       state.pointerAnchor = address;
@@ -38526,7 +38714,8 @@ ${text3}`;
           currentTable().from,
           address,
           { row: address.row, column: currentTable().columnCount - 1 },
-          true
+          true,
+          "rows"
         );
       }
     };
@@ -38591,7 +38780,8 @@ ${text3}`;
             currentTable().from,
             state.pointerAnchor,
             address,
-            true
+            true,
+            state.pointerAnchorMode === "row" ? "rows" : "cells"
           );
         }
         return;
@@ -38631,7 +38821,8 @@ ${text3}`;
               latestTable.from,
               state.pointerAnchor,
               selectionHead,
-              true
+              true,
+              state.pointerAnchorMode === "row" ? "rows" : "cells"
             );
           }
         }
@@ -38855,6 +39046,10 @@ ${text3}`;
       pointerCleanupTimer = timer;
     };
     const onMouseDown = (event) => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        return;
+      }
       const state = stateFor(wrapper.ownerDocument);
       if (event.button !== 0) {
         return;
@@ -39053,7 +39248,7 @@ ${text3}`;
         event.stopPropagation();
         const rectangle = selectionRectangle(selection);
         const rowCount = latestTable.body.length + 1;
-        if (rectangle.top === 0 && rectangle.bottom === rowCount - 1 && rectangle.left === 0 && rectangle.right === latestTable.columnCount - 1) {
+        if (selectionCells(selection).length === rowCount * latestTable.columnCount && rectangle.top === 0 && rectangle.bottom === rowCount - 1 && rectangle.left === 0 && rectangle.right === latestTable.columnCount - 1) {
           clearTableRangeSelection(wrapper.ownerDocument);
           view2.focus();
           view2.dispatch({
@@ -39117,13 +39312,22 @@ ${text3}`;
           },
           latestTable
         );
-        const nextAnchor = event.shiftKey ? selection.anchor : nextHead;
+        let nextAnchor = event.shiftKey ? selection.anchor : nextHead;
+        const kind = event.shiftKey ? selection.kind ?? "cells" : "cells";
+        if (kind === "rows") {
+          nextAnchor = { row: nextAnchor.row, column: 0 };
+          nextHead.column = latestTable.columnCount - 1;
+        } else if (kind === "columns") {
+          nextAnchor = { row: 0, column: nextAnchor.column };
+          nextHead.row = latestTable.body.length;
+        }
         setTableRangeSelection(
           wrapper,
           selection.tableFrom,
           nextAnchor,
           nextHead,
-          true
+          true,
+          kind
         );
         return;
       }
@@ -39141,7 +39345,7 @@ ${text3}`;
         event.preventDefault();
         event.stopPropagation();
         wrapper.dispatchEvent(
-          new CustomEvent(TABLE_SELECTION_CLEAR_EVENT, { bubbles: true })
+          new CustomEvent(event.key === "Backspace" ? TABLE_SELECTION_CLEAR_EVENT : TABLE_SELECTION_DELETE_EVENT, { bubbles: true })
         );
         return;
       }
@@ -39161,6 +39365,13 @@ ${text3}`;
         }
       }
     };
+    const onAdditiveClick = (event) => {
+      if ((event.ctrlKey || event.metaKey) && tableSelectionStart(wrapper, event)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    wrapper.addEventListener("click", onAdditiveClick, true);
     wrapper.addEventListener("pointerdown", onPointerDown);
     wrapper.addEventListener("lostpointercapture", onLostPointerCapture, true);
     wrapper.addEventListener("mousedown", onMouseDown);
@@ -39174,6 +39385,7 @@ ${text3}`;
     wrapper.ownerDocument.defaultView?.addEventListener("blur", onWindowBlur);
     restoreSelectionClasses(wrapper);
     return () => {
+      wrapper.removeEventListener("click", onAdditiveClick, true);
       wrapper.removeEventListener("pointerdown", onPointerDown);
       wrapper.removeEventListener(
         "lostpointercapture",
@@ -39228,7 +39440,7 @@ ${text3}`;
     }
     return state;
   }
-  function setTableRangeSelection(wrapper, tableFrom, anchor, head, focusWrapper) {
+  function setTableRangeSelection(wrapper, tableFrom, anchor, head, focusWrapper, kind = "cells", cells) {
     const doc2 = wrapper.ownerDocument;
     const state = stateFor(doc2);
     const activeView = state.view;
@@ -39250,7 +39462,9 @@ ${text3}`;
       wrapper,
       tableFrom,
       anchor,
-      head
+      head,
+      kind,
+      ...cells ? { cells: cells.map((cell2) => ({ ...cell2 })) } : {}
     };
     state.selection = selection;
     applySelectionClasses(selection);
@@ -39261,25 +39475,38 @@ ${text3}`;
     dispatchSelectionChange(wrapper);
     return selection;
   }
-  function selectTableRow(wrapper, tableFrom, row, columnCount) {
+  function selectTableRow(wrapper, tableFrom, row, columnCount, additive = false) {
+    if (additive) {
+      const table2 = getTableWidgetTable(wrapper);
+      if (table2) toggleTableSelection(wrapper, table2, { row, column: 0 }, "rows");
+      return;
+    }
     setTableRangeSelection(
       wrapper,
       tableFrom,
       { row, column: 0 },
       { row, column: Math.max(0, columnCount - 1) },
-      true
+      true,
+      "rows"
     );
   }
-  function selectTableColumn(wrapper, tableFrom, column, rowCount) {
+  function selectTableColumn(wrapper, tableFrom, column, rowCount, additive = false) {
+    if (additive) {
+      const table2 = getTableWidgetTable(wrapper);
+      if (table2) toggleTableSelection(wrapper, table2, { row: 0, column }, "columns");
+      return;
+    }
     setTableRangeSelection(
       wrapper,
       tableFrom,
       { row: 0, column },
       { row: Math.max(0, rowCount - 1), column },
-      true
+      true,
+      "columns"
     );
   }
   function selectionRectangle(selection) {
+    if (selection.cells?.length) return selectedCellsBounds(selection.cells);
     return {
       top: Math.min(selection.anchor.row, selection.head.row),
       bottom: Math.max(selection.anchor.row, selection.head.row),
@@ -39288,8 +39515,28 @@ ${text3}`;
     };
   }
   function isCellInSelection(selection, address) {
+    if (selection.cells) return selection.cells.some((cell2) => cell2.row === address.row && cell2.column === address.column);
     const rectangle = selectionRectangle(selection);
     return address.row >= rectangle.top && address.row <= rectangle.bottom && address.column >= rectangle.left && address.column <= rectangle.right;
+  }
+  function selectionCells(selection) {
+    return selection.cells ?? rectangleCells(selectionRectangle(selection));
+  }
+  function toggleTableSelection(wrapper, table2, address, kind) {
+    const doc2 = wrapper.ownerDocument;
+    const selection = getTableRangeSelection(doc2);
+    const focused = findCell(doc2.activeElement);
+    const focusedAddress = focused && wrapper.contains(focused) ? addressFromCell(focused) : null;
+    const existing = selection?.wrapper === wrapper ? selectionCells(selection) : focusedAddress ? [focusedAddress] : [];
+    const target = kind === "rows" ? { top: address.row, bottom: address.row, left: 0, right: table2.columnCount - 1 } : kind === "columns" ? { top: 0, bottom: table2.body.length, left: address.column, right: address.column } : { top: address.row, bottom: address.row, left: address.column, right: address.column };
+    const cells = toggleSelectedCells(existing, rectangleCells(target));
+    if (!cells.length) {
+      clearTableRangeSelection(doc2);
+      wrapper.focus({ preventScroll: true });
+      return;
+    }
+    const head = cells.find((cell2) => cell2.row === address.row && cell2.column === address.column) ?? cells.at(-1);
+    setTableRangeSelection(wrapper, table2.from, cells[0], head, true, "cells", cells);
   }
   function clearTableRangeSelection(doc2) {
     const state = states.get(doc2);
@@ -39365,11 +39612,12 @@ ${text3}`;
     const rectangle = selectionRectangle(selection);
     const selectedRowCount = rectangle.bottom - rectangle.top + 1;
     const selectedColumnCount = rectangle.right - rectangle.left + 1;
+    const keys = new Set(selectionCells(selection).map(tableCellKey));
     selection.wrapper.classList.remove("mlrt-document-selection-mode");
     selection.wrapper.classList.add("mlrt-table-selection-mode");
     selection.wrapper.setAttribute(
       "aria-label",
-      `${selectedRowCount} by ${selectedColumnCount} table cell selection`
+      selection.cells ? `${keys.size} selected table cells` : `${selectedRowCount} by ${selectedColumnCount} table cell selection`
     );
     selection.wrapper.classList.toggle(
       "mlrt-table-cut-pending",
@@ -39378,24 +39626,24 @@ ${text3}`;
     selection.wrapper.querySelectorAll(TABLE_CELL_SELECTOR).forEach((cell2) => {
       const address = addressFromCell(cell2);
       const selected = Boolean(
-        address && address.row >= rectangle.top && address.row <= rectangle.bottom && address.column >= rectangle.left && address.column <= rectangle.right
+        address && keys.has(tableCellKey(address))
       );
       cell2.classList.toggle("mlrt-table-cell-selected", selected);
       cell2.classList.toggle(
         "mlrt-table-selection-top",
-        selected && Boolean(address && address.row === rectangle.top)
+        selected && Boolean(address && !keys.has(`${address.row - 1}:${address.column}`))
       );
       cell2.classList.toggle(
         "mlrt-table-selection-bottom",
-        selected && Boolean(address && address.row === rectangle.bottom)
+        selected && Boolean(address && !keys.has(`${address.row + 1}:${address.column}`))
       );
       cell2.classList.toggle(
         "mlrt-table-selection-left",
-        selected && Boolean(address && address.column === rectangle.left)
+        selected && Boolean(address && !keys.has(`${address.row}:${address.column - 1}`))
       );
       cell2.classList.toggle(
         "mlrt-table-selection-right",
-        selected && Boolean(address && address.column === rectangle.right)
+        selected && Boolean(address && !keys.has(`${address.row}:${address.column + 1}`))
       );
       cell2.classList.toggle(
         "mlrt-table-cell-selection-head",
@@ -39420,7 +39668,7 @@ ${text3}`;
   }
   function tableSelectionFitsWrapper(selection, wrapper) {
     return Boolean(
-      cellFromAddress(wrapper, selection.anchor) && cellFromAddress(wrapper, selection.head)
+      cellFromAddress(wrapper, selection.anchor) && cellFromAddress(wrapper, selection.head) && (!selection.cells || selection.cells.every((cell2) => cellFromAddress(wrapper, cell2)))
     );
   }
   function discardStaleTableSelection(documentState, selection) {
@@ -52315,6 +52563,257 @@ ${suffix}`;
     ]);
   }
 
+  // src/shared/tableStructureEdits.ts
+  var EMPTY_DATA_CELL_RAW = "  ";
+  var EMPTY_DELIMITER_CELL_RAW = " --- ";
+  function joinTablesAcrossDeletion(doc2, tables2, from, to) {
+    for (let index = 0; index + 1 < tables2.length; index++) {
+      const first = tables2[index], second = tables2[index + 1];
+      if (first.columnCount !== second.columnCount || from < first.to || to > second.from || from === to) continue;
+      const remaining = doc2.sliceString(first.to, from) + doc2.sliceString(to, second.from);
+      if (remaining.trim().length > 0 || (remaining.match(/\n/g)?.length ?? 0) > 1) continue;
+      const separator = first.delimiter.from - first.header.to === 2 ? "\r\n" : "\n";
+      return { table: first, edit: {
+        from: first.to,
+        to: second.delimiter.to,
+        insert: separator + second.header.text
+      } };
+    }
+    return null;
+  }
+  function insertTableColumnEdit(table2, columnIndex) {
+    if (!Number.isInteger(columnIndex) || columnIndex < 0 || columnIndex > table2.columnCount) {
+      return null;
+    }
+    return replaceTableLines(table2, (rawCells, emptyCellRaw) => {
+      const next2 = [...rawCells];
+      next2.splice(columnIndex, 0, emptyCellRaw);
+      return next2;
+    });
+  }
+  function insertTableRowEdit(table2, bodyIndex) {
+    if (!Number.isInteger(bodyIndex) || bodyIndex < 0 || bodyIndex > table2.body.length) {
+      return null;
+    }
+    const previousRow = bodyIndex === 0 ? table2.delimiter : table2.body[bodyIndex - 1];
+    const rowText = formatMarkdownRow(
+      Array.from({ length: table2.columnCount }, () => "")
+    );
+    return {
+      from: previousRow.to,
+      to: previousRow.to,
+      insert: `${getTableLineSeparator(table2)}${rowText}`
+    };
+  }
+  function replaceTableLines(table2, mutateRawCells) {
+    const lines = [table2.header, table2.delimiter, ...table2.body].map((row) => {
+      const emptyCellRaw = row === table2.delimiter ? EMPTY_DELIMITER_CELL_RAW : EMPTY_DATA_CELL_RAW;
+      const rawCells = mutateRawCells(
+        paddedRawCells(row, table2.columnCount, emptyCellRaw),
+        emptyCellRaw
+      );
+      return `|${rawCells.map(ensureTableCellSeparatorSafe).join("|")}|`;
+    });
+    return {
+      from: table2.from,
+      to: table2.to,
+      insert: lines.join(getTableLineSeparator(table2))
+    };
+  }
+  function paddedRawCells(row, columnCount, emptyCellRaw) {
+    return Array.from(
+      { length: columnCount },
+      (_, column) => row.cells[column]?.raw ?? emptyCellRaw
+    );
+  }
+  function getTableLineSeparator(table2) {
+    return table2.delimiter.from - table2.header.to === 2 ? "\r\n" : "\n";
+  }
+
+  // src/editor/table/tableMutation.ts
+  function applyTableMutation(view2, table2, edit2, restoreFocus) {
+    const scroller = view2.scrollDOM;
+    const top2 = scroller.scrollTop, left = scroller.scrollLeft;
+    view2.dispatch({
+      changes: edit2,
+      selection: EditorSelection.cursor(positionBeforeTable(table2)),
+      effects: view2.scrollSnapshot(),
+      annotations: allowTableSourceChange.of(true),
+      userEvent: "input.table"
+    });
+    restoreFocus();
+    scroller.scrollTop = top2;
+    scroller.scrollLeft = left;
+  }
+
+  // src/editor/editorStatus.ts
+  function announceEditorStatus(doc2, message) {
+    let status = doc2.querySelector(".mlrt-clipboard-status");
+    if (!status) {
+      status = doc2.createElement("div");
+      status.className = "mlrt-clipboard-status";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+      doc2.body.append(status);
+    }
+    status.textContent = "";
+    const element = status;
+    doc2.defaultView?.requestAnimationFrame(() => {
+      element.textContent = message;
+      element.dataset.visible = "true";
+      doc2.defaultView?.setTimeout(() => {
+        if (element.textContent === message) delete element.dataset.visible;
+      }, 5e3);
+    });
+  }
+
+  // src/editor/tableBoundaryNavigation.ts
+  function createTableBoundaryArrowNavigation() {
+    return keymap.of([
+      { key: "Delete", run: (view2) => deleteBetweenTables(view2, 1) },
+      { key: "Backspace", run: (view2) => deleteBetweenTables(view2, -1) },
+      {
+        key: "ArrowDown",
+        run: (view2) => focusTableAcrossBoundary(view2, "down")
+      },
+      {
+        key: "ArrowUp",
+        run: (view2) => focusTableAcrossBoundary(view2, "up")
+      }
+    ]);
+  }
+  function deleteBetweenTables(view2, direction) {
+    if (view2.state.readOnly || isRenderedTableCellFocused(view2)) return false;
+    const selected = view2.state.selection.main;
+    const from = selected.empty ? selected.head - (direction === -1 ? 1 : 0) : selected.from;
+    const to = selected.empty ? selected.head + (direction === 1 ? 1 : 0) : selected.to;
+    if (from < 0 || to > view2.state.doc.length) return false;
+    const tables2 = getParsedTables(view2.state.doc);
+    const join2 = joinTablesAcrossDeletion(view2.state.doc, tables2, from, to);
+    if (!join2) {
+      for (let index = 0; index + 1 < tables2.length; index++) {
+        const first = tables2[index], second = tables2[index + 1];
+        if (from < first.to || to > second.from) continue;
+        const remaining = view2.state.doc.sliceString(first.to, from) + view2.state.doc.sliceString(to, second.from);
+        if (remaining.trim().length > 0) return false;
+        if ((remaining.match(/\n/g)?.length ?? 0) >= 2) {
+          view2.dispatch({
+            changes: { from, to, insert: "" },
+            selection: EditorSelection.cursor(Math.max(first.to + 1, Math.min(from, second.from - (to - from) - 1))),
+            annotations: allowTableSourceChange.of(true),
+            userEvent: "delete"
+          });
+        } else if (first.columnCount !== second.columnCount) {
+          announceEditorStatus(
+            view2.dom.ownerDocument,
+            `Cannot merge tables: the first has ${first.columnCount} columns and the second has ${second.columnCount}. Make their column counts match first.`
+          );
+        }
+        return true;
+      }
+      return false;
+    }
+    applyTableMutation(view2, join2.table, join2.edit, () => {
+      const cell2 = view2.dom.querySelector(`${TABLE_CELL_SELECTOR}[data-table-from="${join2.table.from}"][data-row-kind="body"][data-row-index="${join2.table.body.length}"][data-column="0"]`);
+      if (cell2) focusCellAtEnd(cell2, true);
+    });
+    return true;
+  }
+  function focusTableAcrossBoundary(view2, direction) {
+    if (!view2.state.selection.main.empty || isRenderedTableCellFocused(view2)) {
+      return false;
+    }
+    const head = view2.state.selection.main.head;
+    const line = view2.state.doc.lineAt(head);
+    const tables2 = getParsedTables(view2.state.doc);
+    for (const table2 of tables2) {
+      if (markdownListRangeHidden(view2.state, table2)) continue;
+      if (direction === "down" && head === table2.to) {
+        selectVisibleTableBoundary(view2, table2, "after");
+        return true;
+      }
+      if (direction === "up" && head === table2.from) {
+        selectVisibleTableBoundary(view2, table2, "before");
+        return true;
+      }
+      const lineNumberAboveTable = table2.startLine;
+      const afterTable = positionAfterTable(view2.state.doc, table2);
+      if (direction === "down" && line.number === lineNumberAboveTable) {
+        return focusRenderedTableCell(view2, table2, "first");
+      }
+      if (direction === "up" && line.from === afterTable && head >= afterTable) {
+        return focusRenderedTableCell(view2, table2, "last");
+      }
+      if (head >= table2.from && head <= table2.to) {
+        return focusRenderedTableCell(
+          view2,
+          table2,
+          direction === "down" ? "first" : "last"
+        );
+      }
+    }
+    return false;
+  }
+  function focusRenderedTableCell(view2, table2, target) {
+    const wrapper = view2.dom.querySelector(
+      `${TABLE_WIDGET_SELECTOR}[data-src-from="${table2.from}"]`
+    );
+    const cells = Array.from(
+      wrapper?.querySelectorAll(TABLE_CELL_SELECTOR) ?? []
+    );
+    const cell2 = target === "first" ? cells[0] : cells[cells.length - 1];
+    if (!cell2) {
+      return false;
+    }
+    const caret = view2.coordsAtPos(view2.state.selection.main.head);
+    focusCellAtVerticalEdge(
+      cell2,
+      target === "first" ? 1 : -1,
+      caret?.left ?? null
+    );
+    return true;
+  }
+  function isRenderedTableCellFocused(view2) {
+    return Boolean(findCell(view2.dom.ownerDocument.activeElement));
+  }
+
+  // src/shared/tableDeletion.ts
+  function classifyTableSelection(table2, rectangle, kind = "cells") {
+    if (rectangle.top === 0 && rectangle.bottom === table2.body.length && rectangle.left === 0 && rectangle.right === table2.columnCount - 1) return "table";
+    if (rectangle.left === 0 && rectangle.right === table2.columnCount - 1) return "rows";
+    if (rectangle.top === 0 && rectangle.bottom === table2.body.length) return "columns";
+    return kind;
+  }
+  function tableStructureSelection(table2, kind, index, selection) {
+    const rectangle = selection?.rectangle;
+    const selectedKind = rectangle ? classifyTableSelection(table2, rectangle, selection?.kind) : void 0;
+    if ((selectedKind === kind || selectedKind === "table") && rectangle && (kind === "rows" ? index >= rectangle.top && index <= rectangle.bottom : index >= rectangle.left && index <= rectangle.right)) return { ...rectangle };
+    return kind === "rows" ? { top: index, bottom: index, left: 0, right: table2.columnCount - 1 } : { top: 0, bottom: table2.body.length, left: index, right: index };
+  }
+  function planTableDeletion(table2, rectangle, kind = "cells", behavior = "clear-first") {
+    rectangle = kind === "rows" ? { ...rectangle, left: 0, right: table2.columnCount - 1 } : kind === "columns" ? { ...rectangle, top: 0, bottom: table2.body.length } : rectangle;
+    const target = classifyTableSelection(table2, rectangle, kind);
+    if (target === "rows" || target === "columns") kind = target;
+    const wholeTable = rectangle.top === 0 && rectangle.bottom === table2.body.length && rectangle.left === 0 && rectangle.right === table2.columnCount - 1;
+    const rows = [table2.header, ...table2.body];
+    const hasContent2 = rows.some((row, index) => index >= rectangle.top && index <= rectangle.bottom && row.cells.some((cell2, column) => column >= rectangle.left && column <= rectangle.right && markdownCellToDisplayText(cell2.raw).trim().length > 0));
+    if (behavior === "clear" || hasContent2 && behavior === "clear-first" || !wholeTable && kind === "cells") {
+      return { edit: buildGridClearEdit(table2, rectangle), removed: false, wholeTable };
+    }
+    if (wholeTable) {
+      return { edit: { from: table2.from, to: table2.to, insert: "" }, removed: true, wholeTable };
+    }
+    const separator = table2.delimiter.from - table2.header.to === 2 ? "\r\n" : "\n";
+    let lines;
+    if (kind === "rows") {
+      const remaining = rows.filter((_, index) => index < rectangle.top || index > rectangle.bottom);
+      lines = [remaining[0].text, table2.delimiter.text, ...remaining.slice(1).map((row) => row.text)];
+    } else {
+      lines = [table2.header, table2.delimiter, ...table2.body].map((row) => `|${Array.from({ length: table2.columnCount }, (_, column) => row.cells[column]?.raw ?? "  ").filter((_, column) => column < rectangle.left || column > rectangle.right).map(ensureTableCellSeparatorSafe).join("|")}|`);
+    }
+    return { edit: { from: table2.from, to: table2.to, insert: lines.join(separator) }, removed: true, wholeTable };
+  }
+
   // src/editor/officeClipboardHtml.ts
   var OFFICE_RICH_CELL_ALLOWED_TAGS = [
     "a",
@@ -52693,12 +53192,18 @@ ${suffix}`;
         return;
       }
       if ((event.key === "Backspace" || event.key === "Delete") && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        if (!event.defaultPrevented && deleteBetweenTables(view2, event.key === "Backspace" ? -1 : 1)) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
         const selected = view2.state.selection.main;
+        const behavior = event.key === "Backspace" ? "clear" : "clear-first";
         const projection = getDocumentSelectionProjection(doc2, selected);
         if (projection) {
           event.preventDefault();
           event.stopPropagation();
-          applyCompositeSelectionDelete(view2, projection);
+          applyCompositeSelectionDelete(view2, projection, behavior);
           return;
         }
         const range = atomicDocumentSelection(view2);
@@ -52708,6 +53213,20 @@ ${suffix}`;
         if (range && touchesTable) {
           event.preventDefault();
           event.stopPropagation();
+          const tables2 = getParsedTables(view2.state.doc).filter((table2) => range.from < table2.to && range.to > table2.from);
+          const contentPlans = tables2.map((table2) => planTableDeletion(table2, fullTableRectangle(tableDimensions2(table2)), "cells", behavior));
+          if (contentPlans.some((plan) => !plan.removed)) {
+            const edits = tables2.map((table2) => buildGridClearEdit(table2, fullTableRectangle(tableDimensions2(table2)))).filter((edit2) => view2.state.doc.sliceString(edit2.from, edit2.to) !== edit2.insert);
+            if (edits.length === 0) return;
+            const changes = view2.state.changes(edits);
+            view2.dispatch({
+              changes,
+              selection: EditorSelection.range(changes.mapPos(selected.anchor, -1), changes.mapPos(selected.head, 1)),
+              annotations: allowTableSourceChange.of(true),
+              userEvent: "delete.selection"
+            });
+            return;
+          }
           view2.dispatch({
             changes: { from: range.from, to: range.to, insert: "" },
             selection: EditorSelection.cursor(range.from, 1),
@@ -52723,8 +53242,13 @@ ${suffix}`;
     const onContextMenu = (event) => {
       if (!root2.contains(event.target)) return;
       const preservesSelection = shouldPreserveContextSelection(event);
-      if (!preservesSelection && (findCell(event.target) || !view2.state.selection.main.empty)) return;
-      const extraActions = preservesSelection ? [] : contextActions?.(event) ?? [];
+      const insideTable = event.target instanceof Element && event.target.closest(".mlrt-table-widget");
+      if (!preservesSelection && (insideTable || !view2.state.selection.main.empty)) return;
+      const extraActions = preservesSelection ? [] : [...contextActions?.(event) ?? []];
+      if (!preservesSelection && !findCell(event.target) && !view2.state.readOnly) {
+        const position = editorDragPosition(view2, event.clientX, event.clientY) ?? view2.state.selection.main.head;
+        extraActions.push({ label: "Insert table (2 \xD7 2)", run: () => insertDefaultTable(view2, position) });
+      }
       if (!atomicDocumentSelection(view2) && extraActions.length === 0) return;
       event.preventDefault();
       event.stopPropagation();
@@ -53385,7 +53909,7 @@ ${suffix}`;
     }
     return result;
   }
-  function compositeSelectionChanges(view2, projection) {
+  function compositeSelectionChanges(view2, projection, tableBehavior) {
     if (projection.tableRegions.length === 0) {
       const from2 = Math.min(projection.anchor, projection.head);
       const to2 = Math.max(projection.anchor, projection.head);
@@ -53419,7 +53943,7 @@ ${suffix}`;
       }
       const full = isFullTableRegion(table2, region);
       changes.push(
-        full ? { from: table2.from, to: table2.to, insert: "" } : buildGridClearEdit(table2, region)
+        tableBehavior ? planTableDeletion(table2, region, "cells", tableBehavior).edit : full ? { from: table2.from, to: table2.to, insert: "" } : buildGridClearEdit(table2, region)
       );
       cursor = Math.max(cursor, table2.to);
     }
@@ -53452,8 +53976,31 @@ ${suffix}`;
     }
     return result;
   }
-  function applyCompositeSelectionDelete(view2, projection) {
-    const changes = compositeSelectionChanges(view2, projection);
+  function applyCompositeSelectionDelete(view2, projection, behavior) {
+    const tables2 = getParsedTables(view2.state.doc);
+    const tablePlans = projection.tableRegions.flatMap((region) => {
+      const table2 = tables2.find((candidate) => candidate.from === region.tableFrom);
+      return table2 ? [{ table: table2, region, plan: planTableDeletion(table2, region, "cells", behavior) }] : [];
+    });
+    if (tablePlans.some(({ plan }) => !plan.removed && plan.wholeTable)) {
+      const edits = tablePlans.map(({ table: table2, region }) => buildGridClearEdit(table2, region)).filter((edit2) => view2.state.doc.sliceString(edit2.from, edit2.to) !== edit2.insert);
+      if (edits.length === 0) return;
+      const changes2 = view2.state.changes(edits);
+      const anchor = changes2.mapPos(projection.anchor, -1), head = changes2.mapPos(projection.head, 1);
+      setDocumentSelectionProjection(view2.dom.ownerDocument, {
+        anchor,
+        head,
+        tableRegions: projection.tableRegions.map((region) => ({ ...region, tableFrom: changes2.mapPos(region.tableFrom, -1) }))
+      });
+      view2.dispatch({
+        changes: changes2,
+        selection: EditorSelection.range(anchor, head),
+        annotations: [allowTableSourceChange.of(true), documentSelectionProjectionTransaction.of(true)],
+        userEvent: "delete.selection"
+      });
+      return;
+    }
+    const changes = compositeSelectionChanges(view2, projection, behavior).filter((edit2) => view2.state.doc.sliceString(edit2.from, edit2.to) !== edit2.insert);
     if (changes.length === 0) {
       return;
     }
@@ -54164,13 +54711,15 @@ ${replacement}
     const expectedPayload = tableRectanglePayload(
       sourceTable,
       pending.rectangle,
-      pending.sourceDocument
+      pending.sourceDocument,
+      void 0,
+      pending.cells
     );
     if (!sameGridPayloadText(payload, expectedPayload)) {
       return "source-changed";
     }
     const markdown2 = markdownForGridPayload(expectedPayload);
-    const sourceEdit = buildGridClearEdit(sourceTable, pending.rectangle);
+    const sourceEdit = pending.cells ? buildTableCellsClearEdit(sourceTable, pending.cells) : buildGridClearEdit(sourceTable, pending.rectangle);
     const changeSpecs = [
       sourceEdit,
       { from: destination.from, to: destination.to, insert: markdown2 }
@@ -54228,12 +54777,44 @@ ${replacement}
     }
     return { from, to, empty: false };
   }
+  function insertDefaultTable(view2, requestedPosition) {
+    if (view2.state.readOnly) return;
+    let position = Math.min(requestedPosition, view2.state.doc.length);
+    const containingTable = getParsedTables(view2.state.doc).find((table2) => position >= table2.from && position <= table2.to);
+    if (containingTable) position = containingTable.to;
+    else {
+      const line = view2.state.doc.lineAt(position);
+      if (line.text.trim()) position = line.to;
+    }
+    const before = view2.state.doc.sliceString(0, position), after = view2.state.doc.sliceString(position);
+    const prefix = before.length === 0 || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+    const suffix = after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+    const tableFrom = position + prefix.length;
+    clearTableRangeSelection(view2.dom.ownerDocument);
+    view2.dispatch({
+      changes: { from: position, insert: `${prefix}|  |  |
+| --- | --- |
+|  |  |${suffix}` },
+      selection: EditorSelection.cursor(position),
+      annotations: allowTableSourceChange.of(true),
+      userEvent: "input.table"
+    });
+    const cell2 = view2.dom.querySelector(`.mlrt-table-cell[data-table-from="${tableFrom}"][data-row-kind="header"][data-column="0"]`);
+    if (cell2) {
+      cell2.focus({ preventScroll: true });
+      cell2.scrollIntoView({ block: "nearest" });
+    }
+  }
   function showDocumentMenu(doc2, view2, clientX, clientY, extraActions = []) {
     documentMenuClosers.get(doc2)?.();
     const menu = doc2.createElement("div");
     menu.className = "mlrt-clipboard-menu mlrt-document-clipboard-menu";
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", "Document actions");
+    menu.addEventListener("pointermove", (event) => {
+      const item = event.target instanceof Element ? event.target.closest("button") : null;
+      if (item && menu.contains(item)) item.focus({ preventScroll: true });
+    });
     const close = (restoreFocus = false) => {
       menu.remove();
       doc2.removeEventListener("pointerdown", closeOnOutsidePointer, true);
@@ -54340,7 +54921,21 @@ ${replacement}
       4,
       Math.min(clientY, viewportHeight - menu.offsetHeight - 4)
     )}px`;
-    menu.querySelector("button")?.focus();
+    menu.tabIndex = -1;
+    menu.addEventListener("keydown", (event) => {
+      if (event.target !== menu) return;
+      const items2 = Array.from(menu.querySelectorAll("button"));
+      if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+        event.preventDefault();
+        const target = event.key === "ArrowUp" || event.key === "End" ? items2.at(-1) : items2[0];
+        target?.focus();
+      } else if (event.key === "Escape" || event.key === "Tab") {
+        event.preventDefault();
+        event.stopPropagation();
+        close(true);
+      }
+    });
+    menu.focus({ preventScroll: true });
     documentMenuClosers.set(doc2, close);
     doc2.addEventListener("pointerdown", closeOnOutsidePointer, true);
   }
@@ -54582,77 +55177,6 @@ ${replacement}
   }
   function selectionRight(selectedLine) {
     return selectedLine.isEmpty ? 1 : selectedLine.to - selectedLine.lineFrom;
-  }
-
-  // src/editor/tableBoundaryNavigation.ts
-  function createTableBoundaryArrowNavigation() {
-    return keymap.of([
-      {
-        key: "ArrowDown",
-        run: (view2) => focusTableAcrossBoundary(view2, "down")
-      },
-      {
-        key: "ArrowUp",
-        run: (view2) => focusTableAcrossBoundary(view2, "up")
-      }
-    ]);
-  }
-  function focusTableAcrossBoundary(view2, direction) {
-    if (!view2.state.selection.main.empty || isRenderedTableCellFocused(view2)) {
-      return false;
-    }
-    const head = view2.state.selection.main.head;
-    const line = view2.state.doc.lineAt(head);
-    const tables2 = getParsedTables(view2.state.doc);
-    for (const table2 of tables2) {
-      if (markdownListRangeHidden(view2.state, table2)) continue;
-      if (direction === "down" && head === table2.to) {
-        selectVisibleTableBoundary(view2, table2, "after");
-        return true;
-      }
-      if (direction === "up" && head === table2.from) {
-        selectVisibleTableBoundary(view2, table2, "before");
-        return true;
-      }
-      const lineNumberAboveTable = table2.startLine;
-      const afterTable = positionAfterTable(view2.state.doc, table2);
-      if (direction === "down" && line.number === lineNumberAboveTable) {
-        return focusRenderedTableCell(view2, table2, "first");
-      }
-      if (direction === "up" && line.from === afterTable && head >= afterTable) {
-        return focusRenderedTableCell(view2, table2, "last");
-      }
-      if (head >= table2.from && head <= table2.to) {
-        return focusRenderedTableCell(
-          view2,
-          table2,
-          direction === "down" ? "first" : "last"
-        );
-      }
-    }
-    return false;
-  }
-  function focusRenderedTableCell(view2, table2, target) {
-    const wrapper = view2.dom.querySelector(
-      `${TABLE_WIDGET_SELECTOR}[data-src-from="${table2.from}"]`
-    );
-    const cells = Array.from(
-      wrapper?.querySelectorAll(TABLE_CELL_SELECTOR) ?? []
-    );
-    const cell2 = target === "first" ? cells[0] : cells[cells.length - 1];
-    if (!cell2) {
-      return false;
-    }
-    const caret = view2.coordsAtPos(view2.state.selection.main.head);
-    focusCellAtVerticalEdge(
-      cell2,
-      target === "first" ? 1 : -1,
-      caret?.left ?? null
-    );
-    return true;
-  }
-  function isRenderedTableCellFocused(view2) {
-    return Boolean(findCell(view2.dom.ownerDocument.activeElement));
   }
 
   // src/editor/tableCellFocus.ts
@@ -56107,77 +56631,46 @@ ${replacement}
     return (event.key === "ArrowLeft" || event.key === "ArrowRight") && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
   }
 
-  // src/shared/tableStructureEdits.ts
-  var EMPTY_DATA_CELL_RAW = "  ";
-  var EMPTY_DELIMITER_CELL_RAW = " --- ";
-  function insertTableColumnEdit(table2, columnIndex) {
-    if (!Number.isInteger(columnIndex) || columnIndex < 0 || columnIndex > table2.columnCount) {
-      return null;
-    }
-    return replaceTableLines(table2, (rawCells, emptyCellRaw) => {
-      const next2 = [...rawCells];
-      next2.splice(columnIndex, 0, emptyCellRaw);
-      return next2;
-    });
-  }
-  function deleteTableColumnEdit(table2, columnIndex) {
-    if (table2.columnCount <= 1 || !Number.isInteger(columnIndex) || columnIndex < 0 || columnIndex >= table2.columnCount) {
-      return null;
-    }
-    return replaceTableLines(table2, (rawCells) => {
-      const next2 = [...rawCells];
-      next2.splice(columnIndex, 1);
-      return next2;
-    });
-  }
-  function insertTableRowEdit(table2, bodyIndex) {
-    if (!Number.isInteger(bodyIndex) || bodyIndex < 0 || bodyIndex > table2.body.length) {
-      return null;
-    }
-    const previousRow = bodyIndex === 0 ? table2.delimiter : table2.body[bodyIndex - 1];
-    const rowText = formatMarkdownRow(
-      Array.from({ length: table2.columnCount }, () => "")
-    );
-    return {
-      from: previousRow.to,
-      to: previousRow.to,
-      insert: `${getTableLineSeparator(table2)}${rowText}`
-    };
-  }
-  function deleteTableRowEdit(table2, bodyIndex) {
-    if (!Number.isInteger(bodyIndex) || bodyIndex < 0) {
-      return null;
-    }
-    const row = table2.body[bodyIndex];
-    if (!row) {
-      return null;
-    }
-    const previousRow = bodyIndex === 0 ? table2.delimiter : table2.body[bodyIndex - 1];
-    return { from: previousRow.to, to: row.to, insert: "" };
-  }
-  function replaceTableLines(table2, mutateRawCells) {
-    const lines = [table2.header, table2.delimiter, ...table2.body].map((row) => {
-      const emptyCellRaw = row === table2.delimiter ? EMPTY_DELIMITER_CELL_RAW : EMPTY_DATA_CELL_RAW;
-      const rawCells = mutateRawCells(
-        paddedRawCells(row, table2.columnCount, emptyCellRaw),
-        emptyCellRaw
+  // src/editor/table/tableDeletion.ts
+  function deleteTableSelection(view2, table2, rectangle, kind = "cells", behavior = "clear-first", cells) {
+    if (view2.state.readOnly) return;
+    const doc2 = view2.dom.ownerDocument;
+    const plan = cells ? planTableCellSetDeletion(table2, cells, behavior) : planTableDeletion(table2, rectangle, kind, behavior);
+    if (plan.removed) clearTableRangeSelection(doc2);
+    const restore = () => {
+      if (plan.removed && plan.wholeTable) {
+        clearTableRangeSelection(doc2);
+        view2.focus();
+        return;
+      }
+      const current = getParsedTables(view2.state.doc).find((candidate) => candidate.from === table2.from);
+      const wrapper = doc2.querySelector(`.mlrt-table-widget[data-src-from="${table2.from}"]`);
+      if (!current || !wrapper) return;
+      const top2 = Math.min(rectangle.top, current.body.length);
+      const left = Math.min(rectangle.left, current.columnCount - 1);
+      if (plan.removed) {
+        const cell2 = cellFromAddress(wrapper, { row: top2, column: left });
+        if (cell2) focusCellAtEnd(cell2, true);
+        return;
+      }
+      setTableRangeSelection(
+        wrapper,
+        table2.from,
+        { row: kind === "columns" ? 0 : top2, column: kind === "rows" ? 0 : left },
+        {
+          row: kind === "columns" ? current.body.length : Math.min(rectangle.bottom, current.body.length),
+          column: kind === "rows" ? current.columnCount - 1 : Math.min(rectangle.right, current.columnCount - 1)
+        },
+        true,
+        kind,
+        cells
       );
-      return `|${rawCells.map(ensureTableCellSeparatorSafe).join("|")}|`;
-    });
-    return {
-      from: table2.from,
-      to: table2.to,
-      insert: lines.join(getTableLineSeparator(table2))
     };
-  }
-  function paddedRawCells(row, columnCount, emptyCellRaw) {
-    return Array.from(
-      { length: columnCount },
-      (_, column) => row.cells[column]?.raw ?? emptyCellRaw
-    );
-  }
-  function getTableLineSeparator(table2) {
-    return table2.delimiter.from - table2.header.to === 2 ? "\r\n" : "\n";
+    if (view2.state.doc.sliceString(plan.edit.from, plan.edit.to) === plan.edit.insert) {
+      restore();
+      return;
+    }
+    applyTableMutation(view2, table2, plan.edit, restore);
   }
 
   // src/editor/table/tableStructureControls.ts
@@ -56215,16 +56708,45 @@ ${replacement}
         return;
       }
       const focusTarget = makeFocusTarget(current);
-      view2.dispatch({
-        changes: { from: edit2.from, to: edit2.to, insert: edit2.insert },
-        annotations: [allowTableSourceChange.of(true)],
-        userEvent: "input"
+      applyTableMutation(view2, current, edit2, () => {
+        if (focusTarget) focusCellAfterStructureEdit(doc2, current.from, focusTarget);
+        else view2.focus();
       });
-      if (focusTarget) {
-        focusCellAfterStructureEdit(doc2, current.from, focusTarget);
-      } else {
-        view2.focus();
+    };
+    const deletionEntry = (kind, index) => {
+      const current = currentTable();
+      const selection = getTableRangeSelection(doc2);
+      let rectangle = tableStructureSelection(
+        current,
+        kind,
+        index,
+        selection?.wrapper === wrapper ? { rectangle: selectionRectangle(selection), kind: selection.kind } : void 0
+      );
+      let cells = rectangleCells(rectangle);
+      if (selection?.wrapper === wrapper && selection.cells) {
+        const info = inspectTableCellSet(current, selectionCells(selection));
+        const axes = kind === "rows" ? info.fullRows : info.fullColumns;
+        rectangle = kind === "rows" ? { top: index, bottom: index, left: 0, right: current.columnCount - 1 } : { top: 0, bottom: current.body.length, left: index, right: index };
+        cells = rectangleCells(rectangle);
+        if (axes.includes(index)) {
+          cells = axes.flatMap((axis) => rectangleCells(kind === "rows" ? { top: axis, bottom: axis, left: 0, right: current.columnCount - 1 } : { top: 0, bottom: current.body.length, left: axis, right: axis }));
+          rectangle = selectedCellsBounds(cells);
+        }
       }
+      const count2 = new Set(cells.map((cell2) => kind === "rows" ? cell2.row : cell2.column)).size;
+      const source = view2.state.doc.sliceString(current.from, current.to);
+      return {
+        icon: "delete",
+        label: count2 === 1 ? `Delete ${kind === "rows" ? "row" : "column"}` : `Delete ${count2} selected ${kind}`,
+        action: kind === "rows" ? "delete-row" : "delete-column",
+        apply: () => {
+          const latest = currentTable();
+          closeMenu();
+          if (latest.from === current.from && view2.state.doc.sliceString(latest.from, latest.to) === source) {
+            deleteTableSelection(view2, latest, rectangle, kind, "remove", cells);
+          }
+        }
+      };
     };
     const closeMenu = () => {
       if (!menu) {
@@ -56270,7 +56792,7 @@ ${replacement}
         item.addEventListener("click", (event) => {
           event.preventDefault();
           event.stopPropagation();
-          entry.apply();
+          entry.apply(event);
         });
         menu.append(item);
       }
@@ -56306,20 +56828,20 @@ ${replacement}
       menu.style.top = `${top2}px`;
     };
     const openColumnMenu = (anchor, column) => {
-      const canDelete = currentTable().columnCount > 1;
       openMenu(anchor, [
         {
           icon: "select",
           label: "Select column",
           action: "select-column",
-          apply: () => {
+          apply: (event) => {
             const current = currentTable();
             closeMenu();
             selectTableColumn(
               wrapper,
               current.from,
               column,
-              current.body.length + 1
+              current.body.length + 1,
+              Boolean(event?.ctrlKey || event?.metaKey)
             );
           }
         },
@@ -56341,20 +56863,7 @@ ${replacement}
             () => ({ rowKind: "header", rowIndex: 0, column: column + 1 })
           )
         },
-        {
-          icon: "delete",
-          label: "Delete column",
-          action: "delete-column",
-          disabled: !canDelete,
-          apply: () => applyStructureEdit(
-            (current) => deleteTableColumnEdit(current, column),
-            (current) => ({
-              rowKind: "header",
-              rowIndex: 0,
-              column: Math.max(0, Math.min(column, current.columnCount - 2))
-            })
-          )
-        }
+        deletionEntry("columns", column)
       ]);
     };
     const openRowMenu = (anchor, rowKind, rowIndex) => {
@@ -56364,10 +56873,10 @@ ${replacement}
             icon: "select",
             label: "Select row",
             action: "select-row",
-            apply: () => {
+            apply: (event) => {
               const current = currentTable();
               closeMenu();
-              selectTableRow(wrapper, current.from, 0, current.columnCount);
+              selectTableRow(wrapper, current.from, 0, current.columnCount, Boolean(event?.ctrlKey || event?.metaKey));
             }
           },
           {
@@ -56378,7 +56887,8 @@ ${replacement}
               (current) => insertTableRowEdit(current, 0),
               () => ({ rowKind: "body", rowIndex: 0, column: 0 })
             )
-          }
+          },
+          deletionEntry("rows", 0)
         ]);
         return;
       }
@@ -56387,14 +56897,15 @@ ${replacement}
           icon: "select",
           label: "Select row",
           action: "select-row",
-          apply: () => {
+          apply: (event) => {
             const current = currentTable();
             closeMenu();
             selectTableRow(
               wrapper,
               current.from,
               rowIndex + 1,
-              current.columnCount
+              current.columnCount,
+              Boolean(event?.ctrlKey || event?.metaKey)
             );
           }
         },
@@ -56416,19 +56927,7 @@ ${replacement}
             () => ({ rowKind: "body", rowIndex: rowIndex + 1, column: 0 })
           )
         },
-        {
-          icon: "delete",
-          label: "Delete row",
-          action: "delete-row",
-          apply: () => applyStructureEdit(
-            (current) => deleteTableRowEdit(current, rowIndex),
-            (current) => current.body.length > 1 ? {
-              rowKind: "body",
-              rowIndex: Math.min(rowIndex, current.body.length - 2),
-              column: 0
-            } : null
-          )
-        }
+        deletionEntry("rows", rowIndex + 1)
       ]);
     };
     const columnIndicator = createIndicatorButton(
@@ -56439,6 +56938,11 @@ ${replacement}
       event.preventDefault();
       event.stopPropagation();
       if (indicatorColumn === null) {
+        return;
+      }
+      if (event.ctrlKey || event.metaKey) {
+        closeMenu();
+        toggleTableSelection(wrapper, currentTable(), { row: 0, column: indicatorColumn }, "columns");
         return;
       }
       if (menuAnchor === columnIndicator) {
@@ -56453,6 +56957,11 @@ ${replacement}
       event.preventDefault();
       event.stopPropagation();
       if (!indicatorRow) {
+        return;
+      }
+      if (event.ctrlKey || event.metaKey) {
+        closeMenu();
+        toggleTableSelection(wrapper, currentTable(), { row: indicatorRow.rowKind === "header" ? 0 : indicatorRow.rowIndex + 1, column: 0 }, "rows");
         return;
       }
       if (menuAnchor === rowIndicator) {
@@ -56660,16 +57169,24 @@ ${replacement}
       pendingFrame = raf(() => update());
     };
     const onScrollerMouseMove = (event) => {
+      wrapper.classList.toggle("mlrt-table-additive-selecting", event.ctrlKey || event.metaKey);
       lastPointerPosition = { x: event.clientX, y: event.clientY };
       scheduleUpdate();
     };
     const onScrollerMouseLeave = () => {
+      wrapper.classList.remove("mlrt-table-additive-selecting");
       lastPointerPosition = null;
+      scheduleUpdate();
+    };
+    const onModifierChange = (event) => {
+      wrapper.classList.toggle("mlrt-table-additive-selecting", event.ctrlKey || event.metaKey);
       scheduleUpdate();
     };
     const scroller = view2.scrollDOM;
     scroller.addEventListener("mousemove", onScrollerMouseMove);
     scroller.addEventListener("mouseleave", onScrollerMouseLeave);
+    doc2.addEventListener("keydown", onModifierChange, true);
+    doc2.addEventListener("keyup", onModifierChange, true);
     wrapper.addEventListener("focusin", scheduleUpdate);
     wrapper.addEventListener("focusout", scheduleUpdate);
     tableScroll.addEventListener("scroll", scheduleUpdate);
@@ -56687,6 +57204,8 @@ ${replacement}
       }
       scroller.removeEventListener("mousemove", onScrollerMouseMove);
       scroller.removeEventListener("mouseleave", onScrollerMouseLeave);
+      doc2.removeEventListener("keydown", onModifierChange, true);
+      doc2.removeEventListener("keyup", onModifierChange, true);
       wrapper.removeEventListener("focusin", scheduleUpdate);
       wrapper.removeEventListener("focusout", scheduleUpdate);
       tableScroll.removeEventListener("scroll", scheduleUpdate);
@@ -56794,19 +57313,15 @@ ${replacement}
     return rows;
   }
   function focusCellAfterStructureEdit(doc2, tableFrom, target) {
-    setTimeout(() => {
-      const cell2 = doc2.querySelector(
-        [
-          `${TABLE_CELL_SELECTOR}[data-table-from="${tableFrom}"]`,
-          `[data-row-kind="${target.rowKind}"]`,
-          `[data-row-index="${target.rowIndex}"]`,
-          `[data-column="${target.column}"]`
-        ].join("")
-      );
-      if (cell2) {
-        focusCellAtEnd(cell2);
-      }
-    }, 0);
+    const cell2 = doc2.querySelector(
+      [
+        `${TABLE_CELL_SELECTOR}[data-table-from="${tableFrom}"]`,
+        `[data-row-kind="${target.rowKind}"]`,
+        `[data-row-index="${target.rowIndex}"]`,
+        `[data-column="${target.column}"]`
+      ].join("")
+    );
+    if (cell2) focusCellAtEnd(cell2, true);
   }
 
   // src/editor/table/tableClipboard.ts
@@ -56883,7 +57398,8 @@ ${replacement}
         table2,
         rectangle,
         readDocumentToken2(doc2),
-        token
+        token,
+        selection.cells
       );
       const representations = representationsForGrid(
         payload,
@@ -56899,10 +57415,11 @@ ${replacement}
         sourceDocument: readDocumentToken2(doc2),
         tableFrom: table2.from,
         rectangle,
+        cells: selection.cells,
         sourceTableText: view2.state.doc.sliceString(table2.from, table2.to)
       });
       setPendingCutToken(doc2, token);
-      markPendingCutSource(wrapper, rectangle);
+      markPendingCutSource(wrapper, rectangle, selection.cells);
       announce2(
         doc2,
         "Move pending. Paste in this document to move; external paste copies."
@@ -56934,20 +57451,21 @@ ${replacement}
         event.stopPropagation();
       }
     };
-    const onClear = (event) => {
+    const applySelectionKey = (event, behavior) => {
       const selection = getTableRangeSelection(doc2);
       if (!selection || selection.wrapper !== wrapper) {
         return;
       }
       event.preventDefault();
       const table2 = currentTable();
-      dispatchTableEdit(view2, buildGridClearEdit(table2, selectionRectangle(selection)));
+      deleteTableSelection(view2, table2, selectionRectangle(selection), selection.kind, behavior, selection.cells);
       clearPendingClipboardCut(doc2);
       setPendingCutToken(doc2, void 0);
       view2.dom.classList.remove("mlrt-document-cut-pending");
-      restoreSelectionAfterEdit(doc2, table2.from, selection.anchor, selection.head);
-      announce2(doc2, "Cleared selected cells.");
+      announce2(doc2, behavior === "clear" ? "Selected contents cleared." : "Selection deleted.");
     };
+    const onClear = (event) => applySelectionKey(event, "clear");
+    const onDelete = (event) => applySelectionKey(event, "clear-first");
     const onCancelCut = (event) => {
       const selection = getTableRangeSelection(doc2);
       if (!selection || selection.wrapper !== wrapper) {
@@ -56980,32 +57498,93 @@ ${replacement}
     };
     const onContextMenu = (event) => {
       const currentSelection = getTableRangeSelection(doc2);
-      const cell2 = findCell(event.target) ?? (currentSelection?.wrapper === wrapper ? cellFromAddress(wrapper, currentSelection.head) : null);
+      const hit = tableSelectionStart(wrapper, event);
+      const cell2 = hit?.cell ?? (event.clientX === 0 && event.clientY === 0 && currentSelection?.wrapper === wrapper ? cellFromAddress(wrapper, currentSelection.head) : null);
       if (!cell2 || !wrapper.contains(cell2)) {
         return;
       }
       event.preventDefault();
       event.stopPropagation();
       const nativeCellSelection = hasNativeCellSelection(cell2);
+      const nativeOffsets = nativeCellSelection ? getCellSelectionOffsets(cell2) : null;
       const nativeRange = nativeCellSelection ? doc2.defaultView?.getSelection()?.getRangeAt(0).cloneRange() ?? null : null;
       const restoreNativeCellSelection = () => {
         if (!nativeRange || !cell2.isConnected) {
           return;
         }
         cell2.focus({ preventScroll: true });
+        if (nativeOffsets) {
+          setCellSelectionOffsets(cell2, nativeOffsets.anchor, nativeOffsets.head);
+          return;
+        }
         const nativeSelection = doc2.defaultView?.getSelection();
         nativeSelection?.removeAllRanges();
         nativeSelection?.addRange(nativeRange);
       };
       if (!nativeCellSelection) {
-        ensureContextCellSelection(
-          wrapper,
-          Number(wrapper.dataset.srcFrom ?? currentTable().from),
-          cell2
+        const table2 = currentTable();
+        const address = addressFromCell(cell2);
+        const selectedRectangle = currentSelection?.wrapper === wrapper ? selectionRectangle(currentSelection) : null;
+        const preservesRows = currentSelection?.wrapper === wrapper && isCellInSelection(currentSelection, address);
+        if (hit?.mode === "row" && !preservesRows) selectTableRow(wrapper, table2.from, address.row, table2.columnCount);
+        else ensureContextCellSelection(wrapper, table2.from, cell2);
+      }
+      const selection = getTableRangeSelection(doc2);
+      const rectangle = selection?.wrapper === wrapper ? selectionRectangle(selection) : null;
+      const kind = selection?.kind ?? "cells";
+      const selectedTable = currentTable();
+      const selectedSource = view2.state.doc.sliceString(selectedTable.from, selectedTable.to);
+      const selectedCells = selection?.wrapper === wrapper ? selectionCells(selection).map((cell3) => ({ ...cell3 })) : [];
+      const selectedInfo = inspectTableCellSet(selectedTable, selectedCells);
+      const extraActions = [];
+      const applySelection = (target, targetKind, behavior, cells = rectangleCells(target)) => {
+        const table2 = currentTable();
+        if (!rectangle || view2.state.doc.sliceString(table2.from, table2.to) !== selectedSource) return;
+        deleteTableSelection(view2, table2, target, targetKind, behavior, cells);
+      };
+      if (nativeCellSelection) {
+        extraActions.push({ label: "Delete selected text", action: "delete-text", run: () => {
+          restoreNativeCellSelection();
+          doc2.execCommand("delete");
+        } });
+      } else if (rectangle) {
+        const rows = selectedInfo.rows.length, columns = selectedInfo.columns.length;
+        const count2 = selectedCells.length;
+        const entireTable = { top: 0, bottom: selectedTable.body.length, left: 0, right: selectedTable.columnCount - 1 };
+        extraActions.push(
+          {
+            label: count2 === 1 ? "Clear cell" : `Clear ${count2} selected cells`,
+            action: "delete-selection",
+            run: () => applySelection(rectangle, kind, "clear", selectedCells)
+          },
+          {
+            label: rows === 1 ? "Delete row" : `Delete ${rows} selected rows`,
+            action: "delete-rows",
+            run: () => applySelection(
+              { ...rectangle, left: 0, right: selectedTable.columnCount - 1 },
+              "rows",
+              "remove",
+              selectedInfo.rows.flatMap((row) => rectangleCells({ top: row, bottom: row, left: 0, right: selectedTable.columnCount - 1 }))
+            )
+          },
+          {
+            label: columns === 1 ? "Delete column" : `Delete ${columns} selected columns`,
+            action: "delete-columns",
+            run: () => applySelection(
+              { ...rectangle, top: 0, bottom: selectedTable.body.length },
+              "columns",
+              "remove",
+              selectedInfo.columns.flatMap((column) => rectangleCells({ top: 0, bottom: selectedTable.body.length, left: column, right: column }))
+            )
+          },
+          { label: "Clear table", action: "clear-table", run: () => applySelection(entireTable, "cells", "clear") },
+          { label: "Delete table", action: "delete-table", run: () => applySelection(entireTable, "cells", "clear-first") }
         );
       }
       closeContextMenu();
       contextMenu = createClipboardMenu(doc2, {
+        extraActions,
+        onClose: () => closeContextMenu(),
         defaultCopyMode: readDefaultCopyMode(doc2),
         defaultPasteMode: readDefaultPasteMode(doc2),
         cutLabel: nativeCellSelection ? "Cut selected text" : "Cut / Move within document",
@@ -57041,10 +57620,6 @@ ${replacement}
         }
       });
       wrapper.classList.add("mlrt-clipboard-menu-open");
-      contextMenu.addEventListener("click", () => setTimeout(closeContextMenu, 0), {
-        once: true,
-        capture: true
-      });
       contextMenu.addEventListener("keydown", (menuEvent) => {
         if (menuEvent.key === "Escape" || menuEvent.key === "Tab") {
           menuEvent.preventDefault();
@@ -57060,7 +57635,11 @@ ${replacement}
         event.clientX || cellRect.left,
         event.clientY || cellRect.bottom
       );
-      contextMenu.querySelector("button")?.focus();
+      contextMenu.tabIndex = -1;
+      contextMenu.addEventListener("keydown", (event2) => {
+        if (event2.target === contextMenu) navigateMenu(event2, contextMenu);
+      });
+      contextMenu.focus({ preventScroll: true });
       doc2.addEventListener("pointerdown", onDocumentPointerDown, true);
     };
     const onDocumentPointerDown = (event) => {
@@ -57082,6 +57661,7 @@ ${replacement}
     doc2.addEventListener("paste", onPaste, true);
     wrapper.addEventListener("keydown", onKeyDown);
     wrapper.addEventListener(TABLE_SELECTION_CLEAR_EVENT, onClear);
+    wrapper.addEventListener(TABLE_SELECTION_DELETE_EVENT, onDelete);
     wrapper.addEventListener(TABLE_CUT_CANCEL_EVENT, onCancelCut);
     wrapper.addEventListener("contextmenu", onContextMenu);
     restorePendingCutSource(wrapper, currentTable());
@@ -57092,6 +57672,7 @@ ${replacement}
       doc2.removeEventListener("paste", onPaste, true);
       wrapper.removeEventListener("keydown", onKeyDown);
       wrapper.removeEventListener(TABLE_SELECTION_CLEAR_EVENT, onClear);
+      wrapper.removeEventListener(TABLE_SELECTION_DELETE_EVENT, onDelete);
       wrapper.removeEventListener(TABLE_CUT_CANCEL_EVENT, onCancelCut);
       wrapper.removeEventListener("contextmenu", onContextMenu);
     };
@@ -57103,7 +57684,9 @@ ${replacement}
         tableRectanglePayload(
           table2,
           selectionRectangle(selection),
-          readDocumentToken2(doc2)
+          readDocumentToken2(doc2),
+          void 0,
+          selection.cells
         ),
         mode
       );
@@ -57243,6 +57826,7 @@ ${replacement}
     }
     const targetPlan = {
       rows: resolvedRows,
+      destinationCells: selection?.wrapper === wrapper ? selection.cells : void 0,
       sourceAlignments: movingDocumentPayload ? alignmentsForDocumentMove(movingDocumentPayload.markdown) : interpretationPayload?.kind === "grid" ? interpretationPayload.alignments : void 0,
       destination: {
         ...destination,
@@ -57332,7 +57916,7 @@ ${replacement}
     setPendingCutToken(doc2, void 0);
     const anchor = { row: targetPlan.destination.top, column: targetPlan.destination.left };
     const head = { row: targetPlan.destination.bottom, column: targetPlan.destination.right };
-    restoreSelectionAfterEdit(doc2, destinationTableFrom, anchor, head);
+    restoreSelectionAfterEdit(doc2, destinationTableFrom, anchor, head, selection?.cells);
     announce2(doc2, isSameDocumentMove ? "Moved cells." : "Pasted cells.");
     return true;
   }
@@ -57342,7 +57926,9 @@ ${replacement}
     const sourcePayload = sourceTable ? tableRectanglePayload(
       sourceTable,
       pendingCut.rectangle,
-      pendingCut.sourceDocument
+      pendingCut.sourceDocument,
+      void 0,
+      pendingCut.cells
     ) : null;
     if (!sourceTable || !sourcePayload || view2.state.doc.sliceString(sourceTable.from, sourceTable.to) !== pendingCut.sourceTableText || !sameGridText(sourcePayload.rows, targetPlan.rows)) {
       return null;
@@ -57353,7 +57939,7 @@ ${replacement}
       sourceAlignments: sourcePayload.alignments
     };
     if (sourceTable.from === destinationTable.from) {
-      const cleared = buildGridClearEdit(sourceTable, pendingCut.rectangle);
+      const cleared = pendingCut.cells ? buildTableCellsClearEdit(sourceTable, pendingCut.cells) : buildGridClearEdit(sourceTable, pendingCut.rectangle);
       const clearedTable = parseMarkdownTables(cleared.insert)[0];
       if (!clearedTable) {
         return null;
@@ -57366,7 +57952,7 @@ ${replacement}
       });
       return sourceTable.from;
     }
-    const sourceEdit = buildGridClearEdit(sourceTable, pendingCut.rectangle);
+    const sourceEdit = pendingCut.cells ? buildTableCellsClearEdit(sourceTable, pendingCut.cells) : buildGridClearEdit(sourceTable, pendingCut.rectangle);
     const destinationEdit = buildGridPasteEdit(destinationTable, safeTargetPlan);
     const changeSpecs = [sourceEdit, destinationEdit].sort((left, right) => left.from - right.from).map((edit2) => ({ from: edit2.from, to: edit2.to, insert: edit2.insert }));
     const changes = view2.state.changes(changeSpecs);
@@ -57698,7 +58284,8 @@ ${replacement}
         table2,
         rectangle,
         sourceDocument,
-        token
+        token,
+        selection.cells
       ),
       readDefaultCopyMode(doc2)
     );
@@ -57707,7 +58294,7 @@ ${replacement}
     }
     if (!representations.html) {
       representations.html = representationsForGrid(
-        tableRectanglePayload(table2, rectangle, sourceDocument, token),
+        tableRectanglePayload(table2, rectangle, sourceDocument, token, selection.cells),
         "smart"
       ).html;
     }
@@ -57736,10 +58323,11 @@ ${replacement}
       sourceDocument,
       tableFrom: currentTable.from,
       rectangle,
+      cells: selection.cells,
       sourceTableText
     });
     setPendingCutToken(doc2, token);
-    markPendingCutSource(wrapper, rectangle);
+    markPendingCutSource(wrapper, rectangle, selection.cells);
     announce2(
       doc2,
       "Move pending. Paste in this document to move; external paste copies."
@@ -57849,6 +58437,10 @@ ${replacement}
     menu.className = CLIPBOARD_MENU_CLASS;
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", "Table clipboard actions");
+    menu.addEventListener("pointermove", (event) => {
+      const item = event.target instanceof Element ? event.target.closest("button") : null;
+      if (item && menu.contains(item)) item.focus({ preventScroll: true });
+    });
     const add3 = (label, action, callback) => {
       const button = doc2.createElement("button");
       button.type = "button";
@@ -57859,7 +58451,7 @@ ${replacement}
       button.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        menu.remove();
+        actions.onClose();
         callback();
       });
       button.addEventListener("keydown", (event) => navigateMenu(event, menu));
@@ -57871,6 +58463,8 @@ ${replacement}
       element.setAttribute("role", "separator");
       menu.append(element);
     };
+    actions.extraActions.forEach((action) => add3(action.label, action.action, action.run));
+    if (actions.extraActions.length) separator();
     add3(actions.cutLabel, "cut", actions.onCut);
     add3(
       `Copy (${COPY_MODE_LABELS[actions.defaultCopyMode]})`,
@@ -57921,7 +58515,7 @@ ${replacement}
     }
     event.preventDefault();
     const delta = event.key === "ArrowDown" ? 1 : -1;
-    const target = items[(index + delta + items.length) % items.length];
+    const target = index < 0 ? delta > 0 ? items[0] : items.at(-1) : items[(index + delta + items.length) % items.length];
     items.forEach((item) => {
       item.tabIndex = item === target ? 0 : -1;
     });
@@ -57941,7 +58535,7 @@ ${replacement}
     menu.style.left = `${left}px`;
     menu.style.top = `${top2}px`;
   }
-  function restoreSelectionAfterEdit(doc2, previousTableFrom, anchor, head) {
+  function restoreSelectionAfterEdit(doc2, previousTableFrom, anchor, head, cells) {
     setTimeout(() => {
       const wrapper = Array.from(
         doc2.querySelectorAll(".mlrt-table-widget")
@@ -57951,7 +58545,7 @@ ${replacement}
       if (!wrapper) {
         return;
       }
-      setTableRangeSelection(wrapper, previousTableFrom, anchor, head, true);
+      setTableRangeSelection(wrapper, previousTableFrom, anchor, head, true, "cells", cells);
     }, 0);
   }
   function announce2(doc2, message) {
@@ -58074,7 +58668,7 @@ ${replacement}
   }
   function sameSelection(current, wrapper, expected) {
     return Boolean(
-      current?.wrapper === wrapper && current.anchor.row === expected.anchor.row && current.anchor.column === expected.anchor.column && current.head.row === expected.head.row && current.head.column === expected.head.column
+      current?.wrapper === wrapper && current.anchor.row === expected.anchor.row && current.anchor.column === expected.anchor.column && current.head.row === expected.head.row && current.head.column === expected.head.column && JSON.stringify(selectionCells(current)) === JSON.stringify(selectionCells(expected))
     );
   }
   function hasNativeCellSelection(cell2) {
@@ -58093,15 +58687,15 @@ ${replacement}
   function restorePendingCutSource(wrapper, table2) {
     const pending = getPendingClipboardCut(wrapper.ownerDocument);
     if (pending?.kind === "table" && pending.tableFrom === table2.from) {
-      markPendingCutSource(wrapper, pending.rectangle);
+      markPendingCutSource(wrapper, pending.rectangle, pending.cells);
     }
   }
-  function markPendingCutSource(wrapper, rectangle) {
+  function markPendingCutSource(wrapper, rectangle, cells) {
     wrapper.classList.add("mlrt-table-cut-source-pending");
     wrapper.querySelectorAll(TABLE_CELL_SELECTOR).forEach((cell2) => {
       const address = addressFromCell(cell2);
       const selected = Boolean(
-        address && address.row >= rectangle.top && address.row <= rectangle.bottom && address.column >= rectangle.left && address.column <= rectangle.right
+        address && (!cells || cells.some((cell3) => cell3.row === address.row && cell3.column === address.column)) && address.row >= rectangle.top && address.row <= rectangle.bottom && address.column >= rectangle.left && address.column <= rectangle.right
       );
       cell2.classList.toggle("mlrt-table-cut-source", selected);
       cell2.classList.toggle(

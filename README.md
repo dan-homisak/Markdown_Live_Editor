@@ -55,6 +55,12 @@ Ordinary arrow keys navigate characters and visual lines normally, crossing into
 
 Press `Escape` while editing to select the current cell. From there, use the arrow keys to move the selection or hold `Shift` to extend it. Range selections can also be created by dragging or by shift-clicking another cell.
 
+Hold `Ctrl` (`Cmd` on macOS) while clicking cells, row gutters, or row/column handles to add or toggle separate selections in the same table. Cells, rows, and columns can be combined. Backspace clears only the selected cells; Delete clears populated selections first, then removes their complete empty rows and columns. Unselected gaps are preserved. Right-click actions use the exact selected cells and row/column counts.
+
+Right-click a text line and choose **Insert table (2 × 2)** to add a table. Delete the final blank line between two tables with the same number of columns to combine them; the second table's header becomes a data row.
+
+Use a table's row or column handle to select a row or column, then hold `Shift` with the arrow keys to extend the selection. Dragging across all cells in a row or column also selects complete rows or columns. `Backspace` always clears contents and preserves table structure, even when pressed repeatedly. `Delete` clears a populated row, column, or whole-table selection; if it is already empty, `Delete` removes it immediately. Partial cell ranges only clear their contents. The right-click menu keeps clear, delete-row, delete-column, and whole-table actions available, with counts based on the highlighted range. Menu **Delete row/column** removes the targeted rows or columns immediately and leaves the caret in a nearby cell so you can repeat the action. Tables with different column counts cannot merge; attempting it displays the two column counts.
+
 The editor provides several clipboard formats for moving content between Markdown, spreadsheets, and rich-text tools. Smart copy is the default and keeps list content inside spreadsheet cells using portable inline markers and same-cell line breaks. **Copy Rich** preserves semantic nested lists for Word and other rich-text tools. Dedicated **Copy Plain Text** and **Copy Markdown** actions are also available from the context menu.
 
 ## Configuration

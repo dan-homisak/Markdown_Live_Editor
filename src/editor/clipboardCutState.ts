@@ -6,6 +6,7 @@ export interface PendingTableCut {
   sourceDocument: string;
   tableFrom: number;
   rectangle: CellRectangle;
+  cells?: { row: number; column: number }[];
   sourceTableText: string;
 }
 

@@ -5,17 +5,18 @@ import {
   ParsedTable,
   TableCellSourceEdit,
 } from "../../shared/tableModel";
-import { allowTableSourceChange } from "../../shared/tableSourceProtection";
 import {
-  deleteTableColumnEdit,
-  deleteTableRowEdit,
   insertTableColumnEdit,
   insertTableRowEdit,
 } from "../../shared/tableStructureEdits";
 import { focusCellAtEnd, TABLE_CELL_SELECTOR } from "./cellSelection";
 import { measureChWidth } from "./tableLayout";
 import { getTableWidgetTable } from "./tableWidgetState";
-import { selectTableColumn, selectTableRow } from "./tableRangeSelection";
+import { getTableRangeSelection, selectTableColumn, selectTableRow, selectionCells, selectionRectangle, toggleTableSelection } from "./tableRangeSelection";
+import { deleteTableSelection } from "./tableDeletion";
+import { applyTableMutation } from "./tableMutation";
+import { tableStructureSelection } from "../../shared/tableDeletion";
+import { inspectTableCellSet, rectangleCells, selectedCellsBounds } from "../../shared/tableSelectionSet";
 
 /**
  * Notion-style, proximity-driven structure controls for a rendered table.
@@ -77,7 +78,7 @@ interface StructureMenuEntry {
   label: string;
   action: string;
   disabled?: boolean;
-  apply: () => void;
+  apply: (event?: MouseEvent) => void;
 }
 
 type StructureMenuIcon =
@@ -138,16 +139,45 @@ export function bindTableStructureControls(
     }
 
     const focusTarget = makeFocusTarget(current);
-    view.dispatch({
-      changes: { from: edit.from, to: edit.to, insert: edit.insert },
-      annotations: [allowTableSourceChange.of(true)],
-      userEvent: "input",
+    applyTableMutation(view, current, edit, () => {
+      if (focusTarget) focusCellAfterStructureEdit(doc, current.from, focusTarget);
+      else view.focus();
     });
-    if (focusTarget) {
-      focusCellAfterStructureEdit(doc, current.from, focusTarget);
-    } else {
-      view.focus();
+  };
+
+  const deletionEntry = (kind: "rows" | "columns", index: number): StructureMenuEntry => {
+    const current = currentTable();
+    const selection = getTableRangeSelection(doc);
+    let rectangle = tableStructureSelection(current, kind, index,
+      selection?.wrapper === wrapper ? { rectangle: selectionRectangle(selection), kind: selection.kind } : undefined);
+    let cells = rectangleCells(rectangle);
+    if (selection?.wrapper === wrapper && selection.cells) {
+      const info = inspectTableCellSet(current, selectionCells(selection));
+      const axes = kind === "rows" ? info.fullRows : info.fullColumns;
+      rectangle = kind === "rows" ? { top: index, bottom: index, left: 0, right: current.columnCount - 1 }
+        : { top: 0, bottom: current.body.length, left: index, right: index };
+      cells = rectangleCells(rectangle);
+      if (axes.includes(index)) {
+        cells = axes.flatMap(axis => rectangleCells(kind === "rows"
+          ? { top: axis, bottom: axis, left: 0, right: current.columnCount - 1 }
+          : { top: 0, bottom: current.body.length, left: axis, right: axis }));
+        rectangle = selectedCellsBounds(cells);
+      }
     }
+    const count = new Set(cells.map(cell => kind === "rows" ? cell.row : cell.column)).size;
+    const source = view.state.doc.sliceString(current.from, current.to);
+    return {
+      icon: "delete",
+      label: count === 1 ? `Delete ${kind === "rows" ? "row" : "column"}` : `Delete ${count} selected ${kind}`,
+      action: kind === "rows" ? "delete-row" : "delete-column",
+      apply: () => {
+        const latest = currentTable();
+        closeMenu();
+        if (latest.from === current.from && view.state.doc.sliceString(latest.from, latest.to) === source) {
+          deleteTableSelection(view, latest, rectangle, kind, "remove", cells);
+        }
+      },
+    };
   };
 
   const closeMenu = (): void => {
@@ -208,7 +238,7 @@ export function bindTableStructureControls(
       item.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        entry.apply();
+        entry.apply(event);
       });
       menu.append(item);
     }
@@ -249,13 +279,12 @@ export function bindTableStructureControls(
   };
 
   const openColumnMenu = (anchor: HTMLElement, column: number): void => {
-    const canDelete = currentTable().columnCount > 1;
     openMenu(anchor, [
       {
         icon: "select",
         label: "Select column",
         action: "select-column",
-        apply: () => {
+        apply: (event) => {
           const current = currentTable();
           closeMenu();
           selectTableColumn(
@@ -263,6 +292,7 @@ export function bindTableStructureControls(
             current.from,
             column,
             current.body.length + 1,
+            Boolean(event?.ctrlKey || event?.metaKey),
           );
         },
       },
@@ -286,21 +316,7 @@ export function bindTableStructureControls(
             () => ({ rowKind: "header", rowIndex: 0, column: column + 1 }),
           ),
       },
-      {
-        icon: "delete",
-        label: "Delete column",
-        action: "delete-column",
-        disabled: !canDelete,
-        apply: () =>
-          applyStructureEdit(
-            (current) => deleteTableColumnEdit(current, column),
-            (current) => ({
-              rowKind: "header",
-              rowIndex: 0,
-              column: Math.max(0, Math.min(column, current.columnCount - 2)),
-            }),
-          ),
-      },
+      deletionEntry("columns", column),
     ]);
   };
 
@@ -315,10 +331,10 @@ export function bindTableStructureControls(
           icon: "select",
           label: "Select row",
           action: "select-row",
-          apply: () => {
+          apply: (event) => {
             const current = currentTable();
             closeMenu();
-            selectTableRow(wrapper, current.from, 0, current.columnCount);
+            selectTableRow(wrapper, current.from, 0, current.columnCount, Boolean(event?.ctrlKey || event?.metaKey));
           },
         },
         {
@@ -331,6 +347,7 @@ export function bindTableStructureControls(
               () => ({ rowKind: "body", rowIndex: 0, column: 0 }),
             ),
         },
+        deletionEntry("rows", 0),
       ]);
       return;
     }
@@ -340,7 +357,7 @@ export function bindTableStructureControls(
         icon: "select",
         label: "Select row",
         action: "select-row",
-        apply: () => {
+        apply: (event) => {
           const current = currentTable();
           closeMenu();
           selectTableRow(
@@ -348,6 +365,7 @@ export function bindTableStructureControls(
             current.from,
             rowIndex + 1,
             current.columnCount,
+            Boolean(event?.ctrlKey || event?.metaKey),
           );
         },
       },
@@ -371,23 +389,7 @@ export function bindTableStructureControls(
             () => ({ rowKind: "body", rowIndex: rowIndex + 1, column: 0 }),
           ),
       },
-      {
-        icon: "delete",
-        label: "Delete row",
-        action: "delete-row",
-        apply: () =>
-          applyStructureEdit(
-            (current) => deleteTableRowEdit(current, rowIndex),
-            (current) =>
-              current.body.length > 1
-                ? {
-                    rowKind: "body",
-                    rowIndex: Math.min(rowIndex, current.body.length - 2),
-                    column: 0,
-                  }
-                : null,
-          ),
-      },
+      deletionEntry("rows", rowIndex + 1),
     ]);
   };
 
@@ -399,6 +401,11 @@ export function bindTableStructureControls(
     event.preventDefault();
     event.stopPropagation();
     if (indicatorColumn === null) {
+      return;
+    }
+    if (event.ctrlKey || event.metaKey) {
+      closeMenu();
+      toggleTableSelection(wrapper, currentTable(), { row: 0, column: indicatorColumn }, "columns");
       return;
     }
     if (menuAnchor === columnIndicator) {
@@ -414,6 +421,11 @@ export function bindTableStructureControls(
     event.preventDefault();
     event.stopPropagation();
     if (!indicatorRow) {
+      return;
+    }
+    if (event.ctrlKey || event.metaKey) {
+      closeMenu();
+      toggleTableSelection(wrapper, currentTable(), { row: indicatorRow.rowKind === "header" ? 0 : indicatorRow.rowIndex + 1, column: 0 }, "rows");
       return;
     }
     if (menuAnchor === rowIndicator) {
@@ -700,18 +712,26 @@ export function bindTableStructureControls(
   };
 
   const onScrollerMouseMove = (event: MouseEvent): void => {
+    wrapper.classList.toggle("mlrt-table-additive-selecting", event.ctrlKey || event.metaKey);
     lastPointerPosition = { x: event.clientX, y: event.clientY };
     scheduleUpdate();
   };
 
   const onScrollerMouseLeave = (): void => {
+    wrapper.classList.remove("mlrt-table-additive-selecting");
     lastPointerPosition = null;
+    scheduleUpdate();
+  };
+  const onModifierChange = (event: KeyboardEvent): void => {
+    wrapper.classList.toggle("mlrt-table-additive-selecting", event.ctrlKey || event.metaKey);
     scheduleUpdate();
   };
 
   const scroller = view.scrollDOM;
   scroller.addEventListener("mousemove", onScrollerMouseMove);
   scroller.addEventListener("mouseleave", onScrollerMouseLeave);
+  doc.addEventListener("keydown", onModifierChange, true);
+  doc.addEventListener("keyup", onModifierChange, true);
   wrapper.addEventListener("focusin", scheduleUpdate);
   wrapper.addEventListener("focusout", scheduleUpdate);
   tableScroll.addEventListener("scroll", scheduleUpdate);
@@ -734,6 +754,8 @@ export function bindTableStructureControls(
     }
     scroller.removeEventListener("mousemove", onScrollerMouseMove);
     scroller.removeEventListener("mouseleave", onScrollerMouseLeave);
+    doc.removeEventListener("keydown", onModifierChange, true);
+    doc.removeEventListener("keyup", onModifierChange, true);
     wrapper.removeEventListener("focusin", scheduleUpdate);
     wrapper.removeEventListener("focusout", scheduleUpdate);
     tableScroll.removeEventListener("scroll", scheduleUpdate);
@@ -875,17 +897,13 @@ function focusCellAfterStructureEdit(
   tableFrom: number,
   target: StructureFocusTarget,
 ): void {
-  setTimeout(() => {
-    const cell = doc.querySelector<HTMLElement>(
-      [
-        `${TABLE_CELL_SELECTOR}[data-table-from="${tableFrom}"]`,
-        `[data-row-kind="${target.rowKind}"]`,
-        `[data-row-index="${target.rowIndex}"]`,
-        `[data-column="${target.column}"]`,
-      ].join(""),
-    );
-    if (cell) {
-      focusCellAtEnd(cell);
-    }
-  }, 0);
+  const cell = doc.querySelector<HTMLElement>(
+    [
+      `${TABLE_CELL_SELECTOR}[data-table-from="${tableFrom}"]`,
+      `[data-row-kind="${target.rowKind}"]`,
+      `[data-row-index="${target.rowIndex}"]`,
+      `[data-column="${target.column}"]`,
+    ].join(""),
+  );
+  if (cell) focusCellAtEnd(cell, true);
 }

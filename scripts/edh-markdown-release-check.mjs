@@ -10,6 +10,7 @@ import { createServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocket } from "undici";
+import { edhLaunchFlags, edhSettings, resolveEdhExecutable } from "./edh-isolation.mjs";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const qa = path.join(repo, "qa");
@@ -60,7 +61,7 @@ const text = [
   '<div data-markdown-source="block">', '# literal html block', '</div>', "", "End source.", "",
 ].join("\n");
 // Deliberately omit rendering.enabled: this verifies the installed default.
-const settings = { "markdownLiveRenderTables.debug": true,
+const settings = { ...edhSettings, "markdownLiveRenderTables.debug": true,
   "editor.fontFamily": "Consolas, 'Courier New', monospace", "editor.fontSize": largeListMetrics ? 20 : 14,
   ...(largeListMetrics ? { "editor.lineHeight": 30, "editor.letterSpacing": 1 } : {}),
   "editor.wordWrap": "on", "workbench.startupEditor": "none", "workbench.colorTheme": theme };
@@ -68,15 +69,11 @@ await Promise.all([mkdir(qa, { recursive: true }), mkdir(user, { recursive: true
 await writeFile(fixture, text);
 await writeFile(path.join(profile, "LinkedTarget.md"), "# Safe local target\n");
 await writeFile(path.join(user, "settings.json"), JSON.stringify(settings, null, 2));
-const code = process.env.MLRT_CODE_BIN || [
-  process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, "Programs", "Microsoft VS Code", "Code.exe"),
-  process.env.ProgramFiles && path.join(process.env.ProgramFiles, "Microsoft VS Code", "Code.exe"),
-  "/Applications/Visual Studio Code.app/Contents/MacOS/Code", "/usr/share/code/code",
-].filter(Boolean).find(existsSync);
+const code = resolveEdhExecutable(repo);
 if (!code) throw new Error("VS Code executable not found; set MLRT_CODE_BIN.");
 const env = { ...process.env, ELECTRON_NO_ATTACH_CONSOLE: "1" };
 for (const key of Object.keys(env)) if (key.startsWith("npm_") || ["NODE_OPTIONS", "ELECTRON_RUN_AS_NODE"].includes(key)) delete env[key];
-const child = spawn(code, [`--extensionDevelopmentPath=${repo}`, `--user-data-dir=${profile}`,
+const child = spawn(code, [...edhLaunchFlags, `--extensionDevelopmentPath=${repo}`, `--user-data-dir=${profile}`,
   `--extensions-dir=${extensions}`, `--remote-debugging-port=${port}`, "--new-window", "--disable-workspace-trust",
   "--skip-release-notes", "--skip-welcome", fixture], { stdio: ["ignore", "pipe", "pipe"], env, windowsHide: true });
 let launchOutput = '';

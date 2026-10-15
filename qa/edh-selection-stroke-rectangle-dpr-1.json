@@ -1,0 +1,173 @@
+{
+  "name": "rectangle",
+  "geometry": {
+    "selected": 6,
+    "dpr": 1,
+    "points": [
+      {
+        "axis": "y",
+        "x": 99.1015625,
+        "y": 58.71875,
+        "label": "1:0:top"
+      },
+      {
+        "axis": "x",
+        "x": 68.3125,
+        "y": 68.671875,
+        "label": "1:0:left"
+      },
+      {
+        "axis": "y",
+        "x": 164.5234375,
+        "y": 58.71875,
+        "label": "1:1:top"
+      },
+      {
+        "axis": "x",
+        "x": 199.15625,
+        "y": 68.671875,
+        "label": "1:1:right"
+      },
+      {
+        "axis": "x",
+        "x": 68.3125,
+        "y": 88.578125,
+        "label": "2:0:left"
+      },
+      {
+        "axis": "x",
+        "x": 199.15625,
+        "y": 88.578125,
+        "label": "2:1:right"
+      },
+      {
+        "axis": "y",
+        "x": 99.1015625,
+        "y": 118.4375,
+        "label": "3:0:bottom"
+      },
+      {
+        "axis": "x",
+        "x": 68.3125,
+        "y": 108.484375,
+        "label": "3:0:left"
+      },
+      {
+        "axis": "x",
+        "x": 199.15625,
+        "y": 108.484375,
+        "label": "3:1:right"
+      },
+      {
+        "axis": "y",
+        "x": 164.5234375,
+        "y": 118.4375,
+        "label": "3:1:bottom"
+      }
+    ],
+    "borderWidth": 1,
+    "color": "color(srgb 0.231373 0.611765 1 / 0.84)"
+  },
+  "outer": {
+    "x": 53,
+    "y": 91,
+    "width": 1200,
+    "height": 800
+  },
+  "dpr": 1,
+  "expectedPixels": 1,
+  "sx": 1,
+  "sy": 1,
+  "measured": [
+    {
+      "label": "1:0:top",
+      "x": 152,
+      "y": 150,
+      "thickness": 1,
+      "samples": [
+        0
+      ]
+    },
+    {
+      "label": "1:0:left",
+      "x": 121,
+      "y": 160,
+      "thickness": 1,
+      "samples": [
+        0
+      ]
+    },
+    {
+      "label": "1:1:top",
+      "x": 218,
+      "y": 150,
+      "thickness": 1,
+      "samples": [
+        0
+      ]
+    },
+    {
+      "label": "1:1:right",
+      "x": 252,
+      "y": 160,
+      "thickness": 1,
+      "samples": [
+        -1
+      ]
+    },
+    {
+      "label": "2:0:left",
+      "x": 121,
+      "y": 180,
+      "thickness": 1,
+      "samples": [
+        0
+      ]
+    },
+    {
+      "label": "2:1:right",
+      "x": 252,
+      "y": 180,
+      "thickness": 1,
+      "samples": [
+        -1
+      ]
+    },
+    {
+      "label": "3:0:bottom",
+      "x": 152,
+      "y": 209,
+      "thickness": 1,
+      "samples": [
+        -1
+      ]
+    },
+    {
+      "label": "3:0:left",
+      "x": 121,
+      "y": 199,
+      "thickness": 1,
+      "samples": [
+        0
+      ]
+    },
+    {
+      "label": "3:1:right",
+      "x": 252,
+      "y": 199,
+      "thickness": 1,
+      "samples": [
+        -1
+      ]
+    },
+    {
+      "label": "3:1:bottom",
+      "x": 218,
+      "y": 209,
+      "thickness": 1,
+      "samples": [
+        -1
+      ]
+    }
+  ]
+}

@@ -43,6 +43,12 @@ export function syncTableSelectionOverlay(wrapper: HTMLElement): void {
     return;
   }
 
+  // CSS borders quantize their used width to whole device pixels. Match that
+  // width: a nominal 1px SVG stroke can alternate between one and two painted
+  // pixels at fractional display scales, even with crispEdges enabled.
+  const win = wrapper.ownerDocument.defaultView;
+  const borderWidth = Number.parseFloat(win?.getComputedStyle(selected[0]).borderRightWidth ?? "1");
+  const strokeWidth = borderWidth > 0 ? borderWidth : 1 / (win?.devicePixelRatio || 1);
   const rectangles = selected.map((cell) => cell.getBoundingClientRect());
   const bounds: SelectionBounds = {
     left: Math.min(...rectangles.map((rect) => rect.left)),
@@ -54,6 +60,34 @@ export function syncTableSelectionOverlay(wrapper: HTMLElement): void {
   const height = bounds.bottom - bounds.top;
   if (width <= 0 || height <= 0) {
     existing?.remove();
+    return;
+  }
+  const addresses = selected.map(cell => ({ row: cell.dataset.rowKind === "header" ? 0 : Number(cell.dataset.rowIndex) + 1,
+    column: Number(cell.dataset.column) }));
+  const rows = addresses.map(cell => cell.row), columns = addresses.map(cell => cell.column);
+  const rectangular = selected.length === (Math.max(...rows) - Math.min(...rows) + 1) * (Math.max(...columns) - Math.min(...columns) + 1);
+  if (!rectangular) {
+    const overlay = existing ?? wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "svg");
+    overlay.style.setProperty("--mlrt-selection-stroke-width", `${strokeWidth}px`);
+    overlay.classList.add("mlrt-table-selection-overlay");
+    overlay.classList.toggle("mlrt-table-selection-overlay-cut-pending", wrapper.classList.contains("mlrt-table-cut-pending"));
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.setAttribute("focusable", "false");
+    overlay.setAttribute("width", formatCoordinate(width));
+    overlay.setAttribute("height", formatCoordinate(height));
+    overlay.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    const scrollRect = scroll.getBoundingClientRect();
+    overlay.style.left = `${bounds.left - scrollRect.left + scroll.scrollLeft}px`;
+    overlay.style.top = `${bounds.top - scrollRect.top + scroll.scrollTop}px`;
+    overlay.style.width = `${width}px`; overlay.style.height = `${height}px`;
+    const { grid, frame } = connectedSelectionPaths(addresses, rectangles, bounds);
+    const gridPath = wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "path");
+    gridPath.classList.add("mlrt-table-selection-grid"); gridPath.setAttribute("d", grid);
+    const framePath = wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "path");
+    framePath.classList.add("mlrt-table-selection-frame"); framePath.setAttribute("d", frame);
+    overlay.replaceChildren(gridPath, framePath);
+    overlay.dataset.geometrySignature = "sparse";
+    if (!existing) scroll.append(overlay);
     return;
   }
 
@@ -71,6 +105,7 @@ export function syncTableSelectionOverlay(wrapper: HTMLElement): void {
   const overlay =
     existing ??
     wrapper.ownerDocument.createElementNS(SVG_NAMESPACE, "svg");
+  overlay.style.setProperty("--mlrt-selection-stroke-width", `${strokeWidth}px`);
   overlay.classList.add("mlrt-table-selection-overlay");
   overlay.classList.toggle(
     "mlrt-table-selection-overlay-cut-pending",
@@ -155,6 +190,86 @@ export function syncTableSelectionOverlay(wrapper: HTMLElement): void {
   if (!existing) {
     scroll.append(overlay);
   }
+}
+
+interface GridVertex { row: number; column: number }
+interface ContourEdge { start: GridVertex; end: GridVertex; direction: number }
+
+/** Trace the union on shared grid vertices, then inset each closed contour.
+ * Independent cell insets leave gaps at straight joins and concave corners. */
+function connectedSelectionPaths(
+  cells: readonly GridVertex[],
+  rectangles: readonly SelectionBounds[],
+  bounds: SelectionBounds,
+): { grid: string; frame: string } {
+  const key = (vertex: GridVertex): string => `${vertex.row}:${vertex.column}`;
+  const selected = new Set(cells.map(key));
+  const columns = new Map<number, number>();
+  const rows = new Map<number, number>();
+  const edges: ContourEdge[] = [];
+  const grid: string[] = [];
+  const bottomRow = Math.max(...cells.map(cell => cell.row)) + 1;
+  for (let index = 0; index < cells.length; index++) {
+    const { row, column } = cells[index];
+    const rect = rectangles[index];
+    columns.set(column, rect.left - bounds.left);
+    columns.set(column + 1, rect.right - bounds.left);
+    rows.set(row, rect.top - bounds.top);
+    rows.set(row + 1, rect.bottom - bounds.top);
+    // Clockwise edges keep the selected area on their right, including holes.
+    const candidates: ContourEdge[] = [
+      { start: { row, column }, end: { row, column: column + 1 }, direction: 0 },
+      { start: { row, column: column + 1 }, end: { row: row + 1, column: column + 1 }, direction: 1 },
+      { start: { row: row + 1, column: column + 1 }, end: { row: row + 1, column }, direction: 2 },
+      { start: { row: row + 1, column }, end: { row, column }, direction: 3 },
+    ];
+    const neighbors = [
+      { row: row - 1, column }, { row, column: column + 1 },
+      { row: row + 1, column }, { row, column: column - 1 },
+    ];
+    candidates.forEach((edge, side) => {
+      if (!selected.has(key(neighbors[side]))) edges.push(edge);
+      else if (side === 1 || side === 2) {
+        // Draw each interior rail once, all the way to its shared endpoints.
+        grid.push(`M ${formatCoordinate(rect.right - bounds.left)} ${formatCoordinate(rect.bottom - bounds.top)} ` +
+          (side === 1 ? `V ${formatCoordinate(rect.top - bounds.top)}` : `H ${formatCoordinate(rect.left - bounds.left)}`));
+      }
+    });
+  }
+
+  const outgoing = new Map<string, ContourEdge[]>();
+  for (const edge of edges) {
+    const start = key(edge.start);
+    outgoing.set(start, [...(outgoing.get(start) ?? []), edge]);
+  }
+  const visited = new Set<ContourEdge>();
+  const frame: string[] = [];
+  const offset = (edge: ContourEdge): number => edge.direction % 2 === 0
+    ? rows.get(edge.start.row)! + (edge.direction === 0 ? 0.5 : edge.start.row === bottomRow ? -1 : -0.5)
+    : columns.get(edge.start.column)! + (edge.direction === 3 ? 0.5 : -0.5);
+
+  for (const first of edges) {
+    if (visited.has(first)) continue;
+    const contour: ContourEdge[] = [];
+    let edge: ContourEdge | undefined = first;
+    while (edge && !visited.has(edge)) {
+      visited.add(edge);
+      contour.push(edge);
+      const direction: number = edge.direction;
+      const candidates: ContourEdge[] = outgoing.get(key(edge.end)) ?? [];
+      // At a diagonal contact, turn right to keep the two groups separate.
+      edge = [1, 0, 3, 2].map(turn => candidates.find(next => next.direction === (direction + turn) % 4)).find(Boolean);
+    }
+    const points = contour.map((current, index) => {
+      const previous = contour[(index + contour.length - 1) % contour.length];
+      const horizontal = current.direction % 2 === 0;
+      const x = horizontal ? previous.direction % 2 === 1 ? offset(previous) : columns.get(current.start.column)! : offset(current);
+      const y = horizontal ? offset(current) : previous.direction % 2 === 0 ? offset(previous) : rows.get(current.start.row)!;
+      return `${formatCoordinate(x)} ${formatCoordinate(y)}`;
+    });
+    frame.push(`M ${points.join(" L ")} Z`);
+  }
+  return { grid: grid.join(" "), frame: frame.join(" ") };
 }
 
 function uniqueInteriorCoordinates(

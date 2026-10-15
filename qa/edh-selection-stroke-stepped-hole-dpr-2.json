@@ -1,0 +1,279 @@
+{
+  "name": "stepped-hole",
+  "geometry": {
+    "selected": 7,
+    "dpr": 2,
+    "points": [
+      {
+        "axis": "y",
+        "x": 99.1171875,
+        "y": 58.6953125,
+        "label": "1:0:top"
+      },
+      {
+        "axis": "x",
+        "x": 68.328125,
+        "y": 68.64453125,
+        "label": "1:0:left"
+      },
+      {
+        "axis": "y",
+        "x": 164.54296875,
+        "y": 58.6953125,
+        "label": "1:1:top"
+      },
+      {
+        "axis": "y",
+        "x": 164.54296875,
+        "y": 78.59375,
+        "label": "1:1:bottom"
+      },
+      {
+        "axis": "y",
+        "x": 229.96875,
+        "y": 58.6953125,
+        "label": "1:2:top"
+      },
+      {
+        "axis": "x",
+        "x": 260.7578125,
+        "y": 68.64453125,
+        "label": "1:2:right"
+      },
+      {
+        "axis": "x",
+        "x": 129.90625,
+        "y": 88.54296875,
+        "label": "2:0:right"
+      },
+      {
+        "axis": "x",
+        "x": 68.328125,
+        "y": 88.54296875,
+        "label": "2:0:left"
+      },
+      {
+        "axis": "x",
+        "x": 260.7578125,
+        "y": 88.54296875,
+        "label": "2:2:right"
+      },
+      {
+        "axis": "y",
+        "x": 229.96875,
+        "y": 98.4921875,
+        "label": "2:2:bottom"
+      },
+      {
+        "axis": "x",
+        "x": 199.1796875,
+        "y": 88.54296875,
+        "label": "2:2:left"
+      },
+      {
+        "axis": "y",
+        "x": 99.1171875,
+        "y": 118.390625,
+        "label": "3:0:bottom"
+      },
+      {
+        "axis": "x",
+        "x": 68.328125,
+        "y": 108.44140625,
+        "label": "3:0:left"
+      },
+      {
+        "axis": "y",
+        "x": 164.54296875,
+        "y": 98.4921875,
+        "label": "3:1:top"
+      },
+      {
+        "axis": "x",
+        "x": 199.1796875,
+        "y": 108.44140625,
+        "label": "3:1:right"
+      },
+      {
+        "axis": "y",
+        "x": 164.54296875,
+        "y": 118.390625,
+        "label": "3:1:bottom"
+      }
+    ],
+    "borderWidth": 1,
+    "color": "color(srgb 0.231373 0.611765 1 / 0.84)"
+  },
+  "outer": {
+    "x": 53,
+    "y": 91,
+    "width": 1199,
+    "height": 800
+  },
+  "dpr": 2,
+  "expectedPixels": 2,
+  "sx": 2,
+  "sy": 2,
+  "measured": [
+    {
+      "label": "1:0:top",
+      "x": 304,
+      "y": 299,
+      "thickness": 2,
+      "samples": [
+        0,
+        1
+      ]
+    },
+    {
+      "label": "1:0:left",
+      "x": 243,
+      "y": 319,
+      "thickness": 2,
+      "samples": [
+        0,
+        1
+      ]
+    },
+    {
+      "label": "1:1:top",
+      "x": 435,
+      "y": 299,
+      "thickness": 2,
+      "samples": [
+        0,
+        1
+      ]
+    },
+    {
+      "label": "1:1:bottom",
+      "x": 435,
+      "y": 339,
+      "thickness": 2,
+      "samples": [
+        -2,
+        -1
+      ]
+    },
+    {
+      "label": "1:2:top",
+      "x": 566,
+      "y": 299,
+      "thickness": 2,
+      "samples": [
+        0,
+        1
+      ]
+    },
+    {
+      "label": "1:2:right",
+      "x": 628,
+      "y": 319,
+      "thickness": 2,
+      "samples": [
+        -2,
+        -1
+      ]
+    },
+    {
+      "label": "2:0:right",
+      "x": 366,
+      "y": 359,
+      "thickness": 2,
+      "samples": [
+        -2,
+        -1
+      ]
+    },
+    {
+      "label": "2:0:left",
+      "x": 243,
+      "y": 359,
+      "thickness": 2,
+      "samples": [
+        0,
+        1
+      ]
+    },
+    {
+      "label": "2:2:right",
+      "x": 628,
+      "y": 359,
+      "thickness": 2,
+      "samples": [
+        -2,
+        -1
+      ]
+    },
+    {
+      "label": "2:2:bottom",
+      "x": 566,
+      "y": 379,
+      "thickness": 2,
+      "samples": [
+        -2,
+        -1
+      ]
+    },
+    {
+      "label": "2:2:left",
+      "x": 504,
+      "y": 359,
+      "thickness": 2,
+      "samples": [
+        1,
+        2
+      ]
+    },
+    {
+      "label": "3:0:bottom",
+      "x": 304,
+      "y": 419,
+      "thickness": 2,
+      "samples": [
+        -4,
+        -3
+      ]
+    },
+    {
+      "label": "3:0:left",
+      "x": 243,
+      "y": 399,
+      "thickness": 2,
+      "samples": [
+        0,
+        1
+      ]
+    },
+    {
+      "label": "3:1:top",
+      "x": 435,
+      "y": 379,
+      "thickness": 2,
+      "samples": [
+        0,
+        1
+      ]
+    },
+    {
+      "label": "3:1:right",
+      "x": 504,
+      "y": 399,
+      "thickness": 2,
+      "samples": [
+        -1,
+        0
+      ]
+    },
+    {
+      "label": "3:1:bottom",
+      "x": 435,
+      "y": 419,
+      "thickness": 2,
+      "samples": [
+        -4,
+        -3
+      ]
+    }
+  ]
+}
