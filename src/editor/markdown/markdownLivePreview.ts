@@ -8,10 +8,15 @@ import { isTablePointerSelectionActive } from "../table/tableRangeSelection";
 import { MarkdownRange } from "./markdownSyntax";
 import { markdownAlertForQuote } from "./markdownBlockSyntax";
 import { markdownListField, markdownListRangeHidden } from "./markdownListStructure";
+import { findMarkdownLinkAt } from "../../shared/markdownLinkValidation";
+import { decodeMarkdownEntity, footnoteForReference, markdownDocumentIndex, MarkdownHeading } from "./markdownDocumentIndex";
 
 export interface PreviewPart extends MarkdownRange {
   owner: MarkdownRange;
-  kind: "hide" | "conceal" | "code-header" | "code-end" | "callout";
+  kind: "hide" | "conceal" | "code-header" | "code-end" | "callout" | "text" | "toc" | "footnote";
+  target?: number;
+  superscript?: boolean;
+  headings?: readonly MarkdownHeading[];
   fence?: MarkdownRange;
   block?: boolean;
   label?: string;
@@ -25,12 +30,13 @@ export interface PreviewPart extends MarkdownRange {
 }
 const overlaps = (a: MarkdownRange, b: MarkdownRange): boolean => a.from < b.to && b.from < a.to;
 const layoutNodes = new Set(["Document", "Blockquote", "BulletList", "OrderedList", "ListItem",
-  "MarkdownFrontmatter", "FencedCode", "CodeBlock", "SetextHeading1", "SetextHeading2"]);
+  "FootnoteDefinition", "MarkdownTOC", "MarkdownFrontmatter", "FencedCode", "CodeBlock", "SetextHeading1", "SetextHeading2"]);
 
 /** Recognition uses the configured tree. Only the requested windows are visited. */
 export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly MarkdownRange[], windows: readonly MarkdownRange[], showHeadingMarkers = true, layoutOnly = false): PreviewPart[] {
   const parts: PreviewPart[] = [], seen = new Set<string>();
   const protectedTables = [...tables].sort((a, b) => a.from - b.from);
+  const index = markdownDocumentIndex(doc, tree, tables);
   const tableAt = (position: number): MarkdownRange | undefined => {
     let from = 0, to = protectedTables.length;
     while (from < to) {
@@ -59,6 +65,32 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
     if (node.to <= window.from || node.from >= window.to || table && table.from <= node.from && table.to >= node.to) return false;
     const owner = { from: node.from, to: node.to };
     if (["HTMLBlock", "HTMLTag", "Comment", "WikiEmbed"].includes(node.name)) return false;
+    if (node.name === "MarkdownTOC") {
+      const line = doc.lineAt(node.from), row = { from: line.from, to: line.to };
+      add({ ...row, owner: row, kind: "toc", block: true, headings: index.headings });
+      return false;
+    }
+    if (node.name === "FootnoteReference") {
+      const note = footnoteForReference(doc, node, index);
+      if (note) add({ ...owner, owner, kind: "footnote", label: String(note.number), target: note.labelTo, superscript: true });
+      return false;
+    }
+    if (node.name === "FootnoteDefinition") {
+      const note = [...index.footnotes.values()].find(note => note.from === node.from);
+      if (note) {
+        if (!layoutOnly) add({ from: note.labelFrom, to: note.labelTo, owner, kind: "footnote", label: `${note.number}. `, target: note.firstReference });
+        for (let from = doc.lineAt(node.from).to + 1; !layoutOnly && from < node.to;) {
+          const line = doc.lineAt(from), indent = /^(?: {4}|\t)/u.exec(line.text);
+          if (indent) hide(line.from, line.from + indent[0].length, owner);
+          from = line.to + 1;
+        }
+      }
+    }
+    if (!layoutOnly && node.name === "ListItem") {
+      const number = index.orderedNumbers.get(node.from), mark = node.getChild("ListMark");
+      if (mark && number !== undefined && read(mark.from, mark.to - 1) !== number)
+        add({ from: mark.from, to: mark.to - 1, owner: { from: mark.from, to: mark.to }, kind: "text", label: number });
+    }
     if (node.name === "MarkdownFrontmatter") {
       // Properties always retain their source rows and normal editor geometry.
       return false;
@@ -122,6 +154,9 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
       const paragraph = node.parent, quote = paragraph?.parent;
       const alert = paragraph?.name === "Paragraph" && quote?.name === "Blockquote" ? markdownAlertForQuote(doc, quote) : null;
       if (alert && node.from >= alert.from && node.to <= alert.to) return false;
+      // Lezer also emits Link for unresolved shortcut labels such as [TOC].
+      // Keep unsupported/unresolved source intact rather than implying a link.
+      if (node.name === "Link" && !findMarkdownLinkAt(doc, tree, node.from + 1, tables)) return false;
       const marks = node.getChildren("LinkMark");
       const first = marks[0], close = marks.find(mark => read(mark.from, mark.to) === "]");
       if (first && close) { hide(first.from, first.to, owner); hide(close.from, node.to, owner); }
@@ -136,6 +171,10 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
       if (label) { hide(node.from, label.from + 1, owner); hide(label.to - 1, node.to, owner); }
       return false;
     } else if (node.name === "Escape") hide(node.from, node.from + 1, owner);
+    else if (node.name === "Entity") {
+      const literal = read(node.from, node.to), label = decodeMarkdownEntity(literal);
+      if (literal !== label) add({ ...owner, owner, kind: "text", label });
+    }
   } });
   return parts.sort((a, b) => a.from - b.from || b.to - a.to);
 }
@@ -208,6 +247,29 @@ class PreviewWidget extends WidgetType {
       view.dispatch({ selection: EditorSelection.cursor(Math.min(view.state.doc.length, position)), effects: activityEffect.of({ focused: true, composing: false, projected: null }), scrollIntoView: true });
       view.focus();
     };
+    if (part.kind === "text") { wrapper.textContent = part.label ?? ""; return wrapper; }
+    if (part.kind === "footnote") {
+      if (part.superscript) wrapper.classList.add("mlrt-preview-footnote-reference");
+      const button = doc.createElement("button");
+      button.type = "button"; button.textContent = part.label ?? "";
+      button.setAttribute("aria-label", part.superscript ? `Go to footnote ${part.label}` : `Return to reference for footnote ${part.label}`);
+      button.addEventListener("click", () => edit(part.target ?? part.from));
+      wrapper.append(button);
+      return wrapper;
+    }
+    if (part.kind === "toc") {
+      const nav = doc.createElement("nav"); nav.setAttribute("aria-label", "Table of contents");
+      for (const heading of part.headings ?? []) {
+        const button = doc.createElement("button"); button.type = "button"; button.textContent = heading.label;
+        button.style.paddingLeft = `${(heading.level - 1) * 16}px`;
+        button.addEventListener("click", () => edit(heading.from));
+        nav.append(button);
+      }
+      if (!nav.childNodes.length) nav.textContent = "Table of contents";
+      wrapper.append(nav);
+      wrapper.addEventListener("dblclick", event => { if (!(event.target instanceof HTMLButtonElement)) edit(); });
+      return wrapper;
+    }
     wrapper.addEventListener("pointerdown", event => { if ((event as PointerEvent).button === 0) event.preventDefault(); });
     wrapper.addEventListener("keydown", event => {
       const keyboard = event as KeyboardEvent;
@@ -336,7 +398,13 @@ export const markdownPreviewField = StateField.define<PreviewState>({
         transaction.state.field(markdownListField, false) === transaction.startState.field(markdownListField, false)) return value;
     let parts = value.parts;
     if (transaction.docChanged && !value.composing) {
-      const changedWindows = markdownChangedWindows(transaction);
+      // Generated content can depend on an offscreen heading, footnote, or
+      // reference definition. Reproject dependencies with the same ready tree.
+      const before = markdownDocumentIndex(transaction.startState.doc, syntaxTree(transaction.startState), getParsedTables(transaction.startState.doc));
+      const after = markdownDocumentIndex(transaction.state.doc, syntaxTree(transaction.state), getParsedTables(transaction.state.doc));
+      const dependent = value.parts.some(part => part.kind === "toc" || part.kind === "footnote") ||
+        after.footnotes.size > 0 || before.referenceSignature !== after.referenceSignature;
+      const changedWindows = dependent ? [{ from: 0, to: transaction.state.doc.length }] : markdownChangedWindows(transaction);
       parts = [...parts.map(part => mapPreviewPart(part, transaction.changes)).filter(part =>
         part.from < part.to && part.owner.from < part.owner.to && !changedWindows.some(window => overlaps(part.owner, window))),
         ...previewParts(transaction.state, changedWindows)]

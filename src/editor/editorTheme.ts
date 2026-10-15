@@ -84,7 +84,7 @@ export function createEditorTheme(): Extension {
       backgroundColor: "var(--mlrt-line-background, transparent)",
       backgroundImage: "none",
     },
-    "&:where(.mlrt-line-highlight-enabled) :is(.cm-activeLine, .mlrt-prose-active-line)": {
+    "&:where(.mlrt-line-highlight-enabled) .cm-activeLine, &:where(.mlrt-line-highlight-enabled) .mlrt-prose-active-line": {
       // The lower layer is a guaranteed, theme-derived contrast fallback.
       // The VS Code token paints over it when supplied, preserving exact
       // stock-editor color while remaining visible if a host injects an
@@ -107,11 +107,11 @@ export function createEditorTheme(): Extension {
       {
         marginLeft: "0",
       },
-    "&.mlrt-table-cell-focused :is(.cm-activeLine, .mlrt-prose-active-line)": {
+    "&.mlrt-table-cell-focused .cm-activeLine, &.mlrt-table-cell-focused .mlrt-prose-active-line": {
       backgroundColor: "var(--mlrt-line-background, transparent)",
       backgroundImage: "none",
     },
-    "&.mlrt-selection-active :is(.cm-activeLine, .mlrt-prose-active-line)": {
+    "&.mlrt-selection-active .cm-activeLine, &.mlrt-selection-active .mlrt-prose-active-line": {
       backgroundColor: "var(--mlrt-line-background, transparent)",
       backgroundImage: "none",
     },
@@ -119,7 +119,12 @@ export function createEditorTheme(): Extension {
     // by a long-lived webview focus transition. This is intentionally after
     // the suppression rules: when the editable CodeMirror content itself
     // owns an empty cursor, its line highlight is authoritative.
-    "&:where(.mlrt-line-highlight-enabled):is(.cm-focused:not(.mlrt-selection-active), .mlrt-prose-cursor-focused) :is(.cm-activeLine, .mlrt-prose-active-line)": {
+    // style-mod scopes comma-separated selector branches. Keep commas outside
+    // :is(), or the second focus case becomes an impossible descendant match.
+    [["&:where(.mlrt-line-highlight-enabled).cm-focused:not(.mlrt-selection-active) .cm-activeLine",
+      "&:where(.mlrt-line-highlight-enabled).cm-focused:not(.mlrt-selection-active) .mlrt-prose-active-line",
+      "&:where(.mlrt-line-highlight-enabled).mlrt-prose-cursor-focused .cm-activeLine",
+      "&:where(.mlrt-line-highlight-enabled).mlrt-prose-cursor-focused .mlrt-prose-active-line"].join(", ")]: {
       backgroundColor:
         "color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e))",
       backgroundImage:

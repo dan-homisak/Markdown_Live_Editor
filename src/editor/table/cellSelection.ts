@@ -8,6 +8,28 @@
  */
 
 export const TABLE_CELL_SELECTOR = ".mlrt-table-cell";
+const previewSourceRanges = new WeakMap<Node, { from: number; to: number }>();
+
+export function setCellPreviewSourceRange(node: Node, range: { from: number; to: number }): void {
+  previewSourceRanges.set(node, range);
+}
+
+export function cellPreviewSourceOffset(cell: HTMLElement, node: Node | null, offset: number): number {
+  if (node && node.nodeType !== 3) {
+    let boundary: Node | null = node.childNodes[offset] ?? null;
+    const end = !boundary;
+    boundary ??= node.childNodes[offset - 1] ?? null;
+    while (boundary?.childNodes.length) boundary = end ? boundary.lastChild : boundary.firstChild;
+    const range = boundary && previewSourceRanges.get(boundary);
+    if (range) return end ? range.to : range.from;
+  }
+  const entry = node && previewSourceRanges.get(node);
+  if (entry) {
+    const length = node!.textContent?.length ?? 0;
+    return entry.from + Math.round((entry.to - entry.from) * Math.min(offset, length) / Math.max(1, length));
+  }
+  return offset === 0 ? 0 : readCellDisplayValue(cell).length;
+}
 
 /** Resolves the rendered table cell containing an event target, if any. */
 export function findCell(target: EventTarget | null): HTMLElement | null {
@@ -19,6 +41,7 @@ export function findCell(target: EventTarget | null): HTMLElement | null {
 
 /** Reads the cell's visible plain-text value. */
 export function readCellDisplayValue(cell: HTMLElement): string {
+  if (cell.dataset.markdownPreview === "true") return cell.dataset.previewValue ?? cell.dataset.sourceValue ?? "";
   const value = isSimpleCellContent(cell)
     ? readSimpleCellText(cell)
     : cell.innerText;
@@ -33,6 +56,8 @@ export function readCellDisplayValue(cell: HTMLElement): string {
  * so Chromium paints a caret line for those otherwise empty positions.
  */
 export function setCellPlainText(cell: HTMLElement, value: string): void {
+  delete cell.dataset.markdownPreview;
+  delete cell.dataset.previewValue;
   const needsSentinel = cellValueNeedsCaretSentinel(value);
   const nodes = cell.childNodes;
 
@@ -424,6 +449,7 @@ function getCellNodeOffset(
   if (!node) {
     return readCellDisplayValue(cell).length;
   }
+  if (cell.dataset.markdownPreview === "true") return cellPreviewSourceOffset(cell, node, offset);
   const range = cell.ownerDocument.createRange();
   range.selectNodeContents(cell);
   range.setEnd(node, offset);

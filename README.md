@@ -7,6 +7,7 @@ Edits are written directly back to the underlying Markdown, so documents remain 
 ## Highlights
 
 - Read rendered headings, emphasis, inline code, quotes, callouts, and YAML properties
+- Follow generated `[TOC]` heading links and numbered footnote references/backlinks
 - Reveal exact Markdown syntax by moving the caret into the text
 - Wrap highlighted text by typing a formatting character; repeat it to build bold, wikilinks, or code fences
 - Nest and unnest lists with Tab/Shift+Tab, continue them with Enter, and navigate to item text with the arrow keys
@@ -48,7 +49,7 @@ This also works inside table cells, where backticks stay inline. Highlight, math
 
 ## Working with tables
 
-Click a table cell to edit it. Press `Tab` or `Shift+Tab` to move between cells, and use `Shift+Enter` to add a line break within a cell.
+Inactive table cells render inline emphasis, code, links, escapes, and entities. Click a table cell to reveal and edit its exact Markdown source; leaving it restores formatting. Press `Tab` or `Shift+Tab` to move between cells, and use `Shift+Enter` to add a line break within a cell.
 
 Ordinary arrow keys navigate characters and visual lines normally, crossing into another cell only after the caret reaches a cell edge. For immediate geometric navigation to an adjacent cell, hold the configured function key (`F2` by default) while pressing an arrow key; the caret lands at the end of the destination cell so you can continue typing there.
 
@@ -81,6 +82,8 @@ YAML properties stay visible as syntax-colored source inside a subtle frame, inc
 Within properties, Tab/Shift+Tab use two-space indentation. Enter continues list items, an empty item ends the list, and Enter on the closing delimiter moves into the document body. Simple property separators receive a space automatically. After edits, leaving the block formats valid YAML with two-space indentation while preserving values, comments and quoted strings. Invalid YAML (including duplicate keys) is underlined with an explanatory hover; ambiguous text is kept for correction. Existing files are never reformatted merely by opening them. These editing aids follow the Markdown rendering setting.
 
 In lists, Up/Down avoids parking the caret in indentation before item text. Home goes to item text first, then source-line start. Tab/Shift+Tab and Ctrl/Cmd+]/[ nest or unnest an item and its descendants. Enter continues bullets, numbered items, and unchecked tasks; Enter on an empty item outdents or exits the list. Backspace at item-text start outdents or removes a top-level marker.
+
+Nested blockquotes retain a guide and indentation for every level. Ordered lists display consecutive numbers starting at the first source number, while editing a number reveals its original spelling. Character entities render as their characters outside literal code. A standalone `[TOC]` generates a navigable heading list; `[^label]` references and their definitions render with matching numbers and navigation back to the reference. Indented continuation paragraphs remain part of their footnote. These presentations preserve the saved Markdown and reveal source at the caret.
 
 Turning rendering off restores ordinary non-table presentation and base Markdown input while retaining table editing. Host accessibility mode uses literal markers and keeps the task toggle command available. Actual OS IME and screen-reader coverage is recorded separately from automation. See `LIVE_MARKDOWN_RENDERING_DESIGN_SPEC.md` for the current product contract and `qa/live-preview-2026-10-04.md` for verification and limits.
 
