@@ -1,0 +1,158 @@
+[
+  {
+    "before": {
+      "first": 162,
+      "last": 197
+    },
+    "after": {
+      "line": 163,
+      "anchor": 180,
+      "head": 180,
+      "scrollTop": 3119.199951171875,
+      "top": 0
+    },
+    "scrolled": {
+      "line": 194,
+      "anchor": 180,
+      "head": 180,
+      "scrollTop": 3719.199951171875,
+      "top": 0
+    },
+    "returned": {
+      "first": 194,
+      "last": 229
+    },
+    "mountedMs": 714,
+    "stages": [
+      {
+        "name": "mlrt:initialize",
+        "ms": 94
+      },
+      {
+        "name": "mlrt:highlighting-ready",
+        "ms": 120
+      },
+      {
+        "name": "mlrt:editor-mounted",
+        "ms": 472
+      }
+    ]
+  },
+  {
+    "before": {
+      "first": 413,
+      "last": 447
+    },
+    "after": {
+      "line": 414,
+      "anchor": 430,
+      "head": 430,
+      "scrollTop": 7908.7998046875,
+      "top": 0
+    },
+    "scrolled": {
+      "line": 445,
+      "anchor": 430,
+      "head": 430,
+      "scrollTop": 8508.7998046875,
+      "top": 0
+    },
+    "returned": {
+      "first": 445,
+      "last": 480
+    },
+    "mountedMs": 604,
+    "stages": [
+      {
+        "name": "mlrt:initialize",
+        "ms": 79
+      },
+      {
+        "name": "mlrt:highlighting-ready",
+        "ms": 101
+      },
+      {
+        "name": "mlrt:editor-mounted",
+        "ms": 432
+      }
+    ]
+  },
+  {
+    "before": {
+      "first": 73,
+      "last": 107
+    },
+    "after": {
+      "line": 74,
+      "anchor": 90,
+      "head": 90,
+      "scrollTop": 1437.5999755859375,
+      "top": 0
+    },
+    "scrolled": {
+      "line": 105,
+      "anchor": 90,
+      "head": 90,
+      "scrollTop": 2037.5999755859375,
+      "top": 0
+    },
+    "returned": {
+      "first": 105,
+      "last": 140
+    },
+    "mountedMs": 651,
+    "stages": [
+      {
+        "name": "mlrt:initialize",
+        "ms": 88
+      },
+      {
+        "name": "mlrt:highlighting-ready",
+        "ms": 112
+      },
+      {
+        "name": "mlrt:editor-mounted",
+        "ms": 505
+      }
+    ]
+  },
+  {
+    "before": {
+      "first": 4186,
+      "last": 4197
+    },
+    "after": {
+      "line": 4185,
+      "anchor": 4229,
+      "head": 4229,
+      "scrollTop": 81525.6015625,
+      "top": 0
+    },
+    "scrolled": {
+      "line": 4196,
+      "anchor": 4229,
+      "head": 4229,
+      "scrollTop": 82125.6015625,
+      "top": 0
+    },
+    "returned": {
+      "first": 4196,
+      "last": 4207
+    },
+    "mountedMs": 660,
+    "stages": [
+      {
+        "name": "mlrt:initialize",
+        "ms": 86
+      },
+      {
+        "name": "mlrt:highlighting-ready",
+        "ms": 109
+      },
+      {
+        "name": "mlrt:editor-mounted",
+        "ms": 509
+      }
+    ]
+  }
+]

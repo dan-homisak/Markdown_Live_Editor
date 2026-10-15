@@ -78,7 +78,8 @@ vm.runInNewContext(await readFile(entry, "utf8"), {
   },
   console, Buffer, process, TextEncoder, TextDecoder, setTimeout, clearTimeout,
 }, { filename: entry });
-hostModule.exports.activate({ extensionUri: { fsPath: projectRoot }, subscriptions: [] });
+const context = { extensionUri: { fsPath: projectRoot }, subscriptions: [] };
+hostModule.exports.activate(context);
 assert.ok(provider, "activation registered the actual custom-editor provider");
 
 let fixtureId = 0;
@@ -104,6 +105,7 @@ function panel(column = 1) {
     onDidChangeViewState: viewState.event,
     webview: {
       cspSource: "test:",
+      asWebviewUri(uri) { return uri.fsPath; },
       onDidReceiveMessage: received.event,
       postMessage(message) { messages.push(message); return Promise.resolve(true); },
       set html(_value) { htmlWrites++; },
@@ -199,7 +201,32 @@ for (const closeDocument of [false, true]) {
   }
 }
 assert.equal(queries.length, 0);
+const handoff = fixture();
+const handoffPanel = panel();
+await open(handoff, handoffPanel);
+handoffPanel.received.fire({ type: "ready" });
+queries.shift().resolve({ permissions: 0 });
+await flushMicrotasks();
+task(handoffPanel, 1);
+await flushMicrotasks();
+const pendingTask = queries.shift();
+let captured = false;
+const capturedState = provider.captureLiveView(handoff.uri).then(state => { captured = true; return state; });
+const captureRequest = handoffPanel.messages.at(-1);
+assert.equal(captureRequest.type, "captureViewState");
+const state = { top: { line: 180, character: 0 }, anchor: { line: 90, character: 3 }, head: { line: 90, character: 7 } };
+handoffPanel.received.fire({ type: "viewState", requestId: captureRequest.requestId, state });
+await flushMicrotasks();
+assert.equal(captured, false, "a toggle must wait for preceding source edits to settle");
+pendingTask.resolve({ permissions: 1 });
+assert.deepEqual(await capturedState, state, "viewport and offscreen selection survive the handoff");
+const closingCapture = provider.captureLiveView(handoff.uri);
+handoffPanel.closed.fire();
+assert.deepEqual(await closingCapture, state, "disposing a panel resolves pending captures without timers");
+assert.equal(provider.getViewColumn(handoff.uri), undefined);
+assert.equal(queries.length, 0);
+Disposable.from(...context.subscriptions).dispose();
 assert.equal(workspaceChanges.size, 0, "all document listeners are disposed");
 assert.equal(configChanges.size, 0, "all configuration listeners are disposed");
 assert.deepEqual(errors, []);
-console.log("Markdown host lifecycle checks passed: disposal, panel identity, permission ordering, and task query isolation.");
+console.log("Markdown host lifecycle checks passed: disposal, panel identity, permission ordering, task query isolation, and viewport handoff after pending edits.");

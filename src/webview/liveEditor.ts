@@ -6,6 +6,7 @@ import {
   Transaction,
 } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
+import { EditorSourcePosition, EditorViewState, isEditorViewState } from "../shared/editorViewState";
 import { forceParsing, syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import {
   createLiveEditorExtensions,
@@ -83,6 +84,7 @@ declare function acquireVsCodeApi(): {
 declare global {
   interface Window {
     __MLRT_INITIAL_DOCUMENT__?: unknown;
+    __MLRT_INITIAL_VIEW_STATE__?: unknown;
     __MLRT_CODE_HIGHLIGHTING__?: InitialCodeHighlighting;
     __MLRT_EDITOR_OPTIONS__?: unknown;
     __MLRT_DEBUG__?: unknown;
@@ -230,12 +232,22 @@ window.__MLRT_TEST_SET_HOST_ISOLATION__ = (isolated: boolean): void => {
 
 async function initializeEditor(app: HTMLElement): Promise<void> {
 try {
+  performance.mark("mlrt:initialize");
   await codeHighlighting.initialize(window.__MLRT_CODE_HIGHLIGHTING__ ?? undefined);
+  performance.mark("mlrt:highlighting-ready");
   const editorExtensions = createLiveEditorExtensions({
     ...editorOptions,
     markdownRendering: appliedMarkdownRenderingOptions,
   });
   const initialDocument = readInitialDocument();
+  const doc = EditorState.create({ doc: initialDocument }).doc;
+  const initialViewState = isEditorViewState(window.__MLRT_INITIAL_VIEW_STATE__)
+    ? window.__MLRT_INITIAL_VIEW_STATE__ : undefined;
+  const restoreViewport = initialViewState && (initialViewState.top.line > 0 || initialViewState.top.character > 0);
+  const offset = (position: EditorSourcePosition): number => {
+    const line = doc.line(Math.min(doc.lines, position.line + 1));
+    return line.from + Math.min(line.length, position.character);
+  };
   app.replaceChildren();
   app.className = "mlrt-editor-shell";
   const editorMount = document.createElement("div");
@@ -243,8 +255,10 @@ try {
   app.append(editorMount);
   view = new EditorView({
     parent: editorMount,
+    scrollTo: restoreViewport ? EditorView.scrollIntoView(offset(initialViewState.top), { y: "start", yMargin: 0 }) : undefined,
     state: EditorState.create({
-      doc: initialDocument,
+      doc,
+      selection: initialViewState ? EditorSelection.single(offset(initialViewState.anchor), offset(initialViewState.head)) : undefined,
       extensions: [
         ...editorExtensions,
         codeHighlighting.extension,
@@ -308,6 +322,7 @@ try {
     }),
   });
   window.__MLRT_EDITOR_VIEW__ = view;
+  performance.mark("mlrt:editor-mounted");
   window.__MLRT_TEST_LIVE_PREVIEW__ = (x, y) => {
     if (!debugEnabled) return null;
     const next = view.moveVertically(view.state.selection.main, false);
@@ -339,6 +354,7 @@ try {
   installDocumentClipboard(app, view, event => markdownTaskContextActions(view, event));
   syncDocumentRangeSelection(view);
   installCursorDebugListeners(app);
+  installViewStateBridge();
   // VS Code injects and maintains this documented accessibility signal on
   // the webview body, including changes while the retained view is hidden.
   const accessibilityObserver = new MutationObserver(() => {
@@ -354,6 +370,14 @@ try {
   view.dom.addEventListener("mlrt:open-clipboard-settings", () => {
     vscode.postMessage({ type: "openClipboardSettings" });
   });
+  if (restoreViewport) {
+    // Let the table selection guard park a source caret outside a replacement
+    // first. Its microtask must not override the restored reading position.
+    queueMicrotask(() => {
+      view.dispatch({ effects: EditorView.scrollIntoView(offset(initialViewState.top), { y: "start", yMargin: 0 }) });
+      restoreInitialTableRow(initialViewState.top.line);
+    });
+  }
 } catch (error) {
   app.replaceChildren(renderStartupError(error));
   throw error;
@@ -367,8 +391,82 @@ void initializeEditor(app).then(() => {
   vscode.postMessage({ type: "ready" });
 });
 
+function captureViewState(): EditorViewState {
+  const doc = view.state.doc;
+  const position = (offset: number): EditorSourcePosition => {
+    const line = doc.lineAt(Math.max(0, Math.min(doc.length, offset)));
+    return { line: line.number - 1, character: offset - line.from };
+  };
+  const scroller = view.scrollDOM.getBoundingClientRect();
+  const block = view.lineBlockAtHeight(Math.max(0, scroller.top - view.documentTop));
+  let top = view.posAtCoords({ x: view.contentDOM.getBoundingClientRect().left + 1, y: scroller.top + 1 }, false) ?? block.from;
+  // A table is a single CodeMirror block, but its DOM owns each source row.
+  // Preserve the visible row even when the table begins above the viewport.
+  for (const cell of Array.from(view.dom.querySelectorAll<HTMLElement>(".mlrt-table-cell[data-source-from]"))) {
+    const box = cell.getBoundingClientRect();
+    if (box.bottom > scroller.top && box.top < scroller.bottom) {
+      if (box.top <= scroller.top + 1) top = doc.lineAt(Number(cell.dataset.sourceFrom)).from;
+      break;
+    }
+  }
+  return { top: position(top), anchor: position(view.state.selection.main.anchor), head: position(view.state.selection.main.head) };
+}
+
+function restoreInitialTableRow(line: number): void {
+  const findRow = (): HTMLElement | undefined => Array.from(view.dom.querySelectorAll<HTMLElement>(".mlrt-table-cell[data-source-from]"))
+    .find(element => view.state.doc.lineAt(Number(element.dataset.sourceFrom)).number - 1 === line);
+  if (!findRow()) return;
+  // Finish CodeMirror's block scroll first, then align the row within that
+  // block. Keep this first table frame hidden so the header never flashes.
+  view.dom.style.visibility = "hidden";
+  window.requestAnimationFrame(() => view.requestMeasure({
+    read: () => {
+      const cell = findRow();
+      return cell ? cell.getBoundingClientRect().top - view.scrollDOM.getBoundingClientRect().top : 0;
+    },
+    write: delta => {
+      if (delta) view.scrollDOM.scrollTop += delta;
+      view.dom.style.visibility = "";
+    },
+  }));
+}
+
+function installViewStateBridge(): void {
+  let scheduled = false;
+  const publish = (): void => {
+    if (scheduled) return;
+    scheduled = true;
+    window.requestAnimationFrame(() => {
+      scheduled = false;
+      vscode.postMessage({ type: "viewState", state: captureViewState() });
+    });
+  };
+  view.scrollDOM.addEventListener("scroll", publish, { passive: true });
+  publish();
+}
+
 function handleHostMessage(event: MessageEvent<unknown>): void {
   const message = event.data;
+  if (message && typeof message === "object" && "type" in message &&
+      message.type === "captureViewState" && "requestId" in message &&
+      typeof message.requestId === "number") {
+    // Blurring commits a cell before the host disposes the webview. Source
+    // mutations and this reply share one ordered webview message channel.
+    blurActiveTableCell();
+    view.contentDOM.blur();
+    const reply = (): void => {
+      if (editorCompositionActive || view.compositionStarted) {
+        window.setTimeout(reply, 10);
+        return;
+      }
+      cancelEditorCompositionFlush();
+      flushEditorComposition();
+      flushPendingEditorCommandsAfterComposition();
+      vscode.postMessage({ type: "viewState", requestId: message.requestId, state: captureViewState() });
+    };
+    reply();
+    return;
+  }
   if (codeHighlighting.accept(view, message)) return;
   if (message && typeof message === "object" && "type" in message &&
       message.type === "markdownLinkCommand" && "action" in message && message.action === "open") {

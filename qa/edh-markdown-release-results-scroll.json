@@ -1,9 +1,9 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-GVmmDv",
-  "port": 49222,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-CwAD1r",
+  "port": 57110,
   "checks": [
     {
-      "name": "scroll rendering: every element is prepared before mounting and scrolling never rebuilds its decorations",
+      "name": "scroll rendering: layout decorations stay prepared and visible text has stable paint",
       "pass": true,
       "detail": {
         "frames": 80,
@@ -12,6 +12,19 @@
         "scrollRebuilds": 0,
         "paintOrGeometryDrifts": 0,
         "sourceExact": true
+      }
+    },
+    {
+      "name": "scroll rendering: native wheel scrolling keeps heavy code prepared under CPU throttling",
+      "pass": true,
+      "detail": {
+        "frames": 333,
+        "codeSamples": 3458,
+        "missing": [],
+        "paintDrifts": [],
+        "scrollEvents": 61,
+        "travel": 18744,
+        "cpuThrottling": 4
       }
     },
     {
@@ -63,6 +76,6 @@
   ],
   "finalSourceMatches": true,
   "console": [],
-  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:49222/devtools/browser/6d2cf314-ecec-43f0-a4f4-fdf9b3b38a56\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T03:33:40.873Z] [node-compile-cache] main: packaged cache enabled (status: enabled, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main\\v24.21.0-x64-c3a7e8f2)\n[main 2026-10-14T03:33:40.901Z] StorageMainService: creating application shared storage\n[main 2026-10-14T03:33:40.945Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T03:33:40.945Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-GVmmDv\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T03:33:40.963Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T03:33:41.888Z] update#setState idle\n[main 2026-10-14T03:33:41.910Z] AgentHostProcessManager: agent host started\n(node:27116) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n[main 2026-10-14T03:33:43.097Z] [AgentHost:stderr] (node:3516) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n[main 2026-10-14T03:33:44.644Z] Error: Error while decrypting the ciphertext provided to safeStorage.decryptString.\n    at Ic.decrypt (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:47:19775)\n    at Object.call (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:34:5575)\n    at Nu.onPromise (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:32:15451)\n    at Nu.onRawMessage (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:32:14874)\n    at gl.value (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:32:14140)\n    at b._deliver (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:31:3617)\n    at b._deliverQueue (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:31:3706)\n    at b.fire (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:31:4040)\n    at gl.value (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:29:6002)\n    at b._deliver (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:31:3617)\n    at b.fire (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:31:3935)\n    at gl.value (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:29:6196)\n    at b._deliver (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:31:3617)\n    at b.fire (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:31:3935)\n    at re (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:29:9599)\n    at IpcMainImpl.t (file:///C:/Code/Markdown_Live_Editor/.vscode-test/isolated-code/7baac39ec3/resources/app/out/mainImpl.js:37:11290)\n    at IpcMainImpl.emit (node:events:514:28)\n    at Session.<anonymous> (node:electron/js2c/browser_init:2:119845)\n    at Session.emit (node:events:514:28)\nUnknown channel: agentHostClientProxy\n",
+  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:57110/devtools/browser/485bf4e0-236f-4298-bbae-908a65ef4763\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-15T02:54:53.788Z] [node-compile-cache] main: packaged cache inactive (status: missing, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: none)\n[main 2026-10-15T02:54:53.811Z] StorageMainService: creating application shared storage\n[main 2026-10-15T02:54:53.852Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-15T02:54:53.852Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-CwAD1r\\User\\globalStorage\\state.vscdb)\n[main 2026-10-15T02:54:53.858Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-15T02:54:53.859Z] update#setState disabled\n[main 2026-10-15T02:54:53.859Z] update#ctor - updates are disabled by the environment\n[main 2026-10-15T02:54:54.534Z] AgentHostProcessManager: agent host started\n[main 2026-10-15T02:54:54.783Z] [AgentHost:stderr] (node:19752) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n",
   "passed": true
 }

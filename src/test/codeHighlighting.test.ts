@@ -84,10 +84,15 @@ async function main(): Promise<void> {
       });
       return color;
     };
-    assert.match(colorAt(state, "const commented")!, /#008000/, "distant code has final tokens in document state before a viewport exists");
+    assert.match(colorAt(state, "const commented")!, /#008000/,
+      "distant code must have its final colors before any viewport is mounted");
     const start = distant.indexOf("/* offscreen opener");
     state = state.update({ changes: { from: start, to: start + 2, insert: "  " } }).state;
-    assert.match(colorAt(state, "const commented")!, /#AA00AA/, "editing an offscreen opener changes downstream tokens in the same transaction");
+    assert.match(colorAt(state, "const commented")!, /#AA00AA/,
+      "offscreen opener edits must prepare downstream colors in the same transaction");
+    state = state.update({ changes: { from: start, to: start + 2, insert: "/*" } }).state;
+    assert.match(colorAt(state, "const commented")!, /#008000/,
+      "undo must restore offscreen colors before those rows can be scrolled into view");
     const style = codeTokenStyle({ from: 0, to: 1, color: "#A31515", fontStyle: 15 });
     assert.match(style, /font-style:italic/); assert.match(style, /font-weight:bold/);
     assert.match(style, /text-decoration:underline line-through/);
