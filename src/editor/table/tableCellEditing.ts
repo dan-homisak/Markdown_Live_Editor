@@ -1,4 +1,4 @@
-import { EditorSelection } from "@codemirror/state";
+import { EditorSelection, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { planMarkdownSelectionWrap } from "../../shared/markdownSelectionWrapping";
 import { markdownRenderingOptionsFacet } from "../markdown/markdownRendering";
@@ -205,6 +205,7 @@ export function bindTableEditing(
       cell,
       inputDecision.snapshot,
       scheduleTableLayout,
+      event.inputType === "insertLineBreak" || event.inputType === "insertParagraph",
     );
   });
 
@@ -401,7 +402,7 @@ export function bindTableEditing(
       !event.metaKey
     ) {
       if (!getCellSelectionOffsets(cell)) {
-        focusCellAtEnd(cell);
+        focusCellAtEnd(cell, true);
       }
       const nextSnapshot = computeCellTextInsertionSnapshot(cell, "\n");
       if (!nextSnapshot) {
@@ -416,6 +417,7 @@ export function bindTableEditing(
         cell,
         nextSnapshot,
         scheduleTableLayout,
+        true,
       );
       return;
     }
@@ -724,6 +726,7 @@ function applyLiveCellEdit(
   view: EditorView,
   table: ParsedTable,
   cell: HTMLElement,
+  scrollSnapshot?: StateEffect<unknown>,
 ): boolean {
   const rowKind = cell.dataset.rowKind;
   const rowIndex = Number(cell.dataset.rowIndex ?? "0");
@@ -795,12 +798,14 @@ function applyLiveCellEdit(
     syncTableSourceMetadata(wrapper, table);
   }
   preserveTableForLiveEdit(table.from);
+  const changes = view.state.changes({
+    from: edit.from,
+    to: edit.to,
+    insert: edit.insert,
+  });
   view.dispatch({
-    changes: {
-      from: edit.from,
-      to: edit.to,
-      insert: edit.insert,
-    },
+    changes,
+    effects: scrollSnapshot?.map(changes),
     annotations: [
       allowTableSourceChange.of(true),
       tableCellLiveEditAnnotation.of({
@@ -1348,12 +1353,21 @@ function applyCellEditSnapshotChange(
   cell: HTMLElement,
   snapshot: CellEditSnapshot,
   scheduleTableLayout: () => void,
+  preserveScroll = false,
 ): void {
+  // Capture before changing the DOM: a taller table must not make CodeMirror
+  // anchor to the document bottom or reveal its inactive source selection.
+  const scrollSnapshot = preserveScroll ? view.scrollSnapshot() : undefined;
+  const top = view.scrollDOM.scrollTop, left = view.scrollDOM.scrollLeft;
   recordCellEditHistory(cell);
   applyCellEditSnapshot(cell, snapshot);
   syncCellEditHistory(cell);
-  applyLiveCellEdit(view, table, cell);
+  applyLiveCellEdit(view, table, cell, scrollSnapshot);
   scheduleTableLayout();
+  if (preserveScroll) {
+    view.scrollDOM.scrollTop = top;
+    view.scrollDOM.scrollLeft = left;
+  }
 }
 
 function captureCellEditSnapshot(cell: HTMLElement): CellEditSnapshot {
