@@ -2,7 +2,7 @@
   "name": "markdown-live-render-tables",
   "displayName": "Markdown Live Editor",
   "description": "A VS Code extension for editing markdown in a live rendered editor.",
-  "version": "0.1.219",
+  "version": "0.1.220",
   "publisher": "dan-homisak",
   "license": "MIT",
   "engines": {
@@ -155,6 +155,7 @@
     "qa:toggle": "npm run compile && node scripts/edh-toggle-check.mjs",
     "qa:editing": "npm run compile && node scripts/edh-visual-check.mjs --editing-reliability-only",
     "qa:keyboard": "npm run compile && node scripts/edh-visual-check.mjs --keyboard-navigation-only",
+    "qa:table-line-break-scroll": "npm run compile && node scripts/edh-visual-check.mjs --table-line-break-scroll-only",
     "qa:gutter-scroll": "npm run compile && node scripts/edh-visual-check.mjs --gutter-scroll-only",
     "generate:gutter-fixture": "node scripts/generate-gutter-stress-fixture.mjs",
     "watch": "tsc -watch -p ./",

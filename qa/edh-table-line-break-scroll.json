@@ -1,0 +1,233 @@
+[
+  {
+    "name": "connected-host",
+    "before": {
+      "top": 0,
+      "left": 0,
+      "pageTop": 0,
+      "height": 680,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "Key",
+      "activeCell": true,
+      "cellTop": 216,
+      "caretTop": 0,
+      "caretOffset": 1,
+      "selectionCollapsed": true
+    },
+    "after": {
+      "top": 0,
+      "left": 0,
+      "pageTop": 0,
+      "height": 680,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "Key\n",
+      "activeCell": true,
+      "cellTop": 216,
+      "caretTop": 0,
+      "caretOffset": 4,
+      "selectionCollapsed": true
+    },
+    "scrollDelta": 0,
+    "lineBreakStored": true
+  },
+  {
+    "name": "middle-of-document",
+    "before": {
+      "top": 537,
+      "left": 0,
+      "pageTop": 0,
+      "height": 1520,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 1",
+      "activeCell": true,
+      "cellTop": 150,
+      "caretTop": 0,
+      "caretOffset": 1,
+      "selectionCollapsed": true
+    },
+    "after": {
+      "top": 537,
+      "left": 0,
+      "pageTop": 0,
+      "height": 1574,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 1\n\n\n",
+      "activeCell": true,
+      "cellTop": 150,
+      "caretTop": 0,
+      "caretOffset": 10,
+      "selectionCollapsed": true
+    },
+    "scrollDelta": 0,
+    "lineBreakStored": true
+  },
+  {
+    "name": "middle-of-tall-table",
+    "before": {
+      "top": 1126,
+      "left": 0,
+      "pageTop": 0,
+      "height": 2101,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 32",
+      "activeCell": true,
+      "cellTop": 150,
+      "caretTop": 0,
+      "caretOffset": 1,
+      "selectionCollapsed": true
+    },
+    "after": {
+      "top": 1126,
+      "left": 0,
+      "pageTop": 0,
+      "height": 2155,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 32\n\n\n",
+      "activeCell": true,
+      "cellTop": 150,
+      "caretTop": 0,
+      "caretOffset": 11,
+      "selectionCollapsed": true
+    },
+    "scrollDelta": 0,
+    "lineBreakStored": true
+  },
+  {
+    "name": "viewport-bottom",
+    "before": {
+      "top": 676,
+      "left": 0,
+      "pageTop": 0,
+      "height": 1626,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 32",
+      "activeCell": true,
+      "cellTop": 600,
+      "caretTop": 0,
+      "caretOffset": 1,
+      "selectionCollapsed": true
+    },
+    "after": {
+      "top": 676,
+      "left": 0,
+      "pageTop": 0,
+      "height": 1680,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 32\n\n\n",
+      "activeCell": true,
+      "cellTop": 600,
+      "caretTop": 0,
+      "caretOffset": 11,
+      "selectionCollapsed": true
+    },
+    "scrollDelta": 0,
+    "lineBreakStored": true
+  },
+  {
+    "name": "document-bottom",
+    "before": {
+      "top": 671,
+      "left": 0,
+      "pageTop": 0,
+      "height": 1351,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 34",
+      "activeCell": true,
+      "cellTop": 643,
+      "caretTop": 0,
+      "caretOffset": 1,
+      "selectionCollapsed": true
+    },
+    "after": {
+      "top": 671,
+      "left": 0,
+      "pageTop": 0,
+      "height": 1405,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 34\n\n\n",
+      "activeCell": true,
+      "cellTop": 643,
+      "caretTop": 0,
+      "caretOffset": 11,
+      "selectionCollapsed": true
+    },
+    "scrollDelta": 0,
+    "lineBreakStored": true
+  },
+  {
+    "name": "beforeinput-line-break",
+    "before": {
+      "top": 671,
+      "left": 0,
+      "pageTop": 0,
+      "height": 1351,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 34",
+      "activeCell": true,
+      "cellTop": 643,
+      "caretTop": 0,
+      "caretOffset": 1,
+      "selectionCollapsed": true
+    },
+    "after": {
+      "top": 671,
+      "left": 0,
+      "pageTop": 0,
+      "height": 1405,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 34\n\n\n",
+      "activeCell": true,
+      "cellTop": 643,
+      "caretTop": 0,
+      "caretOffset": 11,
+      "selectionCollapsed": true
+    },
+    "scrollDelta": 0,
+    "lineBreakStored": true
+  },
+  {
+    "name": "beforeinput-paragraph",
+    "before": {
+      "top": 671,
+      "left": 0,
+      "pageTop": 0,
+      "height": 1351,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 34",
+      "activeCell": true,
+      "cellTop": 643,
+      "caretTop": 0,
+      "caretOffset": 1,
+      "selectionCollapsed": true
+    },
+    "after": {
+      "top": 671,
+      "left": 0,
+      "pageTop": 0,
+      "height": 1405,
+      "viewportTop": 0,
+      "viewportBottom": 680,
+      "text": "value 34\n\n\n",
+      "activeCell": true,
+      "cellTop": 643,
+      "caretTop": 0,
+      "caretOffset": 11,
+      "selectionCollapsed": true
+    },
+    "scrollDelta": 0,
+    "lineBreakStored": true
+  }
+]

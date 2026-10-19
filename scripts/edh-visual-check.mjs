@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { WebSocket } from "undici";
 import { runSelectionWrappingCheck } from "./edh-selection-wrapping-check.mjs";
 import { runTableDeletionCheck } from "./edh-table-deletion-check.mjs";
+import { runTableLineBreakScrollCheck } from "./edh-table-line-break-scroll-check.mjs";
 import { runSelectionStrokeCheck } from "./edh-selection-stroke-check.mjs";
 import { edhLaunchFlags, edhSettings, resolveEdhExecutable } from "./edh-isolation.mjs";
 
@@ -61,7 +62,10 @@ const tableSelectionOutlineOnlyComplete = Symbol(
 await mkdir(qaDir, { recursive: true });
 await mkdir(extensionsDir, { recursive: true });
 await mkdir(path.join(userDataDir, "User"), { recursive: true });
-await writeFile(path.join(userDataDir, "User", "settings.json"), JSON.stringify(edhSettings));
+await writeFile(path.join(userDataDir, "User", "settings.json"), JSON.stringify({
+  ...edhSettings,
+  ...(process.argv.includes("--table-line-break-scroll-only") ? { "editor.scrollBeyondLastLine": false } : {}),
+}));
 const fixturePath = path.join(userDataDir, "TestTable.md");
 await writeFile(
   fixturePath,
@@ -330,6 +334,11 @@ try {
   }
 
   assertPixelParity(stockMetrics, liveMetrics);
+
+  if (process.argv.includes("--table-line-break-scroll-only")) {
+    await runTableLineBreakScrollCheck({ liveClient, wb, evaluateJson, captureWorkbenchScreenshot, qaDir });
+    throw borderOnlyComplete;
+  }
 
   if (process.argv.includes("--selection-stroke-only")) {
     await runSelectionStrokeCheck({ liveClient, wb, evaluateJson, qaDir });
