@@ -4,6 +4,7 @@ import { Compartment, EditorSelection, EditorState, Text } from "@codemirror/sta
 import { markdownParserExtensions, markdownRenderingParser } from "../editor/markdown/markdownSyntax";
 import { markdownFenceEntry, classifyMarkdownPreview, classifyMarkdownPreviewLayout, createMarkdownLivePreviewExtensions, markdownPreviewField, previewOwnerActive, codeBlockText, PreviewPart } from "../editor/markdown/markdownLivePreview";
 import { markdownListLine, planMarkdownListEdit } from "../editor/markdown/markdownListEditing";
+import { classifyMarkdownLists } from "../editor/markdown/markdownListStructure";
 import { getParsedTables } from "../shared/tableModel";
 import { markdownRenderTreeField, markdownRenderTree } from "../editor/markdown/markdownRenderTree";
 
@@ -117,10 +118,33 @@ assert.equal(apply('- hello', 'enter'), '- hello\n- ');
 assert.equal(apply('9. hello', 'enter'), '9. hello\n10. ');
 assert.equal(apply('- [x] done', 'enter'), '- [x] done\n- [ ] ');
 assert.equal(apply('- ', 'enter'), '');
+for (const [marker, next] of [['-', '-'], ['+', '+'], ['*', '*'], ['1.', '2.'], ['9.', '10.'], ['12)', '13)']]) {
+  const source = `Text directly above\n${marker} `;
+  assert.equal(apply(source, 'enter'), 'Text directly above\n', 'Enter exits an empty adjacent list without removing its source row');
+  assert.equal(apply(`${source}item`, 'enter'), `${source}item\n${next} `);
+  assert(!project(source).some(part => part.block), 'an empty list marker never creates a hidden heading row');
+}
 assert.equal(apply('- parent\n  - ', 'enter'), '- parent\n- ');
 assert.equal(apply('- parent\n  - child\n    - grandchild', 'indent', 17), '- parent\n    - child\n      - grandchild');
 assert.equal(apply('- parent\n  - child\n    - grandchild', 'outdent', 17), '- parent\n- child\n  - grandchild');
 assert.equal(apply('- text', 'backspace', 2), 'text');
+for (const marker of ['1.', '99.', '-', '- [ ]']) {
+  const source = `1. First item\n${marker}  `;
+  const position = source.length - 1;
+  assert.equal(apply(source, 'backspace', position), '1. First item\n', 'Backspace exits before carried trailing whitespace');
+  assert.equal(apply(source, 'enter', position), '1. First item\n', 'Enter exits before carried trailing whitespace');
+  assert.equal(apply(`${source}text`, 'backspace', position), '1. First item\ntext', 'removing the marker preserves item text');
+}
+assert.equal(apply('1. Parent\n   1.  ', 'backspace', 16), '1. Parent\n1.  ', 'a nested empty item outdents once');
+assert.equal(apply('> 1.  ', 'backspace', 5), '> ', 'a quoted empty item retains its quote prefix');
+assert.equal(planMarkdownListEdit(state('1.  ', 2), 'backspace'), null, 'Backspace inside a marker is ordinary source editing');
+for (const source of ['1. Parent\n2. Child', '99. Parent\n100. Child', '- [ ] Parent\n- [ ] Child', '> 1. Parent\n> 2. Child']) {
+  const position = source.indexOf('Child');
+  const nested = apply(source, 'indent', position);
+  assert.equal(apply(nested, 'outdent', nested.indexOf('Child')), source, 'one Tab/Shift Tab round trip');
+  const items = classifyMarkdownLists(text(nested), markdownRenderingParser.parse(nested), 4);
+  assert.equal(items[1].parent, items[0].from, 'one Tab makes the preceding item the parent');
+}
 assert.equal(planMarkdownListEdit(state('```\n- literal\n```', 12), 'enter'), null);
 assert.equal(planMarkdownListEdit(state('text'), 'indent'), null);
 const listSource = '- parent\n  - child'; const doc = text(listSource);

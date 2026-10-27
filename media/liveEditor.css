@@ -236,8 +236,14 @@ body,
   height: 8px;
   padding-top: 2px;
   margin: 0 0 0 0;
-  pointer-events: none;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: default;
 }
+
+.mlrt-table-scrollbar:focus-visible { outline: 1px solid var(--vscode-focusBorder); }
+.mlrt-table-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }
+.mlrt-table-scrollbar:active .mlrt-table-scrollbar-thumb { background: var(--vscode-scrollbarSlider-activeBackground); }
 
 .mlrt-table-scrollbar-thumb {
   height: 6px;

@@ -271,6 +271,15 @@ const signature = (snapshot: EditorState): string => {
     return result;
   }));
 };
+for (const before of ['Text directly above', '- First item\nText directly after', '- [ ] Task\n**Bold after task**']) {
+  let adjacent = makeRenderingState(`${before}\n`);
+  for (const insert of ['-', ' ', 'item', '\n', '-', ' ', '\n', 'ordinary text', '\n', '# Heading', '\n', '*italic*']) {
+    adjacent = adjacent.update({ changes: { from: adjacent.doc.length, insert } }).state;
+    assert.equal(signature(adjacent), signature(makeRenderingState(adjacent.doc.toString())),
+      'typing adjacent text and markers cannot leave stale heading styles or hidden rows');
+    assert(!adjacent.field(markdownPreviewField).parts.some(part => part.block), 'adjacent list rows never become hidden Setext delimiters');
+  }
+}
 let changing = makeRenderingState(changingSource), randomSeed = 743;
 for (let operation=0;operation<80;operation++) {
   randomSeed = (Math.imul(randomSeed,1664525)+1013904223)>>>0;

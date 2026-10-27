@@ -106,7 +106,7 @@ const MAX_TRACKED_CELL_HISTORIES = 512;
  *   live edit (annotated so decorations map instead of rebuilding),
  * - Cmd/Ctrl+Z/Y are handled against the per-cell history while the cell
  *   is focused,
- * - Enter commits and exits, Shift+Enter inserts a line break,
+ * - Enter commits and moves down the column, Shift+Enter inserts a line break,
  * - Tab/Shift+Tab and boundary arrow keys commit and move between cells.
  */
 export function bindTableEditing(
@@ -390,7 +390,12 @@ export function bindTableEditing(
     if (event.key === "Enter" && isPlainKey(event)) {
       event.preventDefault();
       event.stopPropagation();
-      exitCellToBoundary(view, currentTable, cell, "after");
+      const target = resolveVerticalCell(cell, 1);
+      if (target === "after-table" || target === "before-table") exitCellToBoundary(view, currentTable, cell, "after");
+      else {
+        commitCellEdit(view, currentTable, cell);
+        focusCellAfterRender(currentTable.from, target);
+      }
       return;
     }
 

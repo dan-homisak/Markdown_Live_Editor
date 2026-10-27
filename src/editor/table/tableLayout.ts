@@ -141,6 +141,52 @@ export function bindTableLayout(
   resizeObserver?.observe(tableScroll);
   tableScroll.addEventListener("scroll", syncScrollbar);
 
+  scrollbar.tabIndex = 0;
+  scrollbar.setAttribute("role", "scrollbar");
+  scrollbar.setAttribute("aria-label", "Scroll table horizontally");
+  scrollbar.setAttribute("aria-orientation", "horizontal");
+  let drag: { pointerId: number; x: number; left: number } | null = null;
+  const onPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0 || scrollbar.hidden) return;
+    event.preventDefault(); event.stopPropagation();
+    const track = scrollbar.getBoundingClientRect(), thumb = scrollbarThumb.getBoundingClientRect();
+    const max = Math.max(0, tableScroll.scrollWidth - tableScroll.clientWidth);
+    const travel = Math.max(1, track.width - thumb.width);
+    if (!scrollbarThumb.contains(event.target as Node))
+      tableScroll.scrollLeft = Math.max(0, Math.min(max, (event.clientX - track.left - thumb.width / 2) / travel * max));
+    drag = { pointerId: event.pointerId, x: event.clientX, left: tableScroll.scrollLeft };
+    scrollbar.setPointerCapture(event.pointerId);
+    syncScrollbar();
+  };
+  const onPointerMove = (event: PointerEvent): void => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const travel = scrollbar.getBoundingClientRect().width - scrollbarThumb.getBoundingClientRect().width;
+    const max = Math.max(0, tableScroll.scrollWidth - tableScroll.clientWidth);
+    if (travel > 0) tableScroll.scrollLeft = drag.left + (event.clientX - drag.x) / travel * max;
+    event.preventDefault(); syncScrollbar();
+  };
+  const finishDrag = (event: PointerEvent): void => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    drag = null;
+    if (scrollbar.hasPointerCapture(event.pointerId)) scrollbar.releasePointerCapture(event.pointerId);
+  };
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const max = Math.max(0, tableScroll.scrollWidth - tableScroll.clientWidth);
+    const target = event.key === "Home" ? 0 : event.key === "End" ? max
+      : event.key === "ArrowLeft" ? tableScroll.scrollLeft - 40 : event.key === "ArrowRight" ? tableScroll.scrollLeft + 40
+      : event.key === "PageUp" ? tableScroll.scrollLeft - tableScroll.clientWidth
+      : event.key === "PageDown" ? tableScroll.scrollLeft + tableScroll.clientWidth : null;
+    if (target === null) return;
+    event.preventDefault(); event.stopPropagation(); tableScroll.scrollLeft = target; syncScrollbar();
+  };
+  scrollbar.addEventListener("pointerdown", onPointerDown);
+  scrollbar.addEventListener("pointermove", onPointerMove);
+  scrollbar.addEventListener("pointerup", finishDrag);
+  scrollbar.addEventListener("pointercancel", finishDrag);
+  scrollbar.addEventListener("lostpointercapture", finishDrag);
+  scrollbar.addEventListener("keydown", onKeyDown);
+
   scheduleDeferredLayout();
   setTableWidgetCleanup(wrapper, () => {
     if (pendingAnimationFrame !== 0) {
@@ -149,6 +195,12 @@ export function bindTableLayout(
     }
     resizeObserver?.disconnect();
     tableScroll.removeEventListener("scroll", syncScrollbar);
+    scrollbar.removeEventListener("pointerdown", onPointerDown);
+    scrollbar.removeEventListener("pointermove", onPointerMove);
+    scrollbar.removeEventListener("pointerup", finishDrag);
+    scrollbar.removeEventListener("pointercancel", finishDrag);
+    scrollbar.removeEventListener("lostpointercapture", finishDrag);
+    scrollbar.removeEventListener("keydown", onKeyDown);
   });
   // Direct table edits call this returned function after mutating cell text.
   // Resolve their wrapping height in the same event turn so native prose
@@ -380,6 +432,9 @@ function syncTableScrollbar(
     tableScroll.scrollWidth - tableScroll.clientWidth,
   );
   const hasOverflow = maxScrollLeft > 1;
+  scrollbar.setAttribute("aria-valuemin", "0");
+  scrollbar.setAttribute("aria-valuemax", String(Math.round(maxScrollLeft)));
+  scrollbar.setAttribute("aria-valuenow", String(Math.round(tableScroll.scrollLeft)));
   scrollbar.hidden = !hasOverflow;
   if (!hasOverflow) {
     if (tableScroll.scrollLeft !== 0) {

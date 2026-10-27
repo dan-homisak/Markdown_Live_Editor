@@ -31,12 +31,30 @@ export function createTableCellFocusClassSync(): Extension {
     class {
       public decorations: DecorationSet;
       private readonly syncFocusClass: () => void;
+      private readonly restoreClickFocus: (event: MouseEvent) => void;
       private recheckScheduled = false;
 
       public constructor(private readonly view: EditorView) {
         this.decorations = createProseActiveLineDecoration(view);
         this.syncFocusClass = () => this.sync();
         const doc = view.dom.ownerDocument;
+        this.restoreClickFocus = (event) => {
+          const target = event.target as Element | null;
+          if (event.button !== 0 || !target?.closest ||
+              !target.closest(".cm-line, .cm-content, .cm-scroller") ||
+              target.closest('.mlrt-table-widget, [contenteditable="false"], button, a, input, textarea, select')) return;
+          // An activating click can finish with the embedded document focused
+          // but its editable element blurred. Let normal mouse selection finish
+          // first, then restore its focus without changing the clicked range.
+          queueMicrotask(() => {
+            if (!event.defaultPrevented && view.dom.isConnected && doc.hasFocus() &&
+                (doc.activeElement === doc.body || doc.activeElement === doc.documentElement)) {
+              view.focus();
+              this.sync();
+            }
+          });
+        };
+        view.dom.addEventListener("click", this.restoreClickFocus);
         doc.addEventListener("focusin", this.syncFocusClass, true);
         doc.addEventListener("focusout", this.syncFocusClass, true);
         doc.addEventListener(
@@ -58,6 +76,7 @@ export function createTableCellFocusClassSync(): Extension {
 
       public destroy(): void {
         const doc = this.view.dom.ownerDocument;
+        this.view.dom.removeEventListener("click", this.restoreClickFocus);
         doc.removeEventListener("focusin", this.syncFocusClass, true);
         doc.removeEventListener("focusout", this.syncFocusClass, true);
         doc.removeEventListener(
