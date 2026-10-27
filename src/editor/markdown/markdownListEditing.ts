@@ -1,10 +1,18 @@
 import { syntaxTree } from "@codemirror/language";
+import { deleteCharForward } from "@codemirror/commands";
 import { EditorSelection, EditorState, Extension, Prec, Text, TransactionSpec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { SyntaxNode, Tree } from "@lezer/common";
 import { getParsedTables } from "../../shared/tableModel";
 import { getDocumentSelectionProjection } from "../documentSelectionState";
 import { MarkdownRange } from "./markdownSyntax";
+import { classifyMarkdownLists } from "./markdownListStructure";
+
+function columns(text: string, tabSize: number, start = 0): number {
+  let column = start;
+  for (const character of text) column += character === "\t" ? tabSize - column % tabSize : 1;
+  return column;
+}
 
 export interface ListLine {
   from: number; to: number; itemTo: number;
@@ -33,13 +41,22 @@ export function markdownListLine(doc: Text, tree: Tree, position: number, tables
     task: match[5] ?? "", contentFrom: line.from + match[0].length };
 }
 
+function atContentStart(doc: Text, item: ListLine, position: number): boolean {
+  // Enter can carry existing trailing whitespace after the new marker, leaving
+  // the caret between its required space and those extra spaces. It is still
+  // at the item-text boundary, even though contentFrom skips all whitespace.
+  return position === item.contentFrom ||
+    (position > item.from && position < item.contentFrom &&
+      /^[ \t]+$/u.test(doc.sliceString(position - 1, item.contentFrom)));
+}
+
 export function planMarkdownListEdit(state: EditorState, action: "enter" | "indent" | "outdent" | "backspace"): TransactionSpec | null {
   if (state.readOnly || state.selection.ranges.length !== 1) return null;
   const selection = state.selection.main, doc = state.doc, tree = syntaxTree(state), tables = getParsedTables(doc);
   const item = markdownListLine(doc, tree, selection.head, tables);
   if (!item) return null;
   if (action === "enter") {
-    if (!selection.empty || selection.head < item.contentFrom) return null;
+    if (!selection.empty || (selection.head < item.contentFrom && !atContentStart(doc, item, selection.head))) return null;
     if (!doc.sliceString(item.contentFrom, item.to).trim()) {
       if (item.indent) return planMarkdownListEdit(state, "outdent");
       return { changes: { from: item.from + item.prefix.length, to: item.contentFrom, insert: "" },
@@ -50,7 +67,7 @@ export function planMarkdownListEdit(state: EditorState, action: "enter" | "inde
     const insert = `\n${item.prefix}${item.indent}${next} ${item.task ? "[ ] " : ""}`;
     return { changes: { from: selection.head, insert }, selection: { anchor: selection.head + insert.length }, userEvent: "input.list" };
   }
-  if (action === "backspace" && (!selection.empty || selection.head !== item.contentFrom)) return null;
+  if (action === "backspace" && (!selection.empty || !atContentStart(doc, item, selection.head))) return null;
   const outdent = action === "outdent" || action === "backspace";
   // At an unindented item start Backspace removes its structural prefix once.
   if (outdent && !item.indent) return action === "backspace" ? {
@@ -66,17 +83,34 @@ export function planMarkdownListEdit(state: EditorState, action: "enter" | "inde
       if (line.text.trim() && !markdownListLine(doc, tree, line.from + line.text.length, tables)) return null;
     }
   }
-  const unit = item.indent.includes("\t") ? "\t" : "  ";
-  const remove = item.indent.startsWith("\t") ? 1 : Math.min(2, item.indent.length);
+  const items = classifyMarkdownLists(doc, tree, state.tabSize);
+  const first = items.find(candidate => candidate.lineFrom === doc.line(firstLine).from);
+  const parent = items.find(candidate => candidate.from === first?.parent);
+  const preceding = items.filter(candidate => first && candidate.from < first.from && candidate.parent === first.parent).at(-1);
+  const precedingLine = preceding && markdownListLine(doc, tree, preceding.from, tables);
+  // A numbered parent's content starts after its complete number and space.
+  // Two spaces alone leave a child of "1. " as a sibling. Task checkboxes,
+  // however, are content and do not increase the required Markdown indent.
+  const parentContentColumn = precedingLine && columns(doc.sliceString(precedingLine.from,
+    precedingLine.contentFrom - precedingLine.task.length), state.tabSize);
+  const indentBy = Math.max(2, (parentContentColumn ?? 0) - (first?.columns ?? 0));
+  const outdentBy = first && parent ? first.columns - parent.columns : 2;
   const changes: { from: number; to: number; insert: string }[] = [];
   for (let number = firstLine; number <= lastLine; number++) {
     const line = doc.line(number);
     if (tables.some(table => table.from < line.to && table.to > line.from)) return null;
     const quote = /^(?:[ \t]*>[ \t]?)*/u.exec(line.text)?.[0] ?? "";
     const from = line.from + quote.length;
-    const available = /^[ \t]*/u.exec(line.text.slice(quote.length))?.[0].length ?? 0;
-    if (!outdent) changes.push({ from, to: from, insert: unit });
-    else if (available) changes.push({ from, to: from + Math.min(remove, available), insert: "" });
+    const available = /^[ \t]*/u.exec(line.text.slice(quote.length))?.[0] ?? "";
+    if (!outdent) changes.push({ from, to: from, insert: " ".repeat(indentBy) });
+    else if (available) {
+      const base = columns(quote, state.tabSize);
+      let count = 0, removed = 0;
+      while (count < available.length && removed < outdentBy) {
+        removed = columns(available.slice(0, ++count), state.tabSize, base) - base;
+      }
+      changes.push({ from, to: from + count, insert: " ".repeat(Math.max(0, removed - outdentBy)) });
+    }
   }
   const set = state.changes(changes);
   return { changes: set, selection: state.selection.map(set), userEvent: "input.list" };
@@ -100,11 +134,34 @@ function vertical(view: EditorView, forward: boolean): boolean {
   if (!ownsSource(view) || !view.state.selection.main.empty || view.state.selection.ranges.length !== 1) return false;
   const current = view.state.selection.main, next = view.moveVertically(current, forward);
   const list = markdownListLine(view.state.doc, syntaxTree(view.state), next.head, getParsedTables(view.state.doc));
-  if (!list || next.head >= list.contentFrom) return false;
+  const currentList = markdownListLine(view.state.doc, syntaxTree(view.state), current.head, getParsedTables(view.state.doc));
+  if (!list && !currentList) return false;
   // Clamp only when vertical motion would land in indentation/markers. Preserve
   // the preferred visual column for the following movement and wrapped rows.
-  view.dispatch({ selection: EditorSelection.cursor(list.contentFrom, next.assoc, next.bidiLevel ?? undefined, next.goalColumn),
+  // Always dispatch the measured result for list motion. Falling back to the
+  // browser discards the wrap association and can land before a trailing space.
+  view.dispatch({ selection: EditorSelection.create([EditorSelection.cursor(Math.max(next.head, list?.contentFrom ?? next.head), next.assoc, next.bidiLevel ?? undefined, next.goalColumn)]),
     scrollIntoView: true, userEvent: "select" }); return true;
+}
+function end(view: EditorView, extend = false): boolean {
+  if (!ownsSource(view) || view.state.selection.ranges.length !== 1) return false;
+  const current = view.state.selection.main;
+  const list = markdownListLine(view.state.doc, syntaxTree(view.state), current.head, getParsedTables(view.state.doc));
+  if (!list) return false;
+  const next = view.moveToLineBoundary(current, true, true);
+  const head = Math.max(next.head, list.contentFrom);
+  view.dispatch({ selection: EditorSelection.create([extend ? EditorSelection.range(current.anchor, head, undefined, undefined, next.assoc)
+    : EditorSelection.cursor(head, next.assoc)]), scrollIntoView: true, userEvent: "select" });
+  return true;
+}
+function deleteListBoundary(view: EditorView): boolean {
+  if (!ownsSource(view) || !view.state.selection.main.empty || view.state.readOnly) return false;
+  const head = view.state.selection.main.head, line = view.state.doc.lineAt(head);
+  if (head !== line.to || head === view.state.doc.length ||
+      !markdownListLine(view.state.doc, syntaxTree(view.state), head, getParsedTables(view.state.doc))) return false;
+  // Join source rows in a transaction instead of allowing contenteditable to
+  // merge two hanging-indent DOM blocks and temporarily import their styling.
+  return deleteCharForward(view);
 }
 function home(view: EditorView): boolean {
   if (!ownsSource(view) || !view.state.selection.main.empty) return false;
@@ -120,10 +177,12 @@ export function createMarkdownListEditing(readOnly = false): Extension {
     { key: "ArrowUp", run: view => vertical(view, false) },
     { key: "ArrowDown", run: view => vertical(view, true) },
     { key: "Home", run: home },
+    { key: "End", run: view => end(view), shift: view => end(view, true) },
   ]), Prec.high(keymap.of([
     { key: "Enter", run: mutate("enter") },
     { key: "Tab", run: mutate("indent"), shift: mutate("outdent") },
     { key: "Mod-[", run: mutate("outdent") }, { key: "Mod-]", run: mutate("indent") },
     { key: "Backspace", run: mutate("backspace") },
+    { key: "Delete", run: readOnly ? () => false : deleteListBoundary },
   ]))];
 }

@@ -231,4 +231,45 @@ export async function runListStructureChecks({check, liveEval, select, screensho
     assert(Math.abs(after.top-after.parentBottom)<=0.5,JSON.stringify(after));
     await restore();return {geometry,after};
   });
+  await check('list structure: typing directly below text preserves bullets, Enter and every gutter row', async () => {
+    const above='Text directly above';
+    await writeFixture(above+'\n');await select(above.length+1);
+    const rows=()=>liveEval(`return {lines:[...view.contentDOM.querySelectorAll('.cm-line')].map(el=>({text:el.textContent,y:el.getBoundingClientRect().y,height:el.getBoundingClientRect().height})),gutters:[...root.querySelectorAll('.cm-lineNumbers .cm-gutterElement')].filter(el=>el.style.visibility!=='hidden').map(el=>Number(el.textContent)),headings:root.querySelectorAll('.mlrt-markdown-role-heading').length,bullets:root.querySelectorAll('.mlrt-list-bullet-row').length};`);
+    const observations=[];
+    for(const text of ['-',' ']) {
+      await send('Input.insertText',{text});await sleep(180);
+      const state=await rows();observations.push(state);
+      assert.equal(state.headings,0,'typing a marker must not restyle the preceding text');
+      assert.equal(state.bullets,1);assert.deepEqual(state.gutters,[1,2]);assert.equal(state.lines.length,2);
+    }
+    await screenshot('lists-adjacent-empty-bullet');
+    await send('Input.insertText',{text:'item'});await key('Enter','Enter',13);await sleep(150);
+    assert.equal(await liveEval('return view.state.doc.toString();'),above+'\n- item\n- ');
+    let state=await rows();assert.deepEqual(state.gutters,[1,2,3]);assert.equal(state.lines.length,3);
+    assert.equal(state.bullets,2);await screenshot('lists-adjacent-enter');
+    await key('Enter','Enter',13);await sleep(150);
+    assert.equal(await liveEval('return view.state.doc.toString();'),above+'\n- item\n');
+    state=await rows();assert.deepEqual(state.gutters,[1,2,3]);assert.equal(state.lines.length,3);
+    await send('Input.insertText',{text:'Text directly after the list'});await sleep(180);
+    state=await rows();assert.equal(state.headings,0);assert.deepEqual(state.gutters,[1,2,3]);
+    assert.equal(state.lines[2].text,'Text directly after the list');
+    assert.equal(await liveEval('return root.querySelectorAll(".mlrt-list-guide").length;'),0,'following plain text is outside the list');
+    await screenshot('lists-adjacent-plain-text');observations.push(state);
+    // External fixture writes reload only clean documents. Save the native
+    // typing above before restoring the next case's on-disk source.
+    await key('s','KeyS',83,process.platform==='darwin'?4:2);await sleep(250);
+    await restore();return {observations};
+  });
+  await check('list structure: adjacent formatting and dedented text stay outside folded lists', async () => {
+    const adjacent=['Text above','- Parent','  - Child','**Bold after list**','*Italic*','`inline code`','9. Ordered','Plain after ordered','- [ ] Task','Plain after task','# Heading','> Quote','# After quote','- Final'].join('\n');
+    await writeFixture(adjacent);await select(adjacent.length);
+    const before=await gutter();assert.deepEqual(before.rows,Array.from({length:14},(_,i)=>i+1));
+    const fold=await liveEval(`const button=root.querySelector('[data-list-from="${adjacent.indexOf('- Parent')}"]');if(!button)throw Error('Missing parent fold');const r=button.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};`);
+    await send('Input.dispatchMouseEvent',{type:'mousePressed',...fold,button:'left',clickCount:1});
+    await send('Input.dispatchMouseEvent',{type:'mouseReleased',...fold,button:'left',clickCount:1});await sleep(180);
+    const content=await visible();assert(!content.includes('Child'));
+    for(const label of ['Bold after list','Italic','inline code','Plain after ordered','Plain after task','Heading','Final'])assert(content.includes(label),label);
+    const after=await gutter();assert.deepEqual(after.rows,before.rows.filter(number=>number!==3));
+    await screenshot('lists-adjacent-folded');await restore();return {before,after};
+  });
 }

@@ -39,4 +39,20 @@ for (const doc of ['1. Parent\n   - Mixed\n     - Deep', '- [ ] Parent\n  - [x] 
   state = fold(create(doc), doc.indexOf(doc.trimStart()));
   assert.equal(state.field(markdownListField).hidden[0].to, doc.length, 'ordered, task, tab and empty descendants fold through EOF');
 }
+for (const marker of ['-', '+', '*', '2.', '12)', '- [ ]', '- [x]']) {
+  for (const after of ['ordinary text', '**bold**', '*italic*', '`code`', '[link](./target.md)', '# Heading', '> Quote', '- next']) {
+    const doc = `Before\n${marker} item\n${after}`;
+    state = fold(create(doc), doc.indexOf(marker));
+    assert.equal(state.field(markdownListField).items[0].to, doc.indexOf('\n', doc.indexOf(marker)),
+      `${after} begins its own row after ${marker} without a blank separator`);
+    assert.equal(state.field(markdownListField).hidden.length, 0, 'a following independent row cannot be folded into the list');
+  }
+}
+for (const doc of ['- Parent\n  - Child\nAfter', '- Parent\n\t- Child\nAfter', '10. Parent\n    - Child\nAfter', '> - Parent\n>   - Child\n> After']) {
+  state = fold(create(doc), doc.startsWith('>') ? 2 : 0);
+  assert.equal(state.field(markdownListField).hidden[0].to, doc.lastIndexOf('\n'), 'folding stops before an unindented row, including quoted and tab-indented lists');
+}
+state = create('- Parent\n  - Child\n  Parent continuation\nAfter');
+assert.deepEqual(state.field(markdownListField).items.map(item => item.to), [state.doc.line(3).to, state.doc.line(2).to],
+  'dedenting a child restores parent ownership without requiring a blank row');
 console.log('Markdown list structure tests passed.');

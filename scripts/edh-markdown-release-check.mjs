@@ -24,6 +24,7 @@ const selectionBackgroundOnly = process.argv.includes("--selection-background-on
 const livePreviewOnly = fenceNavigationOnly || selectionBackgroundOnly || process.argv.includes("--live-preview-only");
 const nestedGuideOnly = process.argv.includes("--nested-guide-only");
 const listsOnly = process.argv.includes("--lists-only");
+const interactionBugsOnly = process.argv.includes("--interaction-bugs-only");
 const largeListMetrics = listsOnly && process.argv.includes("--large-metrics");
 const measureDiagnostic = process.argv.includes("--measure-diagnostic-only");
 const paintOnly = process.argv.includes("--paint-only") || measureDiagnostic;
@@ -75,7 +76,7 @@ const env = { ...process.env, ELECTRON_NO_ATTACH_CONSOLE: "1" };
 for (const key of Object.keys(env)) if (key.startsWith("npm_") || ["NODE_OPTIONS", "ELECTRON_RUN_AS_NODE"].includes(key)) delete env[key];
 const child = spawn(code, [...edhLaunchFlags, `--extensionDevelopmentPath=${repo}`, `--user-data-dir=${profile}`,
   `--extensions-dir=${extensions}`, `--remote-debugging-port=${port}`, "--new-window", "--disable-workspace-trust",
-  "--skip-release-notes", "--skip-welcome", fixture], { stdio: ["ignore", "pipe", "pipe"], env, windowsHide: true });
+  "--skip-release-notes", "--skip-welcome", fixture], { stdio: ["ignore", "pipe", "pipe"], env, windowsHide: !process.argv.includes('--keep-open') });
 let launchOutput = '';
 child.stdout.on('data', data => { launchOutput += data; });
 child.stderr.on('data', data => { launchOutput += data; });
@@ -169,6 +170,9 @@ async function sample(position) {
   return liveEval(`const pos=${position},a=view.domAtPos(pos,1),b=view.domAtPos(pos+1,-1),r=root.createRange();r.setStart(a.node,a.offset);r.setEnd(b.node,b.offset);const box=r.getBoundingClientRect(),el=a.node.nodeType===3?a.node.parentElement:a.node,css=win.getComputedStyle(el),line=el.closest('.cm-line');return {position:pos,text:r.toString(),classes:el.className,line:line?.textContent,lineClasses:line?.className,fontSize:css.fontSize,fontFamily:css.fontFamily,lineHeight:css.lineHeight,fontWeight:css.fontWeight,fontStyle:css.fontStyle,color:css.color,background:css.backgroundColor,decoration:css.textDecorationLine,x:box.x,y:box.y,height:box.height};`);
 }
 async function check(name, action) {
+  const caseFilter = process.argv.find(arg => arg.startsWith('--case='))?.slice(7);
+  if (caseFilter && !name.includes(caseFilter)) return;
+  if (interactionBugsOnly && !name.startsWith("interaction bugs:")) return;
   if (selectionBackgroundOnly && !name.startsWith("live preview: selections preserve block backgrounds")) return;
   if (propertiesOnly && !name.startsWith("properties:")) return;
   if (listsOnly && !name.startsWith("list structure:")) return;
@@ -227,6 +231,14 @@ try {
     const { runListStructureChecks } = await import('./edh-list-structure-cases.mjs');
     await runListStructureChecks({ check, liveEval, select, screenshot, writeFixture, sleep,
       send: (method, params) => live.send(method, params), key: (...args) => key(live, ...args) });
+    await writeFixture(text);
+  }
+
+  if (interactionBugsOnly) {
+    const { runInteractionBugChecks } = await import('./edh-interaction-bug-cases.mjs');
+    await runInteractionBugChecks({ check, liveEval, select, screenshot, writeFixture, sleep, waitFor,
+      send: (method, params) => live.send(method, params), key: (...args) => key(live, ...args),
+      workbench: expression => evaluate(wb, expression) });
     await writeFixture(text);
   }
 
@@ -476,7 +488,7 @@ try {
     await writeFile(path.join(qa,`edh-markdown-paint-results${measureDiagnostic?'-measure-diagnostic':''}.json`),JSON.stringify(metrics,null,2));
     return {fixtures:metrics.fixtures.map(fixture=>({lineCount:fixture.lineCount,enabled:fixture.enabled,classes:Object.fromEntries(Object.entries(fixture.classes).map(([name,value])=>[name,value.firstPaintOpportunity]))})),acknowledgedEdits:metrics.acknowledgedEdits?.acknowledgement};
   });
-  if (!propertiesOnly && !codeOnly && !livePreviewOnly && !nestedGuideOnly && !paintOnly && !listsOnly) {
+  if (!propertiesOnly && !codeOnly && !livePreviewOnly && !nestedGuideOnly && !paintOnly && !listsOnly && !interactionBugsOnly) {
     const { runMarkdownScrollChecks } = await import('./edh-markdown-scroll-cases.mjs');
     await runMarkdownScrollChecks({ check, liveEval, liveClient: live, writeFixture, select, sleep, screenshot, palette, text });
   }
@@ -487,9 +499,15 @@ finally {
   report.launchOutput = launchOutput;
   report.passed = checks.length > 0 && checks.every(check => check.pass) && !(report.console?.length);
   const reportName=`edh-markdown-release-results${propertiesOnly ? "-properties" : listsOnly ? largeListMetrics ? "-lists-20px" : "-lists" : scrollOnly ? "-scroll" : fenceNavigationOnly ? "-fence-navigation" : selectionBackgroundOnly ? "-selection-background" : livePreviewOnly ? "-live-preview" : nestedGuideOnly ? "-nested-guides" : codeOnly ? "-code-diagnostic" : measureDiagnostic ? "-measure-diagnostic" : paintOnly ? "-paint" : ""}.json`;
-  const savedReportName = reportName.replace(/\.json$/, `${themeSuffix}.json`);
+  const savedReportName = reportName.replace(/\.json$/, `${interactionBugsOnly ? '-interaction-bugs' : ''}${themeSuffix}.json`);
   await writeFile(path.join(qa, savedReportName), JSON.stringify(report, null, 2));
-  for (const client of clients) client.socket.close(); child.kill();
+  for (const client of clients) client.socket.close();
+  if (process.argv.includes('--keep-open')) {
+    console.log(`Isolated EDH ready for inspection at port ${port}; send a newline to close it.`);
+    await new Promise(resolve => process.stdin.once('data', resolve));
+    process.stdin.pause();
+  }
+  child.kill();
   console.log(`Saved qa/${savedReportName}; ${checks.filter(check => check.pass).length}/${checks.length} checks passed.`);
   if (!report.passed) process.exitCode = 1;
 }

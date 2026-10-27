@@ -10006,8 +10006,8 @@ function tableEnterExitExpression() {
       resolve(JSON.stringify({ ok: false, reason: 'missing table cell' }));
       return;
     }
-    const cell = root.querySelector('.mlrt-table-cell[data-row-kind="body"][data-column="1"]');
     const wrapper = root.querySelector('.mlrt-table-widget');
+    const cell = [...wrapper.querySelectorAll('.mlrt-table-cell[data-row-kind="body"][data-column="1"]')].at(-1);
     const view = root.defaultView.__MLRT_EDITOR_VIEW__;
     const expectedActiveLineGutterText = (() => {
       if (!wrapper || !view) {

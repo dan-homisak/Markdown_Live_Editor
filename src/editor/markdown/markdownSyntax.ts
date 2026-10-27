@@ -9,6 +9,7 @@ import {
 import { markdownFrontmatterParserExtension } from "./markdownBlockSyntax";
 import { markdownWikiExtension } from "./markdownWikiSyntax";
 import { markdownStandardSyntax } from "./markdownStandardSyntax";
+import { markdownLineBoundaries } from "./markdownLineBoundaries";
 
 /** Tables deliberately keep their existing parser and interaction owner. */
 export const markdownParserExtensions: readonly MarkdownExtension[] = [
@@ -18,6 +19,7 @@ export const markdownParserExtensions: readonly MarkdownExtension[] = [
   markdownFrontmatterParserExtension,
   markdownWikiExtension,
   markdownStandardSyntax,
+  markdownLineBoundaries,
 ];
 
 /** For on-demand source actions and tests; the view uses its own syntaxTree. */

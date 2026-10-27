@@ -1,6 +1,6 @@
 {
-  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-eQ4xd7",
-  "port": 61026,
+  "profile": "C:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-ginLQT",
+  "port": 50214,
   "checks": [
     {
       "name": "list structure: hover controls, blue guide and unchanged layout",
@@ -382,6 +382,123 @@
           "parentBottom": 75.5999984741211
         }
       }
+    },
+    {
+      "name": "list structure: typing directly below text preserves bullets, Enter and every gutter row",
+      "pass": true,
+      "detail": {
+        "observations": [
+          {
+            "lines": [
+              {
+                "text": "Text directly above",
+                "y": 0,
+                "height": 18.899999618530273
+              },
+              {
+                "text": "-",
+                "y": 18.899999618530273,
+                "height": 18.899999618530273
+              }
+            ],
+            "gutters": [
+              1,
+              2
+            ],
+            "headings": 0,
+            "bullets": 1
+          },
+          {
+            "lines": [
+              {
+                "text": "Text directly above",
+                "y": 0,
+                "height": 18.899999618530273
+              },
+              {
+                "text": "- ",
+                "y": 18.899999618530273,
+                "height": 18.899999618530273
+              }
+            ],
+            "gutters": [
+              1,
+              2
+            ],
+            "headings": 0,
+            "bullets": 1
+          },
+          {
+            "lines": [
+              {
+                "text": "Text directly above",
+                "y": 0,
+                "height": 18.899999618530273
+              },
+              {
+                "text": "- item",
+                "y": 18.899999618530273,
+                "height": 18.899999618530273
+              },
+              {
+                "text": "Text directly after the list",
+                "y": 37.79999923706055,
+                "height": 18.899999618530273
+              }
+            ],
+            "gutters": [
+              1,
+              2,
+              3
+            ],
+            "headings": 0,
+            "bullets": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "list structure: adjacent formatting and dedented text stay outside folded lists",
+      "pass": true,
+      "detail": {
+        "before": {
+          "width": 68.32500457763672,
+          "rows": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        "after": {
+          "width": 68.32500457763672,
+          "rows": [
+            1,
+            2,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        }
+      }
     }
   ],
   "environment": {
@@ -400,6 +517,6 @@
   ],
   "finalSourceMatches": true,
   "console": [],
-  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:61026/devtools/browser/d068b1f6-543b-4c9d-aa55-fd1670885794\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-14T23:02:30.544Z] [node-compile-cache] main: packaged cache inactive (status: missing, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\7baac39ec3\\resources\\app\\node-compile-cache\\main, active: none)\n[main 2026-10-14T23:02:30.570Z] StorageMainService: creating application shared storage\n[main 2026-10-14T23:02:30.594Z] Error: Error mutex already exists\n    at ea.installMutex (file:///C:/Users/thema/AppData/Local/Programs/Microsoft%20VS%20Code/16507d91be/resources/app/out/mainImpl.js:159:30240)\n[main 2026-10-14T23:02:30.598Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-14T23:02:30.598Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-eQ4xd7\\User\\globalStorage\\state.vscdb)\n[main 2026-10-14T23:02:30.613Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-14T23:02:31.286Z] update#setState idle\n[main 2026-10-14T23:02:31.303Z] AgentHostProcessManager: agent host started\n[main 2026-10-14T23:02:31.594Z] [AgentHost:stderr] (node:33584) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\n(node:3704) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n[main 2026-10-14T23:03:01.311Z] update#setState checking for updates\n[main 2026-10-14T23:03:01.382Z] update#setState idle\n",
+  "launchOutput": "\r\n\r\nDevTools listening on ws://127.0.0.1:50214/devtools/browser/9c037de1-6d4c-4b28-a973-e02eccfcf925\r\nWarning: 'remote-debugging-port' is not in the list of known options, but still passed to Electron/Chromium.\n[main 2026-10-27T04:16:46.438Z] [node-compile-cache] main: packaged cache inactive (status: missing, configured: C:\\Users\\thema\\AppData\\Local\\Programs\\Microsoft VS Code\\16507d91be\\resources\\app\\node-compile-cache\\main, active: none)\n[main 2026-10-27T04:16:46.461Z] StorageMainService: creating application shared storage\n[main 2026-10-27T04:16:46.505Z] [shared storage] Creating shared storage database at 'c:\\Users\\thema\\.vscode-shared\\sharedStorage\\state.vscdb' (wasCreated: false)\n[main 2026-10-27T04:16:46.505Z] [shared storage] Initializing fallback application storage (path: c:\\Users\\thema\\AppData\\Local\\Temp\\mlrt-release-edh-ginLQT\\User\\globalStorage\\state.vscdb)\n[main 2026-10-27T04:16:46.519Z] [shared storage] Fallback application storage initialized with 3 items\n[main 2026-10-27T04:16:46.521Z] update#setState disabled\n[main 2026-10-27T04:16:46.521Z] update#ctor - updates are disabled by the environment\n[main 2026-10-27T04:16:47.254Z] AgentHostProcessManager: agent host started\n[main 2026-10-27T04:16:47.508Z] [AgentHost:stderr] (node:16820) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `Code --trace-deprecation ...` to show where the warning was created)\n\nUnknown channel: agentHostClientByokLm\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\nUnknown channel: agentHostClientProxy\n",
   "passed": true
 }
