@@ -1,3 +1,4 @@
+import { TableShortcuts, DEFAULT_TABLE_SHORTCUTS } from "../shared/keyboardBinding";
 import { history } from "@codemirror/commands";
 import { Compartment, Extension } from "@codemirror/state";
 import {
@@ -33,12 +34,14 @@ import {
   createTableNavigationKeyTracker,
   tableNavigationModifierCompartment,
   tableNavigationModifierFacet,
+  tableShortcutsFacet,
 } from "./tableNavigation";
 
 export interface LiveEditorOptions {
   lineWrapping: boolean;
   lineHighlight?: boolean;
   tableNavigationModifierKey: TableNavigationModifierKey;
+  tableShortcuts?: TableShortcuts;
   markdownRendering?: MarkdownRenderingOptions;
 }
 
@@ -94,7 +97,8 @@ export function createLiveEditorExtensions(
       options.lineWrapping ? EditorView.lineWrapping : [],
     ),
     tableNavigationModifierCompartment.of(
-      tableNavigationModifierFacet.of(options.tableNavigationModifierKey),
+      [tableNavigationModifierFacet.of(options.tableNavigationModifierKey),
+        tableShortcutsFacet.of(options.tableShortcuts ?? DEFAULT_TABLE_SHORTCUTS)],
     ),
     createTableDecorations(tableHeightEstimateMetrics),
   ];

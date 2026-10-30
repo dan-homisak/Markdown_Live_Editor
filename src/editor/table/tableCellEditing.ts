@@ -1,3 +1,6 @@
+import { keyboardBindingMatches, TableShortcuts } from "../../shared/keyboardBinding";
+import { insertTableRowEdit, insertTableColumnEdit, prependTableHeaderRowEdit } from "../../shared/tableStructureEdits";
+import { applyTableMutation } from "./tableMutation";
 import { EditorSelection, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { planMarkdownSelectionWrap } from "../../shared/markdownSelectionWrapping";
@@ -54,6 +57,7 @@ import { syncTableSourceMetadata } from "./tableCellMetadata";
 import {
   isTableNavigationModifierHeld,
   tableNavigationModifierFacet,
+  tableShortcutsFacet,
 } from "../tableNavigation";
 
 /** Event dispatched whenever a cell edit writes to the document source. */
@@ -249,17 +253,10 @@ export function bindTableEditing(
       return;
     }
 
-    if (!event.defaultPrevented && !event.ctrlKey && !event.metaKey && !event.altKey &&
-        wrapCellSelection(cell, event.key)) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-
     const tableNavigationModifier = view.state.facet(
       tableNavigationModifierFacet,
     );
-    if (event.key === tableNavigationModifier && isPlainKey(event)) {
+    if (keyboardBindingMatches(tableNavigationModifier, event)) {
       // The document-level tracker has already recorded the key in capture
       // phase. Keep its ordinary VS Code command from stealing focus while it
       // is acting as a held cell-navigation modifier.
@@ -271,10 +268,10 @@ export function bindTableEditing(
     const directCellDirection = tableCellArrowDirection(event.key);
     if (
       directCellDirection &&
-      isPlainKey(event) &&
       isTableNavigationModifierHeld(
         wrapper.ownerDocument,
         tableNavigationModifier,
+        event,
       )
     ) {
       event.preventDefault();
@@ -292,6 +289,36 @@ export function bindTableEditing(
       }
       commitCellEdit(view, currentTable, cell);
       focusCellAfterRender(currentTable.from, target);
+      return;
+    }
+
+    const shortcuts = view.state.facet(tableShortcutsFacet);
+    const insertion = (Object.keys(shortcuts) as (keyof TableShortcuts)[]).find(action => keyboardBindingMatches(shortcuts[action], event));
+    if (insertion) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (view.state.readOnly) return;
+      commitCellEdit(view, getCurrentTable(), cell);
+      const table = getCurrentTable();
+      const rowIndex = Number(cell.dataset.rowIndex ?? 0), column = Number(cell.dataset.column ?? 0);
+      const header = cell.dataset.rowKind === "header";
+      const rowAction = insertion === "insertRowBelow" || insertion === "insertRowAbove";
+      const aboveHeader = header && insertion === "insertRowAbove";
+      const nextRow = header ? 0 : rowIndex + (insertion === "insertRowBelow" ? 1 : 0);
+      const nextColumn = column + (insertion === "insertColumnRight" ? 1 : 0);
+      const change = aboveHeader ? prependTableHeaderRowEdit(table)
+        : rowAction ? insertTableRowEdit(table, nextRow) : insertTableColumnEdit(table, nextColumn);
+      if (change) applyTableMutation(view, table, change, () => focusCellAfterRender(table.from, {
+        rowKind: aboveHeader ? "header" : rowAction ? "body" : header ? "header" : "body",
+        rowIndex: String(rowAction ? nextRow : rowIndex), column: String(rowAction ? column : nextColumn),
+      }));
+      return;
+    }
+
+    if (!event.defaultPrevented && !event.ctrlKey && !event.metaKey && !event.altKey &&
+        wrapCellSelection(cell, event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
       return;
     }
 

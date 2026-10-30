@@ -33,6 +33,15 @@ export function createTableCellFocusClassSync(): Extension {
       private readonly syncFocusClass: () => void;
       private readonly restoreClickFocus: (event: MouseEvent) => void;
       private recheckScheduled = false;
+      private focusRepairTimer: number | undefined;
+      private focusRepairFrame: number | undefined;
+      private clickGeneration = 0;
+      private readonly cancelClickRepair = (): void => {
+        this.clickGeneration++;
+        const win = this.view.dom.ownerDocument.defaultView;
+        win?.clearTimeout(this.focusRepairTimer);
+        if (this.focusRepairFrame !== undefined) win?.cancelAnimationFrame(this.focusRepairFrame);
+      };
 
       public constructor(private readonly view: EditorView) {
         this.decorations = createProseActiveLineDecoration(view);
@@ -41,20 +50,32 @@ export function createTableCellFocusClassSync(): Extension {
         this.restoreClickFocus = (event) => {
           const target = event.target as Element | null;
           if (event.button !== 0 || !target?.closest ||
-              !target.closest(".cm-line, .cm-content, .cm-scroller") ||
-              target.closest('.mlrt-table-widget, [contenteditable="false"], button, a, input, textarea, select')) return;
-          // An activating click can finish with the embedded document focused
-          // but its editable element blurred. Let normal mouse selection finish
-          // first, then restore its focus without changing the clicked range.
-          queueMicrotask(() => {
-            if (!event.defaultPrevented && view.dom.isConnected && doc.hasFocus() &&
-                (doc.activeElement === doc.body || doc.activeElement === doc.documentElement)) {
-              view.focus();
-              this.sync();
-            }
-          });
+              !target.closest(".cm-line, .cm-content, .cm-scroller, .mlrt-table-cell") ||
+              target.closest('button, a, input, textarea, select, .mlrt-clipboard-menu, .mlrt-table-structure-menu')) return;
+          const cell = findCell(target);
+          if (!cell && target.closest('.mlrt-table-widget, [contenteditable="false"]')) return;
+          const generation = ++this.clickGeneration;
+          const win = doc.defaultView;
+          // Electron can activate the webview after click's microtask, or briefly
+          // blur its editable during activation. Repair after both boundaries.
+          // A newer gesture or a different focused control cancels the handoff.
+          const repair = (): void => {
+            if (generation !== this.clickGeneration || !view.dom.isConnected || !doc.hasFocus()) return;
+            const active = doc.activeElement;
+            if (active !== doc.body && active !== doc.documentElement && active !== view.contentDOM && active !== cell) return;
+            if (cell?.isConnected) cell.focus({ preventScroll: true });
+            else view.focus();
+            this.sync();
+          };
+          queueMicrotask(repair);
+          this.focusRepairFrame = win?.requestAnimationFrame(repair);
+          this.focusRepairTimer = win?.setTimeout(repair, 80);
         };
         view.dom.addEventListener("click", this.restoreClickFocus);
+        doc.addEventListener("pointerdown", this.cancelClickRepair, true);
+        doc.addEventListener("keydown", this.cancelClickRepair, true);
+        doc.defaultView?.addEventListener("focus", this.syncFocusClass);
+        doc.defaultView?.addEventListener("blur", this.syncFocusClass);
         doc.addEventListener("focusin", this.syncFocusClass, true);
         doc.addEventListener("focusout", this.syncFocusClass, true);
         doc.addEventListener(
@@ -77,6 +98,11 @@ export function createTableCellFocusClassSync(): Extension {
       public destroy(): void {
         const doc = this.view.dom.ownerDocument;
         this.view.dom.removeEventListener("click", this.restoreClickFocus);
+        this.cancelClickRepair();
+        doc.removeEventListener("pointerdown", this.cancelClickRepair, true);
+        doc.removeEventListener("keydown", this.cancelClickRepair, true);
+        doc.defaultView?.removeEventListener("focus", this.syncFocusClass);
+        doc.defaultView?.removeEventListener("blur", this.syncFocusClass);
         doc.removeEventListener("focusin", this.syncFocusClass, true);
         doc.removeEventListener("focusout", this.syncFocusClass, true);
         doc.removeEventListener(

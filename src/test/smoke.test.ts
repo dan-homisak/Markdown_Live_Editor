@@ -820,7 +820,7 @@ assert.equal(
   packageJson.contributes?.menus?.["editor/title"]?.filter((item) =>
     item.command?.startsWith("markdownLiveRenderTables."),
   ).length,
-  1,
+  3,
 );
 assert.match(extensionSource, /reopenActiveEditorWith/);
 assert.match(extensionSource, /const DEFAULT_EDITOR_ID = "default"/);

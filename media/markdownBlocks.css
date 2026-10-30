@@ -83,12 +83,11 @@
   font: inherit;
 }
 .mlrt-preview-code-fence-hidden { visibility: hidden; }
-/* The control stays outside text layout. Two extra pixels below the opening
-   row give its centered text breathing room without moving any source rows. */
+/* Keep the hover surface inset from both edges of the opening fence row. */
 .mlrt-preview-code-header-inline {
   position: absolute;
-  top: 0;
-  height: calc(var(--mlrt-editor-line-height, 1lh) + 2px);
+  top: 1px;
+  height: calc(var(--mlrt-editor-line-height, 1lh) - 2px);
   right: 12px;
   min-height: 0;
   padding: 0;
@@ -105,6 +104,10 @@
 }
 .mlrt-preview-code-header button { padding: 3px 5px; border-radius: 4px; }
 .mlrt-preview-code-header .mlrt-preview-code-copy {
+  font-size: calc(var(--vscode-editor-font-size, 14px) - 1px);
+  line-height: 1;
+  font-style: normal;
+  font-weight: normal;
   display: inline-grid;
   place-items: center;
   text-align: center;

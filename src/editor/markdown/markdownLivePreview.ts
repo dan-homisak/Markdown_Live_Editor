@@ -16,6 +16,7 @@ export interface PreviewPart extends MarkdownRange {
   kind: "hide" | "conceal" | "code-header" | "code-end" | "callout" | "text" | "toc" | "footnote";
   target?: number;
   superscript?: boolean;
+  orderedNumber?: boolean;
   headings?: readonly MarkdownHeading[];
   fence?: MarkdownRange;
   block?: boolean;
@@ -89,7 +90,7 @@ export function classifyMarkdownPreview(doc: Text, tree: Tree, tables: readonly 
     if (!layoutOnly && node.name === "ListItem") {
       const number = index.orderedNumbers.get(node.from), mark = node.getChild("ListMark");
       if (mark && number !== undefined && read(mark.from, mark.to - 1) !== number)
-        add({ from: mark.from, to: mark.to - 1, owner: { from: mark.from, to: mark.to }, kind: "text", label: number });
+        add({ from: mark.from, to: mark.to - 1, owner: { from: mark.from, to: mark.to }, kind: "text", label: number, orderedNumber: true });
     }
     if (node.name === "MarkdownFrontmatter") {
       // Properties always retain their source rows and normal editor geometry.
@@ -229,10 +230,14 @@ interface PreviewState {
   composing: boolean;
   projected: MarkdownRange | null;
   folds: ReadonlyMap<number, boolean>;
+  estimates: { lineHeight: number; width: number; heights: Map<string, number> };
 }
 
 class PreviewWidget extends WidgetType {
-  constructor(readonly part: PreviewPart, readonly source: string, readonly collapsed = false) { super(); }
+  constructor(readonly part: PreviewPart, readonly source: string, readonly collapsed = false,
+    readonly estimates?: PreviewState["estimates"]) { super(); }
+  private get heightKey(): string { return JSON.stringify([this.estimates?.width, this.estimates?.lineHeight,
+    this.part.headings?.map(heading => [heading.level, heading.label])]); }
   eq(other: PreviewWidget): boolean { return this.source === other.source && JSON.stringify(this.part) === JSON.stringify(other.part) && this.collapsed === other.collapsed; }
   toDOM(view: EditorView): HTMLElement {
     const doc = view.dom.ownerDocument, part = this.part;
@@ -267,6 +272,13 @@ class PreviewWidget extends WidgetType {
       }
       if (!nav.childNodes.length) nav.textContent = "Table of contents";
       wrapper.append(nav);
+      const key = this.heightKey;
+      view.requestMeasure({ read: () => wrapper.isConnected ? wrapper.getBoundingClientRect().height / view.scaleY : 0,
+        write: height => {
+          if (!height || !this.estimates) return;
+          this.estimates.heights.set(key, height);
+          if (this.estimates.heights.size > 16) this.estimates.heights.delete(this.estimates.heights.keys().next().value!);
+        } });
       wrapper.addEventListener("dblclick", event => { if (!(event.target instanceof HTMLButtonElement)) edit(); });
       return wrapper;
     }
@@ -329,7 +341,14 @@ class PreviewWidget extends WidgetType {
     return wrapper;
   }
   ignoreEvent(): boolean { return true; }
-  get estimatedHeight(): number { return this.part.kind === "code-header" && this.part.block ? 28 : -1; }
+  get estimatedHeight(): number {
+    // Heading offsets change on ordinary typing even when TOC text/layout does
+    // not. A one-line fallback discards thousands of pixels from the height map
+    // on the first edit; retain measured heights and estimate every TOC row.
+    if (this.part.kind === "toc") return this.estimates?.heights.get(this.heightKey) ??
+      Math.max(1, this.part.headings?.length ?? 0) * (this.estimates?.lineHeight ?? 19) + 8;
+    return this.part.kind === "code-header" && this.part.block ? 28 : -1;
+  }
 }
 
 function decorations(state: EditorState, value: Omit<PreviewState, "decorations">): DecorationSet {
@@ -339,7 +358,9 @@ function decorations(state: EditorState, value: Omit<PreviewState, "decorations"
   let coveredTo = -1;
   for (const part of value.parts) {
     if (markdownListRangeHidden(state, part)) continue;
-    const active = previewOwnerActive(part.owner, state.selection, value.focused, value.projected);
+    const active = part.orderedNumber
+      ? value.focused && state.selection.ranges.some(range => range.from < part.to && range.to >= part.from)
+      : previewOwnerActive(part.owner, state.selection, value.focused, value.projected);
     // Fence rows belong to the document and gutter in both modes. Concealing
     // their glyphs keeps wrapping, line height, and the closing padding row fixed.
     if (part.fence) {
@@ -359,7 +380,7 @@ function decorations(state: EditorState, value: Omit<PreviewState, "decorations"
     if (active || part.from < coveredTo) continue;
     const collapsed = value.folds.get(part.from) ?? part.collapsed ?? false;
     ranges.push(Decoration.replace({ block: part.block, inclusive: part.block === true,
-      ...(part.kind !== "hide" ? { widget: new PreviewWidget(part, state.doc.sliceString(part.from, part.to), collapsed) } : {}) }).range(part.from, part.to));
+      ...(part.kind !== "hide" ? { widget: new PreviewWidget(part, state.doc.sliceString(part.from, part.to), collapsed, value.estimates) } : {}) }).range(part.from, part.to));
     coveredTo = Math.max(coveredTo, part.to);
     if (part.kind === "callout" && collapsed && part.foldTo && part.foldTo > part.to) {
       const from = state.doc.lineAt(part.to).to;
@@ -376,7 +397,8 @@ export const markdownPreviewField = StateField.define<PreviewState>({
   create(state) {
     const windows = [{ from: 0, to: state.doc.length }];
     const value = { parts: previewParts(state, windows),
-      windows, focused: false, composing: false, projected: null, folds: new Map<number, boolean>() };
+      windows, focused: false, composing: false, projected: null, folds: new Map<number, boolean>(),
+      estimates: { lineHeight: 19, width: 0, heights: new Map<string, number>() } };
     return { ...value, decorations: decorations(state, value) };
   },
   update(value, transaction) {
@@ -403,14 +425,15 @@ export const markdownPreviewField = StateField.define<PreviewState>({
       const before = markdownDocumentIndex(transaction.startState.doc, syntaxTree(transaction.startState), getParsedTables(transaction.startState.doc));
       const after = markdownDocumentIndex(transaction.state.doc, syntaxTree(transaction.state), getParsedTables(transaction.state.doc));
       const dependent = value.parts.some(part => part.kind === "toc" || part.kind === "footnote") ||
-        after.footnotes.size > 0 || before.referenceSignature !== after.referenceSignature;
+        after.footnotes.size > 0 || before.orderedNumbers.size > 0 || after.orderedNumbers.size > 0 ||
+        before.referenceSignature !== after.referenceSignature;
       const changedWindows = dependent ? [{ from: 0, to: transaction.state.doc.length }] : markdownChangedWindows(transaction);
       parts = [...parts.map(part => mapPreviewPart(part, transaction.changes)).filter(part =>
         part.from < part.to && part.owner.from < part.owner.to && !changedWindows.some(window => overlaps(part.owner, window))),
         ...previewParts(transaction.state, changedWindows)]
         .sort((a, b) => a.from - b.from || b.to - a.to);
     } else if (changed) parts = previewParts(transaction.state, windows);
-    const next = { parts, windows, focused, composing, projected, folds };
+    const next = { parts, windows, focused, composing, projected, folds, estimates: value.estimates };
     return { ...next, decorations: decorations(transaction.state, next) };
   },
   provide: field => EditorView.decorations.from(field, value => value.decorations),
@@ -478,6 +501,11 @@ export function createMarkdownLivePreviewExtensions(screenReaderOptimized: boole
         this.queued = false;
         if (this.destroyed || this.view.dom.ownerDocument.hidden || isTablePointerSelectionActive(this.view.dom.ownerDocument)) return;
         const view = this.view, field = view.state.field(markdownPreviewField);
+        if (field.estimates.width !== view.contentDOM.clientWidth || field.estimates.lineHeight !== view.defaultLineHeight) {
+          field.estimates.heights.clear();
+          field.estimates.width = view.contentDOM.clientWidth;
+          field.estimates.lineHeight = view.defaultLineHeight;
+        }
         const effects = [];
         const focused = view.hasFocus || !!view.dom.ownerDocument.activeElement?.closest(".mlrt-preview-code-header");
         // Mixed table/prose selections already publish their exact linear

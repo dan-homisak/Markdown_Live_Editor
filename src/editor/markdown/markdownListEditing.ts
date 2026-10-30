@@ -63,9 +63,40 @@ export function planMarkdownListEdit(state: EditorState, action: "enter" | "inde
         selection: { anchor: item.from + item.prefix.length }, userEvent: "input.list" };
     }
     const number = /^(\d+)([.)])$/u.exec(item.marker);
-    const next = number ? `${Number(number[1]) + 1}${number[2]}` : item.marker;
+    const changes: { from: number; to?: number; insert: string }[] = [];
+    let nextNumber = number ? Number(number[1]) + 1 : 0;
+    if (number) {
+      let owner: SyntaxNode | null = tree.resolveInner(item.from + item.prefix.length + item.indent.length + 1);
+      while (owner && !(owner.name === "ListItem" && doc.lineAt(owner.from).from === item.from)) owner = owner.parent;
+      if (owner?.parent?.name === "OrderedList") {
+        let ordinal: number | undefined;
+        let inserted = false;
+        for (let sibling = owner.parent.firstChild; sibling; sibling = sibling.nextSibling) {
+          const mark = sibling.name === "ListItem" ? sibling.getChild("ListMark") : null;
+          if (!mark) continue;
+          ordinal ??= Number(doc.sliceString(mark.from, mark.to - 1));
+          const label = String(ordinal++), previous = doc.sliceString(mark.from, mark.to - 1);
+          if (label !== previous) {
+            changes.push({ from: mark.from, to: mark.to - 1, insert: label });
+            // Wider numbers also shift their continuation/nested content so it
+            // remains owned by the same list item after the source edit.
+            const delta = label.length - previous.length;
+            if (delta) for (let lineNumber = doc.lineAt(mark.from).number + 1; lineNumber <= doc.lineAt(sibling.to).number; lineNumber++) {
+              const line = doc.line(lineNumber), prefix = /^(?:[ \t]*>[ \t]?)*/u.exec(line.text)?.[0] ?? "";
+              const indent = /^[ \t]+/u.exec(line.text.slice(prefix.length))?.[0];
+              if (indent && line.text.trim()) changes.push({ from: line.from + prefix.length, to: line.from + prefix.length + indent.length,
+                insert: " ".repeat(Math.max(0, columns(indent, state.tabSize) + delta)) });
+            }
+          }
+          if (sibling.from === owner.from && !inserted) { nextNumber = ordinal++; inserted = true; }
+        }
+      }
+    }
+    const next = number ? `${nextNumber}${number[2]}` : item.marker;
     const insert = `\n${item.prefix}${item.indent}${next} ${item.task ? "[ ] " : ""}`;
-    return { changes: { from: selection.head, insert }, selection: { anchor: selection.head + insert.length }, userEvent: "input.list" };
+    changes.push({ from: selection.head, insert });
+    const set = state.changes(changes.sort((a, b) => a.from - b.from));
+    return { changes: set, selection: { anchor: set.mapPos(selection.head, 1) }, userEvent: "input.list" };
   }
   if (action === "backspace" && (!selection.empty || !atContentStart(doc, item, selection.head))) return null;
   const outdent = action === "outdent" || action === "backspace";

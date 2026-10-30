@@ -11089,7 +11089,10 @@ function tableArrowNavigationExpression() {
       key(view.contentDOM, 'ArrowUp');
       setTimeout(() => {
         const fromAfterTableLine = activeCellDetails();
-        const activeCell = root.activeElement;
+        // Boundary entry at the left margin now chooses the first column.
+        // Continue the independent wrapped-cell checks in the long text cell.
+        const activeCell = wrapper.querySelector('.mlrt-table-cell[data-row-kind="body"][data-column="1"]');
+        activeCell.focus();
         setCellSelection(activeCell, true);
         resetSyntheticCaretVerticalGoal(activeCell, 'inside-up');
         const insideUpTextLength = (activeCell.textContent ?? '').length;
@@ -12178,7 +12181,7 @@ function assertTableNativeCellCopy(result) {
     !result.copyPrevented ||
     !result.pastePrevented ||
     result.copiedPlain !== "N/A" ||
-    result.copiedHtml !== "<span>N/A</span>" ||
+    result.copiedHtml !== '<span data-mlrt-cell-text="1">N/A</span>' ||
     result.pastedText !== "N/A" ||
     !result.pastedDoc.includes("| N/A | N/A |") ||
     !result.matchingHeight ||
@@ -15749,7 +15752,7 @@ function assertTableArrowNavigation(result) {
     !result.fromBeforeTableLine?.selectionAtStart ||
     !result.fromBeforeTableLine?.selectionOnFirstVisualLine ||
     result.fromAfterTableLine?.rowKind !== "body" ||
-    result.fromAfterTableLine?.column !== "1" ||
+    result.fromAfterTableLine?.column !== "0" ||
     !result.fromAfterTableLine?.selectionOnLastVisualLine ||
     !result.insideUpPrevented ||
     !result.insideUpMovedOneVisualLine ||

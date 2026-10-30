@@ -236,7 +236,7 @@ try {
 
   if (interactionBugsOnly) {
     const { runInteractionBugChecks } = await import('./edh-interaction-bug-cases.mjs');
-    await runInteractionBugChecks({ check, liveEval, select, screenshot, writeFixture, sleep, waitFor,
+    await runInteractionBugChecks({ check, liveEval, select, screenshot, writeFixture, writeSettings, palette, sleep, waitFor,
       send: (method, params) => live.send(method, params), key: (...args) => key(live, ...args),
       workbench: expression => evaluate(wb, expression) });
     await writeFixture(text);

@@ -25,6 +25,15 @@ const EMPTY_DATA_CELL_RAW = "  ";
 /** Raw text for an inserted or padded delimiter cell (left-aligned). */
 const EMPTY_DELIMITER_CELL_RAW = " --- ";
 
+/** Insert above the header: the new blank row owns the header and the old
+ * header becomes the first body row. Keep the existing alignment delimiter. */
+export function prependTableHeaderRowEdit(table: ParsedTable): TableCellSourceEdit {
+  const separator = getTableLineSeparator(table);
+  return { from: table.header.from, to: table.delimiter.to,
+    insert: [formatMarkdownRow(Array.from({ length: table.columnCount }, () => "")),
+      table.delimiter.text, table.header.text].join(separator) };
+}
+
 /** Join compatible tables when deletion consumes their final intervening blank line. */
 export function joinTablesAcrossDeletion(
   doc: ReadonlyDocText,

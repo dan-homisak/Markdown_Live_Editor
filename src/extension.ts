@@ -1,3 +1,5 @@
+import { HistoryAvailability } from "./shared/historyAvailability";
+import { DEFAULT_TABLE_SHORTCUTS, normalizeTableShortcuts, TableShortcuts } from "./shared/keyboardBinding";
 import * as fs from "fs";
 import { randomUUID } from "crypto";
 import * as vscode from "vscode";
@@ -49,6 +51,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     debugOutputChannel,
+    ...(["undo", "redo"] as const).map(command => vscode.commands.registerCommand(
+      `markdownLiveRenderTables.${command}`, () => provider.runHistoryCommand(command))),
     vscode.window.registerCustomEditorProvider(
       LIVE_EDITOR_VIEW_TYPE,
       provider,
@@ -90,6 +94,7 @@ export function activate(context: vscode.ExtensionContext): void {
 export function deactivate(): void {}
 
 class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
+  private readonly historiesByDocument = new Map<string, HistoryAvailability>();
   private readonly panelsByDocument = new Map<string, vscode.WebviewPanel>();
   private readonly mediaTextByFileName = new Map<string, string>();
   private readonly initialViewStates = new Map<string, EditorViewState>();
@@ -180,6 +185,22 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
     } satisfies HostMarkdownTaskCommandMessage);
   }
 
+  private updateHistoryButtons(documentKey: string): void {
+    const panel = this.panelsByDocument.get(documentKey);
+    if (!panel?.active || this.activeLiveDocumentUri?.toString() !== documentKey) return;
+    const history = this.historiesByDocument.get(documentKey);
+    void vscode.commands.executeCommand("setContext", "markdownLiveRenderTables.canUndo", history?.canUndo ?? false);
+    void vscode.commands.executeCommand("setContext", "markdownLiveRenderTables.canRedo", history?.canRedo ?? false);
+  }
+
+  public async runHistoryCommand(command: "undo" | "redo"): Promise<void> {
+    const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+    if (!(input instanceof vscode.TabInputCustom) || input.viewType !== LIVE_EDITOR_VIEW_TYPE) return;
+    const panel = this.panelsByDocument.get(input.uri.toString());
+    if (!panel?.active) return;
+    await panel.webview.postMessage({ type: "historyCommand", command });
+  }
+
   public async runMarkdownLinkCommand(): Promise<void> {
     const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
     if (!(input instanceof vscode.TabInputCustom) || input.viewType !== LIVE_EDITOR_VIEW_TYPE) return;
@@ -197,6 +218,9 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
       .filter(fileName => fs.existsSync(vscode.Uri.joinPath(this.context.extensionUri, "media", fileName).fsPath))
       .map(fileName => this.readMediaText(fileName)).join("\n");
     const documentKey = document.uri.toString();
+    const history = this.historiesByDocument.get(documentKey) ?? new HistoryAvailability(normalizeDocumentText(document.getText()));
+    history.update(normalizeDocumentText(document.getText()));
+    this.historiesByDocument.set(documentKey, history);
     const initialViewState = this.initialViewStates.get(documentKey);
     this.initialViewStates.delete(documentKey);
     const clipboardDocumentToken = randomUUID();
@@ -230,6 +254,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
       this.activeLiveDocumentUri = document.uri;
     }
 
+    this.updateHistoryButtons(documentKey);
     webview.options = {
       enableScripts: true,
       localResourceRoots: [
@@ -575,6 +600,11 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
         void webview.postMessage({ type: "refreshCodeHighlighting" });
       }),
       vscode.workspace.onDidChangeTextDocument((event) => {
+        if (event.document.uri.toString() === documentKey && event.contentChanges?.length !== 0) {
+          history.update(normalizeDocumentText(event.document.getText()),
+            event.reason === 1 ? "undo" : event.reason === 2 ? "redo" : undefined);
+          this.updateHistoryButtons(documentKey);
+        }
         if (
           event.document.uri.toString() === documentKey &&
           !applyingFromWebview
@@ -602,6 +632,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
             "markdownLiveRenderTables.clipboard",
             document.uri,
           ) ||
+          event.affectsConfiguration("markdownLiveRenderTables.tableShortcuts", document.uri) ||
           event.affectsConfiguration(
             "markdownLiveRenderTables.tableNavigation",
             document.uri,
@@ -627,6 +658,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
       webviewPanel.onDidChangeViewState((event) => {
         if (event.webviewPanel.active) {
           this.activeLiveDocumentUri = document.uri;
+          this.updateHistoryButtons(documentKey);
           void refreshReadOnly();
         }
       }),
@@ -1260,6 +1292,7 @@ function getEditorOptions(
   defaultCopyMode: "smart" | "rich" | "plain" | "markdown";
   defaultPasteMode: "auto" | "rich" | "plain" | "markdown";
   tableNavigationModifierKey: TableNavigationModifierKey;
+  tableShortcuts: TableShortcuts;
   markdownRendering: {
     enabled: boolean;
     showHeadingMarkers: boolean;
@@ -1306,6 +1339,8 @@ function getEditorOptions(
         editorConfig.get<string>("accessibilitySupport", "auto") === "on",
       readOnly,
     },
+    tableShortcuts: normalizeTableShortcuts(Object.fromEntries(Object.entries(DEFAULT_TABLE_SHORTCUTS).map(([name, key]) =>
+      [name, extensionConfig.get<string>(`tableShortcuts.${name}`, key)]))),
     tableNavigationModifierKey: normalizeTableNavigationModifierKey(
       extensionConfig.get<string>(
         TABLE_NAVIGATION_MODIFIER_KEY_SETTING,

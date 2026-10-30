@@ -128,12 +128,32 @@ function focusRenderedTableCell(
   const cells = Array.from(
     wrapper?.querySelectorAll<HTMLElement>(TABLE_CELL_SELECTOR) ?? [],
   );
-  const cell = target === "first" ? cells[0] : cells[cells.length - 1];
+  const caret = view.coordsAtPos(view.state.selection.main.head);
+  let cell = cells[0];
+  if (target === "last") {
+    const last = cells[cells.length - 1];
+    const lastRow = cells.filter(candidate =>
+      candidate.dataset.rowKind === last?.dataset.rowKind &&
+      candidate.dataset.rowIndex === last?.dataset.rowIndex,
+    );
+    // Enter the bottom row at the current screen column, just as vertical
+    // movement within a cell preserves x. Document order would always choose
+    // the rightmost cell, even when the prose caret is at the left margin.
+    let nearestDistance = Infinity;
+    for (const candidate of lastRow) {
+      const rect = candidate.getBoundingClientRect();
+      const x = caret?.left ?? rect.left;
+      const distance = Math.max(rect.left - x, x - rect.right, 0);
+      if (distance < nearestDistance) {
+        cell = candidate;
+        nearestDistance = distance;
+      }
+    }
+  }
   if (!cell) {
     return false;
   }
 
-  const caret = view.coordsAtPos(view.state.selection.main.head);
   focusCellAtVerticalEdge(
     cell,
     target === "first" ? 1 : -1,

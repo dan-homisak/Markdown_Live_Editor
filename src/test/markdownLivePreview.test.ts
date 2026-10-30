@@ -12,6 +12,17 @@ const text = (source: string): Text => Text.of(source.split("\n"));
 const project = (source: string, showHeadingMarkers = true) => { const doc = text(source); return classifyMarkdownPreview(doc, markdownRenderingParser.parse(source), getParsedTables(doc), [{ from: 0, to: doc.length }], showHeadingMarkers); };
 const source = '# Header\n\n**bold *nested*** ` code ` [label](file.md "title") [[Note|Alias]]\n\n```js\nconst n = 1;\n```\n\n> [!INFO]- Title\n> body\n';
 const parts = project(source);
+let numberedState = EditorState.create({ doc: '1. First\n2. Second\n3. Third', extensions: [
+  markdown({ extensions: markdownParserExtensions }), markdownRenderTreeField, createMarkdownLivePreviewExtensions(false),
+] });
+numberedState = numberedState.update({ changes: { from: 8, insert: '\n2. Inserted' } }).state;
+assert.deepEqual(numberedState.field(markdownPreviewField).parts.filter(part => part.orderedNumber).map(part => part.label), ['3', '4'],
+  'inserting an item reprojects numbers in all following siblings');
+for (const label of ['Second', 'Third']) {
+  numberedState = numberedState.update({ selection: { anchor: numberedState.doc.toString().indexOf(label) } }).state;
+  const expected = label === 'Second' ? '3' : '4';
+  assert(numberedState.field(markdownPreviewField).parts.some(part => part.orderedNumber && part.label === expected));
+}
 const distantSource = "Resting caret.\n\n" + "An unchanged paragraph.\n\n".repeat(1500) + "**Distant bold**\n\n```js\nconst distantValue = 1;\n```\n";
 const distantState = EditorState.create({ doc: distantSource, extensions: [
   markdown({ extensions: markdownParserExtensions }), markdownRenderTreeField, createMarkdownLivePreviewExtensions(false),
@@ -116,6 +127,9 @@ function apply(source: string, action: Parameters<typeof planMarkdownListEdit>[1
 }
 assert.equal(apply('- hello', 'enter'), '- hello\n- ');
 assert.equal(apply('9. hello', 'enter'), '9. hello\n10. ');
+assert.equal(apply('8. First\n9. Second\n10. Third', 'enter', 8), '8. First\n9. \n10. Second\n11. Third');
+assert.equal(apply('1. First\n1. Second\n1. Third', 'enter', 18), '1. First\n2. Second\n3. \n4. Third', 'normalize stale siblings as part of insertion');
+assert.equal(apply('8. First\n9. Parent\n   - Child\n10. Last', 'enter', 8), '8. First\n9. \n10. Parent\n    - Child\n11. Last', 'number width growth preserves nested ownership');
 assert.equal(apply('- [x] done', 'enter'), '- [x] done\n- [ ] ');
 assert.equal(apply('- ', 'enter'), '');
 for (const [marker, next] of [['-', '-'], ['+', '+'], ['*', '*'], ['1.', '2.'], ['9.', '10.'], ['12)', '13)']]) {

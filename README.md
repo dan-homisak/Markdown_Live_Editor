@@ -51,7 +51,7 @@ This also works inside table cells, where backticks stay inline. Highlight, math
 
 Inactive table cells render inline emphasis, code, links, escapes, and entities. Click a table cell to reveal and edit its exact Markdown source; leaving it restores formatting. Press `Tab` or `Shift+Tab` to move between cells. `Enter` moves down the same column, exiting after the final row; `Shift+Enter` adds a line break within a cell. Wide tables support horizontal wheel scrolling, Shift+wheel, and dragging the scrollbar.
 
-Ordinary arrow keys navigate characters and visual lines normally, crossing into another cell only after the caret reaches a cell edge. For immediate geometric navigation to an adjacent cell, hold the configured function key (`F2` by default) while pressing an arrow key; the caret lands at the end of the destination cell so you can continue typing there.
+Ordinary arrow keys navigate characters and visual lines normally, crossing into another cell only after the caret reaches a cell edge. For immediate geometric navigation to an adjacent cell, hold the configured key or combination (`F2` by default) while pressing an arrow key; the caret lands at the end of the destination cell so you can continue typing there.
 
 Press `Escape` while editing to select the current cell. From there, use the arrow keys to move the selection or hold `Shift` to extend it. Range selections can also be created by dragging or by shift-clicking another cell.
 
@@ -63,11 +63,16 @@ Use a table's row or column handle to select a row or column, then hold `Shift` 
 
 The editor provides several clipboard formats for moving content between Markdown, spreadsheets, and rich-text tools. Smart copy is the default and keeps list content inside spreadsheet cells using portable inline markers and same-cell line breaks. **Copy Rich** preserves semantic nested lists for Word and other rich-text tools. Dedicated **Copy Plain Text** and **Copy Markdown** actions are also available from the context menu.
 
+The editor title bar provides Undo and Redo buttons for document and table edits. The context menu's **Delete table** removes the table and its contents immediately; **Clear table** preserves its structure.
+
+While editing a cell, use **Ctrl+Enter** to insert a row below, **Ctrl+Shift+Enter** above, **Alt+Enter** for a column to the right, and **Alt+Shift+Enter** to the left. The caret moves into the inserted cell. Inserting above the header creates a blank header and moves the old header into the first body row.
+
 ## Configuration
 
 The following settings are available in VS Code:
 
-- `markdownLiveRenderTables.tableNavigation.modifierKey` - chooses the function key used with arrow keys for direct cell navigation
+- `markdownLiveRenderTables.tableNavigation.modifierKey` - accepts a custom key or combination used with arrow keys for direct cell navigation, such as `F2`, `Control`, `Ctrl+Space`, or `KeyQ`
+- `markdownLiveRenderTables.tableShortcuts.insertRowBelow`, `insertRowAbove`, `insertColumnRight`, and `insertColumnLeft` - customize the four insertion shortcuts; use modifiers plus a key/code such as `Ctrl+Shift+KeyI`, or an empty string to disable. Changes take effect immediately.
 - `markdownLiveRenderTables.clipboard.defaultCopyMode` - sets the default copy representation
 - `markdownLiveRenderTables.clipboard.defaultPasteMode` - sets the default paste interpretation
 - `markdownLiveRenderTables.lineHighlight.enabled` - highlights the active line outside rendered tables; defaults to `false`. Table highlighting and editing are unchanged.

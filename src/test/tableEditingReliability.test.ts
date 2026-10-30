@@ -11,6 +11,7 @@ import {
   deleteTableRowEdit,
   insertTableColumnEdit,
   insertTableRowEdit,
+  prependTableHeaderRowEdit,
   joinTablesAcrossDeletion,
 } from "../shared/tableStructureEdits";
 import { classifyTableSelection, planTableDeletion, tableStructureSelection } from "../shared/tableDeletion";
@@ -30,6 +31,15 @@ interface SourceEdit {
 }
 
 const prefix = "RELIABILITY_PREFIX\n\n";
+for (const separator of ["\n", "\r\n"]) {
+  const source = ['| A | B |', '| :--- | ---: |', '| alpha | beta |'].join(separator);
+  const table = parseMarkdownTables(source)[0];
+  const edit = prependTableHeaderRowEdit(table);
+  const result = parseMarkdownTables(source.slice(0, edit.from) + edit.insert + source.slice(edit.to))[0];
+  assert.deepEqual(rowToDisplayValues(result.header, 2), ["", ""]);
+  assert.deepEqual(result.body.map(row => rowToDisplayValues(row, 2)), [["A", "B"], ["alpha", "beta"]]);
+  assert.equal(result.delimiter.text, table.delimiter.text, "insertion above the header preserves alignments");
+}
 const suffix = "\n\nRELIABILITY_SUFFIX";
 const initialHeader = ["Key", "Value", "Notes"];
 const initialBody = [

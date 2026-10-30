@@ -91,7 +91,10 @@ export function resolveMarkdownTheme(input: MarkdownThemeInput): Record<string, 
   // Inline code uses a padded charcoal surface; block fills remain translucent.
   let inlineFill = input.dark && !input.highContrast
     ? parseMarkdownColor("#242424")! : quietFill("textPreformat.background", 0.18);
-  let codeFill = quietFill("textCodeBlock.background", 0.22);
+  // Lift dark blocks one shade above the canvas, including on LCD displays.
+  let codeFill = input.dark && !input.highContrast
+    ? compositeMarkdownColor({ ...white, a: 0.07 }, canvas)
+    : quietFill("textCodeBlock.background", 0.22);
   let surfaces = [canvas, compositeMarkdownColor(inlineFill, canvas), compositeMarkdownColor(codeFill, canvas)];
   // Near the light/dark contrast crossover, even a subtle fill can prevent one
   // text color from meeting the target on every surface. Optional fills yield.

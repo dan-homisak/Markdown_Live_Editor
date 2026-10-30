@@ -1,3 +1,4 @@
+import { bindingModifiersMatch, parseKeyboardBinding, DEFAULT_TABLE_SHORTCUTS, TableShortcuts } from "../shared/keyboardBinding";
 import { Compartment, Extension, Facet } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import {
@@ -14,20 +15,24 @@ export const tableNavigationModifierFacet = Facet.define<
   combine: (values) => values[0] ?? DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY,
 });
 
+export const tableShortcutsFacet = Facet.define<TableShortcuts, TableShortcuts>({ combine: values => values[0] ?? DEFAULT_TABLE_SHORTCUTS });
+
 const keyStates = new WeakMap<Document, TableNavigationKeyState>();
 
-/** Whether the configured function key is currently held in this webview. */
+/** Whether the configured key and modifier combination is held in this webview. */
 export function isTableNavigationModifierHeld(
   doc: Document,
   key: TableNavigationModifierKey,
+  event: KeyboardEvent,
 ): boolean {
-  return keyStates.get(doc)?.isHeld(key) ?? false;
+  const binding = parseKeyboardBinding(key);
+  return !!binding && bindingModifiersMatch(binding, event) &&
+    (!binding.key || (keyStates.get(doc)?.isHeld(binding.key) ?? false));
 }
 
 /**
- * Tracks F-key down/up state once for the editor document. Function keys are
- * ordinary keys rather than DOM modifier flags, so the later Arrow event does
- * not otherwise reveal that F2 (or the configured alternative) is held.
+ * Tracks key/code down/up state once for the editor document. Ordinary keys
+ * have no DOM modifier flag, so an Arrow event alone cannot reveal the held key.
  */
 export function createTableNavigationKeyTracker(): Extension {
   return ViewPlugin.fromClass(
@@ -37,18 +42,13 @@ export function createTableNavigationKeyTracker(): Extension {
       private readonly ownerWindow: Window | null;
 
       private readonly onKeyDown = (event: KeyboardEvent): void => {
-        if (
-          !event.altKey &&
-          !event.ctrlKey &&
-          !event.metaKey &&
-          !event.shiftKey
-        ) {
-          this.state.keyDown(event.key);
-        }
+        this.state.keyDown(event.key);
+        this.state.keyDown(event.code);
       };
 
       private readonly onKeyUp = (event: KeyboardEvent): void => {
         this.state.keyUp(event.key);
+        this.state.keyUp(event.code);
       };
 
       private readonly clear = (): void => {

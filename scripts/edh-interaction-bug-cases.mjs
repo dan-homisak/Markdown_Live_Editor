@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-export async function runInteractionBugChecks({check,liveEval,select,screenshot,writeFixture,sleep,key,send,workbench}) {
+export async function runInteractionBugChecks({check,liveEval,select,screenshot,writeFixture,writeSettings,palette,sleep,key,send,workbench}) {
   const primary=process.platform==='darwin'?4:2;
   const save=async()=>{await key('s','KeyS',83,primary);await sleep(250);};
   const fixture=async text=>{
@@ -13,6 +13,33 @@ export async function runInteractionBugChecks({check,liveEval,select,screenshot,
     await send('Input.dispatchMouseEvent',{type:'mousePressed',...p,button:'left',buttons:1,clickCount:1});
     await send('Input.dispatchMouseEvent',{type:'mouseReleased',...p,button:'left',buttons:0,clickCount:1});await sleep(180);
   };
+  const { runFollowupChecks } = await import('./edh-followup-bug-cases.mjs');
+  await runFollowupChecks({check,liveEval,select,screenshot,fixture,writeSettings,palette,sleep,key,send,workbench,click});
+  await check('interaction bugs: table entry from below preserves the horizontal caret position',async()=>{
+    const tail='abcdefghijklmnopqrstuvwxyz '.repeat(3);
+    const table='| First column | Middle column | Last column |\n| --- | --- | --- |\n| earlier row | earlier row | earlier row |\n| alpha text | beta text | gamma text |';
+    const doc='Before\n\n'+table+'\n'+tail;
+    const cases=[];
+    for(const target of [0,1,2]) {
+      await fixture(doc);
+      const position=await liveEval(`const cells=[...root.querySelectorAll('.mlrt-table-cell[data-row-kind="body"]')],cell=cells[${target}],box=cell.getBoundingClientRect(),line=view.state.doc.line(view.state.doc.lines),x=box.left+20;let best=line.from,distance=Infinity;for(let p=line.from;p<=line.to;p++){const c=view.coordsAtPos(p);if(c&&Math.abs(c.left-x)<distance){best=p;distance=Math.abs(c.left-x);}}return best;`);
+      await select(position);const before=await caret();
+      await key('ArrowUp','ArrowUp',38);
+      const after=await liveEval(`const cell=root.activeElement,s=win.getSelection(),r=s.rangeCount?s.getRangeAt(0).getBoundingClientRect():null;return {kind:cell.dataset.rowKind,column:cell.dataset.column,row:cell.dataset.rowIndex,x:r?.left,offset:s.focusOffset};`);
+      cases.push({target,before:{x:before.x,head:before.head},after});
+      await screenshot('table-entry-below-'+target);
+    }
+    // A blank line below should enter the leftmost cell, like entry from above.
+    await fixture('Before\n\n'+table+'\n\nAfter');await select(('Before\n\n'+table+'\n').length);
+    await key('ArrowUp','ArrowUp',38);
+    const blank=await liveEval('return root.activeElement.dataset.column;');
+    // Preserve the existing downward handoff into the first header cell.
+    await select('Before\n'.length);await key('ArrowDown','ArrowDown',40);
+    const above=await liveEval('return {column:root.activeElement.dataset.column,kind:root.activeElement.dataset.rowKind};');
+    assert(cases.every(c=>c.after.kind==='body'&&c.after.row==='1'&&c.after.column===String(c.target)&&Math.abs(c.after.x-c.before.x)<8),JSON.stringify(cases));
+    assert.equal(blank,'0');assert.deepEqual(above,{column:'0',kind:'header'});
+    return {cases,blank,above};
+  });
   await check('interaction bugs: empty bullet vertical entry and End include the trailing space',async()=>{
     const doc='- Text in first item\n- \nAfter';await fixture(doc);await select(doc.indexOf('\n'));
     await key('ArrowDown','ArrowDown',40);const down=await caret();await screenshot('interaction-empty-bullet');
@@ -108,5 +135,7 @@ export async function runInteractionBugChecks({check,liveEval,select,screenshot,
     assert(recovered.focus,JSON.stringify(recovered));assert(recoveredMove.head>doc.indexOf('\n'),JSON.stringify({recovered,recoveredMove}));
     return {clicked,moved,recovered,recoveredMove};
   });
+  const { runOctoberBugChecks } = await import('./edh-october-bug-cases.mjs');
+  await runOctoberBugChecks({check,liveEval,select,screenshot,fixture,writeSettings,palette,sleep,key,send,workbench,click});
   await save();await liveEval("view.dom.style.width='';return true;");
 }

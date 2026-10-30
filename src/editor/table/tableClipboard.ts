@@ -382,7 +382,7 @@ export function bindTableClipboard(
           run: () => applySelection({ ...rectangle, top: 0, bottom: selectedTable.body.length }, "columns", "remove",
             selectedInfo.columns.flatMap(column => rectangleCells({ top: 0, bottom: selectedTable.body.length, left: column, right: column }))) },
         { label: "Clear table", action: "clear-table", run: () => applySelection(entireTable, "cells", "clear") },
-        { label: "Delete table", action: "delete-table", run: () => applySelection(entireTable, "cells", "clear-first") },
+        { label: "Delete table", action: "delete-table", run: () => applySelection(entireTable, "cells", "remove") },
       );
     }
     closeContextMenu();
@@ -503,7 +503,7 @@ function representationsForCurrentSelection(
   nativeCell?: HTMLElement | null,
 ): ClipboardRepresentations | null {
   const selection = getTableRangeSelection(doc);
-  if (selection?.tableFrom === table.from) {
+  if (selection?.tableFrom === table.from && !(nativeCell && hasNativeCellSelection(nativeCell))) {
     return representationsForGrid(
       tableRectanglePayload(
         table,
@@ -542,7 +542,8 @@ function representationsForCurrentSelection(
   }
   return {
     plain,
-    html: `<span>${escapeHtml(plain).replace(/\n/g, "<br>")}</span>`,
+    // Mark the selected text so Chromium clipboard wrappers cannot add layout newlines.
+    html: `<span data-mlrt-cell-text="1">${escapeHtml(plain).replace(/\n/g, "<br>")}</span>`,
   };
 }
 
@@ -677,7 +678,7 @@ function pasteClipboardData(
     movePayload ?? (mode === "auto" ? availablePrivatePayload : null);
   const clearlyTabular =
     Boolean(interpretationPayload?.kind === "grid") ||
-    Boolean(data.html && htmlContainsTable(data.html)) ||
+    Boolean(data.html && !data.html.includes('data-mlrt-cell-text="1"') && htmlContainsTable(data.html)) ||
     Boolean(data.plain?.includes("\t")) ||
     Boolean(data.csv) ||
     clipboardContainsMarkdownTable(data, mode);
@@ -1933,6 +1934,8 @@ function singleCellPasteText(
   mode: ClipboardPasteMode,
 ): string | undefined {
   if ((mode === "auto" || mode === "rich") && data.html) {
+    const carrier = new DOMParser().parseFromString(data.html, "text/html").querySelector('[data-mlrt-cell-text="1"]');
+    if (carrier) return htmlFragmentVisibleText(carrier.outerHTML);
     const htmlText = htmlFragmentVisibleText(data.html);
     if (htmlText !== undefined && (htmlText.length > 0 || data.plain === undefined)) {
       return htmlText;
