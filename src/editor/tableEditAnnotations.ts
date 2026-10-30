@@ -49,3 +49,7 @@ export const tableCellCommitSequenceAnnotation =
  */
 export const tableCellLiveEditAnnotation =
   Annotation.define<TableCellCommitStep>();
+
+/** A structural edit replaces the focused cell DOM. Capture its original
+ * address and selection before dispatch so host Undo can return there. */
+export const tableStructureUndoFocusAnnotation = Annotation.define<TableCellCommitRestore>();

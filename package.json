@@ -2,7 +2,7 @@
   "name": "markdown-live-render-tables",
   "displayName": "Markdown Live Editor",
   "description": "A VS Code extension for editing markdown in a live rendered editor.",
-  "version": "0.1.223",
+  "version": "0.1.226",
   "publisher": "dan-homisak",
   "license": "MIT",
   "engines": {
@@ -42,6 +42,20 @@
         "title": "Focus Task Checkbox at Caret",
         "category": "Markdown Live Editor",
         "enablement": "activeCustomEditorId == markdownLiveRenderTables.liveEditor && config.markdownLiveRenderTables.markdownRendering.enabled"
+      },
+      {
+        "command": "markdownLiveRenderTables.undo",
+        "title": "Undo",
+        "category": "Markdown Live Editor",
+        "icon": "$(arrow-left)",
+        "enablement": "activeCustomEditorId == markdownLiveRenderTables.liveEditor && markdownLiveRenderTables.canUndo"
+      },
+      {
+        "command": "markdownLiveRenderTables.redo",
+        "title": "Redo",
+        "category": "Markdown Live Editor",
+        "icon": "$(arrow-right)",
+        "enablement": "activeCustomEditorId == markdownLiveRenderTables.liveEditor && markdownLiveRenderTables.canRedo"
       }
     ],
     "keybindings": [
@@ -67,22 +81,8 @@
         "markdownLiveRenderTables.tableNavigation.modifierKey": {
           "type": "string",
           "scope": "window",
-          "enum": [
-            "F1",
-            "F2",
-            "F3",
-            "F4",
-            "F5",
-            "F6",
-            "F7",
-            "F8",
-            "F9",
-            "F10",
-            "F11",
-            "F12"
-          ],
           "default": "F2",
-          "markdownDescription": "The function key to hold while pressing an unmodified arrow key to move directly to an adjacent rendered table cell. The caret is placed at the end of the destination cell. This applies only while editing a table cell."
+          "markdownDescription": "Key or combination to hold while pressing an arrow key to move to an adjacent rendered table cell. Examples: `F2`, `Control`, `Alt+Shift`, `Ctrl+Space`, `KeyQ`, `Numpad0`. Accepts keyboard key/code names; the chosen key is reserved while editing cells."
         },
         "markdownLiveRenderTables.clipboard.defaultCopyMode": {
           "type": "string",
@@ -115,6 +115,26 @@
           "type": "boolean",
           "default": true,
           "description": "Always show heading # markers in the Markdown Live Editor. Disable to hide them in inactive headings and reveal them while editing. Heading colors and text size are preserved."
+        },
+        "markdownLiveRenderTables.tableShortcuts.insertRowBelow": {
+          "type": "string",
+          "default": "Ctrl+Enter",
+          "markdownDescription": "Shortcut to insert a row below while editing a table cell. Use modifiers plus a keyboard key/code (for example `Ctrl+Enter` or `Alt+KeyR`). Set to an empty string to disable."
+        },
+        "markdownLiveRenderTables.tableShortcuts.insertRowAbove": {
+          "type": "string",
+          "default": "Ctrl+Shift+Enter",
+          "markdownDescription": "Shortcut to insert a row above while editing a table cell. Use modifiers plus a keyboard key/code (for example `Ctrl+Enter` or `Alt+KeyR`). Set to an empty string to disable."
+        },
+        "markdownLiveRenderTables.tableShortcuts.insertColumnRight": {
+          "type": "string",
+          "default": "Alt+Enter",
+          "markdownDescription": "Shortcut to insert a column right while editing a table cell. Use modifiers plus a keyboard key/code (for example `Ctrl+Enter` or `Alt+KeyR`). Set to an empty string to disable."
+        },
+        "markdownLiveRenderTables.tableShortcuts.insertColumnLeft": {
+          "type": "string",
+          "default": "Alt+Shift+Enter",
+          "markdownDescription": "Shortcut to insert a column left while editing a table cell. Use modifiers plus a keyboard key/code (for example `Ctrl+Enter` or `Alt+KeyR`). Set to an empty string to disable."
         }
       }
     },
@@ -139,6 +159,16 @@
           "command": "markdownLiveRenderTables.toggleEditor",
           "when": "resourceExtname == .md || resourceExtname == .markdown",
           "group": "navigation@1"
+        },
+        {
+          "command": "markdownLiveRenderTables.undo",
+          "when": "activeCustomEditorId == markdownLiveRenderTables.liveEditor",
+          "group": "navigation@2"
+        },
+        {
+          "command": "markdownLiveRenderTables.redo",
+          "when": "activeCustomEditorId == markdownLiveRenderTables.liveEditor",
+          "group": "navigation@3"
         }
       ]
     }
@@ -160,7 +190,7 @@
     "generate:gutter-fixture": "node scripts/generate-gutter-stress-fixture.mjs",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "node ./dist/test/smoke.test.js && node ./dist/test/markdownSelectionWrapping.test.js && node ./dist/test/clipboard.test.js && node ./dist/test/selection.test.js && node ./dist/test/sourceProtection.test.js && node ./dist/test/tableCellInput.test.js && node ./dist/test/tableKeyboardNavigation.test.js && node ./dist/test/documentChangeValidation.test.js && node ./dist/test/tableParserReliability.test.js && node ./dist/test/tableEditingReliability.test.js && node ./dist/test/gutterFixture.test.js && node ./dist/test/markdownRendering.test.js && node ./dist/test/markdownPresentation.test.js && node ./dist/test/markdownBlocks.test.js && node ./dist/test/markdownLinks.test.js && node ./dist/test/markdownLivePreview.test.js && node ./dist/test/standardMarkdownRendering.test.js && node ./dist/test/markdownProperties.test.js && node ./dist/test/markdownListStructure.test.js && node ./dist/test/codeHighlighting.test.js && node scripts/check-extension-bundle.mjs && node scripts/check-markdown-host-lifecycle.mjs",
+    "test": "node ./dist/test/smoke.test.js && node ./dist/test/historyAvailability.test.js && node ./dist/test/markdownSelectionWrapping.test.js && node ./dist/test/clipboard.test.js && node ./dist/test/selection.test.js && node ./dist/test/sourceProtection.test.js && node ./dist/test/tableCellInput.test.js && node ./dist/test/tableKeyboardNavigation.test.js && node ./dist/test/documentChangeValidation.test.js && node ./dist/test/tableParserReliability.test.js && node ./dist/test/tableEditingReliability.test.js && node ./dist/test/gutterFixture.test.js && node ./dist/test/markdownRendering.test.js && node ./dist/test/markdownPresentation.test.js && node ./dist/test/markdownBlocks.test.js && node ./dist/test/markdownLinks.test.js && node ./dist/test/markdownLivePreview.test.js && node ./dist/test/standardMarkdownRendering.test.js && node ./dist/test/markdownProperties.test.js && node ./dist/test/markdownListStructure.test.js && node ./dist/test/codeHighlighting.test.js && node scripts/check-extension-bundle.mjs && node scripts/check-markdown-host-lifecycle.mjs",
     "vscode:prepublish": "npm run compile",
     "bundle:extension": "esbuild ./src/extension.ts --bundle --format=cjs --platform=node --target=node20 --external:vscode --sourcemap --outfile=./dist/extension.js && node scripts/copy-syntax-assets.mjs",
     "qa:properties": "npm run compile && node scripts/edh-markdown-release-check.mjs --properties-only"

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { keyboardBindingMatches, normalizeTableShortcuts, parseKeyboardBinding } from "../shared/keyboardBinding";
 import fs from "node:fs";
 import path from "node:path";
 import { EditorState } from "@codemirror/state";
@@ -40,7 +41,7 @@ const setting =
 assert.ok(setting, "expected the table-navigation modifier setting");
 assert.equal(setting.type, "string");
 assert.equal(setting.scope, "window");
-assert.deepEqual(setting.enum, [...TABLE_NAVIGATION_MODIFIER_KEYS]);
+assert.equal(setting.enum, undefined, "custom bindings are not restricted to function keys");
 assert.equal(setting.default, DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY);
 assert.match(
   String(setting.markdownDescription),
@@ -56,11 +57,11 @@ assert.equal(
 );
 assert.equal(
   normalizeTableNavigationModifierKey("F13"),
-  DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY,
+  "F13",
 );
 assert.equal(
   normalizeTableNavigationModifierKey("f2", "F8"),
-  "F8",
+  "f2",
 );
 
 const initialState = EditorState.create({
@@ -112,3 +113,21 @@ heldKeys.clear();
 assert.equal(heldKeys.isHeld("F8"), false);
 
 console.log("table keyboard navigation configuration tests passed");
+
+for (const binding of ["Control", "Alt+Shift", "Ctrl+Space", "KeyQ", "Numpad0", "F24", "PageDown", "Plus", "Shift+;"]) {
+  assert.equal(normalizeTableNavigationModifierKey(binding), binding);
+  assert.ok(parseKeyboardBinding(binding));
+}
+for (const binding of ["Ctrl+", "Ctrl+Banana", "F25", "a+b", ""]) assert.equal(parseKeyboardBinding(binding), null);
+const event = { key: "Enter", code: "Enter", ctrlKey: true, altKey: false, shiftKey: false, metaKey: false };
+assert(keyboardBindingMatches("Ctrl+Enter", event));
+assert(!keyboardBindingMatches("Ctrl+Shift+Enter", event));
+assert(keyboardBindingMatches("Ctrl+Shift+Enter", { ...event, shiftKey: true }));
+assert(keyboardBindingMatches("Ctrl+Space", { ...event, key: " ", code: "Space" }));
+assert(keyboardBindingMatches("Alt+Numpad0", { ...event, key: "0", code: "Numpad0", ctrlKey: false, altKey: true }));
+assert.equal(normalizeTableShortcuts({ insertRowAbove: "" }).insertRowAbove, "");
+assert.equal(normalizeTableShortcuts({ insertRowAbove: "nonsense" }).insertRowAbove, "Ctrl+Shift+Enter");
+heldKeys.keyDown("KeyQ");
+assert(heldKeys.isHeld("KeyQ"));
+heldKeys.keyUp("KeyQ");
+assert(!heldKeys.isHeld("KeyQ"));

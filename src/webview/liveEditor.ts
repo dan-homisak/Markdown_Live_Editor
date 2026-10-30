@@ -1,3 +1,4 @@
+import { DEFAULT_TABLE_SHORTCUTS, normalizeTableShortcuts, TableShortcuts } from "../shared/keyboardBinding";
 import {
   ChangeSet,
   EditorSelection,
@@ -39,14 +40,17 @@ import { MarkdownOpenLinkRequest } from "../shared/markdownLinkValidation";
 import {
   tableNavigationModifierCompartment,
   tableNavigationModifierFacet,
+  tableShortcutsFacet,
 } from "../editor/tableNavigation";
 import {
   tableCellCommitSequenceAnnotation,
   TableCellCommitRestore,
   TableCellCommitSequence,
+  tableStructureUndoFocusAnnotation,
 } from "../editor/tableEditAnnotations";
 import {
   findCell,
+  getCellCaretOffset,
   setCellCaretOffset,
   TABLE_CELL_SELECTOR,
 } from "../editor/table/cellSelection";
@@ -176,6 +180,7 @@ interface EditorOptions {
   defaultCopyMode: ClipboardCopyMode;
   defaultPasteMode: ClipboardPasteMode;
   tableNavigationModifierKey: TableNavigationModifierKey;
+  tableShortcuts: TableShortcuts;
   markdownRendering: {
     enabled: boolean;
     showHeadingMarkers: boolean;
@@ -213,6 +218,7 @@ let appliedMarkdownRenderingOptions =
   effectiveMarkdownRenderingOptions(editorOptions);
 const pendingWebviewEchoes: { id: number; text: string }[] = [];
 const pendingHostUndoFocusStack: PendingHostUndoFocus[] = [];
+const pendingHostRedoFocusStack: PendingHostUndoFocus[] = [];
 const MAX_PENDING_HOST_UNDO_FOCUS = 200;
 
 // The full Electron visual suite deliberately injects synthetic host snapshots
@@ -225,6 +231,7 @@ window.__MLRT_TEST_SET_HOST_ISOLATION__ = (isolated: boolean): void => {
   window.__MLRT_TEST_HOST_RESYNC_PENDING__ = !isolated;
   pendingWebviewEchoes.length = 0;
   pendingHostUndoFocusStack.length = 0;
+  pendingHostRedoFocusStack.length = 0;
   if (!isolated) {
     vscode.postMessage({ type: "ready" });
   }
@@ -447,6 +454,11 @@ function installViewStateBridge(): void {
 
 function handleHostMessage(event: MessageEvent<unknown>): void {
   const message = event.data;
+  if (message && typeof message === "object" && "type" in message && message.type === "historyCommand" &&
+      "command" in message && (message.command === "undo" || message.command === "redo")) {
+    dispatchUndoRedo(message.command);
+    return;
+  }
   if (message && typeof message === "object" && "type" in message &&
       message.type === "captureViewState" && "requestId" in message &&
       typeof message.requestId === "number") {
@@ -519,6 +531,7 @@ function handleHostMessage(event: MessageEvent<unknown>): void {
       if (!matched) {
         pendingWebviewEchoes.length = 0;
         pendingHostUndoFocusStack.length = 0;
+        pendingHostRedoFocusStack.length = 0;
         invalidateMarkdownTaskContext(view);
         const mismatchSource = `host revision ${message.revision} authoritative mismatch`;
         if (
@@ -541,6 +554,7 @@ function handleHostMessage(event: MessageEvent<unknown>): void {
   if (message.source === "webviewReject") {
     pendingWebviewEchoes.length = 0;
     pendingHostUndoFocusStack.length = 0;
+    pendingHostRedoFocusStack.length = 0;
     invalidateMarkdownTaskContext(view);
     const rejectionSource = `host revision ${message.revision} rejected stale change`;
     if (
@@ -624,6 +638,8 @@ function setEditorDocument(
 
   if (undoFocus?.restore.kind === "tableCell") {
     focusTableCellAfterRender(undoFocus.restore.detail);
+  } else if (returnFocusToEditor) {
+    view.focus();
   }
 }
 
@@ -663,7 +679,7 @@ function installEditorCommandBridge(root: HTMLElement): void {
     "pointerdown",
     (event) => {
       if (event.target instanceof Element) {
-        if (event.target.closest(TABLE_CELL_SELECTOR)) {
+        if (event.target.closest(`${TABLE_CELL_SELECTOR}, .mlrt-table-controls-layer, .mlrt-table-structure-menu`)) {
           return;
         }
         if (!root.contains(event.target)) {
@@ -788,6 +804,7 @@ function pushTableCellCommitUndoFocus(
 }
 
 function pushPendingHostUndoFocus(pendingFocus: PendingHostUndoFocus): void {
+  pendingHostRedoFocusStack.length = 0;
   pendingHostUndoFocusStack.push(pendingFocus);
   if (pendingHostUndoFocusStack.length > MAX_PENDING_HOST_UNDO_FOCUS) {
     pendingHostUndoFocusStack.splice(
@@ -920,14 +937,29 @@ function acknowledgeWebviewEcho(
 }
 
 function popPendingHostUndoFocus(text: string): PendingHostUndoFocus | null {
+  const cell = findCell(document.activeElement);
+  const restore: HostUndoRestoreTarget = cell ? { kind: "tableCell", detail: {
+    tableFrom: Number(cell.dataset.tableFrom), rowKind: cell.dataset.rowKind ?? "body", rowIndex: Number(cell.dataset.rowIndex),
+    column: Number(cell.dataset.column), from: Number(cell.dataset.sourceFrom), to: Number(cell.dataset.sourceTo),
+    restoreCaretOffset: getCellCaretOffset(cell),
+  } } : { kind: "editor", anchor: view.state.selection.main.head };
+  const inverse = { beforeText: view.state.doc.toString(), restore };
   for (let index = pendingHostUndoFocusStack.length - 1; index >= 0; index--) {
     const pendingFocus = pendingHostUndoFocusStack[index];
     if (pendingFocus.beforeText === text) {
       pendingHostUndoFocusStack.splice(index);
+      pendingHostRedoFocusStack.push(inverse);
       return pendingFocus;
     }
   }
-
+  for (let index = pendingHostRedoFocusStack.length - 1; index >= 0; index--) {
+    const pendingFocus = pendingHostRedoFocusStack[index];
+    if (pendingFocus.beforeText === text) {
+      pendingHostRedoFocusStack.splice(index);
+      pendingHostUndoFocusStack.push(inverse);
+      return pendingFocus;
+    }
+  }
   return null;
 }
 
@@ -976,6 +1008,7 @@ function readEditorOptions(): EditorOptions {
     defaultCopyMode: "smart",
     defaultPasteMode: "auto",
     tableNavigationModifierKey: DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY,
+    tableShortcuts: DEFAULT_TABLE_SHORTCUTS,
     markdownRendering: {
       enabled: true,
       showHeadingMarkers: true,
@@ -1003,6 +1036,7 @@ function readEditorOptions(): EditorOptions {
       defaultCopyMode: optionRecord.defaultCopyMode,
       defaultPasteMode: optionRecord.defaultPasteMode,
       tableNavigationModifierKey: optionRecord.tableNavigationModifierKey,
+      tableShortcuts: optionRecord.tableShortcuts,
       markdownRendering: optionRecord.markdownRendering,
       markdownLinks: optionRecord.markdownLinks,
     },
@@ -1065,6 +1099,7 @@ function normalizeEditorOptions(
       defaultPasteMode === "markdown"
         ? defaultPasteMode
         : fallback.defaultPasteMode,
+    tableShortcuts: normalizeTableShortcuts(record.tableShortcuts, fallback.tableShortcuts),
     tableNavigationModifierKey: normalizeTableNavigationModifierKey(
       record.tableNavigationModifierKey,
       fallback.tableNavigationModifierKey,
@@ -1163,12 +1198,11 @@ function updateEditorOptions(value: unknown): void {
       ),
     );
   }
-  if (tableNavigationModifierChanged) {
+  if (tableNavigationModifierChanged || JSON.stringify(nextOptions.tableShortcuts) !== JSON.stringify(view.state.facet(tableShortcutsFacet))) {
     effects.push(
       tableNavigationModifierCompartment.reconfigure(
-        tableNavigationModifierFacet.of(
-          editorOptions.tableNavigationModifierKey,
-        ),
+        [tableNavigationModifierFacet.of(editorOptions.tableNavigationModifierKey),
+          tableShortcutsFacet.of(editorOptions.tableShortcuts)],
       ),
     );
   }
@@ -1268,10 +1302,11 @@ function publishEditorDocumentUpdate(update: ViewUpdate): void {
       commitSequence,
     );
   } else {
+    const structuralFocus = update.transactions.map(transaction => transaction.annotation(tableStructureUndoFocusAnnotation)).find(Boolean);
     pushPendingHostUndoFocus({
       beforeText: update.startState.doc.toString(),
-      restore: lastTableCellCommit
-        ? { kind: "tableCell", detail: lastTableCellCommit }
+      restore: structuralFocus || lastTableCellCommit
+        ? { kind: "tableCell", detail: (structuralFocus ?? lastTableCellCommit)! }
         : {
             kind: "editor",
             anchor: update.startState.selection.main.head,
@@ -1631,7 +1666,7 @@ function focusTableCellAfterRender(detail: TableCellCommitDetail): void {
         return;
       }
 
-      cell.focus();
+      cell.focus({ preventScroll: true });
       setCellCaretOffset(cell, detail.restoreCaretOffset);
     });
   });

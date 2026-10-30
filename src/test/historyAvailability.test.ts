@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import { HistoryAvailability } from "../shared/historyAvailability";
+const history = new HistoryAvailability("base");
+assert.deepEqual([history.canUndo, history.canRedo], [false, false]);
+history.update("a"); history.update("ab"); history.update("abc");
+assert.deepEqual([history.canUndo, history.canRedo], [true, false]);
+history.update("base", "undo");
+assert.deepEqual([history.canUndo, history.canRedo], [false, true], "host may coalesce several edits into one undo");
+history.update("abc", "redo");
+assert.deepEqual([history.canUndo, history.canRedo], [true, false]);
+history.update("ab", "undo"); history.update("different");
+assert.deepEqual([history.canUndo, history.canRedo], [true, false], "new edits invalidate the redo branch");
+history.update("older", "undo");
+assert.deepEqual([history.canUndo, history.canRedo], [false, true], "preexisting host history can be discovered by Undo");
+history.update("different", "redo");
+assert.deepEqual([history.canUndo, history.canRedo], [true, false]);
+console.log("Host history availability tests passed.");

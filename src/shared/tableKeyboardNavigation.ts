@@ -1,4 +1,5 @@
-/** Function keys that may be held to move directly between rendered cells. */
+import { canonicalKey, parseKeyboardBinding } from "./keyboardBinding";
+/** Common function-key examples; custom keyboard bindings are also supported. */
 export const TABLE_NAVIGATION_MODIFIER_KEYS = [
   "F1",
   "F2",
@@ -14,8 +15,7 @@ export const TABLE_NAVIGATION_MODIFIER_KEYS = [
   "F12",
 ] as const;
 
-export type TableNavigationModifierKey =
-  (typeof TABLE_NAVIGATION_MODIFIER_KEYS)[number];
+export type TableNavigationModifierKey = string;
 
 export const DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY: TableNavigationModifierKey =
   "F2";
@@ -26,9 +26,8 @@ export function normalizeTableNavigationModifierKey(
   fallback: TableNavigationModifierKey =
     DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY,
 ): TableNavigationModifierKey {
-  return typeof value === "string" &&
-    (TABLE_NAVIGATION_MODIFIER_KEYS as readonly string[]).includes(value)
-    ? (value as TableNavigationModifierKey)
+  return typeof value === "string" && parseKeyboardBinding(value)
+    ? value
     : fallback;
 }
 
@@ -70,18 +69,16 @@ export function adjacentTableCell(
     : null;
 }
 
-/** Small testable state machine behind the held-function-key tracker. */
+/** Small testable state machine behind the held-key tracker. */
 export class TableNavigationKeyState {
   private readonly held = new Set<TableNavigationModifierKey>();
 
   public keyDown(key: string): void {
-    if ((TABLE_NAVIGATION_MODIFIER_KEYS as readonly string[]).includes(key)) {
-      this.held.add(key as TableNavigationModifierKey);
-    }
+    this.held.add(canonicalKey(key));
   }
 
   public keyUp(key: string): void {
-    this.held.delete(key as TableNavigationModifierKey);
+    this.held.delete(canonicalKey(key));
   }
 
   public clear(): void {
@@ -89,6 +86,6 @@ export class TableNavigationKeyState {
   }
 
   public isHeld(key: TableNavigationModifierKey): boolean {
-    return this.held.has(key);
+    return this.held.has(canonicalKey(key));
   }
 }
