@@ -629,6 +629,10 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
             document.uri,
           ) ||
           event.affectsConfiguration(
+            "markdownLiveRenderTables.occurrenceHighlight",
+            document.uri,
+          ) ||
+          event.affectsConfiguration(
             "markdownLiveRenderTables.clipboard",
             document.uri,
           ) ||
@@ -647,6 +651,8 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
           ) ||
           event.affectsConfiguration("editor.multiCursorModifier", markdownEditorScope) ||
           event.affectsConfiguration("editor.wordWrap", markdownEditorScope) ||
+          event.affectsConfiguration("editor.renderWhitespace", markdownEditorScope) ||
+          event.affectsConfiguration("editor.roundedSelection", markdownEditorScope) ||
           event.affectsConfiguration(
             "editor.scrollBeyondLastLine",
             markdownEditorScope,
@@ -1287,6 +1293,9 @@ function getEditorOptions(
 ): {
   lineWrapping: boolean;
   lineHighlight: boolean;
+  occurrenceHighlight: boolean;
+  renderWhitespace: "none" | "boundary" | "selection" | "trailing" | "all";
+  roundedSelection: boolean;
   scrollBeyondLastLine: boolean;
   clipboardDocumentToken: string;
   defaultCopyMode: "smart" | "rich" | "plain" | "markdown";
@@ -1317,6 +1326,13 @@ function getEditorOptions(
   return {
     lineWrapping: wordWrap !== "off",
     lineHighlight: extensionConfig.get<boolean>("lineHighlight.enabled", false),
+    occurrenceHighlight: extensionConfig.get<boolean>("occurrenceHighlight.enabled", true),
+    roundedSelection: editorConfig.get<boolean>("roundedSelection", true),
+    renderWhitespace: readEnumSetting(
+      editorConfig.get<string>("renderWhitespace", "selection"),
+      ["none", "boundary", "selection", "trailing", "all"] as const,
+      "selection",
+    ),
     scrollBeyondLastLine: editorConfig.get<boolean>(
       "scrollBeyondLastLine",
       true,

@@ -837,7 +837,7 @@ assert.match(
 );
 assert.match(
   liveEditorCss,
-  /\.cm-editor[\s\S]*\.cm-content[\s\S]*\.mlrt-table-cell\[contenteditable="true"\]:focus::selection[\s\S]*background-color:\s*rgb\(0 120 212 \/ 86%\)/,
+  /\.cm-editor[\s\S]*\.cm-content[\s\S]*\.mlrt-table-cell\[contenteditable="true"\]:focus::selection[\s\S]*background-color:\s*var\(--mlrt-text-selection-fill\)\s*!important/,
 );
 assert.match(
   liveEditorCss,
@@ -859,22 +859,21 @@ assert.doesNotMatch(
   liveEditorCss,
   /--mlrt-selection-fill:\s*var\(\s*--vscode-editor-selectionBackground/,
 );
+// Prose selection is row geometry in a layer behind the text, filled with
+// the theme's own editor.selectionBackground (see documentSelectionDecorations).
 assert.match(
   liveEditorCss,
-  /\.mlrt-prose-selection\s*\{[\s\S]*?background-color:\s*var\(--mlrt-text-selection-fill\)\s*!important;[\s\S]*?box-decoration-break:\s*clone;/,
+  /\.mlrt-prose-selection-layer\s*>\s*\.mlrt-selection-fill\s*\{[\s\S]*?background-color:\s*var\(--mlrt-text-selection-fill\);/,
 );
 assert.match(
   liveEditorCss,
-  /padding-block-start:\s*var\(\s*--mlrt-prose-selection-padding-block-start/,
+  /--mlrt-text-selection-fill:\s*var\(\s*--vscode-editor-selectionBackground/,
 );
 assert.match(
   liveEditorCss,
-  /padding-block-end:\s*var\(\s*--mlrt-prose-selection-padding-block-end/,
+  /--mlrt-occurrence-fill:\s*var\(\s*--vscode-editor-selectionHighlightBackground/,
 );
-assert.match(
-  liveEditorCss,
-  /\.mlrt-prose-selection::before\s*\{\s*content:\s*none;\s*\}/,
-);
+assert.doesNotMatch(liveEditorCss, /box-decoration-break:\s*clone;[^}]*--mlrt-text-selection-fill/);
 assert.doesNotMatch(extensionSource, /Loading Markdown live editor/);
 assert.doesNotMatch(
   liveEditorSource,

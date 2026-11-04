@@ -1,20 +1,125 @@
 import {
   Annotation,
+  ChangeSet,
   EditorSelection,
   EditorState,
   Extension,
   SelectionRange,
+  Text,
   Transaction,
 } from "@codemirror/state";
 import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import {
   getParsedTables,
   ParsedTable,
+  parseMarkdownTableRow,
   positionAfterTable,
   positionBeforeTable,
 } from "./tableModel";
 
 export const allowTableSourceChange = Annotation.define<boolean>();
+
+/**
+ * What a table edit claims to change, verified against the transaction's
+ * start state before the change is allowed into the document.
+ *
+ * - `cell`: exactly one change replacing exactly the declared cell's source
+ *   span (or, for a ragged row missing that cell, the row), with single-line
+ *   text that keeps the row's cell count.
+ * - `tables`: every change lies inside one of the declared tables.
+ *
+ * Table positions are the start offsets in the *start* state, i.e. the state
+ * the edit was computed from. If an edit was computed from anything else, it
+ * cannot satisfy its own claim and is dropped instead of corrupting text.
+ */
+export type TableEditIntent =
+  | { kind: "cell"; tableFrom: number; row: number; column: number }
+  | {
+      kind: "tables";
+      tableFroms: readonly number[];
+      /** Also allow the text between the declared tables (merging them). */
+      spanning?: boolean;
+    };
+
+export const tableEditIntent = Annotation.define<TableEditIntent>();
+
+export interface BlockedTableEdit {
+  reason: string;
+  intent: TableEditIntent;
+  timestamp: number;
+}
+
+const blockedTableEdits: BlockedTableEdit[] = [];
+
+/** Recent edits refused by the integrity guard (diagnostics and tests). */
+export function recentBlockedTableEdits(): readonly BlockedTableEdit[] {
+  return blockedTableEdits;
+}
+
+/**
+ * Returns null when `changes` (relative to `doc`) satisfy `intent`, otherwise
+ * a human-readable reason. Pure: depends only on its arguments.
+ */
+export function validateTableEditIntent(
+  doc: Text,
+  changes: ChangeSet,
+  intent: TableEditIntent,
+): string | null {
+  const tables = getParsedTables(doc);
+  if (intent.kind === "tables") {
+    const targets = intent.tableFroms.map((from) => tables.find((table) => table.from === from));
+    if (targets.length === 0 || targets.some((table) => !table)) {
+      return "a declared table does not exist at its position";
+    }
+    const spanFrom = Math.min(...targets.map((table) => table!.from));
+    const spanTo = Math.max(...targets.map((table) => table!.to));
+    let problem: string | null = null;
+    changes.iterChangedRanges((from, to) => {
+      const inside = intent.spanning
+        ? from >= spanFrom && to <= spanTo
+        : targets.some((table) => from >= table!.from && to <= table!.to);
+      if (!inside) {
+        problem ??= `change ${from}-${to} is outside the declared table`;
+      }
+    });
+    return problem;
+  }
+
+  const table = tables.find((candidate) => candidate.from === intent.tableFrom);
+  if (!table) {
+    return "no table starts at the declared position";
+  }
+  const row = intent.row === 0 ? table.header : table.body[intent.row - 1];
+  if (!row || !Number.isInteger(intent.column) || intent.column < 0 || intent.column >= table.columnCount) {
+    return "the declared cell does not exist";
+  }
+  const cell = row.cells[intent.column];
+  const span = cell ? { from: cell.start, to: cell.end } : { from: row.from, to: row.to };
+  const expectedCells = cell ? row.cells.length : table.columnCount;
+  let count = 0;
+  let problem: string | null = null;
+  const inspect = (from: number, to: number, inserted: string): void => {
+    count++;
+    if (from !== span.from || to !== span.to) {
+      problem ??= `change ${from}-${to} is not the declared cell ${span.from}-${span.to}`;
+      return;
+    }
+    if (/[\r\n]/.test(inserted)) {
+      problem ??= "cell text contains a line break";
+      return;
+    }
+    const nextRowText = doc.sliceString(row.from, from) + inserted + doc.sliceString(to, row.to);
+    const nextCells = parseMarkdownTableRow(row.lineIndex, row.from, nextRowText).cells.length;
+    if (nextCells !== expectedCells) {
+      problem ??= `cell text changes the row from ${expectedCells} to ${nextCells} cells`;
+    }
+  };
+  changes.iterChanges((from, to, _fromB, _toB, inserted) => inspect(from, to, inserted.toString()));
+  if (count !== 1) {
+    return `a cell edit must be exactly one change (got ${count})`;
+  }
+  return problem;
+}
 
 export interface TableSourceSelectionGuardOptions {
   tableCellSelector: string;
@@ -22,8 +127,27 @@ export interface TableSourceSelectionGuardOptions {
 
 export function createTableSourceChangeFilter(): Extension {
   return EditorState.changeFilter.of((transaction) => {
+    if (!transaction.docChanged) {
+      return true;
+    }
+    const intent = transaction.annotation(tableEditIntent);
+    if (intent) {
+      const reason = validateTableEditIntent(
+        transaction.startState.doc,
+        transaction.changes,
+        intent,
+      );
+      if (reason) {
+        blockedTableEdits.push({ reason, intent, timestamp: Date.now() });
+        if (blockedTableEdits.length > 20) {
+          blockedTableEdits.splice(0, blockedTableEdits.length - 20);
+        }
+        console.warn(`Markdown Live Editor blocked a table edit: ${reason}`);
+        return false;
+      }
+      return true;
+    }
     if (
-      !transaction.docChanged ||
       transaction.annotation(allowTableSourceChange) ||
       isUndoRedo(transaction)
     ) {

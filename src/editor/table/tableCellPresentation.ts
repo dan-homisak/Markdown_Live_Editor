@@ -1,11 +1,16 @@
+import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { markdownRenderingOptionsFacet } from "../markdown/markdownRendering";
 import { findCell, getCellSelectionOffsets, readCellDisplayValue, setCellPlainText, setCellPreviewSourceRange, setCellSelectionOffsets } from "./cellSelection";
 import { markdownCellPresentation } from "./markdownCellPresentation";
 
-export function tableCellPreviewEnabled(view: EditorView): boolean {
-  const options = view.state.facet(markdownRenderingOptionsFacet);
+export function tableCellPreviewEnabledForState(state: EditorState): boolean {
+  const options = state.facet(markdownRenderingOptionsFacet);
   return options.enabled && !options.screenReaderOptimized;
+}
+
+export function tableCellPreviewEnabled(view: EditorView): boolean {
+  return tableCellPreviewEnabledForState(view.state);
 }
 
 export function presentTableCell(cell: HTMLElement, value: string, enabled: boolean): void {

@@ -8,11 +8,16 @@ import {
   DecorationSet,
   EditorView,
 } from "@codemirror/view";
-import { getParsedTables } from "../shared/tableModel";
-import { tableCellLiveEditAnnotation } from "./tableEditAnnotations";
 import { RenderedTableWidget } from "./table/TableWidget";
+import {
+  getTrackedTables,
+  tableRenderGeneration,
+  tableResyncEffect,
+  tableTrackingField,
+} from "./table/tableTracking";
 import { markdownListField, markdownListRangeHidden } from "./markdown/markdownListStructure";
 import { markdownRenderingOptionsFacet } from "./markdown/markdownRendering";
+import { tableCellPreviewEnabledForState } from "./table/tableCellPresentation";
 import {
   createTableHeightEstimateMetrics,
   TableHeightEstimateMetrics,
@@ -30,9 +35,15 @@ import {
  * for the table and removes the replaced lines from the native gutter by
  * construction.
  *
- * Live cell edits (annotated transactions) map the existing sets through the
- * change instead of rebuilding, which keeps the mounted widget DOM stable
- * while typing.
+ * Source integrity: the decoration set is rebuilt from the tracked tables of
+ * the *current* document on every document change, including keystrokes in a
+ * cell. Widgets are never carried forward by position mapping, because a
+ * mapped widget keeps the parse it was created with: remounting it after a
+ * scroll, or editing another table while it is mounted, would then compute
+ * source edits from offsets that no longer exist. Widget equality is exact
+ * source identity, so unchanged tables keep their DOM untouched, tables that
+ * merely moved get their source metadata patched in place, and only edited
+ * tables re-render their changed cells.
  */
 export function createTableDecorations(
   heightEstimateMetrics: TableHeightEstimateMetrics =
@@ -49,11 +60,9 @@ export function createTableDecorations(
         range.from !== transaction.changes.mapPos(previous[index].from) || range.to !== transaction.changes.mapPos(previous[index].to));
       const options = transaction.state.facet(markdownRenderingOptionsFacet), previousOptions = transaction.startState.facet(markdownRenderingOptionsFacet);
       const presentationChanged = options.enabled !== previousOptions.enabled || options.screenReaderOptimized !== previousOptions.screenReaderOptimized;
-      if (!transaction.docChanged && !foldsChanged && !presentationChanged) {
+      const resync = transaction.effects.some((effect) => effect.is(tableResyncEffect));
+      if (!transaction.docChanged && !foldsChanged && !presentationChanged && !resync) {
         return value;
-      }
-      if (transaction.annotation(tableCellLiveEditAnnotation) && !foldsChanged && !presentationChanged) {
-        return value.map(transaction.changes);
       }
       return buildTableDecorations(
         transaction.state,
@@ -68,17 +77,19 @@ export function createTableDecorations(
     },
   });
 
-  return field;
+  return [tableTrackingField, field];
 }
 
 function buildTableDecorations(
   state: EditorState,
   heightEstimateMetrics: TableHeightEstimateMetrics,
 ): DecorationSet {
+  const preview = tableCellPreviewEnabledForState(state);
+  const generation = tableRenderGeneration(state);
   return Decoration.set(
-    getParsedTables(state.doc).filter(table => !markdownListRangeHidden(state, table)).map((table) =>
+    getTrackedTables(state).filter(({ table }) => !markdownListRangeHidden(state, table)).map(({ id, table }) =>
       Decoration.replace({
-        widget: new RenderedTableWidget(table, heightEstimateMetrics),
+        widget: new RenderedTableWidget(table, id, heightEstimateMetrics, preview, generation),
         block: true,
       }).range(table.from, table.to),
     ),

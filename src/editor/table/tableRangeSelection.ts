@@ -32,7 +32,11 @@ import {
 import { getPendingClipboardCut } from "../clipboardCutState";
 import { selectVisibleTableBoundary } from "../tableBoundaryInput";
 import { syncTableSelectionOverlay } from "./tableSelectionOverlay";
-import { getTableWidgetTable } from "./tableWidgetState";
+import {
+  getRenderedTableModel,
+  getTableWidgetId,
+  getTableWidgetTable,
+} from "./tableWidgetState";
 import { TableSelectionKind } from "../../shared/tableDeletion";
 import { rectangleCells, selectedCellsBounds, tableCellKey, toggleSelectedCells } from "../../shared/tableSelectionSet";
 
@@ -51,6 +55,12 @@ export interface TableRangeSelectionState {
   version: typeof MLRT_CLIPBOARD_VERSION;
   wrapper: HTMLElement;
   tableFrom: number;
+  /**
+   * Stable identity of the selected table. A selection follows its table
+   * across widget rebuilds by this id, never by a source offset that an edit
+   * above the table could hand to a different table.
+   */
+  tableId?: number;
   anchor: TableCellAddress;
   head: TableCellAddress;
   kind?: TableSelectionKind;
@@ -80,7 +90,6 @@ export function isTablePointerSelectionActive(doc: Document): boolean {
 export function bindTableRangeSelection(
   wrapper: HTMLElement,
   view: EditorView,
-  table: ParsedTable,
 ): () => void {
   wrapper.tabIndex = -1;
   wrapper.setAttribute("role", "group");
@@ -95,7 +104,10 @@ export function bindTableRangeSelection(
   let pointerCleanupTimer: ReturnType<typeof setTimeout> | null = null;
   let gestureGeneration = 0;
   let activeGestureGeneration: number | null = null;
-  const currentTable = (): ParsedTable => getTableWidgetTable(wrapper) ?? table;
+  // Dimensions and boundary positions for selection only. Deletion, paste,
+  // and clear resolve the authoritative table themselves before editing.
+  const currentTable = (): ParsedTable =>
+    getTableWidgetTable(wrapper) ?? getRenderedTableModel(wrapper)!;
   stateFor(wrapper.ownerDocument).view = view;
 
   const onPointerDown = (event: PointerEvent): void => {
@@ -1073,10 +1085,7 @@ export function getTableRangeSelection(
   if (state && !state.wrapper.isConnected) {
     const replacement = Array.from(
       doc.querySelectorAll<HTMLElement>(".mlrt-table-widget"),
-    ).find(
-      (candidate) =>
-        Number(candidate.dataset.srcFrom ?? "-1") === state.tableFrom,
-    );
+    ).find((candidate) => selectionBelongsToWrapper(state, candidate));
     if (replacement) {
       state.wrapper = replacement;
       if (!tableSelectionFitsWrapper(state, replacement)) {
@@ -1131,6 +1140,7 @@ export function setTableRangeSelection(
     version: MLRT_CLIPBOARD_VERSION,
     wrapper,
     tableFrom,
+    tableId: getTableWidgetId(wrapper),
     anchor,
     head,
     kind,
@@ -1393,7 +1403,7 @@ function restoreSelectionClasses(wrapper: HTMLElement): void {
   const selection = states.get(wrapper.ownerDocument)?.selection;
   if (
     selection &&
-    selection.tableFrom === Number(wrapper.dataset.srcFrom ?? "-1")
+    selectionBelongsToWrapper(selection, wrapper)
   ) {
     selection.wrapper = wrapper;
     if (!tableSelectionFitsWrapper(selection, wrapper)) {
@@ -1405,6 +1415,16 @@ function restoreSelectionClasses(wrapper: HTMLElement): void {
     }
     applySelectionClasses(selection);
   }
+}
+
+function selectionBelongsToWrapper(
+  selection: TableRangeSelectionState,
+  wrapper: HTMLElement,
+): boolean {
+  const id = getTableWidgetId(wrapper);
+  return selection.tableId !== undefined
+    ? selection.tableId === id
+    : selection.tableFrom === Number(wrapper.dataset.srcFrom ?? "-1");
 }
 
 function tableSelectionFitsWrapper(

@@ -70,7 +70,7 @@ export function deleteBetweenTables(view: EditorView, direction: -1 | 1): boolea
   applyTableMutation(view, join.table, join.edit, () => {
     const cell = view.dom.querySelector<HTMLElement>(`${TABLE_CELL_SELECTOR}[data-table-from="${join.table.from}"][data-row-kind="body"][data-row-index="${join.table.body.length}"][data-column="0"]`);
     if (cell) focusCellAtEnd(cell, true);
-  });
+  }, join.merged);
   return true;
 }
 

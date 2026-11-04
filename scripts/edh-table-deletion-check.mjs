@@ -65,11 +65,13 @@ export async function runTableDeletionCheck({ liveClient, wb, evaluateJson, capt
   await click('.mlrt-table-cell');
   await key('Escape');
   await key('a', process.platform === 'darwin' ? 4 : 2);
-  await context('.mlrt-table-cell', 'delete-table');
+  // "Delete table" removes the table and its contents immediately (README);
+  // "Clear table" is the structure-preserving action.
+  await context('.mlrt-table-cell', 'clear-table');
   const hostCleared = await state();
   assert.equal(hostCleared.tables.length, original.tables.length);
   assert.ok(hostCleared.tables[0].rows.flat().every(value => value === ''));
-  await key('Delete');
+  await context('.mlrt-table-cell', 'delete-table');
   assert.equal((await state()).tables.length, original.tables.length - 1);
   await key('z', process.platform === 'darwin' ? 4 : 2);
   for (let n = 0; n < 40 && (await state()).text !== hostCleared.text; n++) await sleep(100);

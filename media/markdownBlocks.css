@@ -320,6 +320,35 @@
 .mlrt-markdown-block-token-variable { color: var(--mlrt-markdown-code-variable, var(--vscode-editor-foreground)); }
 .mlrt-markdown-block-token-tag { color: var(--mlrt-markdown-code-tag, var(--vscode-editor-foreground)); }
 
+/* A source row's opaque surface must sit BELOW CodeMirror's selection layer.
+   Giving the text row a background paints it over that layer, hiding selected
+   code/YAML. Keep chrome in the same geometry but its own lower paint layer. */
+.cm-editor .cm-line:is(.mlrt-markdown-block-code, .mlrt-markdown-block-quote) {
+  position: relative;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+.cm-line:is(.mlrt-markdown-block-code, .mlrt-markdown-block-quote)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -4;
+  pointer-events: none;
+  border-radius: inherit;
+  background-color: var(--mlrt-line-background, transparent);
+  box-shadow: inset var(--mlrt-markdown-block-guide-width, 0px) 0 var(--mlrt-markdown-block-accent, transparent), inset 0 1px var(--mlrt-markdown-block-top-edge, transparent), inset 0 -1px var(--mlrt-markdown-block-bottom-edge, transparent);
+}
+.cm-line.mlrt-markdown-block-quote::before {
+  background-image: repeating-linear-gradient(to right, var(--mlrt-markdown-block-accent) 0 1px, transparent 1px 16px);
+  background-size: calc((var(--mlrt-quote-depth, 1) - 1) * 16px + 1px) 100%;
+  background-repeat: no-repeat;
+}
+.cm-editor.mlrt-line-highlight-enabled.cm-focused:not(.mlrt-selection-active) .cm-activeLine::before {
+  background-color: color-mix(in srgb, var(--vscode-editor-foreground, #d4d4d4) 7%, var(--vscode-editor-background, #1e1e1e));
+  background-image: linear-gradient(var(--vscode-editor-lineHighlightBackground, transparent), var(--vscode-editor-lineHighlightBackground, transparent));
+}
+
 @media (forced-colors: active) {
   .cm-line.mlrt-markdown-block-code,
   .cm-line.mlrt-markdown-block-alert { --mlrt-line-background: Canvas; background-color: var(--mlrt-line-background); }

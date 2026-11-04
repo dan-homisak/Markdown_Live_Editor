@@ -284,14 +284,76 @@ export function formatMarkdownRow(values: string[]): string {
   return `| ${values.map((value) => formatMarkdownCell(value)).join(" | ")} |`;
 }
 
+/**
+ * Encodes a cell's display value as single-line table source.
+ *
+ * - `trim: true` (default) removes all surrounding whitespace.
+ * - `trim: "horizontal"` removes surrounding spaces and tabs only, so typed
+ *   trailing spaces never accumulate into the cell's padding while deliberate
+ *   leading/trailing line breaks (`<br>`) survive.
+ * - `trim: false` keeps the value verbatim.
+ *
+ * Line breaks become `<br>`. A bare `|` becomes `&#124;`; a pipe that is
+ * already backslash-escaped (`\|`, as revealed by the cell editor) is kept as
+ * is, so editing a cell never rewrites its existing escapes.
+ */
 export function formatMarkdownCell(
   value: string,
-  options: { trim?: boolean } = {},
+  options: { trim?: boolean | "horizontal" } = {},
 ): string {
   const normalized = value.replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ");
-  return (options.trim === false ? normalized : normalized.trim())
-    .replace(/\n/g, "<br>")
-    .replace(/\|/g, "&#124;");
+  const trimmed = options.trim === false
+    ? normalized
+    : options.trim === "horizontal"
+      ? normalized.replace(/^[ \t]+|[ \t]+$/g, "")
+      : normalized.trim();
+  return escapeBareCellPipes(trimmed.replace(/\n/g, "<br>"));
+}
+
+function escapeBareCellPipes(value: string): string {
+  let result = "";
+  let backslashes = 0;
+  for (const character of value) {
+    if (character === "|") {
+      result += backslashes % 2 === 1 ? "|" : "&#124;";
+      backslashes = 0;
+      continue;
+    }
+    backslashes = character === "\\" ? backslashes + 1 : 0;
+    result += character;
+  }
+  return result;
+}
+
+/**
+ * The display value a cell will have after `value` is written through the
+ * editor's live write path. Used to compare an in-progress DOM value with the
+ * source without being confused by trimmed padding or `<br>` spellings.
+ */
+export function canonicalTableCellValue(value: string): string {
+  return markdownCellToDisplayText(formatMarkdownCell(value, { trim: "horizontal" }));
+}
+
+/**
+ * Exact source identity: same position and the same text on every row. Two
+ * parses of the same document region always compare equal; any edit to the
+ * table, or any change that moves it, does not.
+ */
+export function sameTableSource(left: ParsedTable, right: ParsedTable): boolean {
+  if (left === right) {
+    return true;
+  }
+  return left.from === right.from && left.to === right.to &&
+    left.delimiter.from === right.delimiter.from && sameTableContent(left, right);
+}
+
+/** Same rendered content (ignoring where the table sits in the document). */
+export function sameTableContent(left: ParsedTable, right: ParsedTable): boolean {
+  return left.columnCount === right.columnCount &&
+    left.body.length === right.body.length &&
+    left.header.text === right.header.text &&
+    left.delimiter.text === right.delimiter.text &&
+    left.body.every((row, index) => row.text === right.body[index].text);
 }
 
 /**
@@ -329,13 +391,21 @@ export function formatTableCellSourceEdit(
   columnCount: number,
   column: number,
   value: string,
+  options: { trim?: boolean | "horizontal" } = {},
 ): TableCellSourceEdit {
   const cell = row.cells[column];
   if (!cell) {
+    // A ragged row is padded with empty cells. Existing cells keep their exact
+    // raw source; only the target cell is newly encoded.
+    const raws = Array.from(
+      { length: Math.max(columnCount, column + 1) },
+      (_, index) => row.cells[index]?.raw ?? "  ",
+    );
+    raws[column] = ` ${formatMarkdownCell(value, options)} `;
     return {
       from: row.from,
       to: row.to,
-      insert: formatTableCellEdit(row, columnCount, column, value),
+      insert: `|${raws.map(ensureTableCellSeparatorSafe).join("|")}|`,
     };
   }
 
@@ -347,7 +417,7 @@ export function formatTableCellSourceEdit(
     from: cell.start,
     to: cell.end,
     insert: ensureTableCellSeparatorSafe(
-      `${tableCellLeadingPipePrefix(row, column)}${leadingWhitespace}${formatMarkdownCell(value)}${trailingWhitespace}`,
+      `${tableCellLeadingPipePrefix(row, column)}${leadingWhitespace}${formatMarkdownCell(value, options)}${trailingWhitespace}`,
     ),
   };
 }

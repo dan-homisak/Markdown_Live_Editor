@@ -10,7 +10,7 @@ import {
   requestElementAnimationFrame,
 } from "./cellSelection";
 import {
-  getTableWidgetTable,
+  getRenderedTableModel,
   readActiveCellSizingOverride,
   setTableWidgetCleanup,
 } from "./tableWidgetState";
@@ -100,7 +100,6 @@ export function bindTableLayout(
   tableElement: HTMLTableElement,
   scrollbar: HTMLElement,
   scrollbarThumb: HTMLElement,
-  table: ParsedTable,
   view: EditorView,
 ): () => void {
   const syncScrollbar = () =>
@@ -108,13 +107,17 @@ export function bindTableLayout(
   let pendingAnimationFrame = 0;
   const syncLayout = () => {
     pendingAnimationFrame = 0;
+    const table = getRenderedTableModel(wrapper);
+    if (!table) {
+      return;
+    }
     synchronizeTableLayoutElements(
       wrapper,
       tableScroll,
       tableElement,
       scrollbar,
       scrollbarThumb,
-      getTableWidgetTable(wrapper) ?? table,
+      table,
       view,
     );
   };
@@ -255,7 +258,7 @@ export function measureAvailableDataWidthCh(
   return measureAvailableDataWidthChFromEditor(
     scroller,
     wrapper,
-    getTableWidgetTable(wrapper)?.columnCount ?? 1,
+    getRenderedTableModel(wrapper)?.columnCount ?? 1,
   );
 }
 

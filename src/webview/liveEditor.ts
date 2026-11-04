@@ -15,6 +15,8 @@ import {
   lineHighlightCompartment,
   lineWrappingCompartment,
 } from "../editor/liveEditorExtensions";
+import { createOccurrenceHighlight, occurrenceHighlightCompartment } from "../editor/occurrenceHighlight";
+import { roundedSelectionCompartment, roundedSelectionFacet, selectionWhitespaceCompartment, selectionWhitespaceFacet } from "../editor/documentSelectionDecorations";
 import {
   createMarkdownRenderingExtensions,
   explainTaskFocusFallback,
@@ -54,7 +56,7 @@ import {
   setCellCaretOffset,
   TABLE_CELL_SELECTOR,
 } from "../editor/table/cellSelection";
-import { TABLE_CELL_COMMIT_EVENT } from "../editor/table/tableCellEditing";
+import { TABLE_CELL_COMMIT_EVENT, TABLE_INTEGRITY_EVENT } from "../editor/table/tableSourceWrite";
 import { allowTableSourceChange } from "../shared/tableSourceProtection";
 import { normalizeDocumentText } from "../shared/documentChangeMapping";
 import {
@@ -175,6 +177,9 @@ interface EditorOptions {
   markdownLinks: Omit<MarkdownLinkOptions, "enabled">;
   lineWrapping: boolean;
   lineHighlight: boolean;
+  occurrenceHighlight: boolean;
+  renderWhitespace: string;
+  roundedSelection: boolean;
   scrollBeyondLastLine: boolean;
   clipboardDocumentToken: string;
   defaultCopyMode: ClipboardCopyMode;
@@ -1003,6 +1008,9 @@ function readEditorOptions(): EditorOptions {
     markdownLinks: { documentUri: null, multiCursorModifier: "alt", isMac: false },
     lineWrapping: true,
     lineHighlight: false,
+    occurrenceHighlight: true,
+    renderWhitespace: "selection",
+    roundedSelection: true,
     scrollBeyondLastLine: true,
     clipboardDocumentToken: createClipboardDocumentToken(),
     defaultCopyMode: "smart",
@@ -1032,6 +1040,9 @@ function readEditorOptions(): EditorOptions {
           ? optionRecord.scrollBeyondLastLine
           : true,
       lineHighlight: optionRecord.lineHighlight,
+      occurrenceHighlight: optionRecord.occurrenceHighlight,
+      renderWhitespace: optionRecord.renderWhitespace,
+      roundedSelection: optionRecord.roundedSelection,
       clipboardDocumentToken: optionRecord.clipboardDocumentToken,
       defaultCopyMode: optionRecord.defaultCopyMode,
       defaultPasteMode: optionRecord.defaultPasteMode,
@@ -1076,6 +1087,15 @@ function normalizeEditorOptions(
       typeof record.lineHighlight === "boolean"
         ? record.lineHighlight
         : fallback.lineHighlight,
+    occurrenceHighlight:
+      typeof record.occurrenceHighlight === "boolean"
+        ? record.occurrenceHighlight
+        : fallback.occurrenceHighlight,
+    renderWhitespace:
+      typeof record.renderWhitespace === "string"
+        ? record.renderWhitespace
+        : fallback.renderWhitespace,
+    roundedSelection: typeof record.roundedSelection === "boolean" ? record.roundedSelection : fallback.roundedSelection,
     scrollBeyondLastLine:
       typeof record.scrollBeyondLastLine === "boolean"
         ? record.scrollBeyondLastLine
@@ -1160,6 +1180,8 @@ function updateEditorOptions(value: unknown): void {
     nextOptions.markdownLinks.multiCursorModifier !== editorOptions.markdownLinks.multiCursorModifier ||
     nextOptions.markdownLinks.isMac !== editorOptions.markdownLinks.isMac;
   const lineHighlightChanged = nextOptions.lineHighlight !== editorOptions.lineHighlight;
+  const occurrenceHighlightChanged = nextOptions.occurrenceHighlight !== editorOptions.occurrenceHighlight;
+  const whitespaceChanged = (nextOptions.renderWhitespace !== "none") !== view.state.facet(selectionWhitespaceFacet);
   const lineWrappingChanged =
     nextOptions.lineWrapping !== editorOptions.lineWrapping;
   const tableNavigationModifierChanged =
@@ -1168,9 +1190,22 @@ function updateEditorOptions(value: unknown): void {
   editorOptions = nextOptions;
   applyDocumentEditorOptions(editorOptions);
   const effects: StateEffect<unknown>[] = [];
+  if (editorOptions.roundedSelection !== view.state.facet(roundedSelectionFacet)) {
+    effects.push(roundedSelectionCompartment.reconfigure(roundedSelectionFacet.of(editorOptions.roundedSelection)));
+  }
   if (lineHighlightChanged) {
     effects.push(lineHighlightCompartment.reconfigure(
       createLineHighlightAttributes(editorOptions.lineHighlight),
+    ));
+  }
+  if (whitespaceChanged) {
+    effects.push(selectionWhitespaceCompartment.reconfigure(
+      selectionWhitespaceFacet.of(editorOptions.renderWhitespace !== "none"),
+    ));
+  }
+  if (occurrenceHighlightChanged) {
+    effects.push(occurrenceHighlightCompartment.reconfigure(
+      createOccurrenceHighlight(editorOptions.occurrenceHighlight),
     ));
   }
   if (linksChanged) effects.push(markdownLinksCompartment.reconfigure(createMarkdownLinkExtensions(
@@ -1630,6 +1665,13 @@ function installCursorDebugListeners(root: HTMLElement): void {
     });
   });
 
+  root.addEventListener(TABLE_INTEGRITY_EVENT, (event) => {
+    recordDebug("table-integrity-refusal", {
+      detail: event instanceof CustomEvent ? event.detail : null,
+      activeElement: summarizeTarget(document.activeElement),
+    });
+  });
+
   root.addEventListener(TABLE_CELL_COMMIT_EVENT, (event) => {
     if (event instanceof CustomEvent && isTableCellCommitDetail(event.detail)) {
       lastTableCellCommit = event.detail;
@@ -1646,22 +1688,16 @@ function installCursorDebugListeners(root: HTMLElement): void {
 function focusTableCellAfterRender(detail: TableCellCommitDetail): void {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      const tableSelector = `${TABLE_CELL_SELECTOR}[data-table-from="${detail.tableFrom}"]`;
+      // Only the same table's cell is a valid target. Falling back to "any
+      // table with this row/column" would put the caret, and the next
+      // keystroke, into an unrelated table.
       const selector = [
-        tableSelector,
+        `${TABLE_CELL_SELECTOR}[data-table-from="${detail.tableFrom}"]`,
         `[data-row-kind="${cssEscapeAttribute(detail.rowKind)}"]`,
         `[data-row-index="${detail.rowIndex}"]`,
         `[data-column="${detail.column}"]`,
       ].join("");
-      const cell =
-        document.querySelector<HTMLElement>(selector) ??
-        document.querySelector<HTMLElement>(
-          [
-            `${TABLE_CELL_SELECTOR}[data-row-kind="${cssEscapeAttribute(detail.rowKind)}"]`,
-            `[data-row-index="${detail.rowIndex}"]`,
-            `[data-column="${detail.column}"]`,
-          ].join(""),
-        );
+      const cell = document.querySelector<HTMLElement>(selector);
       if (!cell) {
         return;
       }
@@ -1818,6 +1854,7 @@ function isEditorOptions(value: unknown): value is EditorOptions {
   return (
     (markdownRendering === undefined || isMarkdownRenderingOptions(markdownRendering)) &&
     (record.lineHighlight === undefined || typeof record.lineHighlight === "boolean") &&
+    (record.occurrenceHighlight === undefined || typeof record.occurrenceHighlight === "boolean") &&
     typeof record.lineWrapping === "boolean" &&
     typeof record.scrollBeyondLastLine === "boolean" &&
     typeof record.clipboardDocumentToken === "string" &&

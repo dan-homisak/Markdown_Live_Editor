@@ -59,10 +59,16 @@ export function selectVisibleTableBoundary(
   table: ParsedTable,
   side: TableBoundarySide,
 ): number {
-  const latestTable =
-    getParsedTables(view.state.doc).find(
-      (candidate) => candidate.from === table.from,
-    ) ?? table;
+  const latestTable = getParsedTables(view.state.doc).find(
+    (candidate) => candidate.from === table.from,
+  );
+  if (!latestTable) {
+    // Never insert a structural newline at an offset computed for a document
+    // that no longer exists. Just keep the caret somewhere valid.
+    const anchor = Math.min(view.state.doc.length, Math.max(0, side === "before" ? table.from - 1 : table.to));
+    view.dispatch({ selection: EditorSelection.cursor(anchor), scrollIntoView: true });
+    return anchor;
+  }
   const plan = planVisibleTableBoundary(view.state.doc, latestTable, side);
   if (plan.change) {
     view.dispatch({

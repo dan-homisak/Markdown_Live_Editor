@@ -41,15 +41,21 @@ body,
   /* A cool, high-clarity blue keeps table selection recognizably native to
      this editor while remaining distinct from its subdued inner grid. */
   --mlrt-selection-accent: #3b9cff;
-  /* CSS's `Highlight` system color resolves differently on macOS and Windows.
-     Use the Windows selection blue explicitly so character selection is the
-     same on both platforms; forced-colors mode opts back into the system token
-     below so accessibility themes keep control. */
+  /* Text selection uses the active theme's editor.selectionBackground, the
+     exact color VS Code's own editor paints, so prose and cell selections
+     look native in every theme and identical on every platform. The fixed
+     blue is only a fallback for hosts that do not inject theme variables;
+     forced-colors mode opts into the system token below. */
   --mlrt-text-selection-accent: #0078d4;
-  --mlrt-text-selection-fill: color-mix(
-    in srgb,
-    var(--mlrt-text-selection-accent) 86%,
-    transparent
+  --mlrt-text-selection-fill: var(
+    --vscode-editor-selectionBackground,
+    color-mix(in srgb, var(--mlrt-text-selection-accent) 86%, transparent)
+  );
+  /* VS Code's editor.selectionHighlightBackground: a faint blue in the default
+     themes, used for other occurrences of the caret word or selected text. */
+  --mlrt-occurrence-fill: var(
+    --vscode-editor-selectionHighlightBackground,
+    rgb(173 214 255 / 15%)
   );
   --mlrt-selection-fill: color-mix(
     in srgb,
@@ -79,6 +85,7 @@ body,
 @media (forced-colors: active) {
   .cm-editor {
     --mlrt-text-selection-accent: Highlight;
+    --mlrt-text-selection-fill: Highlight;
   }
 
   .cm-editor
@@ -95,70 +102,72 @@ body,
   display: none !important;
 }
 
-.mlrt-prose-selection {
-  /* Paint the inline box itself so CSS creates one background fragment for
-     every visual wrap row. A single absolutely positioned pseudo-element is
-     anchored to only one fragment of a wrapped inline and leaves the other
-     selected rows looking unselected. The geometry-sync plugin measures the
-     real, asymmetric text-to-line insets: deriving equal padding from the
-     font size shifts the paint upward and creates both gaps and overlaps. */
-  padding-block-start: var(
-    --mlrt-prose-selection-padding-block-start,
-    0px
-  );
-  padding-block-end: var(
-    --mlrt-prose-selection-padding-block-end,
-    max(
-      0px,
-      calc(
-        var(--mlrt-editor-line-height, 1lh) -
-          var(--mlrt-editor-font-size, 1em) - 3px
-      )
-    )
-  );
-  background-color: var(--mlrt-text-selection-fill) !important;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  border-radius: 1px;
-  /* Keep the token's normal syntax color, like Monaco/VS Code does. */
+.cm-editor:not(.cm-focused):not(:has(.mlrt-table-cell:focus)) {
+  --mlrt-text-selection-fill: var(--vscode-editor-inactiveSelectionBackground, var(--vscode-editor-selectionBackground, #3a3d41));
 }
 
-.mlrt-prose-selection::before {
-  content: none;
+body:is(.vscode-high-contrast, .vscode-high-contrast-light) .mlrt-prose-selection-rect {
+  border-radius: 0 !important;
+}
+body:is(.vscode-high-contrast, .vscode-high-contrast-light) .mlrt-selection-fillet {
+  display: none;
 }
 
-.mlrt-prose-selection-empty-line::before {
-  content: "";
-  display: inline-block;
-  width: 0.8ch;
-  height: 1lh;
-  vertical-align: top;
+/* Prose selection: one rectangle per visual row, drawn behind the text by
+   documentSelectionDecorations.ts. Each rectangle spans its row's full line
+   box, so rows meet without seams; rows selected from their start begin at
+   the page's text edge, including indented and bulleted list rows. Syntax
+   colors stay unchanged, like VS Code. */
+.mlrt-prose-selection-layer {
+  /* Block surfaces (-4), guides (-3), selection (-2), then text. */
+  z-index: -2 !important;
   pointer-events: none;
+}
+.mlrt-prose-selection-layer > .mlrt-selection-fill {
+  position: absolute;
   background-color: var(--mlrt-text-selection-fill);
-  border-radius: 1px;
+  pointer-events: none;
 }
 
-/* Adjacent full-height rectangles meet exactly. Square only corners covered
-   by the neighboring selected row; every exposed step keeps Monaco's subtle
-   1px rounding without leaving a missing pixel at a straight seam. */
-.mlrt-prose-selection-connects-top-left,
-.mlrt-prose-selection-empty-line.mlrt-prose-selection-connects-top-left::before {
-  border-top-left-radius: 0;
+/* Keep the existing padding/advance when selecting inline code. Only its
+   chrome is suppressed; changing padding here would rewrap the selection. */
+.cm-content .mlrt-markdown-inline-code:has(.mlrt-selection-inline-code),
+.cm-content .mlrt-selection-inline-code .mlrt-markdown-inline-code,
+.cm-content .mlrt-markdown-inline-code.mlrt-selection-inline-code {
+  background: transparent;
+  box-shadow: none;
+}
+.cm-content .mlrt-selection-whitespace {
+  background-image: radial-gradient(circle, var(--vscode-editorWhitespace-foreground, #80808080) 0.7px, transparent 0.9px);
+  background-position: center;
+  background-size: 1ch 100%;
 }
 
-.mlrt-prose-selection-connects-top-right,
-.mlrt-prose-selection-empty-line.mlrt-prose-selection-connects-top-right::before {
-  border-top-right-radius: 0;
+@media (forced-colors: active) {
+  .mlrt-prose-selection-layer > .mlrt-selection-fill {
+    forced-color-adjust: none;
+    background-color: Highlight;
+    border-radius: 0 !important;
+  }
+  .mlrt-prose-selection-layer > .mlrt-selection-fillet { display: none; }
 }
 
-.mlrt-prose-selection-connects-bottom-left,
-.mlrt-prose-selection-empty-line.mlrt-prose-selection-connects-bottom-left::before {
-  border-bottom-left-radius: 0;
+/* Other occurrences of the caret word or selected text (VS Code style). */
+.cm-content .mlrt-occurrence {
+  background-color: var(--mlrt-occurrence-fill);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--vscode-editor-selectionHighlightBorder, transparent);
 }
 
-.mlrt-prose-selection-connects-bottom-right,
-.mlrt-prose-selection-empty-line.mlrt-prose-selection-connects-bottom-right::before {
-  border-bottom-right-radius: 0;
+.mlrt-table-cell::highlight(mlrt-occurrence) {
+  background-color: var(--mlrt-occurrence-fill);
+}
+
+@media (forced-colors: active) {
+  .cm-content .mlrt-occurrence {
+    background-color: transparent;
+    outline: 1px dotted CanvasText;
+  }
 }
 
 .cm-scroller {
@@ -382,7 +391,7 @@ body,
      system `Highlight` color to focused descendants. This deliberately more
      specific rule keeps the literal in sync with the 86% Windows-blue mix
      above, so the result cannot vary by operating system. */
-  background-color: rgb(0 120 212 / 86%) !important;
+  background-color: var(--mlrt-text-selection-fill) !important;
 }
 
 /* CodeMirror keeps a real DOM selection behind its custom paint so typing,
@@ -839,7 +848,7 @@ body,
   border-color: var(--mlrt-list-accent);
 }
 .cm-content .mlrt-list-fold-hint { user-select: none; cursor: default; }
-.mlrt-list-guides { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.mlrt-list-guides { position: absolute; inset: 0; pointer-events: none; z-index: -3; }
 .mlrt-list-guide { position: absolute; width: 1px; background: var(--vscode-editorIndentGuide-background1, #404040); }
 .mlrt-list-guide-active { background: var(--mlrt-list-accent); }
 .cm-content .mlrt-markdown-rule-row { position: relative; }

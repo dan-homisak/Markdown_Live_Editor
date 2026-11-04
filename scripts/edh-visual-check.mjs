@@ -11,6 +11,10 @@ import { fileURLToPath } from "node:url";
 import { WebSocket } from "undici";
 import { runSelectionWrappingCheck } from "./edh-selection-wrapping-check.mjs";
 import { runTableDeletionCheck } from "./edh-table-deletion-check.mjs";
+import { runTableIntegrityCheck } from "./edh-table-integrity-check.mjs";
+import { runSelectionHighlightCheck } from "./edh-selection-highlight-check.mjs";
+import { runSelectionRenderingCheck } from "./edh-selection-rendering-check.mjs";
+import { runOccurrenceHighlightCheck } from "./edh-occurrence-highlight-check.mjs";
 import { runTableLineBreakScrollCheck } from "./edh-table-line-break-scroll-check.mjs";
 import { runSelectionStrokeCheck } from "./edh-selection-stroke-check.mjs";
 import { edhLaunchFlags, edhSettings, resolveEdhExecutable } from "./edh-isolation.mjs";
@@ -38,6 +42,9 @@ const userDataDir = mkdtempSync(path.join(os.tmpdir(), "mlrt-edh-"));
 const extensionsDir = path.join(userDataDir, "extensions");
 const qaDir = path.join(repoRoot, "qa");
 const pixelTolerance = 0.5;
+// Word-wise caret movement and deletion use Option on macOS and Ctrl on
+// Windows/Linux. (On Windows, Alt+Backspace is the platform Undo shortcut.)
+const wordModifier = process.platform === "darwin" ? 1 : 2;
 const borderOnlyComplete = Symbol("border-only-complete");
 const requestedDeviceScale = process.argv.find(argument => argument.startsWith("--device-scale="))?.split("=")[1];
 if (requestedDeviceScale !== undefined && (!Number.isFinite(Number(requestedDeviceScale)) || Number(requestedDeviceScale) < 0.5 || Number(requestedDeviceScale) > 4)) {
@@ -64,6 +71,7 @@ await mkdir(extensionsDir, { recursive: true });
 await mkdir(path.join(userDataDir, "User"), { recursive: true });
 await writeFile(path.join(userDataDir, "User", "settings.json"), JSON.stringify({
   ...edhSettings,
+  ...(process.argv.find(arg => arg.startsWith("--theme=")) ? { "workbench.colorTheme": process.argv.find(arg => arg.startsWith("--theme=")).slice(8) } : {}),
   ...(process.argv.includes("--table-line-break-scroll-only") ? { "editor.scrollBeyondLastLine": false } : {}),
 }));
 const fixturePath = path.join(userDataDir, "TestTable.md");
@@ -347,6 +355,27 @@ try {
 
   if (process.argv.includes("--table-deletion-only")) {
     await runTableDeletionCheck({ liveClient, wb, evaluateJson, captureWorkbenchScreenshot, qaDir });
+    throw borderOnlyComplete;
+  }
+
+  if (process.argv.includes("--table-integrity-only")) {
+    await runTableIntegrityCheck({ liveClient, wb, evaluateJson, captureWorkbenchScreenshot, qaDir, fixturePath });
+    throw borderOnlyComplete;
+  }
+
+  if (process.argv.includes("--occurrence-highlight-only")) {
+    await runOccurrenceHighlightCheck({ liveClient, wb, evaluateJson, captureWorkbenchScreenshot, qaDir });
+    throw borderOnlyComplete;
+  }
+
+  if (process.argv.includes("--selection-highlight-only")) {
+    await runSelectionHighlightCheck({ liveClient, wb, evaluateJson, qaDir,
+      label: process.argv.find(argument => argument.startsWith("--label="))?.split("=")[1] });
+    throw borderOnlyComplete;
+  }
+
+  if (process.argv.includes("--selection-rendering-only")) {
+    await runSelectionRenderingCheck({ liveClient, wb, evaluateJson, qaDir });
     throw borderOnlyComplete;
   }
 
@@ -5148,6 +5177,13 @@ function proseCharacterSelectionResultExpression() {
       rightDelta: actualRight === null || expectedRight === null ? null : Math.abs(actualRight - expectedRight),
       markFillVisible: markBackgrounds.length > 0 && markBackgrounds.every((value) => !transparent(value)),
       markBackgrounds,
+      themeSelectionBackground: (() => {
+        const probe = root.createElement('span');
+        probe.style.backgroundColor = view.hasFocus ? 'var(--vscode-editor-selectionBackground)' : 'var(--vscode-editor-inactiveSelectionBackground)';
+        view.dom.append(probe);
+        const color = root.defaultView.getComputedStyle(probe).backgroundColor;
+        probe.remove(); return color;
+      })(),
       selectionFillBlanketLineCount: markedLineBackgrounds.filter((value) =>
         markBackgrounds.includes(value)
       ).length,
@@ -5193,19 +5229,22 @@ function proseMultilineSelectionResultExpression() {
     const root = roots.find((candidate) => candidate.defaultView?.__MLRT_EDITOR_VIEW__);
     const view = root?.defaultView.__MLRT_EDITOR_VIEW__;
     if (!root || !view) return JSON.stringify({ ok: false });
-    const marks = Array.from(root.querySelectorAll('.mlrt-prose-selection'));
-    const details = marks.map((mark) => {
-      const style = root.defaultView.getComputedStyle(mark);
-      const rect = mark.getBoundingClientRect();
-      const lineRect = mark.closest('.cm-line')?.getBoundingClientRect();
+    const rects = Array.from(root.querySelectorAll('.mlrt-prose-selection-rect'))
+      .sort((left, right) => left.getBoundingClientRect().top - right.getBoundingClientRect().top);
+    const lines = Array.from(view.contentDOM.querySelectorAll('.cm-line'));
+    const contentLeft = view.contentDOM.getBoundingClientRect().left +
+      parseFloat(root.defaultView.getComputedStyle(view.contentDOM).paddingLeft || '0');
+    const details = rects.map((element) => {
+      const style = root.defaultView.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      const center = (rect.top + rect.bottom) / 2;
+      const line = lines.find((candidate) => {
+        const box = candidate.getBoundingClientRect();
+        return center >= box.top && center < box.bottom;
+      });
+      const lineRect = line?.getBoundingClientRect();
       return {
-        text: mark.textContent,
-        continuesFromPrevious: mark.classList.contains('mlrt-prose-selection-continues-from-previous'),
-        continuesToNext: mark.classList.contains('mlrt-prose-selection-continues-to-next'),
-        connectsTopLeft: mark.classList.contains('mlrt-prose-selection-connects-top-left'),
-        connectsTopRight: mark.classList.contains('mlrt-prose-selection-connects-top-right'),
-        connectsBottomLeft: mark.classList.contains('mlrt-prose-selection-connects-bottom-left'),
-        connectsBottomRight: mark.classList.contains('mlrt-prose-selection-connects-bottom-right'),
+        text: line?.textContent ?? null,
         borderTopLeftRadius: style.borderTopLeftRadius,
         borderTopRightRadius: style.borderTopRightRadius,
         borderBottomLeftRadius: style.borderBottomLeftRadius,
@@ -5213,8 +5252,10 @@ function proseMultilineSelectionResultExpression() {
         background: style.backgroundColor,
         paintedTop: rect.top,
         paintedBottom: rect.bottom,
+        paintedLeft: rect.left,
         lineTop: lineRect?.top ?? null,
         lineBottom: lineRect?.bottom ?? null,
+        contentLeft,
       };
     });
     return JSON.stringify({
@@ -5372,12 +5413,11 @@ function proseBlankLineSelectionResultExpression() {
     const root = roots.find((candidate) => candidate.defaultView?.__MLRT_EDITOR_VIEW__);
     const view = root?.defaultView.__MLRT_EDITOR_VIEW__;
     if (!root || !view) return JSON.stringify({ ok: false });
-    const markers = Array.from(root.querySelectorAll('.mlrt-prose-selection-empty-line'));
+    const markers = Array.from(root.querySelectorAll('.mlrt-prose-selection-empty-line'))
+      .sort((left, right) => left.getBoundingClientRect().top - right.getBoundingClientRect().top);
     const details = markers.map((marker) => {
-      const style = root.defaultView.getComputedStyle(marker, '::before');
+      const style = root.defaultView.getComputedStyle(marker);
       return {
-        continuesFromPrevious: marker.classList.contains('mlrt-prose-selection-continues-from-previous'),
-        continuesToNext: marker.classList.contains('mlrt-prose-selection-continues-to-next'),
         width: style.width,
         height: style.height,
         background: style.backgroundColor,
@@ -5508,7 +5548,7 @@ function documentEndSelectionResultExpression() {
       .filter((rect) => rect.width > 0 && rect.height > 0);
     const maxMarkBottom = markRects.length ? Math.max(...markRects.map((rect) => rect.bottom)) : null;
     const maxMarkRightOnFinalLine = finalLineRect
-      ? Math.max(...markRects.filter((rect) => rect.bottom > finalLineRect.top && rect.top < finalLineRect.bottom).map((rect) => rect.right), -Infinity)
+      ? Math.max(...markRects.filter((rect) => (rect.top + rect.bottom) / 2 >= finalLineRect.top && (rect.top + rect.bottom) / 2 < finalLineRect.bottom).map((rect) => rect.right), -Infinity)
       : null;
     const endCaret = view.coordsAtPos(view.state.doc.length);
     return JSON.stringify({
@@ -5520,7 +5560,7 @@ function documentEndSelectionResultExpression() {
       finalLineBottom: finalLineRect?.bottom ?? null,
       maxMarkBottom,
       finalLineMarkCount: finalLineRect
-        ? markRects.filter((rect) => rect.bottom > finalLineRect.top && rect.top < finalLineRect.bottom).length
+        ? markRects.filter((rect) => (rect.top + rect.bottom) / 2 >= finalLineRect.top && (rect.top + rect.bottom) / 2 < finalLineRect.bottom).length
         : 0,
       finalRightDelta: Number.isFinite(maxMarkRightOnFinalLine) && endCaret
         ? Math.abs(maxMarkRightOnFinalLine - endCaret.left)
@@ -5785,6 +5825,14 @@ function sameCellNativeSelectionResultExpression() {
       nativeSelectionForeground: nativeSelectionStyle?.color ?? null,
       selectionAccent:
         root.defaultView.getComputedStyle(active).getPropertyValue('--mlrt-text-selection-accent').trim(),
+      themeSelectionBackground: (() => {
+        const probe = root.createElement('span');
+        probe.style.backgroundColor = 'var(--vscode-editor-selectionBackground)';
+        view.dom.append(probe);
+        const color = root.defaultView.getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return color;
+      })(),
     });
   })()`;
 }
@@ -12315,7 +12363,9 @@ function assertProseSelectionColorConsistency(focused, unfocused) {
   if (
     focusedBackgrounds.length < 1 ||
     focusedBackgrounds.some(selectionColorIsTransparent) ||
-    JSON.stringify(focusedBackgrounds) !== JSON.stringify(unfocusedBackgrounds)
+    unfocusedBackgrounds.length < 1 ||
+    focusedBackgrounds.some(color => color !== focused.themeSelectionBackground) ||
+    unfocusedBackgrounds.some(color => color !== unfocused.themeSelectionBackground)
   ) {
     throw new Error(
       `Focused/unfocused prose selection color mismatch: ${JSON.stringify({ focused, unfocused })}`,
@@ -12324,12 +12374,14 @@ function assertProseSelectionColorConsistency(focused, unfocused) {
 }
 
 function assertTextSelectionColorTreatment(prose, cell) {
+  // Prose and in-cell text selections both paint the active theme's
+  // editor.selectionBackground, exactly like VS Code's own editor.
   const proseBackgrounds = prose?.markBackgrounds ?? [];
-  const expected = [0, 120, 212, 0.86];
+  const expected = selectionColorRgba(cell?.themeSelectionBackground);
   const proseColor = selectionColorRgba(proseBackgrounds[0]);
   const cellColor = selectionColorRgba(cell?.nativeSelectionBackground);
   const matchesExpected = (color) =>
-    color?.every((component, index) =>
+    Boolean(expected) && color?.every((component, index) =>
       Math.abs(component - expected[index]) <= (index === 3 ? 0.01 : 1)
     );
   if (
@@ -12337,11 +12389,10 @@ function assertTextSelectionColorTreatment(prose, cell) {
     proseBackgrounds.some(selectionColorIsTransparent) ||
     selectionColorIsTransparent(cell?.nativeSelectionBackground) ||
     !matchesExpected(proseColor) ||
-    !matchesExpected(cellColor) ||
-    cell.selectionAccent.toLowerCase() !== "#0078d4"
+    !matchesExpected(cellColor)
   ) {
     throw new Error(
-      `Prose and cell text selection should share the Windows blue on every platform: ${JSON.stringify({ prose, cell })}`,
+      `Prose and cell text selection should share the theme selection color: ${JSON.stringify({ prose, cell })}`,
     );
   }
 }
@@ -12379,17 +12430,8 @@ function assertMultilineProseSelection(setup, result) {
     !result?.ok ||
     result.selectedText !== setup.expectedText ||
     details.length !== 4 ||
-    !details[0].continuesToNext ||
-    details[0].continuesFromPrevious ||
-    !details[0].connectsBottomLeft ||
-    !details.at(-1).continuesFromPrevious ||
-    details.at(-1).continuesToNext ||
-    !details.at(-1).connectsTopLeft ||
-    !details.slice(1, -1).every((detail) =>
-      detail.continuesFromPrevious && detail.continuesToNext &&
-      detail.connectsTopLeft && detail.connectsBottomLeft
-    ) ||
     details.some((detail) => selectionColorIsTransparent(detail.background)) ||
+    // Every row fills its line box exactly, so rows meet without seams.
     details.some((detail) =>
       !Number.isFinite(detail.lineTop) ||
       !Number.isFinite(detail.lineBottom) ||
@@ -12400,11 +12442,16 @@ function assertMultilineProseSelection(setup, result) {
       const gap = details[index + 1].paintedTop - detail.paintedBottom;
       return Math.abs(gap) > pixelTolerance;
     }) ||
-    details.some((detail) =>
-      detail.connectsTopLeft !== (detail.borderTopLeftRadius === "0px") ||
-      detail.connectsTopRight !== (detail.borderTopRightRadius === "0px") ||
-      detail.connectsBottomLeft !== (detail.borderBottomLeftRadius === "0px") ||
-      detail.connectsBottomRight !== (detail.borderBottomRightRadius === "0px")
+    // List rows selected from their start join the page's text edge instead
+    // of starting at the indented bullet text.
+    details.some((detail) => Math.abs(detail.paintedLeft - detail.contentLeft) > pixelTolerance) ||
+    // Outer corners keep the subtle rounding; shared left edges are square.
+    details[0].borderTopLeftRadius !== "3px" ||
+    details[0].borderBottomLeftRadius !== "0px" ||
+    details.at(-1).borderTopLeftRadius !== "0px" ||
+    details.at(-1).borderBottomLeftRadius !== "3px" ||
+    details.slice(1, -1).some((detail) =>
+      detail.borderTopLeftRadius !== "0px" || detail.borderBottomLeftRadius !== "0px"
     )
   ) {
     throw new Error(
@@ -12461,14 +12508,10 @@ function assertBlankLineProseSelection(setup, result) {
     !setup?.ok ||
     !result?.ok ||
     result.selectedText !== setup.expectedText ||
-    result.markerCount !== 3 ||
-    result.details?.length !== 3 ||
-    result.details[0].continuesFromPrevious ||
-    !result.details[0].continuesToNext ||
-    !result.details[1].continuesFromPrevious ||
-    !result.details[1].continuesToNext ||
-    !result.details[2].continuesFromPrevious ||
-    result.details[2].continuesToNext ||
+    // Two selected newlines. Ending at the next blank line's column 1
+    // does not select that line's newline (Monaco paints no third box).
+    result.markerCount !== 2 ||
+    result.details?.length !== 2 ||
     result.details.some((detail) =>
       !Number.isFinite(Number.parseFloat(detail.width)) ||
       Number.parseFloat(detail.width) <= 0 ||
@@ -12476,10 +12519,10 @@ function assertBlankLineProseSelection(setup, result) {
       Number.parseFloat(detail.height) <= 0 ||
       selectionColorIsTransparent(detail.background)
     ) ||
-    result.details[0].borderTopLeftRadius !== "1px" ||
+    result.details[0].borderTopLeftRadius !== "3px" ||
     result.details[0].borderBottomLeftRadius !== "0px" ||
-    result.details[2].borderTopLeftRadius !== "0px" ||
-    result.details[2].borderBottomLeftRadius !== "1px"
+    result.details[1].borderTopLeftRadius !== "0px" ||
+    result.details[1].borderBottomLeftRadius !== "0px"
   ) {
     throw new Error(
       `Selected blank prose line was not visibly marked: ${JSON.stringify({ setup, result })}`,
@@ -12735,7 +12778,7 @@ async function runTrustedKeyboardNavigationCheck(client) {
   checkpoints.nativeSelection = true;
 
   await setup({ rowKind: "body", rowIndex: 1, column: 1, anchor: 2, head: 2 });
-  await dispatchTrustedEditingKey(client, { ...arrows.right, modifiers: 1 });
+  await dispatchTrustedEditingKey(client, { ...arrows.right, modifiers: wordModifier });
   result = await state();
   assertCell("native Option+ArrowRight", result, {
     rowKind: "body",
@@ -12752,7 +12795,7 @@ async function runTrustedKeyboardNavigationCheck(client) {
       candidate.selectionHead <= candidate.activeCell.text.length,
   );
   await setup({ rowKind: "body", rowIndex: 1, column: 1, anchor: 0, head: 0 });
-  await dispatchTrustedEditingKey(client, { ...arrows.right, modifiers: 1 | 8 });
+  await dispatchTrustedEditingKey(client, { ...arrows.right, modifiers: wordModifier | 8 });
   result = await state();
   assertCell("native Option+Shift+ArrowRight", result, {
     rowKind: "body",
@@ -12779,7 +12822,7 @@ async function runTrustedKeyboardNavigationCheck(client) {
     anchor: Number.MAX_SAFE_INTEGER,
     head: Number.MAX_SAFE_INTEGER,
   });
-  await dispatchTrustedEditingKey(client, { ...arrows.right, modifiers: 1 });
+  await dispatchTrustedEditingKey(client, { ...arrows.right, modifiers: wordModifier });
   result = await state();
   assertCell("Option+ArrowRight stops at the cell boundary", result, {
     rowKind: "body",
@@ -12802,7 +12845,7 @@ async function runTrustedKeyboardNavigationCheck(client) {
       anchor: selectionCase.anchor,
       head: selectionCase.head,
     });
-    await dispatchTrustedKey(client, { ...selectionCase.arrow, modifiers: 1 });
+    await dispatchTrustedKey(client, { ...selectionCase.arrow, modifiers: wordModifier });
     result = await state();
     assertCell(selectionCase.label, result, {
       rowKind: "body",
@@ -12834,36 +12877,40 @@ async function runTrustedKeyboardNavigationCheck(client) {
   }
   checkpoints.commandCellEdges = true;
 
-  await setup({ rowKind: "body", rowIndex: 1, column: 0, anchor: 3, head: 3 });
-  await dispatchTrustedEditingKey(client, {
-    key: "a",
-    code: "KeyA",
-    windowsVirtualKeyCode: 65,
-    modifiers: 2,
-  });
-  result = await state();
-  assertCell("macOS Control+A is not repurposed as table Select All", result, {
-    rowKind: "body",
-    rowIndex: 1,
-    column: 0,
-    anchor: 3,
-    head: 3,
-    collapsed: true,
-    sourceUnchanged: true,
-  });
-  assertKeyboardNavigation(
-    "Control+A does not enter table selection",
-    result,
-    (candidate) =>
-      candidate.tableSelectedCells === 0 &&
-      candidate.documentSelectedCells === 0,
-  );
+  if (process.platform === "darwin") {
+    // Control+A is an ordinary text command on macOS; Ctrl is the primary
+    // Select All modifier everywhere else (exercised by the next step).
+    await setup({ rowKind: "body", rowIndex: 1, column: 0, anchor: 3, head: 3 });
+    await dispatchTrustedEditingKey(client, {
+      key: "a",
+      code: "KeyA",
+      windowsVirtualKeyCode: 65,
+      modifiers: 2,
+    });
+    result = await state();
+    assertCell("macOS Control+A is not repurposed as table Select All", result, {
+      rowKind: "body",
+      rowIndex: 1,
+      column: 0,
+      anchor: 3,
+      head: 3,
+      collapsed: true,
+      sourceUnchanged: true,
+    });
+    assertKeyboardNavigation(
+      "Control+A does not enter table selection",
+      result,
+      (candidate) =>
+        candidate.tableSelectedCells === 0 &&
+        candidate.documentSelectedCells === 0,
+    );
+  }
   await setup({ rowKind: "body", rowIndex: 1, column: 0, anchor: 2, head: 2 });
   await dispatchTrustedEditingKey(client, {
     key: "a",
     code: "KeyA",
     windowsVirtualKeyCode: 65,
-    modifiers: 4,
+    modifiers: process.platform === "darwin" ? 4 : 2,
   });
   result = await state();
   assertCell("Command+A selects the active cell text first", result, {
@@ -13874,7 +13921,7 @@ async function runTrustedTableEditingReliabilityCheck(client) {
     key: "Backspace",
     code: "Backspace",
     windowsVirtualKeyCode: 8,
-    modifiers: 1,
+    modifiers: wordModifier,
   });
   const wordStartResult = await evaluateJson(
     client,
@@ -13900,7 +13947,7 @@ async function runTrustedTableEditingReliabilityCheck(client) {
     key: "Backspace",
     code: "Backspace",
     windowsVirtualKeyCode: 8,
-    modifiers: 1,
+    modifiers: wordModifier,
   });
   const wordEndResult = await evaluateJson(
     client,

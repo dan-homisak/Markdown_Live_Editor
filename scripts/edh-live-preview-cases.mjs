@@ -73,7 +73,7 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
       ['across-blocks', sample.indexOf('  - fixture') + 8, sample.indexOf('label:') + 4],
     ];
     const paint = () => liveEval(`return Array.from(view.contentDOM.querySelectorAll('.cm-line:is(.mlrt-markdown-block-code,.mlrt-markdown-block-alert)')).map(line=>{
-      const css=win.getComputedStyle(line);
+      const css=win.getComputedStyle(line,'::before');
       return {background:css.backgroundColor,image:css.backgroundImage,shadow:css.boxShadow,height:line.getBoundingClientRect().height};
     });`);
     const observations = [];
@@ -95,7 +95,7 @@ export async function runLivePreviewChecks({check,liveEval,select,screenshot,wri
           assert.equal(await liveEval('return view.dom.classList.contains("mlrt-selection-active");'), true);
           await liveEval('view.contentDOM.blur();return true;'); await sleep(100);
           assert.deepEqual(await paint(), passive, `blur must retain the selected block surface: ${label}`);
-          const background = await liveEval(`const point=view.domAtPos(${head}),line=(point.node.nodeType===3?point.node.parentElement:point.node).closest('.cm-line');return win.getComputedStyle(line).backgroundColor;`);
+          const background = await liveEval(`const point=view.domAtPos(${head}),line=(point.node.nodeType===3?point.node.parentElement:point.node).closest('.cm-line');return win.getComputedStyle(line,'::before').backgroundColor;`);
           observations.push({ name, backward, enabled, head, background });
           if (!enabled && !backward && ['yaml', 'fence', 'callout'].includes(name)) await screenshot(`selection-background-${name}`);
         }

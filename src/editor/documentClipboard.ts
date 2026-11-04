@@ -27,6 +27,7 @@ import {
   parseMarkdownTables,
 } from "../shared/tableModel";
 import { allowTableSourceChange } from "../shared/tableSourceProtection";
+import { escapeMarkdownText } from "../shared/markdownEscape";
 import { deleteBetweenTables } from "./tableBoundaryNavigation";
 import { planTableDeletion, TableDeletionBehavior } from "../shared/tableDeletion";
 import { editorDragPosition } from "./dragPosition";
@@ -99,6 +100,8 @@ const turndown = new TurndownService({
   strongDelimiter: "**",
 });
 turndown.use(gfm);
+// Keep pasted fill-in blanks (`____`) and identifiers (`snake_case`) as written.
+turndown.escape = escapeMarkdownText;
 
 let armedDocumentPasteMode: ClipboardPasteMode | null = null;
 let requestedDocumentCopyMode: ClipboardCopyMode | null = null;

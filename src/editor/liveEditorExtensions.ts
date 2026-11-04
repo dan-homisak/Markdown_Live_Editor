@@ -30,6 +30,7 @@ import { createTableBoundaryInputHandler } from "./tableBoundaryInput";
 import { createTableCellFocusClassSync } from "./tableCellFocus";
 import { createTableDecorations } from "./tableDecorations";
 import { createTableHeightEstimateMetrics } from "./table/tableHeightEstimate";
+import { createOccurrenceHighlight, occurrenceHighlightCompartment } from "./occurrenceHighlight";
 import {
   createTableNavigationKeyTracker,
   tableNavigationModifierCompartment,
@@ -40,6 +41,10 @@ import {
 export interface LiveEditorOptions {
   lineWrapping: boolean;
   lineHighlight?: boolean;
+  occurrenceHighlight?: boolean;
+  /** VS Code's `editor.renderWhitespace`; anything but "none" dots selected whitespace. */
+  renderWhitespace?: string;
+  roundedSelection?: boolean;
   tableNavigationModifierKey: TableNavigationModifierKey;
   tableShortcuts?: TableShortcuts;
   markdownRendering?: MarkdownRenderingOptions;
@@ -75,11 +80,12 @@ export function createLiveEditorExtensions(
     history(),
     createEditorTheme(),
     lineHighlightCompartment.of(createLineHighlightAttributes(options.lineHighlight ?? false)),
+    occurrenceHighlightCompartment.of(createOccurrenceHighlight(options.occurrenceHighlight ?? true)),
     createTableBoundaryArrowNavigation(),
     createTableBoundaryInputHandler(),
     createDocumentSelectionInputHandler(),
     drawSelection(),
-    createDocumentSelectionDecorations(),
+    createDocumentSelectionDecorations((options.renderWhitespace ?? "selection") !== "none", options.roundedSelection ?? true),
     highlightActiveLine(),
     highlightActiveLineGutter(),
     lineNumbers(),

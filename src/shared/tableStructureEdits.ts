@@ -40,7 +40,7 @@ export function joinTablesAcrossDeletion(
   tables: readonly ParsedTable[],
   from: number,
   to: number,
-): { edit: TableCellSourceEdit; table: ParsedTable } | null {
+): { edit: TableCellSourceEdit; table: ParsedTable; merged: ParsedTable } | null {
   for (let index = 0; index + 1 < tables.length; index++) {
     const first = tables[index], second = tables[index + 1];
     if (first.columnCount !== second.columnCount || from < first.to || to > second.from || from === to) continue;
@@ -48,7 +48,7 @@ export function joinTablesAcrossDeletion(
     if (remaining.trim().length > 0 || (remaining.match(/\n/g)?.length ?? 0) > 1) continue;
     // Retain the second header as a data row; only its structural delimiter is removed.
     const separator = first.delimiter.from - first.header.to === 2 ? "\r\n" : "\n";
-    return { table: first, edit: { from: first.to, to: second.delimiter.to,
+    return { table: first, merged: second, edit: { from: first.to, to: second.delimiter.to,
       insert: separator + second.header.text } };
   }
   return null;

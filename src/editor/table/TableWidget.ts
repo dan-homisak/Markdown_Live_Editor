@@ -1,12 +1,20 @@
 import { EditorView, WidgetType } from "@codemirror/view";
 import {
+  canonicalTableCellValue,
   ParsedRow,
   ParsedTable,
   rowToDisplayValues,
+  sameTableContent,
+  sameTableSource,
 } from "../../shared/tableModel";
 import { measureTableColumnSizing } from "../../shared/tableColumnSizing";
-import { setCellPlainText } from "./cellSelection";
-import { bindTableCellPresentation, presentTableCell, tableCellPreviewEnabled } from "./tableCellPresentation";
+import {
+  getCellSelectionOffsets,
+  readCellDisplayValue,
+  setCellPlainText,
+  setCellSelectionOffsets,
+} from "./cellSelection";
+import { bindTableCellPresentation, presentTableCell } from "./tableCellPresentation";
 import { bindTableEditing } from "./tableCellEditing";
 import { queryCell, syncCellSourceMetadata } from "./tableCellMetadata";
 import {
@@ -26,28 +34,40 @@ import {
 } from "./tableHeightEstimate";
 import { bindTableClipboard } from "./tableClipboard";
 import {
+  getRenderedTableModel,
   getTableWidgetCleanup,
-  isTablePreservedForLiveEdit,
+  getTableWidgetId,
+  setRenderedTableModel,
   setTableWidgetCleanup,
-  setTableWidgetTable,
+  setTableWidgetIdentity,
 } from "./tableWidgetState";
 
 /**
  * Block widget that replaces a markdown table's source lines with a rendered,
  * editable grid.
  *
- * Flicker control:
- * - `eq` returns true only mid live-edit, so CodeMirror leaves the mounted
- *   DOM completely untouched while the user types in a cell.
- * - For all other document changes CodeMirror calls `updateDOM`, which
- *   patches text, metadata, alignment, and column sizing in place whenever
- *   the rendered shape (rows x columns) still matches. The DOM is only
- *   rebuilt when the table's structure actually changed.
+ * Identity and freshness:
+ * - Each widget carries the stable id of its table (`tableTrackingField`) and
+ *   the exact parse of the current document. Decorations are rebuilt on every
+ *   document change, so no widget ever outlives the source it describes.
+ * - `eq` is exact source identity (same id, same position, same text). An
+ *   unchanged table keeps its DOM with no work at all.
+ * - `updateDOM` only adopts DOM that was rendered for the *same* table id.
+ *   CodeMirror otherwise offers any same-class widget DOM for reuse, which
+ *   would carry focus, a caret, or a range selection over to a different
+ *   table of the same shape.
+ * - A patch always rewrites every cell's source metadata; inactive cells
+ *   re-render their value, and the focused cell converges to the source
+ *   whenever the source no longer matches what the user is looking at
+ *   (undo, a host update, or a rejected edit).
  */
 export class RenderedTableWidget extends WidgetType {
   public constructor(
-    private readonly table: ParsedTable,
+    public readonly table: ParsedTable,
+    public readonly id: number,
     private readonly heightEstimateMetrics: TableHeightEstimateMetrics,
+    private readonly preview: boolean,
+    private readonly generation = 0,
   ) {
     super();
   }
@@ -74,22 +94,35 @@ export class RenderedTableWidget extends WidgetType {
   public eq(widget: WidgetType): boolean {
     return (
       widget instanceof RenderedTableWidget &&
-      widget.table.from === this.table.from &&
-      isTablePreservedForLiveEdit(this.table.from)
+      widget.id === this.id &&
+      widget.preview === this.preview &&
+      widget.generation === this.generation &&
+      sameTableSource(widget.table, this.table)
     );
   }
 
   public updateDOM(dom: HTMLElement, view: EditorView): boolean {
-    if (!canPatchTableDOM(dom, this.table)) {
+    if (
+      getTableWidgetId(dom) !== this.id ||
+      !canPatchTableDOM(dom, this.table)
+    ) {
       return false;
     }
 
-    patchTableDOM(dom, this.table, tableCellPreviewEnabled(view));
-    dom.dataset.heightEstimateRevision = String(
-      this.heightEstimateMetrics.revision,
-    );
-    dom.dataset.estimatedHeightPx = String(this.estimatedHeight);
-    return synchronizeTableLayoutNow(dom, this.table, view);
+    const rendered = getRenderedTableModel(dom);
+    const contentChanged =
+      !rendered ||
+      !sameTableContent(rendered, this.table) ||
+      dom.dataset.markdownPreviewEnabled !== String(this.preview);
+    setTableWidgetIdentity(dom, view, this.id);
+    patchTableDOM(dom, this.table, this.preview);
+    setDataValue(dom, "heightEstimateRevision", String(this.heightEstimateMetrics.revision));
+    setDataValue(dom, "estimatedHeightPx", String(this.estimatedHeight));
+    // A table that only moved keeps its layout; its rows and wrapping are
+    // unchanged. Content changes resolve height in the same update.
+    return contentChanged
+      ? synchronizeTableLayoutNow(dom, this.table, view)
+      : true;
   }
 
   public toDOM(view: EditorView): HTMLElement {
@@ -102,8 +135,9 @@ export class RenderedTableWidget extends WidgetType {
     );
     wrapper.dataset.estimatedHeightPx = String(this.estimatedHeight);
     wrapper.contentEditable = "false";
-    wrapper.dataset.markdownPreviewEnabled = String(tableCellPreviewEnabled(view));
-    setTableWidgetTable(wrapper, this.table);
+    wrapper.dataset.markdownPreviewEnabled = String(this.preview);
+    setTableWidgetIdentity(wrapper, view, this.id);
+    setRenderedTableModel(wrapper, this.table);
 
     const availableDataWidthCh = measureAvailableDataWidthChForView(
       view,
@@ -177,18 +211,13 @@ export class RenderedTableWidget extends WidgetType {
       tableElement,
       scrollbar,
       scrollbarThumb,
-      this.table,
       view,
     );
-    bindTableEditing(wrapper, view, this.table, scheduleTableLayout);
+    bindTableEditing(wrapper, view, scheduleTableLayout);
     for (const cell of Array.from(wrapper.querySelectorAll<HTMLElement>(".mlrt-table-cell")))
-      presentTableCell(cell, cell.dataset.sourceValue ?? "", tableCellPreviewEnabled(view));
+      presentTableCell(cell, cell.dataset.sourceValue ?? "", this.preview);
     const presentationCleanup = bindTableCellPresentation(wrapper, view, scheduleTableLayout);
-    const rangeSelectionCleanup = bindTableRangeSelection(
-      wrapper,
-      view,
-      this.table,
-    );
+    const rangeSelectionCleanup = bindTableRangeSelection(wrapper, view);
     const clipboardCleanup = bindTableClipboard(wrapper, view, this.table);
     const layoutCleanup = getTableWidgetCleanup(wrapper);
     const structureControlsCleanup = bindTableStructureControls({
@@ -196,7 +225,6 @@ export class RenderedTableWidget extends WidgetType {
       view,
       tableScroll,
       tableElement,
-      table: this.table,
     });
     setTableWidgetCleanup(wrapper, () => {
       layoutCleanup?.();
@@ -229,15 +257,8 @@ interface AppendCellsOptions {
 /**
  * Whether the mounted widget DOM has the same rendered shape as the parsed
  * table: one header row, matching body row count, matching column count, and
- * a full set of editable cells in every row.
- *
- * Shape alone is not identity: when decorations rebuild, CodeMirror may offer
- * one table's detached DOM to another table's widget of the same shape. That
- * is fine for inactive DOM (the patch rewrites every cell), but a focused
- * cell keeps its text through patches, so adopting a DOM whose focused cell
- * disagrees with this table's value would desync the cell's display from its
- * source metadata and corrupt the next commit. Reject the patch in that case
- * so the widget is rebuilt instead.
+ * a full set of editable cells in every row. A shape change (rows or columns
+ * inserted/removed) is rebuilt instead of patched.
  */
 function canPatchTableDOM(dom: HTMLElement, table: ParsedTable): boolean {
   if (!dom.classList.contains("mlrt-table-widget")) {
@@ -256,62 +277,20 @@ function canPatchTableDOM(dom: HTMLElement, table: ParsedTable): boolean {
   }
 
   const rows = [...Array.from(headerRows), ...Array.from(bodyRows)];
-  for (const row of rows) {
-    if (row.querySelectorAll(".mlrt-table-cell").length !== table.columnCount) {
-      return false;
-    }
-  }
-
-  return canPatchActiveCell(dom, table);
-}
-
-/**
- * The active-cell identity guard described on `canPatchTableDOM`. Host
- * document application is exempt because that path updates active cell text
- * through the patch as well.
- */
-function canPatchActiveCell(dom: HTMLElement, table: ParsedTable): boolean {
-  if (
-    dom.ownerDocument.documentElement.dataset.mlrtApplyingHostDocument ===
-    "true"
-  ) {
-    return true;
-  }
-
-  const activeCell = dom.ownerDocument.activeElement;
-  if (
-    !(activeCell instanceof HTMLElement) ||
-    !dom.contains(activeCell) ||
-    !activeCell.classList.contains("mlrt-table-cell")
-  ) {
-    return true;
-  }
-
-  const rowKind = activeCell.dataset.rowKind;
-  const rowIndex = Number(activeCell.dataset.rowIndex ?? "0");
-  const column = Number(activeCell.dataset.column ?? "0");
-  const sourceRow =
-    rowKind === "header" ? table.header : (table.body[rowIndex] ?? null);
-  if (!sourceRow || !Number.isInteger(column) || column < 0) {
-    return false;
-  }
-
-  const expectedValue =
-    rowToDisplayValues(sourceRow, table.columnCount)[column] ?? "";
-  return (activeCell.dataset.sourceValue ?? "") === expectedValue;
+  return rows.every(
+    (row) => row.querySelectorAll(".mlrt-table-cell").length === table.columnCount,
+  );
 }
 
 function patchTableDOM(dom: HTMLElement, table: ParsedTable, preview: boolean): void {
-  setTableWidgetTable(dom, table);
-  dom.dataset.srcFrom = String(table.from);
-  dom.dataset.srcTo = String(table.to);
-
-  dom.dataset.markdownPreviewEnabled = String(preview);
+  setRenderedTableModel(dom, table);
+  setDataValue(dom, "srcFrom", String(table.from));
+  setDataValue(dom, "srcTo", String(table.to));
+  setDataValue(dom, "markdownPreviewEnabled", String(preview));
   patchTableRowDOM(dom, table, table.header, "header", 0, preview);
   table.body.forEach((row, rowIndex) => {
     patchTableRowDOM(dom, table, row, "body", rowIndex, preview);
   });
-
 }
 
 function patchTableRowDOM(
@@ -331,9 +310,7 @@ function patchTableRowDOM(
   );
   if (lineCell) {
     const sourceLineText = String(sourceRow.lineIndex + 1);
-    if (lineCell.dataset.sourceLine !== sourceLineText) {
-      lineCell.dataset.sourceLine = sourceLineText;
-    }
+    setDataValue(lineCell, "sourceLine", sourceLineText);
     if (lineCell.textContent !== sourceLineText) {
       lineCell.textContent = sourceLineText;
     }
@@ -347,13 +324,43 @@ function patchTableRowDOM(
     }
 
     const value = values[column] ?? "";
-    const isActive = cell.ownerDocument.activeElement === cell;
-    const isApplyingHostDocument =
-      dom.ownerDocument.documentElement.dataset.mlrtApplyingHostDocument ===
-      "true";
     syncCellSourceMetadata(cell, table, sourceRow, column, value);
-    if (isActive && isApplyingHostDocument) setCellPlainText(cell, value);
-    else if (!isActive) presentTableCell(cell, value, preview);
+    if (cell.ownerDocument.activeElement === cell) {
+      convergeActiveCell(cell, value);
+    } else {
+      presentTableCell(cell, value, preview);
+    }
+  }
+}
+
+/**
+ * The focused cell shows the user's in-progress text, which the live write
+ * path has already stored in the source. When the source value differs from
+ * what that text would produce, something else changed this cell (host undo,
+ * an external edit, or a rejected write): the source wins, so the user never
+ * keeps typing on top of text the document no longer contains.
+ */
+function convergeActiveCell(cell: HTMLElement, value: string): void {
+  if (
+    cell.dataset.composing === "true" ||
+    canonicalTableCellValue(readCellDisplayValue(cell)) === value
+  ) {
+    return;
+  }
+  const selection = getCellSelectionOffsets(cell);
+  setCellPlainText(cell, value);
+  if (selection) {
+    setCellSelectionOffsets(
+      cell,
+      Math.min(selection.anchor, value.length),
+      Math.min(selection.head, value.length),
+    );
+  }
+}
+
+function setDataValue(element: HTMLElement, key: string, value: string): void {
+  if (element.dataset[key] !== value) {
+    element.dataset[key] = value;
   }
 }
 

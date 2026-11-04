@@ -4,19 +4,19 @@ import {
   ParsedTable,
   rowToDisplayValues,
 } from "../../shared/tableModel";
-import { setTableWidgetTable } from "./tableWidgetState";
+import { setRenderedTableModel } from "./tableWidgetState";
 
 /**
  * Keeps `data-*` source metadata on the widget and its cells aligned with a
- * parsed table, without touching cell text content. Used after live edits and
- * as part of DOM patching so committed edits and navigation always resolve
- * accurate source spans.
+ * parsed table, without touching cell text content. The metadata is
+ * descriptive (tests, selection restore, debugging); source edits always
+ * resolve the authoritative table through `getTableWidgetTable`.
  */
 export function syncTableSourceMetadata(
   dom: HTMLElement,
   table: ParsedTable,
 ): void {
-  setTableWidgetTable(dom, table);
+  setRenderedTableModel(dom, table);
   dom.dataset.srcFrom = String(table.from);
   dom.dataset.srcTo = String(table.to);
   syncTableRowSourceMetadata(dom, table, table.header, "header", 0);
@@ -60,9 +60,12 @@ export function syncCellSourceMetadata(
   column: number,
   value: string,
 ): void {
-  cell.dataset.tableFrom = String(table.from);
-  cell.dataset.sourceValue = value;
-  cell.style.textAlign = table.alignments[column] ?? "left";
+  setData(cell, "tableFrom", String(table.from));
+  setData(cell, "sourceValue", value);
+  const alignment = table.alignments[column] ?? "left";
+  if (cell.style.textAlign !== alignment) {
+    cell.style.textAlign = alignment;
+  }
   const sourceCell = sourceRow.cells[column];
   if (!sourceCell) {
     delete cell.dataset.sourceFrom;
@@ -75,10 +78,16 @@ export function syncCellSourceMetadata(
   const { leadingWhitespace, trailingWhitespace } = getCellPaddingWhitespace(
     sourceCell.raw,
   );
-  cell.dataset.sourceFrom = String(sourceCell.start);
-  cell.dataset.sourceTo = String(sourceCell.end);
-  cell.dataset.sourceLeadingWhitespace = leadingWhitespace;
-  cell.dataset.sourceTrailingWhitespace = trailingWhitespace;
+  setData(cell, "sourceFrom", String(sourceCell.start));
+  setData(cell, "sourceTo", String(sourceCell.end));
+  setData(cell, "sourceLeadingWhitespace", leadingWhitespace);
+  setData(cell, "sourceTrailingWhitespace", trailingWhitespace);
+}
+
+function setData(element: HTMLElement, key: string, value: string): void {
+  if (element.dataset[key] !== value) {
+    element.dataset[key] = value;
+  }
 }
 
 export function queryCell(

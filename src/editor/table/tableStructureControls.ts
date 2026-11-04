@@ -1,7 +1,6 @@
 import { EditorView } from "@codemirror/view";
 import { MIN_COLUMN_WIDTH_CH } from "../../shared/tableColumnSizing";
 import {
-  getParsedTables,
   ParsedTable,
   TableCellSourceEdit,
 } from "../../shared/tableModel";
@@ -11,7 +10,13 @@ import {
 } from "../../shared/tableStructureEdits";
 import { focusCellAtEnd, TABLE_CELL_SELECTOR } from "./cellSelection";
 import { measureChWidth } from "./tableLayout";
-import { getTableWidgetTable } from "./tableWidgetState";
+import {
+  findTableWidgetById,
+  getRenderedTableModel,
+  getTableWidgetId,
+  getTableWidgetTable,
+} from "./tableWidgetState";
+import { refuseTableEdit } from "./tableSourceWrite";
 import { getTableRangeSelection, selectTableColumn, selectTableRow, selectionCells, selectionRectangle, toggleTableSelection } from "./tableRangeSelection";
 import { deleteTableSelection } from "./tableDeletion";
 import { applyTableMutation } from "./tableMutation";
@@ -70,7 +75,6 @@ interface StructureControlsOptions {
   view: EditorView;
   tableScroll: HTMLElement;
   tableElement: HTMLTableElement;
-  table: ParsedTable;
 }
 
 interface StructureMenuEntry {
@@ -104,7 +108,7 @@ interface RenderedRowRef {
 export function bindTableStructureControls(
   options: StructureControlsOptions,
 ): () => void {
-  const { wrapper, view, tableScroll, tableElement, table } = options;
+  const { wrapper, view, tableScroll, tableElement } = options;
   const doc = wrapper.ownerDocument;
 
   const layer = doc.createElement("div");
@@ -118,29 +122,32 @@ export function bindTableStructureControls(
   let indicatorRow: RenderedRowRef | null = null;
   let minRowIndicatorLengthPx = 0;
 
-  const currentTable = (): ParsedTable => {
-    const widgetTable = getTableWidgetTable(wrapper) ?? table;
-    return (
-      getParsedTables(view.state.doc).find(
-        (candidate) => candidate.from === widgetTable.from,
-      ) ?? widgetTable
-    );
-  };
+  /**
+   * The table as currently rendered, for dimensions and selection only. Every
+   * edit below re-resolves the authoritative table with `getTableWidgetTable`.
+   */
+  const currentTable = (): ParsedTable =>
+    getTableWidgetTable(wrapper) ?? getRenderedTableModel(wrapper)!;
 
   const applyStructureEdit = (
     makeEdit: (current: ParsedTable) => TableCellSourceEdit | null,
     makeFocusTarget: (current: ParsedTable) => StructureFocusTarget | null,
   ): void => {
-    const current = currentTable();
-    const edit = makeEdit(current);
     closeMenu();
+    const current = getTableWidgetTable(wrapper);
+    if (!current) {
+      refuseTableEdit(view, "the table changed before the structure edit could be applied");
+      return;
+    }
+    const edit = makeEdit(current);
     if (!edit) {
       return;
     }
 
     const focusTarget = makeFocusTarget(current);
+    const tableId = getTableWidgetId(wrapper);
     applyTableMutation(view, current, edit, () => {
-      if (focusTarget) focusCellAfterStructureEdit(doc, current.from, focusTarget);
+      if (focusTarget) focusCellAfterStructureEdit(view, wrapper, tableId, focusTarget);
       else view.focus();
     });
   };
@@ -171,10 +178,14 @@ export function bindTableStructureControls(
       label: count === 1 ? `Delete ${kind === "rows" ? "row" : "column"}` : `Delete ${count} selected ${kind}`,
       action: kind === "rows" ? "delete-row" : "delete-column",
       apply: () => {
-        const latest = currentTable();
+        const latest = getTableWidgetTable(wrapper);
         closeMenu();
-        if (latest.from === current.from && view.state.doc.sliceString(latest.from, latest.to) === source) {
-          deleteTableSelection(view, latest, rectangle, kind, "remove", cells);
+        // The menu describes the table as it was when opened; a menu left open
+        // across an edit must not act on a different shape.
+        if (latest && view.state.doc.sliceString(latest.from, latest.to) === source) {
+          deleteTableSelection(view, wrapper, rectangle, kind, "remove", cells);
+        } else {
+          refuseTableEdit(view, "the table changed while its menu was open");
         }
       },
     };
@@ -893,14 +904,17 @@ function collectRenderedRows(
 }
 
 function focusCellAfterStructureEdit(
-  doc: Document,
-  tableFrom: number,
+  view: EditorView,
+  wrapper: HTMLElement,
+  tableId: number | undefined,
   target: StructureFocusTarget,
 ): void {
-  const cell = doc.querySelector<HTMLElement>(
+  const current = wrapper.isConnected
+    ? wrapper
+    : tableId === undefined ? null : findTableWidgetById(view, tableId);
+  const cell = current?.querySelector<HTMLElement>(
     [
-      `${TABLE_CELL_SELECTOR}[data-table-from="${tableFrom}"]`,
-      `[data-row-kind="${target.rowKind}"]`,
+      `${TABLE_CELL_SELECTOR}[data-row-kind="${target.rowKind}"]`,
       `[data-row-index="${target.rowIndex}"]`,
       `[data-column="${target.column}"]`,
     ].join(""),

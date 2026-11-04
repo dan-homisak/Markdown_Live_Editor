@@ -63,6 +63,8 @@ Use a table's row or column handle to select a row or column, then hold `Shift` 
 
 The editor provides several clipboard formats for moving content between Markdown, spreadsheets, and rich-text tools. Smart copy is the default and keeps list content inside spreadsheet cells using portable inline markers and same-cell line breaks. **Copy Rich** preserves semantic nested lists for Word and other rich-text tools. Dedicated **Copy Plain Text** and **Copy Markdown** actions are also available from the context menu.
 
+Every table edit, from a keystroke in a cell to a pasted range or a deleted row, is computed against the current document at the moment it is applied and must land exactly on the cell or table it was made for. If the document changed underneath an edit (for example, an external change to the same cell), the edit is refused, the table refreshes from the saved Markdown, and a short status message explains why; text outside the table is never touched. Pasted rich text keeps fill-in blanks such as `____` and identifiers such as `snake_case` as written.
+
 The editor title bar provides Undo and Redo buttons for document and table edits. The context menu's **Delete table** removes the table and its contents immediately; **Clear table** preserves its structure.
 
 While editing a cell, use **Ctrl+Enter** to insert a row below, **Ctrl+Shift+Enter** above, **Alt+Enter** for a column to the right, and **Alt+Shift+Enter** to the left. The caret moves into the inserted cell. Inserting above the header creates a blank header and moves the old header into the first body row.
@@ -76,6 +78,7 @@ The following settings are available in VS Code:
 - `markdownLiveRenderTables.clipboard.defaultCopyMode` - sets the default copy representation
 - `markdownLiveRenderTables.clipboard.defaultPasteMode` - sets the default paste interpretation
 - `markdownLiveRenderTables.lineHighlight.enabled` - highlights the active line outside rendered tables; defaults to `false`. Table highlighting and editing are unchanged.
+- `markdownLiveRenderTables.occurrenceHighlight.enabled` - highlights other occurrences of the word at the caret, or of the selected text, throughout the document and inside rendered table cells, like VS Code; defaults to `true`. Uses the theme's faint selection-highlight color.
 - `markdownLiveRenderTables.debug` - enables diagnostic logging for development and troubleshooting
 - `markdownLiveRenderTables.markdownRendering.enabled` - enables live Markdown styling and actions; defaults to `true`
 - `markdownLiveRenderTables.markdownRendering.showHeadingMarkers` - always shows heading `#` markers; defaults to `true`. Disable to hide inactive markers and reveal them at the caret.
@@ -95,6 +98,12 @@ Within properties, Tab/Shift+Tab use two-space indentation. Enter continues list
 In lists, Up/Down follows rendered rows and avoids parking the caret in indentation before item text. Home goes to item text first, then source-line start; End goes to the end of the current rendered row, including wrapped rows. Tab/Shift+Tab and Ctrl/Cmd+]/[ nest or unnest an item and its descendants in one keystroke, including numbered lists. Enter continues bullets, numbered items, and unchecked tasks; Enter on an empty item outdents or exits the list. Backspace at item-text start outdents or removes a top-level marker.
 
 Nested blockquotes retain a guide and indentation for every level. Ordered lists display consecutive numbers starting at the first source number, while editing a number reveals its original spelling. Character entities render as their characters outside literal code. A standalone `[TOC]` generates a navigable heading list; `[^label]` references and their definitions render with matching numbers and navigation back to the reference. Indented continuation paragraphs remain part of their footnote. These presentations preserve the saved Markdown and reveal source at the caret.
+
+Selections use the theme's editor selection color. Every selected row is painted to the full height of its line, so multi-line selections have no gaps, and rows selected from their start, including bulleted and nested list rows, begin at the page's left text edge.
+
+Text selections follow VS Code's 3px outer and inward corner rounding and respect `editor.roundedSelection`. Selected line breaks occupy one character width; ending at the start of a line does not select its newline. Code, YAML, callouts, and inline code keep the selection visible above their backgrounds. Losing focus uses the theme's inactive selection color.
+
+Selection rendering checks: after `npm run compile`, run `node scripts/edh-visual-check.mjs --selection-rendering-only` for composited-pixel checks, or `node scripts/edh-selection-parity.mjs` for stock/live screenshots in the same VS Code window. Add `--device-scale=1.5` to the visual check to exercise fractional scaling.
 
 Turning rendering off restores ordinary non-table presentation and base Markdown input while retaining table editing. Host accessibility mode uses literal markers and keeps the task toggle command available. Actual OS IME and screen-reader coverage is recorded separately from automation. See `LIVE_MARKDOWN_RENDERING_DESIGN_SPEC.md` for the current product contract and `qa/live-preview-2026-10-04.md` for verification and limits.
 

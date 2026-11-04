@@ -67,7 +67,9 @@ import {
   TableRangeSelectionState,
   tableSelectionStart,
 } from "./tableRangeSelection";
-import { getTableWidgetTable } from "./tableWidgetState";
+import { getRenderedTableModel, getTableWidgetTable } from "./tableWidgetState";
+import { dispatchTableSourceEdit, isCurrentTable, refuseTableEdit } from "./tableSourceWrite";
+import { escapeMarkdownText } from "../../shared/markdownEscape";
 import { deleteTableSelection } from "./tableDeletion";
 import { TableDeletionBehavior } from "../../shared/tableDeletion";
 import { inspectTableCellSet, rectangleCells } from "../../shared/tableSelectionSet";
@@ -99,6 +101,8 @@ const richCellTurndown = new TurndownService({
   codeBlockStyle: "fenced",
 });
 richCellTurndown.use(gfm);
+// Keep pasted fill-in blanks (`____`) and identifiers (`snake_case`) as written.
+richCellTurndown.escape = escapeMarkdownText;
 
 interface ClipboardRepresentations {
   plain: string;
@@ -133,8 +137,13 @@ export function bindTableClipboard(
 ): () => void {
   let contextMenu: HTMLElement | null = null;
   const doc = wrapper.ownerDocument;
+  /**
+   * The table as rendered, for reading (copy, menu labels). Source edits use
+   * `getTableWidgetTable`, which proves the table is current, and refuse
+   * otherwise.
+   */
   const currentTable = (): ParsedTable =>
-    getTableWidgetTable(wrapper) ?? initialTable;
+    getTableWidgetTable(wrapper) ?? getRenderedTableModel(wrapper) ?? initialTable;
 
   const onCopy = (event: ClipboardEvent): void => {
     const selection = getTableRangeSelection(doc);
@@ -186,7 +195,12 @@ export function bindTableClipboard(
     if (!selection || selection.wrapper !== wrapper || !event.clipboardData) {
       return;
     }
-    const table = currentTable();
+    const table = getTableWidgetTable(wrapper);
+    if (!table) {
+      event.preventDefault();
+      refuseTableEdit(view, "the table changed before it could be cut");
+      return;
+    }
     const token = createToken();
     const rectangle = selectionRectangle(selection);
     const payload = tableRectanglePayload(
@@ -237,10 +251,17 @@ export function bindTableClipboard(
     armedPasteModes.delete(doc);
     const data = readDataTransfer(event.clipboardData);
     beginClipboardOperation(doc);
+    const table = getTableWidgetTable(wrapper);
+    if (!table) {
+      event.preventDefault();
+      event.stopPropagation();
+      refuseTableEdit(view, "the table changed before the paste could be applied");
+      return;
+    }
     const handled = pasteClipboardData(
       wrapper,
       view,
-      currentTable(),
+      table,
       data,
       mode,
       event.target,
@@ -257,8 +278,7 @@ export function bindTableClipboard(
       return;
     }
     event.preventDefault();
-    const table = currentTable();
-    deleteTableSelection(view, table, selectionRectangle(selection), selection.kind, behavior, selection.cells);
+    deleteTableSelection(view, wrapper, selectionRectangle(selection), selection.kind, behavior, selection.cells);
     clearPendingClipboardCut(doc);
     setPendingCutToken(doc, undefined);
     view.dom.classList.remove("mlrt-document-cut-pending");
@@ -359,9 +379,15 @@ export function bindTableClipboard(
     const extraActions: { label: string; action: string; run: () => void }[] = [];
     const applySelection = (target: CellRectangle, targetKind: typeof kind, behavior: TableDeletionBehavior,
       cells = rectangleCells(target)): void => {
-      const table = currentTable();
-      if (!rectangle || view.state.doc.sliceString(table.from, table.to) !== selectedSource) return;
-      deleteTableSelection(view, table, target, targetKind, behavior, cells);
+      const table = getTableWidgetTable(wrapper);
+      if (!rectangle) return;
+      // The menu describes the table as it was when opened. If the source
+      // changed since then, its rows/columns may no longer be the ones shown.
+      if (!table || view.state.doc.sliceString(table.from, table.to) !== selectedSource) {
+        refuseTableEdit(view, "the table changed while its menu was open");
+        return;
+      }
+      deleteTableSelection(view, wrapper, target, targetKind, behavior, cells);
     };
     if (nativeCellSelection) {
       extraActions.push({ label: "Delete selected text", action: "delete-text", run: () => {
@@ -482,7 +508,7 @@ export function bindTableClipboard(
   wrapper.addEventListener(TABLE_SELECTION_DELETE_EVENT, onDelete);
   wrapper.addEventListener(TABLE_CUT_CANCEL_EVENT, onCancelCut);
   wrapper.addEventListener("contextmenu", onContextMenu);
-  restorePendingCutSource(wrapper, currentTable());
+  restorePendingCutSource(wrapper, initialTable);
   return () => {
     closeContextMenu();
     doc.removeEventListener("copy", onCopy, true);
@@ -844,8 +870,9 @@ function pasteClipboardData(
       return true;
     }
     destinationTableFrom = movedTableFrom;
-  } else {
-    dispatchTableEdit(view, buildGridPasteEdit(table, targetPlan));
+  } else if (!dispatchTableEdit(view, table, buildGridPasteEdit(table, targetPlan)) &&
+      !isCurrentTable(view, table)) {
+    return true;
   }
 
   clearPendingClipboardCut(doc);
@@ -896,29 +923,30 @@ function dispatchMove(
       return null;
     }
     const pasted = buildGridPasteEdit(clearedTable, safeTargetPlan);
-    dispatchTableEdit(view, {
+    if (!dispatchTableEdit(view, sourceTable, {
       from: sourceTable.from,
       to: sourceTable.to,
       insert: pasted.insert,
-    });
+    }) && !isCurrentTable(view, sourceTable)) {
+      return null;
+    }
     return sourceTable.from;
   }
   const sourceEdit = pendingCut.cells ? buildTableCellsClearEdit(sourceTable, pendingCut.cells) : buildGridClearEdit(sourceTable, pendingCut.rectangle);
   const destinationEdit = buildGridPasteEdit(destinationTable, safeTargetPlan);
-  const changeSpecs = [sourceEdit, destinationEdit]
-    .sort((left, right) => left.from - right.from)
-    .map((edit) => ({ from: edit.from, to: edit.to, insert: edit.insert }));
-  const changes = view.state.changes(changeSpecs);
+  const changes = view.state.changes(
+    [sourceEdit, destinationEdit]
+      .sort((left, right) => left.from - right.from)
+      .map((edit) => ({ from: edit.from, to: edit.to, insert: edit.insert })),
+  );
   const destinationTableFrom = changes.mapPos(destinationTable.from, -1);
-  view.dispatch({
-    changes,
-    annotations: [
-      allowTableSourceChange.of(true),
-      Transaction.addToHistory.of(true),
-    ],
+  const changed = dispatchTableSourceEdit(view, {
+    tables: [sourceTable, destinationTable],
+    edits: [sourceEdit, destinationEdit],
+    annotations: [Transaction.addToHistory.of(true)],
     userEvent: "input.paste",
   });
-  return destinationTableFrom;
+  return changed ? destinationTableFrom : null;
 }
 
 function dispatchDocumentMoveToTable(
@@ -928,6 +956,7 @@ function dispatchDocumentMoveToTable(
   pendingCut: PendingDocumentCut,
 ): number | null {
   if (
+    !isCurrentTable(view, destinationTable) ||
     view.state.doc.sliceString(pendingCut.from, pendingCut.to) !==
       pendingCut.markdown ||
     rangesOverlap(
@@ -964,6 +993,7 @@ function dispatchCompositeMoveToTable(
   pendingCut: PendingCompositeCut,
 ): number | null {
   if (
+    !isCurrentTable(view, destinationTable) ||
     view.state.doc.toString() !== pendingCut.sourceDocumentText ||
     !sameGridText(rowsForDocumentMove(pendingCut.markdown), targetPlan.rows) ||
     pendingCut.changes.some((change) =>
@@ -998,24 +1028,21 @@ function dispatchCompositeMoveToTable(
   return destinationTableFrom;
 }
 
+/**
+ * Applies one edit computed from `table` (which must be the current parse).
+ * Identical replacements are skipped: CodeMirror would otherwise report a
+ * document change and VS Code would mark the file dirty for a no-op, which is
+ * most visible when Delete clears a selection that is already empty.
+ */
 function dispatchTableEdit(
   view: EditorView,
+  table: ParsedTable,
   edit: { from: number; to: number; insert: string },
-): void {
-  // CodeMirror treats an identical replacement as a document change even
-  // though the resulting text is unchanged. Letting that transaction reach
-  // the extension host makes VS Code mark the document dirty until its text
-  // is reconciled. This is most visible when Delete clears a selection that
-  // already contains only empty cells.
-  if (view.state.doc.sliceString(edit.from, edit.to) === edit.insert) {
-    return;
-  }
-  view.dispatch({
-    changes: { from: edit.from, to: edit.to, insert: edit.insert },
-    annotations: [
-      allowTableSourceChange.of(true),
-      Transaction.addToHistory.of(true),
-    ],
+): boolean {
+  return dispatchTableSourceEdit(view, {
+    tables: [table],
+    edits: [edit],
+    annotations: [Transaction.addToHistory.of(true)],
     userEvent: "input.paste",
   });
 }
