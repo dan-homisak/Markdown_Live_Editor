@@ -24,7 +24,7 @@ needs. Results of the last full run are in [PROGRESS](PROGRESS.md).
 | Static | `npm run typecheck` | The code type-checks under strict TypeScript | seconds | Yes; `npm test` and every host script compile first |
 | Unit | `npm test` | Pure logic: table model and edits, change validation, clipboard, links, rendering classification, lists, properties, highlighting, fixtures intact; then that the host bundle loads without `node_modules` and survives reordered lifecycle events | about 5 s | Yes |
 | Host, core | `npm run test:host` | Stock-versus-live geometry within 0.5 px, then table editing, selection, clipboard, Undo and navigation regressions in a real window | about 35 s | Yes |
-| Host, features | `npm run test:host:structure`, `npm run test:host:toggle` | Table structure controls; switching editors keeps the viewport | 10 to 20 s each | Yes |
+| Host, features | `npm run test:host:structure`, `npm run test:host:toggle`, `npm run test:host:sync` | Table structure controls; switching editors keeps the viewport; a save that changes no text costs no input while typing | 10 to 20 s each | Yes |
 | Host, code colors | `npm run test:host:highlighting` | Code colors match the stock editor | about 30 s | **Not yet**: times out on some runs, see [Suite status](#suite-status) |
 | Host, Live Preview | `npm run test:host:rendering`, `npm run test:host:release` | Marker interactions; the rendering surface: properties, code, tables inside rendering, themes, links, scrolling | about 1 min each | Yes, since 2026-11-13 |
 | Host, Live Preview interactions | `npm run test:host:preview` | Concealment and reveal, lists, links, properties, callouts | about 2 min | **Not yet**: every check passes, but the run reports a console warning, see [Suite status](#suite-status) |
@@ -42,7 +42,7 @@ failure. Run it before a commit and before anything is released.
 | --- | --- |
 | Any TypeScript | `npm test` |
 | Pure logic under `src/shared/`, parsers, planners | A failing unit test first in the matching file under `src/test/`; then `npm test` |
-| The edit path, revisions, acknowledgements, Undo | `npm test`; `npm run test:host`; while iterating, `node scripts/edh-visual-check.mjs --global-undo-only` and `--editing-reliability-only` |
+| The edit path, revisions, acknowledgements, Undo | `npm test`; `npm run test:host`; `npm run test:host:sync`; while iterating, `node scripts/edh-visual-check.mjs --global-undo-only` and `--editing-reliability-only` |
 | Table rendering, layout, borders, gutter, line numbers | `npm run test:host` and both screenshots opened; for borders and strokes also `node scripts/edh-visual-check.mjs --device-scale=1.25`, `1.5` and `2` |
 | Table editing, selection, clipboard, deletion, navigation | `npm run test:host`; `npm run test:host:structure` for row and column controls |
 | Live Preview: concealment, reveal, lists, links, properties, callouts | Unit tests for the plan or classification; `npm run test:host` because preview changes have broken tables before; `npm run test:host:rendering` and `npm run test:host:release`; then `npm run test:host:preview`, where all 15 checks must pass and the only console entry allowed is the known warning in the status below |
@@ -71,13 +71,14 @@ They take the foreground while they run. Run one at a time.
 | `scripts/edh-code-highlighting-check.mjs` | Rendered token styles in stock and live across themes and nine languages | **Intermittent**, see below |
 | `scripts/edh-structure-controls-check.mjs` | The proximity-driven table structure controls and their menus | Passes |
 | `scripts/edh-toggle-check.mjs` | Viewport handoff when switching editors; `--crlf` for CRLF documents | Passes |
+| `scripts/edh-save-sync-check.mjs` | A save that changes no text sends no document snapshot; an acknowledgement restores an edit that a crossing snapshot rolled back, with the caret after it: one edit, two edits, during a simulated composition, and in a table cell with a key pressed at the answer; 300 edits typed through saves that reach the disk are all kept and none is rejected. The check delivers the crossing snapshot to the webview itself, and its settings turn off everything that changes text on save. `--crlf` for CRLF documents | Passes |
 | `scripts/edh-selection-parity.mjs` | Captures stock and live selection screenshots side by side, made with trusted mouse input. It asserts nothing: the screenshots are the result | Runs |
 | `scripts/edh-markdown-release-check.mjs --live-preview-only` | Live Preview interactions. Add `--case=<part of a check name>` to run one check | Checks pass; console warning, see below |
 | `scripts/edh-markdown-release-check.mjs` | The whole rendering surface. Focused runs: `--properties-only`, `--code-only`, `--lists-only`, `--scroll-only`, `--fence-navigation-only`, `--interaction-bugs-only`, `--paint-only` | Passes |
 | `scripts/edh-markdown-rendering-check.mjs` | Marker interactions. Focused runs: `--geometry-only`, `--mixed-only`, `--lifecycle-only` | Passes |
 | `scripts/render-live-editor-harness.mjs` | The standalone browser harness (`npm run harness`). Obvious regressions only; never evidence of parity | Not a test |
 | `scripts/check-extension-bundle.mjs` | The host bundle loads with only `vscode` and Node built-ins | Passes, in `npm test` |
-| `scripts/check-markdown-host-lifecycle.mjs` | Provider callbacks under reordered permission queries, without a VS Code process | Passes, in `npm test` |
+| `scripts/check-markdown-host-lifecycle.mjs` | Provider callbacks under reordered permission queries, and no document snapshot for a change event without content changes, without a VS Code process | Passes, in `npm test` |
 | `scripts/record-markdown-bundle-impact.mjs` | Inventories what esbuild bundled, preserves license notices, records sizes locally | Tool |
 | `scripts/benchmark-markdown-rendering.mjs`, `scripts/benchmark-markdown-release.mjs` | CPU cost of classification, without an editor | Not run since 0.1.174 |
 
@@ -95,6 +96,7 @@ Recorded on 2026-11-13 on Windows.
 | Visual check | Gate. Passes | Every run that day |
 | Structure controls | Gate. Passes | Every run |
 | Toggle | Gate. Passes | Every run with the committed launch settings |
+| Save and typing | Gate since 2026-11-13. Passes | Failed on the unfixed build, first on the snapshot a save sent, then on the edit left rolled back; the composition and table cell cases, added after a review, each failed before their fix. Passes since, also with `--crlf` |
 | Rendering check | Gate since 2026-11-13. Passes, 25 of 25 | Three consecutive runs after the repair |
 | Release check, whole surface | Gate since 2026-11-13. Passes, 17 of 17 | Three consecutive runs after the repair |
 | Release check, Live Preview only | Not a gate. All 15 checks pass, but the run exits 1 | It reports one console warning from the editor (question Q10) |

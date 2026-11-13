@@ -225,8 +225,30 @@ handoffPanel.closed.fire();
 assert.deepEqual(await closingCapture, state, "disposing a panel resolves pending captures without timers");
 assert.equal(provider.getViewColumn(handoff.uri), undefined);
 assert.equal(queries.length, 0);
+
+// VS Code raises a document change event with no content changes whenever the
+// dirty state changes, as on every save. The text is the same, so the host
+// must not send it again: a snapshot that crosses an edit the webview has
+// already sent rolls that edit back.
+const saved = fixture();
+const savedPanel = panel();
+await open(saved, savedPanel);
+savedPanel.received.fire({ type: "ready" });
+queries.shift().resolve({ permissions: 0 });
+await flushMicrotasks();
+const snapshots = () => savedPanel.messages.filter(message => message.type === "setDocument").length;
+const snapshotsBeforeSave = snapshots();
+assert.equal(snapshotsBeforeSave, 1, "ready is answered with the document");
+workspaceChanges.fire({ document: saved.document, contentChanges: [] });
+assert.equal(snapshots(), snapshotsBeforeSave, "a dirty-state event without content changes sends no document snapshot");
+workspaceChanges.fire({ document: saved.document, contentChanges: [{ text: "x" }] });
+assert.equal(snapshots(), snapshotsBeforeSave + 1, "a content change still sends the authoritative document");
+assert.equal(savedPanel.messages.at(-1).source, "host");
+savedPanel.closed.fire();
+assert.equal(queries.length, 0);
+
 Disposable.from(...context.subscriptions).dispose();
 assert.equal(workspaceChanges.size, 0, "all document listeners are disposed");
 assert.equal(configChanges.size, 0, "all configuration listeners are disposed");
 assert.deepEqual(errors, []);
-console.log("Markdown host lifecycle checks passed: disposal, panel identity, permission ordering, task query isolation, and viewport handoff after pending edits.");
+console.log("Markdown host lifecycle checks passed: disposal, panel identity, permission ordering, task query isolation, viewport handoff after pending edits, and no document snapshot for a save.");

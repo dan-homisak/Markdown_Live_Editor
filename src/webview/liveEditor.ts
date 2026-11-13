@@ -210,6 +210,8 @@ let lastTableCellCommit: TableCellCommitDetail | null = null;
 let nextWebviewChangeId = 1;
 let nextMarkdownLinkRequestId = 1;
 let hostDocumentApplyToken = 0;
+// Raised to drop the table cell focus requests that are waiting for a render.
+let tableCellFocusGeneration = 0;
 let editorCompositionActive = false;
 let pendingEditorComposition: PendingEditorComposition | null = null;
 let editorCompositionFlushTimer: number | null = null;
@@ -528,12 +530,14 @@ function handleHostMessage(event: MessageEvent<unknown>): void {
   }
   if (message.source === "webviewAck") {
     if (typeof message.ackId === "number") {
-      const matched = acknowledgeWebviewEcho(
+      const acknowledgement = acknowledgeWebviewEcho(
         message.ackId,
         message.text,
         `host revision ${message.revision}`,
       );
-      if (!matched) {
+      if (acknowledgement === "acknowledged") {
+        restoreEditorAfterAcknowledgement(message.text, message.revision);
+      } else if (acknowledgement === "mismatch") {
         pendingWebviewEchoes.length = 0;
         pendingHostUndoFocusStack.length = 0;
         pendingHostRedoFocusStack.length = 0;
@@ -585,11 +589,12 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
   else startupMessages.push(event);
 });
 
+/** Returns the pending focus entry it restored, if the text changed and one matched. */
 function setEditorDocument(
   hostText: string,
   source: string,
   restorePendingUndoFocus = true,
-): void {
+): PendingHostUndoFocus | null {
   // CodeMirror and every source-range model in the webview use LF offsets.
   // Normalize at the host boundary; documentChangeMapping converts edits
   // back to the host document's actual LF/CRLF convention.
@@ -597,7 +602,7 @@ function setEditorDocument(
   const currentText = view.state.doc.toString();
   updateStatus(text, source);
   if (text === currentText) {
-    return;
+    return null;
   }
 
   const undoFocus = restorePendingUndoFocus
@@ -646,6 +651,7 @@ function setEditorDocument(
   } else if (returnFocusToEditor) {
     view.focus();
   }
+  return undoFocus;
 }
 
 function markHostDocumentApplyInProgress(): void {
@@ -895,11 +901,19 @@ function computeMinimalTextChange(
   };
 }
 
+/**
+ * - `acknowledged`: the host applied an edit this webview is still waiting on,
+ *   and its document is the text that edit claimed.
+ * - `stale`: the answer is for an edit that was already settled or discarded.
+ * - `mismatch`: the host's document is not what the edit claimed.
+ */
+type WebviewEchoAcknowledgement = "acknowledged" | "stale" | "mismatch";
+
 function acknowledgeWebviewEcho(
   ackId: number,
   text: string,
   source: string,
-): boolean {
+): WebviewEchoAcknowledgement {
   const acknowledgedIndex = pendingWebviewEchoes.findIndex(
     (pending) => pending.id === ackId,
   );
@@ -911,9 +925,9 @@ function acknowledgeWebviewEcho(
         echoedTextLength: text.length,
         currentTextLength: view.state.doc.length,
       });
-      return true;
+      return "stale";
     }
-    return false;
+    return "mismatch";
   }
 
   const acknowledged = pendingWebviewEchoes[acknowledgedIndex];
@@ -926,7 +940,7 @@ function acknowledgeWebviewEcho(
       expectedTextLength: acknowledged.text.length,
       currentTextLength: view.state.doc.length,
     });
-    return false;
+    return "mismatch";
   }
 
   pendingWebviewEchoes.splice(0, acknowledgedIndex + 1);
@@ -938,6 +952,94 @@ function acknowledgeWebviewEcho(
     echoedTextLength: text.length,
     currentTextLength: view.state.doc.length,
   });
+  return "acknowledged";
+}
+
+/**
+ * An acknowledgement carries the host's document as it is after the
+ * acknowledged edit. Once no other edit is unanswered, the editor must hold
+ * exactly that text.
+ *
+ * It does not when a host snapshot that was produced before the host processed
+ * the edit arrived in between: that snapshot showed the text without the edit
+ * and rolled it back here, and the host then accepted the edit all the same.
+ * Left alone, the editor would stay one edit behind the document until the
+ * host rejected the next keystroke. Applying the acknowledged text puts the
+ * edit back, and the pending focus entry recorded by the rollback returns the
+ * caret to where it was.
+ *
+ * A source-editor composition changes two things. When a host document is
+ * already waiting for the composition to end, it is older than this
+ * acknowledgement, so the acknowledged text takes its place and is what the
+ * editor receives then. Otherwise the composition is left alone: its text is
+ * in the editor but not yet sent, so a difference is expected.
+ */
+function restoreEditorAfterAcknowledgement(
+  hostText: string,
+  revision: number,
+): void {
+  if (deferredHostDocumentDuringEditorComposition !== null) {
+    deferredHostDocumentDuringEditorComposition = {
+      text: hostText,
+      source: `host revision ${revision} acknowledged during a composition`,
+    };
+    return;
+  }
+  if (
+    pendingWebviewEchoes.length > 0 ||
+    editorCompositionActive ||
+    view.compositionStarted ||
+    pendingEditorComposition !== null
+  ) {
+    return;
+  }
+  const text = normalizeDocumentText(hostText);
+  const currentText = view.state.doc.toString();
+  if (currentText === text) {
+    return;
+  }
+  recordDebug("restore-editor-after-acknowledgement", {
+    revision,
+    acknowledgedTextLength: text.length,
+    currentTextLength: currentText.length,
+  });
+  invalidateMarkdownTaskContext(view);
+  // The rollback asked for a table cell caret to be placed after the next
+  // render. That request describes the rolled-back text, so drop it.
+  tableCellFocusGeneration++;
+  const focus = setEditorDocument(
+    hostText,
+    `host revision ${revision} acknowledged after a crossing snapshot`,
+  );
+  if (
+    focus?.restore.kind === "tableCell" &&
+    placeCaretInFocusedTableCell(focus.restore.detail)
+  ) {
+    // The caret is in place already. The request this restore made for the
+    // next render is not needed, and it would move the caret back behind a
+    // key that arrives before then.
+    tableCellFocusGeneration++;
+  }
+}
+
+/**
+ * Places the caret in the table cell a focus entry names, when that cell is
+ * the one that has focus now and no composition is running in it. A cell that
+ * was rebuilt, or that the user left, is handled after the next render.
+ */
+function placeCaretInFocusedTableCell(detail: TableCellCommitDetail): boolean {
+  const cell = findCell(document.activeElement);
+  if (
+    !cell ||
+    cell.dataset.composing === "true" ||
+    Number(cell.dataset.tableFrom) !== detail.tableFrom ||
+    (cell.dataset.rowKind ?? "body") !== detail.rowKind ||
+    Number(cell.dataset.rowIndex) !== detail.rowIndex ||
+    Number(cell.dataset.column) !== detail.column
+  ) {
+    return false;
+  }
+  setCellCaretOffset(cell, detail.restoreCaretOffset);
   return true;
 }
 
@@ -1686,8 +1788,12 @@ function installCursorDebugListeners(root: HTMLElement): void {
 }
 
 function focusTableCellAfterRender(detail: TableCellCommitDetail): void {
+  const generation = tableCellFocusGeneration;
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
+      if (generation !== tableCellFocusGeneration) {
+        return;
+      }
       // Only the same table's cell is a valid target. Falling back to "any
       // table with this row/column" would put the caret, and the next
       // keystroke, into an unrelated table.

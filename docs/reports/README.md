@@ -13,6 +13,7 @@ is not updated afterwards; for the current state read [PROGRESS](../PROGRESS.md)
 | [table-border-validation-2026-10-04](table-border-validation-2026-10-04.md) | How table borders are measured and calibrated |
 | [live-preview-2026-10-04](live-preview-2026-10-04.md) | The Live Preview release, version 0.1.176: what was delivered, lessons and limits |
 | [list-rendering-validation](list-rendering-validation.md) | List guides, folding and marker behavior |
+| [reliability-audit-2026-11-13](reliability-audit-2026-11-13.md) | Audit of version 0.1.233 for lost input and start-up failures: a save race, read-only documents, history memory |
 
 Reading notes:
 

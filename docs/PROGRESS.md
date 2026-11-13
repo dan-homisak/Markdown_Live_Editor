@@ -4,17 +4,17 @@ Updated: 2026-11-13.
 
 ## Actual repository state
 
-- Git: branch `main`, the only branch, with a remote. Milestones 1 to 3 below are committed.
+- Git: branch `main`, the only branch, with a remote. Milestones 1 to 5 below are committed.
   The history was rewritten on 2026-11-13 (milestone 4), so every commit hash cited in these
   documents is the one in use after that rewrite.
-- Product source differs from 047e615 in one place: the list-nesting fix of milestone 3. The
-  extension version is a build counter: `Build_and_Install` raises it on every run. The
-  installed version is 0.1.233.
+- Product source differs from 047e615 in two places: the list-nesting fix of milestone 3 and
+  the save race fix of milestone 5. The extension version is a build counter:
+  `Build_and_Install` raises it on every run. The installed version is 0.1.237.
 - Layout: source and unit tests in `src/`, shipped assets in `media/`, scripts in `scripts/`,
   frozen fixtures in `test/fixtures/`, hand-testing documents in `samples/`, all project
   documents under `docs/`, agent tooling in `.claude/`. `qa/` and `dist/` are local output.
-- Gates that pass: unit tests; the visual, structure-control, toggle, rendering and
-  whole-surface release host checks; the documentation and privacy checks; the agent tooling
+- Gates that pass: unit tests; the visual, structure-control, toggle, save-and-typing,
+  rendering and whole-surface release host checks; the documentation and privacy checks; the agent tooling
   tests; and the install. Two host runs are not gates: the preview-only run, which reports a
   console warning, and the code-highlighting check, which times out on some runs. See
   [TESTING](TESTING.md).
@@ -221,8 +221,105 @@ Limits of the cleanup:
 - `npm run check:docs`, `npm run check:privacy`, `npm run test:agent` and `npm test` passed on
   the rewritten tree, and `./Build_and_Install` installed 0.1.233.
 
+## Milestone 5: reliability audit and the save race (2026-11-13)
+
+Decision A24. An audit of version 0.1.233 found four defects; the
+[reliability audit](reports/reliability-audit-2026-11-13.md) has the mechanisms and the
+measurements. The first is fixed here. The other three, and one more found while the fix was
+reviewed, are under known gaps.
+
+**The defect.** Every save made the host send the whole document to the webview twice, with
+unchanged text. A snapshot that crossed an edit on its way rolled that edit back in the editor;
+the host then accepted the edit, the two sides disagreed, and the next keystroke was rejected
+and lost with the conflict warning.
+
+**The fix.**
+
+- The host sends a snapshot only for a change event that carries content changes
+  (`src/extension.ts`). A save that changes no text sends nothing.
+- When an acknowledgement leaves no edit unanswered and the editor does not hold the
+  acknowledged text, the webview applies it (`src/webview/liveEditor.ts`). This covers the
+  snapshots that remain, such as a document that changes away and back while an edit is on its
+  way.
+- Validation, the queue, acknowledgements and rejections are unchanged.
+
+**Review.** The reviewer subagent read the change and found no blocker. It reported two places
+where the webview step fell short, and both were reproduced in the real window and fixed:
+
+- A crossing snapshot that arrived during a source-editor composition waited for the
+  composition to end and was then applied over the acknowledged text, so the edit stayed
+  rolled back and the next keystroke was rejected. The acknowledged text now replaces the
+  waiting snapshot.
+- In a table cell the restored text came back with the caret one position early until two
+  frames later. The caret is now placed with the restore, and the focus requests left waiting
+  for a render are dropped, so a key pressed at once lands in order.
+
+**Tests.** Written first and seen failing on the unfixed build:
+
+- `scripts/check-markdown-host-lifecycle.mjs` asserts that an event without content changes
+  sends no snapshot. It failed with two snapshots where one was expected.
+- `scripts/edh-save-sync-check.mjs`, new, `npm run test:host:sync`, in `npm run test:all`. In a
+  real window it failed first on the two snapshots a save sent; with only the host fixed it
+  failed on the edit left rolled back, whose next keystroke was rejected.
+- After the review the same check gained four cases: two unanswered edits, which passed
+  unchanged; a simulated composition, which failed on the edit left rolled back; a table cell,
+  which failed on the caret position at the answer; and a key pressed at the answer with the
+  cell read on the next four frames, which failed while a waiting focus request still moved the
+  caret back. The check delivers the crossing snapshot to the webview itself. It now counts a
+  save only when the file on disk grew, and it reads the restored state without a delay.
+
+### Verification
+
+All on 2026-11-13, on Windows. The first two entries are from the final tree of this milestone,
+after the review.
+
+- `npm run test:all`: **passed**, exit 0 in 171 seconds. In order: 25 of 25 unit test files and
+  both bundle checks; the documentation check; the privacy check; 42 of 42 agent tooling tests;
+  the visual host check with no failing section, both screenshots opened; structure controls;
+  toggle; save and typing (300 edits through 24 saves that reached the disk, none rejected);
+  the rendering check, 25 of 25; the whole-surface release check, 17 of 17.
+- `node scripts/edh-save-sync-check.mjs --crlf`: passed.
+- The measurements of the audit, repeated with auto-save after 1000 ms. They come from a probe
+  that is not in the repository, and the after column was taken before the review changes,
+  which touch only the composition and table cell handling:
+
+| Run | Before | After |
+| --- | --- | --- |
+| Second edit 1016 to 1047 ms after the first | 13 of 33 trials diverged | 0 of 42 |
+| 500 edits 6 ms apart, a save about every 90 ms | 33 lost | 0 lost |
+| 180 edits at nine a second, a save every 650 ms | 3 lost | 0 lost |
+| 150 edits the same way on a 650 KB document | 6 lost | 0 lost |
+
+- `./Build_and_Install`: installed 0.1.236.
+
+Not run: `npm run test:host:preview` and the code-highlighting check, which are not gates; the
+benchmarks; anything on macOS. Composition with a real input method was not exercised: the
+composition case in the check sends the two composition events itself. The installed build was
+not exercised by hand in a reloaded window.
+
+**Remaining limits.**
+
+- A snapshot of changed content that crosses an unanswered edit still makes the host reject
+  that edit. That is the conflict the warning exists for. A save that changes the text is such
+  a snapshot; see the trimming entry under known gaps.
+- A composition that begins on rolled-back text, in the moment between a crossing snapshot and
+  the acknowledgement, is sent on the old text when it ends, and the host rejects it. Read from
+  the code, not reproduced.
+
 ## Known gaps and findings
 
+- **Three reliability defects from the audit of 2026-11-13 are not fixed.** A read-only
+  document accepts typing (reproduced); the host keeps up to 201 full copies of every document
+  opened; document text or a highlighter failure can stop start-up in uncommon configurations.
+  See the [reliability audit](reports/reliability-audit-2026-11-13.md).
+- **Auto-save with `files.trimTrailingWhitespace` removes the space under the caret**
+  (found 2026-11-13, not fixed). VS Code spares trailing whitespace at the cursor of its own
+  editor on an auto-save; it knows no cursor for the live editor, so the space just typed is
+  trimmed and the changed text is sent to the webview. Measured with a probe that is not in the
+  repository, auto-save after 1000 ms: a word and a space, then the next word about a second
+  later, 24 times. The two words were joined 19 times, the second word was rejected and lost
+  4 times, and the text was right once. The save-and-typing check turns trimming off, so it
+  does not cover this.
 - **A console warning in the preview-only host run** (Q10). Until it is explained, that run is
   not a gate.
 - **The code-highlighting check has not run against its new fixture**, and it times out on
@@ -243,12 +340,14 @@ Limits of the cleanup:
 
 ## Next steps
 
-1. Review A01-A16 in DECISIONS and correct any that misstate intent.
-2. Answer Q02 (must documentation-only changes run `Build_and_Install`?) and Q03 (branch
+1. Decide which of the open reliability findings to fix: the three that remain from the audit
+   and the trimming on auto-save.
+2. Review A01-A16 in DECISIONS and correct any that misstate intent.
+3. Answer Q02 (must documentation-only changes run `Build_and_Install`?) and Q03 (branch
    policy); both affect every later session.
-3. Run the code-highlighting check against its new fixture several times and record the result.
-4. Investigate Q10, starting from the table height estimate, then make the preview-only run a
+4. Run the code-highlighting check against its new fixture several times and record the result.
+5. Investigate Q10, starting from the table height estimate, then make the preview-only run a
    gate.
-5. Carry out P10 so the removed checks have a pixel-based replacement.
-6. In the first new session, confirm the SessionStart, PreCompact and Stop hooks fire, and
+6. Carry out P10 so the removed checks have a pixel-based replacement.
+7. In the first new session, confirm the SessionStart, PreCompact and Stop hooks fire, and
    update the status line in [.claude/README.md](../.claude/README.md).

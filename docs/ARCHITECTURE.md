@@ -61,7 +61,7 @@ string on both sides before changing it.
 
 | Host to webview | Purpose |
 | --- | --- |
-| `setDocument` | Authoritative text with a revision number, editor options, and a `source` of `host`, `webviewAck` or `webviewReject` (with the change it answers) |
+| `setDocument` | Authoritative text with a revision number, editor options, and a `source` of `host`, `webviewAck` or `webviewReject` (with the change it answers). A `host` snapshot answers `ready` and follows a content change that did not come from a webview edit; a save that leaves the text as it is sends none |
 | `setEditorOptions` | Settings, read-only state and metrics changed |
 | `captureViewState` | Ask for scroll and caret state before the editor is swapped |
 | `historyCommand` | Undo or redo from the title-bar buttons |
@@ -99,6 +99,18 @@ touching anything near it.
 5. On success the host sends `setDocument` with `webviewAck`. On any mismatch it sends
    `webviewReject`, raises the conflict floor to that revision and shows a warning: the webview
    discards its optimistic state and everything it sent earlier is void.
+6. After the snapshot that answers `ready`, the host sends a `host` snapshot only for a change
+   event that carries content changes: an external edit, Undo or Redo. A save that leaves the
+   text as it is changes only the dirty state and sends nothing; a snapshot of unchanged text
+   could cross an edit that is on its way and roll it back. A save that changes the text, by
+   trimming or formatting, is a content change like any other.
+7. When an acknowledgement leaves no edit unanswered, the webview compares its text with the
+   acknowledged text and applies that text if they differ. This restores an edit that a crossing
+   snapshot rolled back while the host went on to accept it. In a table cell that still has
+   focus the caret is placed at once, and the focus request the rollback left waiting for a
+   render is dropped. During a source-editor composition nothing is applied: if a snapshot is
+   waiting for the composition to end, the acknowledged text replaces it; a composition that
+   began on rolled-back text is sent as it is, and the host rejects it.
 
 Text is normalized to LF between the two sides (`normalizeDocumentText`) and mapped back to the
 document's own line endings on apply (`mapNormalizedDocumentChangesToHost`).

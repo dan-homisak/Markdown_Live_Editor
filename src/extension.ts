@@ -600,15 +600,20 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
         void webview.postMessage({ type: "refreshCodeHighlighting" });
       }),
       vscode.workspace.onDidChangeTextDocument((event) => {
-        if (event.document.uri.toString() === documentKey && event.contentChanges?.length !== 0) {
-          history.update(normalizeDocumentText(event.document.getText()),
-            event.reason === 1 ? "undo" : event.reason === 2 ? "redo" : undefined);
-          this.updateHistoryButtons(documentKey);
-        }
+        // VS Code also raises this event when only the dirty state changes,
+        // as on every save. The text is the same then. Sending it again
+        // would hand the webview a snapshot that can cross an edit it has
+        // already sent and roll that edit back.
         if (
-          event.document.uri.toString() === documentKey &&
-          !applyingFromWebview
+          event.document.uri.toString() !== documentKey ||
+          event.contentChanges?.length === 0
         ) {
+          return;
+        }
+        history.update(normalizeDocumentText(event.document.getText()),
+          event.reason === 1 ? "undo" : event.reason === 2 ? "redo" : undefined);
+        this.updateHistoryButtons(documentKey);
+        if (!applyingFromWebview) {
           postDocument();
         }
       }),
