@@ -67,6 +67,9 @@ this changes the file: opening, scrolling, selecting and folding never mark a do
 Horizontal rules, escaped characters and character entities render as well. HTML is shown as
 written, and images and embedded notes keep their source text.
 
+Line numbers are never part of a selection. A click on a line number puts the caret at the start
+of that line, and a drag that starts there selects the document's text from that line on.
+
 ### Formatting a selection
 
 Select text and type a formatting character. The selection is kept, so pressing the key again
@@ -96,6 +99,8 @@ Typing without a selection behaves as usual.
   follow the rendered rows and keep the caret out of the indentation.
 - Click a checkbox to toggle a task. That is one edit and one Undo step. From the keyboard, use
   **Toggle Task Checkbox at Caret**, or **Focus Task Checkbox at Caret** and then `Space`.
+- A click beside a checkbox puts the caret at the start of the task's text. To edit the
+  `- [x]` source, move the caret into it with the Left arrow.
 
 Numbered lists display consecutive numbers starting from the first number in the source;
 editing a number shows it as written.
@@ -145,6 +150,10 @@ what you see, never the file.
 
 Click a cell to edit its Markdown. When you leave the cell it renders again, including emphasis,
 code and links.
+
+Columns size themselves to their text and follow it as you type. If that movement distracts,
+set a [typing resize delay](#settings): the columns then keep their widths while you type, the
+text wraps inside its cell, and the table resizes once you pause or move to another cell.
 
 ### Moving around
 
@@ -211,6 +220,18 @@ then Markdown, then plain text, and can be forced to one of them from the menu. 
 than the selection grows the table instead of spilling out of it. Pasted text keeps
 fill-in blanks such as `____` and identifiers such as `snake_case` as written.
 
+Rich content is converted to Markdown, with `#` headings and one space after a list marker.
+Automatic paste takes the plain text unchanged instead in two cases, where converting would only
+damage it:
+
+- The text was copied in a code editor, VS Code's own included: the rich version is the same
+  text with colors.
+- The plain text is already Markdown and the rich version is a rendering of it, as Markdown
+  editors and chat assistants copy. The plain text must contain all of the rendered text and
+  write its headings, lists, tables, links and emphasis in Markdown syntax.
+
+**Paste Rich** always converts.
+
 ## Settings
 
 All settings start with `markdownLiveRenderTables.`.
@@ -220,7 +241,8 @@ All settings start with `markdownLiveRenderTables.`.
 | `markdownRendering.enabled` | `true` | Live preview. Turn it off for plain source everywhere except tables, which stay editable |
 | `markdownRendering.showHeadingMarkers` | `true` | Keep heading `#` markers visible. Turn it off to hide them until the caret is in the heading |
 | `lineHighlight.enabled` | `false` | Highlight the line the caret is on, outside tables |
-| `occurrenceHighlight.enabled` | `true` | Highlight other occurrences of the word at the caret or of the selected text, as VS Code does |
+| `occurrenceHighlight.enabled` | `true` | Highlight other occurrences of the word at the caret or of the selected text, as VS Code does, with the same look in text and in table cells |
+| `tableLayout.typingResizeDelay` | `0` | Milliseconds typing in a table cell must pause before the columns resize, up to `5000`. `0` resizes on every keystroke |
 | `tableNavigation.modifierKey` | `F2` | Key held with an arrow to jump between cells, for example `Control`, `Ctrl+Space` or `KeyQ` |
 | `tableShortcuts.insertRowBelow` | `Ctrl+Enter` | Each of the four insert shortcuts takes modifiers plus a key, or an empty string to disable it |
 | `tableShortcuts.insertRowAbove` | `Ctrl+Shift+Enter` | |

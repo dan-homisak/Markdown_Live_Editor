@@ -134,6 +134,16 @@ spec and the script headers.
 - **Evidence piles up.** Hundreds of logs and screenshots accumulated with no rule for what to
   keep, and they carried local paths into a public repository. Keep the written report; raw
   output stays local (A19).
+- **A stylesheet rule written from an assumed DOM is a guess.** A rule meant to hide highlights
+  inside hidden list syntax matched nothing, because the two decorations nest the other way
+  round. The check written for it found that; look at the rendered DOM before writing a selector
+  for nested decorations.
+- **A fake settings message does not last.** A check that hands the editor its options in a
+  made-up message loses them at the host's next reply, which carries the real ones. Change the
+  real setting in the test profile and wait for the editor to receive it.
+- **The browser decides when a focus ring shows.** Whether a focused element counts as
+  focus-visible depends on what was done last, so a check that only opens a menu may or may not
+  see the ring. Force the state through the debugging protocol and assert that it was forced.
 - **A package ships whatever is not excluded.** An exclusion list let a 680 KB fixture, compiled
   tests and source maps ride along for months. The package is built from an allowlist now.
 

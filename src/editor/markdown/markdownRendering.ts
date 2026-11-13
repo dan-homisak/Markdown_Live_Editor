@@ -79,7 +79,8 @@ export function createMarkdownRenderingExtensions(options: MarkdownRenderingOpti
       markdownRenderTreeField,
       createMarkdownListStructure(options.screenReaderOptimized),
       createMarkdownPresentationExtensions(), createMarkdownBlockExtensions(),
-      createMarkdownLivePreviewExtensions(options.screenReaderOptimized, options.showHeadingMarkers), markdownMarkerField, markerPlugin]
+      createMarkdownLivePreviewExtensions(options.screenReaderOptimized, options.showHeadingMarkers), markdownMarkerField, markerPlugin,
+      taskPointerPlacement]
     : markdown()];
 }
 
@@ -299,6 +300,65 @@ export const markdownMarkerField = StateField.define<MarkerState>({
   },
   // Marker slots nest inside the continuous selection paint for the whole row.
   provide: field => Prec.high(EditorView.decorations.from(field, value => value.decorations)),
+});
+
+/** The hidden source of a rendered task, `- [x]`, and where the task's text begins. */
+export interface ConcealedTaskMarker {
+  readonly from: number;
+  readonly to: number;
+  readonly contentFrom: number;
+}
+
+/**
+ * The concealed task marker that contains `position`, ends included, or null
+ * when the position is elsewhere or the marker's source is showing in `state`.
+ */
+export function concealedTaskMarkerAt(state: EditorState, position: number): ConcealedTaskMarker | null {
+  const field = state.field(markdownMarkerField, false);
+  if (!field) return null;
+  let found: ConcealedTaskMarker | null = null;
+  field.decorations.between(position, position, (from, to, value) => {
+    const className: unknown = value.spec.class;
+    if (from <= position && position <= to && typeof className === "string" &&
+        className.split(" ").includes("mlrt-markdown-task")) {
+      found = { from, to, contentFrom: state.doc.sliceString(to, to + 1) === " " ? to + 1 : to };
+      return false;
+    }
+    return undefined;
+  });
+  return found;
+}
+
+/** Whether `position` holds the check letter of a task marker, `- [x]`, that this renderer recognizes. */
+export function isTaskCheckLetterAt(state: EditorState, position: number): boolean {
+  const field = state.field(markdownMarkerField, false);
+  return !!field && field.markers.some(marker =>
+    marker.kind === "task" && marker.checked && marker.checkFrom === position);
+}
+
+/**
+ * The characters of a concealed task marker have no width: they all sit at one
+ * point beside the checkbox, so a click there resolves to whichever of them the
+ * browser picks. The caret would land inside the marker and reveal its source,
+ * although the click was on the row, not on syntax nobody can see. A pointer
+ * selection that ends inside a concealed marker ends at the task's text
+ * instead. The start of the marker stays reachable, and the keyboard still
+ * walks into the marker and reveals it.
+ */
+const taskPointerPlacement = EditorState.transactionFilter.of(transaction => {
+  if (!transaction.selection || transaction.docChanged || !transaction.isUserEvent("select.pointer")) return transaction;
+  let moved = false;
+  const outside = (position: number): number => {
+    const marker = concealedTaskMarkerAt(transaction.startState, position);
+    if (!marker || position === marker.from || position === marker.contentFrom) return position;
+    moved = true;
+    return marker.contentFrom;
+  };
+  const ranges = transaction.selection.ranges.map(range =>
+    EditorSelection.range(outside(range.anchor), outside(range.head), range.goalColumn));
+  return moved
+    ? [transaction, { selection: EditorSelection.create(ranges, transaction.selection.mainIndex) }]
+    : transaction;
 });
 
 class MarkerView {

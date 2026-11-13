@@ -3,7 +3,7 @@
 - Status: Obsidian-style Live Preview is the required editing model. It replaced an earlier readable-source design.
 - Product direction: most of an Obsidian-style editor, with this project's existing VS Code and table behavior.
 - Scope: contextual syntax concealment, YAML properties, callouts, code blocks, Obsidian-style tasks, smart list editing, and actionable Markdown links and wikilinks.
-- Revised 2026-11-13 to describe the shipped editor where this document had fallen behind it: heading markers, properties, fence rows, code highlighting, footnotes and generated contents. User-visible behavior is described in the [README](../README.md).
+- Revised 2026-11-13 to describe the shipped editor where this document had fallen behind it: heading markers, properties, fence rows, code highlighting, footnotes and generated contents; and again the same day for pointer placement beside task checkboxes. User-visible behavior is described in the [README](../README.md).
 - Evidence: the test plan and the current state of each suite are in [TESTING](TESTING.md). Dated reports in `docs/reports/` describe earlier versions; the performance measurements there belong to version 0.1.174 and do not validate the current layout.
 
 ## 1. Product experience
@@ -78,6 +78,8 @@ Use one source transaction per structural action and one authoritative host Undo
 ## 5. Task, code, property, and callout controls
 
 A task activation changes exactly one code unit: space to lowercase `x`, or `x`/`X` to space. Pointer toggles preserve the prior source/table selection. Space toggles an explicitly focused checkbox; Escape returns to its mapped source bookmark. Keep Command Palette and source context-menu actions. Controls expose names, state, disabled state, and focus indicators. Do not create thousands of sequential task Tab stops.
+
+The characters of a concealed task marker have no width and sit at one point beside the checkbox. A pointer selection never ends on one of them: it ends at the start of the task's text, so a click beside a checkbox does not reveal the marker. The start of the marker stays reachable, and the keyboard walks into the marker and reveals it. A coordinate left of the content, such as the line-number gutter, resolves to the start of the marker. The check letter of a rendered marker is syntax: a caret beside it asks for no occurrence highlight, and no occurrence is drawn on a marker that is concealed.
 
 Code blocks show their language in a corner control in resting and editing states; hover or keyboard focus changes the label to Copy. The label comes from the first info-string word; code in a language without a grammar remains plain text. Copy reads current source and excludes fence syntax and structural quote/list prefixes, while retaining meaningful indentation and line breaks. It copies only code, adds no source/history entry, gives success/failure feedback, and works through pointer and keyboard activation. A label click returns to editable source. Never execute code or download grammars.
 

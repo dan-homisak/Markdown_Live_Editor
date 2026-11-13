@@ -38,6 +38,9 @@ export function createEditorTheme(): Extension {
       color: "var(--vscode-editorLineNumber-foreground, #858585)",
       borderRight: "none",
       boxSizing: "border-box",
+      // Line numbers are never part of a selection. A drag that starts or
+      // strays here selects document text instead (documentClipboard.ts).
+      userSelect: "none",
       paddingLeft: "var(--mlrt-editor-gutter-left-padding, 2.5ch)",
       fontFamily:
         "var(--mlrt-editor-font-family, var(--vscode-editor-font-family, monospace))",

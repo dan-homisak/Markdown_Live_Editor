@@ -47,7 +47,7 @@ src/extension.ts  ->  dist/extension.js        src/webview/liveEditor.ts  ->  me
 | `src/editor/table/` | Rendered table widgets: cell editing, range and multi-selection, clipboard, structure controls, layout, source writes |
 | `src/editor/markdown/` | Live Preview: syntax classification, concealment and reveal, blocks, lists, links, properties, code highlighting in the webview |
 | `src/editor/` (top level) | Document clipboard and selection painting, geometry sync, theme, table boundary navigation, occurrence highlight |
-| `src/shared/` | Logic used by both sides and by tests: the table parser (`src/shared/tableModel.ts`), table source protection, change validation and mapping, clipboard model, link validation, column sizing, key bindings |
+| `src/shared/` | Logic used by both sides and by tests: the table parser (`src/shared/tableModel.ts`), table source protection, change validation and mapping, clipboard model, what Automatic paste takes (`src/shared/clipboardPasteSource.ts`), link validation, column sizing and its typing delay (`src/shared/tableResizeDelay.ts`), key bindings |
 | `src/highlighting/` | Host-side grammar and theme collection for code blocks |
 | `src/test/` | Node tests, one file per area, run with plain `node` after compilation |
 | `media/` | Stylesheets and the bundled webview script. `media/liveEditor.js` is generated and tracked |
@@ -134,6 +134,32 @@ lines stay in the document but are hidden and protected:
   diagnostics and tests.
 - Live Preview code asks the table model for protected ranges and leaves them alone.
 
+Column widths are computed from the text (`src/shared/tableColumnSizing.ts`) on every layout
+pass. While a typing resize delay is set, each edit typed into a cell holds the widths the table
+has; the hold ends when typing pauses for the delay, or at once when the focused cell, the
+table's shape or the width available to it changes (`src/editor/table/tableLayout.ts`). The
+setting reaches the layout as a data attribute on the document element, like the clipboard modes.
+
+## Pointer gestures and selection
+
+CodeMirror owns a pointer selection that starts in its content. Two places adjust that:
+
+- The line-number gutter is outside the content, so `src/editor/documentClipboard.ts` owns a
+  gesture that starts there, with the drag model it uses for selections that cross tables: the
+  selection begins at the text edge of the row under the pointer. Line numbers cannot be selected.
+- A transaction filter in `src/editor/markdown/markdownRendering.ts` moves a pointer selection
+  that would end inside a concealed task marker to the start of the task's text.
+
+## Occurrence highlight
+
+`src/editor/occurrenceHighlight.ts` highlights the word at the caret or the selected text. In
+prose the matches are mark decorations. Inside table cells the DOM must not change under the
+caret, so the fill is painted through the CSS Custom Highlight API and the border by one
+positioned box per match in a layer over the table; that layer exists only while the theme draws
+a border. The query for a focused cell is read from the cell itself, and cells are repainted in a
+microtask after the change that moved them, so the highlight is right in the frame the text
+changes.
+
 ## Live Preview
 
 The CodeMirror Markdown tree (GFM, frontmatter and wikilinks enabled) classifies the document;
@@ -141,6 +167,15 @@ there is no second parser. Inline styling uses marks, concealment uses replaceme
 bound to source ranges, and anything that changes layout is provided by a state field. Reveal
 depends on the caret, the selection, focus and composition, in the order the spec's section 3
 gives. `markdownRendering.enabled` reconfigures the editor in place through a compartment.
+
+## Paste
+
+`src/editor/documentClipboard.ts` turns the clipboard into Markdown. Rich content is sanitized
+and converted. Automatic paste first asks whether the plain text is the source of that content:
+text a VS Code editor copied, preformatted text with colors, or Markdown beside its rendering.
+The rule is pure and lives in `src/shared/clipboardPasteSource.ts`; the clipboard module only
+counts the structure of the sanitized content for it. When the rule says yes, the plain text is
+pasted unchanged.
 
 ## Code highlighting
 

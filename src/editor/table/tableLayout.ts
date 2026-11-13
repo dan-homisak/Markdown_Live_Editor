@@ -1,7 +1,14 @@
 import {
   measureTableColumnSizing,
+  TableCellSizingOverride,
   TableColumnSizing,
 } from "../../shared/tableColumnSizing";
+import {
+  normalizeTableResizeDelay,
+  tableResizeHeld,
+  TableResizeHold,
+  tableResizeHoldKey,
+} from "../../shared/tableResizeDelay";
 import { EditorView } from "@codemirror/view";
 import { ParsedTable } from "../../shared/tableModel";
 import { screenPixelsToCssPixels } from "./tableHeightEstimate";
@@ -71,19 +78,85 @@ export function applyColumnSizing(
     });
 }
 
-/** Re-measures column sizing for the widget's current table and applies it. */
+/**
+ * Re-measures column sizing for the widget's current table and applies it,
+ * unless the widths are being held while the user types (see
+ * `holdTableColumnSizingWhileTyping`).
+ */
 export function applyCurrentColumnSizing(
   wrapper: HTMLElement,
   table: ParsedTable,
 ): void {
+  const availableDataWidthCh = measureAvailableDataWidthCh(wrapper);
+  const cellOverride = readActiveCellSizingOverride(wrapper);
+  const hold = resizeHolds.get(wrapper);
+  if (hold) {
+    const now = wrapper.ownerDocument.defaultView?.performance.now() ?? Number.POSITIVE_INFINITY;
+    if (tableResizeHeld(hold, now, resizeHoldKey(table, availableDataWidthCh, cellOverride))) {
+      return;
+    }
+    releaseTableColumnSizingHold(wrapper);
+  }
   applyColumnSizing(
     wrapper,
-    measureTableColumnSizing(
-      table,
-      measureAvailableDataWidthCh(wrapper),
-      readActiveCellSizingOverride(wrapper),
-    ),
+    measureTableColumnSizing(table, availableDataWidthCh, cellOverride),
   );
+}
+
+interface ActiveResizeHold extends TableResizeHold {
+  timer: number;
+}
+
+const resizeHolds = new WeakMap<HTMLElement, ActiveResizeHold>();
+
+function resizeHoldKey(
+  table: ParsedTable,
+  availableWidthCh: number | undefined,
+  cell: TableCellSizingOverride | undefined,
+): string | null {
+  return cell
+    ? tableResizeHoldKey({ columnCount: table.columnCount, rowCount: table.body.length, availableWidthCh, cell })
+    : null;
+}
+
+function releaseTableColumnSizingHold(wrapper: HTMLElement): void {
+  const hold = resizeHolds.get(wrapper);
+  if (!hold) return;
+  wrapper.ownerDocument.defaultView?.clearTimeout(hold.timer);
+  resizeHolds.delete(wrapper);
+}
+
+/**
+ * Called for each edit typed into a cell, before the edit reaches the
+ * document. With a typing resize delay set, the table keeps its current column
+ * widths until typing has paused for that long, then `relayout` runs once.
+ * With no delay this does nothing and widths follow every keystroke.
+ */
+export function holdTableColumnSizingWhileTyping(
+  wrapper: HTMLElement,
+  relayout: () => void,
+): void {
+  const win = wrapper.ownerDocument.defaultView;
+  const delay = normalizeTableResizeDelay(
+    Number(wrapper.ownerDocument.documentElement.dataset.mlrtTableResizeDelay),
+  );
+  releaseTableColumnSizingHold(wrapper);
+  if (!win || delay <= 0) {
+    // Nothing to measure on the ordinary path, where every keystroke resizes.
+    return;
+  }
+  const table = getRenderedTableModel(wrapper);
+  const key = table
+    ? resizeHoldKey(table, measureAvailableDataWidthCh(wrapper), readActiveCellSizingOverride(wrapper))
+    : null;
+  if (key === null) {
+    return;
+  }
+  const timer = win.setTimeout(() => {
+    resizeHolds.delete(wrapper);
+    if (wrapper.isConnected) relayout();
+  }, delay);
+  resizeHolds.set(wrapper, { until: win.performance.now() + delay, key, timer });
 }
 
 /**
@@ -197,6 +270,7 @@ export function bindTableLayout(
       pendingAnimationFrame = 0;
     }
     resizeObserver?.disconnect();
+    releaseTableColumnSizingHold(wrapper);
     tableScroll.removeEventListener("scroll", syncScrollbar);
     scrollbar.removeEventListener("pointerdown", onPointerDown);
     scrollbar.removeEventListener("pointermove", onPointerMove);

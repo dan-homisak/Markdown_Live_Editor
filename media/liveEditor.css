@@ -152,21 +152,50 @@ body:is(.vscode-high-contrast, .vscode-high-contrast-light) .mlrt-selection-fill
   .mlrt-prose-selection-layer > .mlrt-selection-fillet { display: none; }
 }
 
-/* Other occurrences of the caret word or selected text (VS Code style). */
+/* Other occurrences of the caret word or selected text (VS Code style): a
+   square fill behind the text and the theme's border around it. Prose and
+   table cells must look the same. A cell match is filled through the CSS
+   Custom Highlight API, which cannot round a corner or draw a border, so the
+   fill is square in both places and the border of a cell match is a box of
+   its own (occurrenceHighlight.ts) that shares the rule below. */
 .cm-content .mlrt-occurrence {
   background-color: var(--mlrt-occurrence-fill);
-  border-radius: 2px;
-  box-shadow: 0 0 0 1px var(--vscode-editor-selectionHighlightBorder, transparent);
 }
 
 .mlrt-table-cell::highlight(mlrt-occurrence) {
   background-color: var(--mlrt-occurrence-fill);
 }
 
+.cm-content .mlrt-occurrence,
+.mlrt-table-occurrence-ring {
+  box-shadow: 0 0 0 1px var(--vscode-editor-selectionHighlightBorder, transparent);
+}
+
+.mlrt-table-occurrence-rings {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Above ordinary cells, below the sticky line-number gutter and controls. */
+  z-index: 2;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mlrt-table-occurrence-ring {
+  position: absolute;
+  pointer-events: none;
+}
+
 @media (forced-colors: active) {
-  .cm-content .mlrt-occurrence {
+  .cm-content .mlrt-occurrence,
+  .mlrt-table-occurrence-ring {
     background-color: transparent;
     outline: 1px dotted CanvasText;
+  }
+  .mlrt-table-cell::highlight(mlrt-occurrence) {
+    background-color: transparent;
   }
 }
 
@@ -546,6 +575,16 @@ body:is(.vscode-high-contrast, .vscode-high-contrast-light) .mlrt-selection-fill
   font-family: var(--vscode-font-family, system-ui, sans-serif);
   font-size: 12px;
   user-select: none;
+}
+
+/* A menu takes focus when it opens so its keys work. The browser would mark
+   that with its own focus ring around the whole menu, in a color no theme
+   chose; the focused item's background is the focus mark here. */
+.mlrt-clipboard-menu:focus,
+.mlrt-clipboard-menu:focus-visible,
+.mlrt-table-structure-menu:focus,
+.mlrt-table-structure-menu:focus-visible {
+  outline: none;
 }
 
 .mlrt-clipboard-menu-item {

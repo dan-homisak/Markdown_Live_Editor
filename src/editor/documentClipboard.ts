@@ -28,6 +28,7 @@ import {
 } from "../shared/tableModel";
 import { allowTableSourceChange } from "../shared/tableSourceProtection";
 import { escapeMarkdownText } from "../shared/markdownEscape";
+import { HtmlClipboardStructure, plainTextPasteReason } from "../shared/clipboardPasteSource";
 import { deleteBetweenTables } from "./tableBoundaryNavigation";
 import { planTableDeletion, TableDeletionBehavior } from "../shared/tableDeletion";
 import { editorDragPosition } from "./dragPosition";
@@ -36,6 +37,7 @@ import {
   MARKDOWN_MARKER_DRAG_EVENT,
   MarkdownMarkerDragDetail,
 } from "./markdown/markdownPointer";
+import { concealedTaskMarkerAt } from "./markdown/markdownRendering";
 import {
   clearDocumentSelectionProjection,
   documentSelectionProjectionsEqual,
@@ -74,6 +76,8 @@ interface ClipboardReadData {
   html?: string;
   markdown?: string;
   plain?: string;
+  /** The clipboard was written by a VS Code text editor: the plain text is the source. */
+  fromCodeEditor?: boolean;
 }
 
 interface DocumentClipboardRepresentations {
@@ -97,11 +101,37 @@ const turndown = new TurndownService({
   bulletListMarker: "-",
   codeBlockStyle: "fenced",
   emDelimiter: "*",
+  // `#` headings: the editor renders them, and they stay one line each.
+  headingStyle: "atx",
   strongDelimiter: "**",
 });
 turndown.use(gfm);
+// Turndown's own list rule writes three spaces after every marker and indents
+// continuation lines by four. Write the marker the way it is typed, and indent
+// to the item's content column so nested lists stay nested.
+turndown.addRule("mlrtListItem", {
+  filter: "li",
+  replacement(content, node, options) {
+    const parent = node.parentNode as Element | null;
+    let marker = `${options.bulletListMarker} `;
+    if (parent?.nodeName === "OL") {
+      const start = parent.getAttribute("start");
+      const index = Array.prototype.indexOf.call(parent.children, node);
+      marker = `${start ? Number(start) + index : index + 1}. `;
+    }
+    const indent = " ".repeat(marker.length);
+    const lines = content.replace(/^\n+/, "").replace(/\n+$/, "").split("\n");
+    const body = lines
+      .map((line, index) => (index === 0 || line.length === 0 ? line : indent + line))
+      .join("\n");
+    return marker + body + (node.nextSibling ? "\n" : "");
+  },
+});
 // Keep pasted fill-in blanks (`____`) and identifiers (`snake_case`) as written.
 turndown.escape = escapeMarkdownText;
+
+/** Clipboard type VS Code's text editors add to what they copy. */
+const VSCODE_EDITOR_CLIPBOARD_TYPE = "vscode-editor-data";
 
 let armedDocumentPasteMode: ClipboardPasteMode | null = null;
 let requestedDocumentCopyMode: ClipboardCopyMode | null = null;
@@ -410,8 +440,38 @@ export function installDocumentClipboard(
     if (anchor === null) {
       return;
     }
+    if (
+      event.target instanceof Element && event.target.closest(".cm-gutters") &&
+      event.isPrimary && !event.ctrlKey && !event.metaKey && !event.altKey
+    ) {
+      // The line-number gutter is outside CodeMirror's content, so CodeMirror
+      // starts no selection there and the browser would select the numbers.
+      // Own the gesture from here: it is a document selection that begins at
+      // the text edge of the row under the pointer. Shift extends the
+      // selection that already exists.
+      clearTableRangeSelection(doc);
+      beginMixedDrag(event.shiftKey ? view.state.selection.main.anchor : rowStartPosition(anchor), event.pointerId);
+      mixedDragActive = true;
+      try {
+        root.setPointerCapture(event.pointerId);
+        mixedDragOwnsPointerCapture = root.hasPointerCapture(event.pointerId);
+      } catch {
+        // Document listeners still handle synthetic/released platform pointers.
+      }
+      updateMixedDrag(event);
+      event.preventDefault();
+      return;
+    }
     beginMixedDrag(anchor, event.pointerId);
   };
+
+  /**
+   * A coordinate left of the content is clamped to the content's edge, where a
+   * rendered task keeps the hidden characters of its marker at one point. The
+   * row begins at the start of that marker, not at a character inside it.
+   */
+  const rowStartPosition = (position: number): number =>
+    concealedTaskMarkerAt(view.state, position)?.from ?? position;
 
   const beginMixedDrag = (anchor: number, pointerId: number): void => {
     mixedDragAnchor = anchor;
@@ -499,10 +559,13 @@ export function installDocumentClipboard(
       if (!mixedDragActive) {
         return;
       }
-      const head = editorDragPosition(view, event.clientX, event.clientY);
-      if (head === null) {
+      const position = editorDragPosition(view, event.clientX, event.clientY);
+      if (position === null) {
         return;
       }
+      const head = event.clientX < view.contentDOM.getBoundingClientRect().left
+        ? rowStartPosition(position)
+        : position;
       const nextRange = { anchor: mixedDragAnchor, head };
       const tableRegions = fullRegionsForEnvelope(
         getParsedTables(view.state.doc),
@@ -1734,6 +1797,9 @@ function readTransfer(transfer: DataTransfer): ClipboardReadData {
     html: readTransferType(transfer, "text/html"),
     markdown: readTransferType(transfer, "text/markdown"),
     plain: readTransferType(transfer, "text/plain", true),
+    fromCodeEditor: Array.from(transfer.types).some(
+      (candidate) => candidate.toLowerCase() === VSCODE_EDITOR_CLIPBOARD_TYPE,
+    ),
   };
 }
 
@@ -1769,6 +1835,9 @@ function documentPasteMarkdown(
     const markdown = data.markdown ?? data.plain;
     return markdown === undefined ? null : normalizeText(markdown);
   }
+  if (mode === "auto" && data.html && data.plain !== undefined && plainTextIsThePasteSource(data.html, data.plain, data.fromCodeEditor === true)) {
+    return normalizeText(data.plain);
+  }
   if ((mode === "auto" || mode === "rich") && data.html) {
     return htmlToReadableMarkdown(data.html);
   }
@@ -1782,8 +1851,45 @@ function markdownForGridPayload(payload: ClipboardGridPayload): string {
   return payload.exactMarkdown ?? gridToMarkdown(payload.rows, payload.alignments);
 }
 
-function htmlToReadableMarkdown(html: string): string {
-  const classStyles = officeClassStyles(html);
+/**
+ * Whether Automatic paste takes the clipboard's plain text unchanged instead
+ * of converting its HTML: the text a code editor copied, or the Markdown a
+ * Markdown editor copied beside its rendering. See clipboardPasteSource.ts.
+ */
+function plainTextIsThePasteSource(html: string, plain: string, fromCodeEditor: boolean): boolean {
+  if (fromCodeEditor) {
+    return true;
+  }
+  return plainTextPasteReason(plain, htmlClipboardStructure(parseSanitizedClipboardHtml(html).body)) !== null;
+}
+
+function htmlClipboardStructure(body: HTMLElement): HtmlClipboardStructure {
+  const count = (selector: string): number => body.querySelectorAll(selector).length;
+  // The converter fences a <pre> only when its first child is a <code>.
+  const blocks = Array.from(body.querySelectorAll("pre"));
+  const codeBlocks = blocks.filter((pre) => pre.firstChild?.nodeName === "CODE").length;
+  const styled = Array.from(body.querySelectorAll<HTMLElement>("[style]")).some((element) =>
+    /white-space\s*:\s*(?:pre|break-spaces)|font-family\s*:[^;]*\bmonospace\b/i.test(element.getAttribute("style") ?? ""));
+  return {
+    text: body.textContent ?? "",
+    preformatted: blocks.length > codeBlocks ? "block" : styled ? "style" : "none",
+    headings: count("h1, h2, h3, h4, h5, h6"),
+    listItems: count("li"),
+    tables: count("table"),
+    paragraphBreaks: count("p + p"),
+    links: count("a[href]"),
+    images: count("img"),
+    codeBlocks,
+    inlineCode: Array.from(body.querySelectorAll("code")).filter((code) => !code.closest("pre")).length,
+    quotes: count("blockquote"),
+    strong: count("strong, b"),
+    emphasis: count("em, i"),
+    strike: count("del, s, strike"),
+    rules: count("hr"),
+  };
+}
+
+function parseSanitizedClipboardHtml(html: string): Document {
   const sanitized = DOMPurify.sanitize(html, {
     FORBID_TAGS: [
       "script",
@@ -1798,7 +1904,12 @@ function htmlToReadableMarkdown(html: string): string {
     ],
     FORBID_ATTR: ["src", "srcset", "onload", "onclick", "onerror"],
   });
-  const parsed = new DOMParser().parseFromString(sanitized, "text/html");
+  return new DOMParser().parseFromString(sanitized, "text/html");
+}
+
+function htmlToReadableMarkdown(html: string): string {
+  const classStyles = officeClassStyles(html);
+  const parsed = parseSanitizedClipboardHtml(html);
   const replacements = new Map<string, string>();
   Array.from(parsed.querySelectorAll("table")).forEach((table, index) => {
     const token = `MLRTTABLETOKEN${index}X`;

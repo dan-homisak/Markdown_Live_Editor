@@ -1,9 +1,11 @@
 # Session 2026-11-13: reliability audit
 
-Status: open · Updated: 2026-11-13
+Status: closed · Updated: 2026-11-13
 
 ## State now
 
+- Closed. The open findings and the decision they wait on are under known gaps and next steps
+  in [PROGRESS](../PROGRESS.md); later work is in the journal that follows this one.
 - Working on: nothing in flight. The audit is in the
   [reliability audit](../reports/reliability-audit-2026-11-13.md). Its first finding, the save
   race, is fixed, reviewed and verified; the evidence is milestone 5 in

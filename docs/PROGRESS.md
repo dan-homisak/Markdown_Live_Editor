@@ -4,17 +4,17 @@ Updated: 2026-11-13.
 
 ## Actual repository state
 
-- Git: branch `main`, the only branch, with a remote. Milestones 1 to 5 below are committed.
-  The history was rewritten on 2026-11-13 (milestone 4), so every commit hash cited in these
-  documents is the one in use after that rewrite.
-- Product source differs from 047e615 in two places: the list-nesting fix of milestone 3 and
-  the save race fix of milestone 5. The extension version is a build counter:
-  `Build_and_Install` raises it on every run. The installed version is 0.1.237.
+- Git: branch `main`, the only branch, with a remote. Milestones 1 to 6 below are committed;
+  milestone 6 is not pushed. The history was rewritten on 2026-11-13 (milestone 4), so every
+  commit hash cited in these documents is the one in use after that rewrite.
+- Product source differs from 047e615 in three places: the list-nesting fix of milestone 3, the
+  save race fix of milestone 5 and the corrections of milestone 6. The extension version is a
+  build counter: `Build_and_Install` raises it on every run. The installed version is 0.1.238.
 - Layout: source and unit tests in `src/`, shipped assets in `media/`, scripts in `scripts/`,
   frozen fixtures in `test/fixtures/`, hand-testing documents in `samples/`, all project
   documents under `docs/`, agent tooling in `.claude/`. `qa/` and `dist/` are local output.
 - Gates that pass: unit tests; the visual, structure-control, toggle, save-and-typing,
-  rendering and whole-surface release host checks; the documentation and privacy checks; the agent tooling
+  editing-surface, rendering and whole-surface release host checks; the documentation and privacy checks; the agent tooling
   tests; and the install. Two host runs are not gates: the preview-only run, which reports a
   console warning, and the code-highlighting check, which times out on some runs. See
   [TESTING](TESTING.md).
@@ -306,8 +306,147 @@ not exercised by hand in a reloaded window.
   the acknowledgement, is sent on the old text when it ends, and the host rejects it. Read from
   the code, not reproduced.
 
+## Milestone 6: defects reported against 0.1.228 (2026-11-13)
+
+Decisions A26 and A27. Eight defects and one wish for a setting were reported against version
+0.1.228. Each was first looked for in a real window. Seven defects were reproduced and
+corrected, the setting exists, and one defect is not reproduced.
+
+**The cell highlight flickered while typing.** A keystroke in a table cell replaces the text
+that the highlight's ranges were attached to, and the word at the caret reached the highlight
+through a selection event that arrives a frame or two after the key. In between, the previous
+word was still the query and matched nothing: sampled frame by frame, 41 frames had no
+highlight on the word being typed while 17 characters were entered.
+
+- The query for a focused cell is read from the cell itself, and cells are repainted in a
+  microtask after the change that moved them, before the browser paints
+  (`src/editor/occurrenceHighlight.ts`).
+
+**The cell highlight looked different from the one in prose.** A cell match is filled through
+the CSS Custom Highlight API, which draws neither a rounded corner nor a border; a prose match
+had both. In a theme that sets `editor.selectionHighlightBorder`, a high-contrast theme among
+them, a cell match had no border at all.
+
+- A prose match is square now, as a cell match is and as the stock editor's are. This changes
+  what prose looked like: its corners had a 2 px radius.
+- A cell match gets its border from one positioned box per match, in a layer over the table,
+  with the same rule as the prose border. The layer exists only while the theme draws a border.
+
+**Column widths moved on every keystroke.** Measured: the column grew by one character for each
+character typed. That is how the layout works, so the answer is a setting (A27),
+`tableLayout.typingResizeDelay`: while typing, the table keeps the widths it has and the text
+wraps inside its cell; the table resizes once typing has paused for the delay, or at once when
+another cell takes the caret, the table changes shape or the editor is resized. The default is
+0, which leaves the behavior as it was (Q11).
+
+**Line numbers could be selected.** The gutter had no rule against selection and lies outside
+CodeMirror's content, so a drag that began there was the browser's own and selected the numbers.
+
+- Line numbers cannot be selected. A gesture that begins in the gutter is a document selection
+  from the text edge of that row: a click puts the caret at the start of the line, a drag
+  selects the rows it passes, and Shift+click extends (`src/editor/documentClipboard.ts`).
+
+**A context menu showed an orange outline.** A menu takes focus when it opens, and the browser
+drew its own focus ring around it, 0.8 px in `rgb(229, 151, 0)`, whenever it counted that focus
+as one to mark. The menus draw no outline now; the focused item's background is the mark.
+
+**Text pasted from a Markdown editor arrived changed.** The rich content was converted back to
+Markdown: a heading came back underlined, list markers had three spaces after them, and a line
+that followed a nested list came back inside the list item, indented.
+
+**Text pasted from a code block arrived escaped.** The rich content of a code editor is its text
+with colors. Converting it put a backslash before every `*`, `[`, `]` and leading `-`.
+
+- Automatic paste takes the plain text unchanged when it is the source of the rich content: the
+  clipboard was written by a VS Code editor, or the rich content is preformatted text with no
+  structure and the same text, or it has structure and the plain text holds all of its text and
+  writes each kind of that structure in Markdown. The rule is pure
+  (`src/shared/clipboardPasteSource.ts`) and answers no whenever it cannot show that, so a web
+  page or a word processor converts as before. **Paste Rich** always converts.
+- The converter writes `#` headings, one space after a list marker, and nests a list at its
+  parent's content column.
+
+**The caret landed in a task's hidden marker.** The characters of a concealed `- [x]` have no
+width and sit at one point beside the checkbox. A click between the checkbox and the text
+landed on one of them: the marker's source appeared, and with the caret beside the check letter
+every word x in the document was highlighted, with a stray border beside the other checkboxes.
+
+- A pointer selection never ends inside a concealed task marker; it ends at the start of the
+  task's text. The keyboard still walks into the marker and reveals it
+  (`src/editor/markdown/markdownRendering.ts`).
+- The check letter of a rendered marker asks for no highlight, and a match that lies wholly
+  inside a concealed marker is not drawn.
+
+**The editor stayed blank after its window was minimized: not reproduced.** Three attempts in a
+real window, each with the real screen captured on restore, painted at once: four minutes
+minimized; one external edit while minimized; 120 external edits to an 80 KB document while
+minimized, where every one was applied while hidden and the first frame came 3 ms after the
+window showed. No cause is established and nothing is claimed fixed. Three things changed that
+could matter and are safe on their own:
+
+- The one place where the editor hides itself, while it aligns a restored table row after
+  start-up, no longer depends on a frame arriving to show itself again. It shows after 400 ms
+  whatever happened.
+- When its window shows again the editor measures once.
+- With the `debug` setting on, the output channel records how long the window was hidden and
+  how long the first frame took, or that no frame came within a second. That would tell a slow
+  editor from a renderer that painted nothing.
+
+**Tests.**
+
+- `scripts/edh-editing-surface-check.mjs`, new, `npm run test:host:surface`, in
+  `npm run test:all`: seven sections in a real window. On the build without the corrections all
+  seven failed, each on the defect it covers; with them all seven pass.
+- Unit tests, new: `src/test/clipboardPasteSource.test.ts`, `src/test/tableResizeDelay.test.ts`,
+  and the task-marker cases in `src/test/highlighting.test.ts`.
+
+### Verification
+
+All on 2026-11-13, on Windows. Two small edits came after the first series of host runs: the
+paste rule stopped taking plain text for styled content with paragraphs, and the delay code
+stopped measuring when no delay is set. The entries say which runs saw the final source tree.
+
+- `npm test`, final tree: **passed**, exit 0. 27 of 27 unit test files and both bundle checks.
+- `npm run check:docs`, `npm run check:privacy` and `npm run test:agent` (42 of 42): **passed**.
+- The editing surface check, final tree: exit 0, 7 of 7, its occurrence, gutter and task
+  screenshots opened.
+- The visual check, final tree: exit 0. Both screenshots were opened on the run before the two
+  edits, which also exited 0.
+- Before the two edits, each run on its own: structure controls exit 0; toggle exit 0; save and
+  typing exit 0 (300 edits through 22 saves); the whole-surface release check exit 0, 17 of 17;
+  `node scripts/edh-visual-check.mjs --occurrence-highlight-only` exit 0.
+- The rendering check, before the two edits: 24 of 25 on the first run, 25 of 25 on the second.
+  The check that failed once expects a task marker's source to appear when the caret is put on
+  it from a script, which needs the window to have focus; keystrokes from outside reached
+  another check's window during the same series. It is recorded as one failure in two runs,
+  not explained further.
+- `npm run test:host:preview`, before the two edits: 15 of 15 checks; the run exits 1 on the
+  one console warning of Q10, as it did before this milestone.
+- `./Build_and_Install`: **passed**, exit 0, 0.1.237 to 0.1.238, and the installed version was
+  verified as 0.1.238.
+
+Not run: `npm run test:all` as one command; the code-highlighting check; the device-scale and
+selection-rendering variants of the visual check; the benchmarks; anything on macOS. The
+reviewer subagent has not read this change. Not exercised by hand: a real copy from the
+applications named in the reports, an input method inside a table cell while the delay holds
+its widths, and the installed build in a reloaded window.
+
+**Remaining limits.**
+
+- The paste rule was written against rich content in the shapes those applications are known
+  to produce, not against captures from them. If a paste from one of them still converts, the
+  clipboard's rich content does not have the shape assumed, and a capture of it is what is
+  needed.
+- With a typing delay set, text typed into a narrow or empty column wraps one character wide
+  until typing pauses.
+- Occurrence borders inside a table are positioned from the layout at the time of painting.
+  They follow column widths, typing and editor geometry; a change of zoom alone is followed by
+  the next of those.
+
 ## Known gaps and findings
 
+- **An editor that stays blank after its window was minimized is reported and not
+  reproduced** (milestone 6). The debug log now records what happens when a window shows again.
 - **Three reliability defects from the audit of 2026-11-13 are not fixed.** A read-only
   document accepts typing (reproduced); the host keeps up to 201 full copies of every document
   opened; document text or a highlighter failure can stop start-up in uncommon configurations.
@@ -340,14 +479,17 @@ not exercised by hand in a reloaded window.
 
 ## Next steps
 
-1. Decide which of the open reliability findings to fix: the three that remain from the audit
+1. Try the corrections of milestone 6 in daily use, with the applications the paste reports
+   came from. Answer Q11 once the typing delay has been tried. If the editor stays blank after
+   a minimized window again, turn the `debug` setting on and keep the output channel's lines.
+2. Decide which of the open reliability findings to fix: the three that remain from the audit
    and the trimming on auto-save.
-2. Review A01-A16 in DECISIONS and correct any that misstate intent.
-3. Answer Q02 (must documentation-only changes run `Build_and_Install`?) and Q03 (branch
+3. Review A01-A16 in DECISIONS and correct any that misstate intent.
+4. Answer Q02 (must documentation-only changes run `Build_and_Install`?) and Q03 (branch
    policy); both affect every later session.
-4. Run the code-highlighting check against its new fixture several times and record the result.
-5. Investigate Q10, starting from the table height estimate, then make the preview-only run a
+5. Run the code-highlighting check against its new fixture several times and record the result.
+6. Investigate Q10, starting from the table height estimate, then make the preview-only run a
    gate.
-6. Carry out P10 so the removed checks have a pixel-based replacement.
-7. In the first new session, confirm the SessionStart, PreCompact and Stop hooks fire, and
+7. Carry out P10 so the removed checks have a pixel-based replacement.
+8. In the first new session, confirm the SessionStart, PreCompact and Stop hooks fire, and
    update the status line in [.claude/README.md](../.claude/README.md).

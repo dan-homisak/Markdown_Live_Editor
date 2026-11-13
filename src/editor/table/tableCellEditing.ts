@@ -43,6 +43,7 @@ import {
   tableNavigationModifierFacet,
   tableShortcutsFacet,
 } from "../tableNavigation";
+import { holdTableColumnSizingWhileTyping } from "./tableLayout";
 import { TABLE_CELL_COMMIT_EVENT, writeCellValue } from "./tableSourceWrite";
 
 export { TABLE_CELL_COMMIT_EVENT };
@@ -78,6 +79,9 @@ export function bindTableEditing(
   scheduleTableLayout: () => void,
 ): void {
   const write = (cell: HTMLElement, scrollSnapshot?: StateEffect<unknown>): void => {
+    // Before the edit reaches the document: the update it causes lays the
+    // table out, and that pass must already see the widths as held.
+    holdTableColumnSizingWhileTyping(wrapper, scheduleTableLayout);
     const caretOffset = getCellCaretOffset(cell);
     writeCellValue(view, wrapper, cell, { scrollSnapshot });
     restoreFocusAfterWrite(view, wrapper, cell, caretOffset);

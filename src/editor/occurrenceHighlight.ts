@@ -14,6 +14,7 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
+import { concealedTaskMarkerAt, isTaskCheckLetterAt } from "./markdown/markdownRendering";
 import { findCell, getCellSelectionOffsets, readCellDisplayValue } from "./table/cellSelection";
 
 /**
@@ -29,7 +30,13 @@ import { findCell, getCellSelectionOffsets, readCellDisplayValue } from "./table
  * editor or a rendered table cell. Matches are painted in prose with
  * CodeMirror mark decorations and inside rendered table cells with the CSS
  * Custom Highlight API, so cell DOM (and the user's caret in it) is never
- * modified. Both use the theme's `editor.selectionHighlightBackground`.
+ * modified. Both use the theme's `editor.selectionHighlightBackground`, and
+ * both get the border `editor.selectionHighlightBorder` asks for: the prose
+ * mark carries it, and a cell match gets a box with the same rule over it.
+ *
+ * A cell highlight follows the text in the same frame. The query is read from
+ * the focused cell itself, and cells are repainted in a microtask after the
+ * change that moved them, never a frame later.
  */
 export const occurrenceHighlightCompartment = new Compartment();
 
@@ -73,9 +80,22 @@ export function occurrenceQueryForState(state: EditorState): OccurrenceQuery | n
   if (range.empty) {
     const word = state.wordAt(range.head);
     if (!word || word.empty) return null;
+    // The x of a rendered task marker is syntax, not a word the reader is
+    // looking at. With rendering off the marker is ordinary source text.
+    if (word.to - word.from === 1 && isTaskCheckLetterAt(state, word.from)) return null;
     return { text: state.sliceDoc(word.from, word.to), wholeWord: true, matchCase: true };
   }
   return selectionQuery(state.sliceDoc(range.from, range.to), { from: range.from, to: range.to });
+}
+
+/**
+ * Whether a match lies wholly inside the hidden marker of a rendered task.
+ * Such a match has no width; its border would still paint, as a stray line
+ * beside the checkbox.
+ */
+function hiddenInTaskMarker(state: EditorState, from: number, to: number): boolean {
+  const marker = concealedTaskMarkerAt(state, from);
+  return marker !== null && to <= marker.to;
 }
 
 /** Pure: the query for a caret/selection inside a table cell's text. */
@@ -136,26 +156,37 @@ const occurrencePlugin = ViewPlugin.fromClass(
   class {
     public decorations: DecorationSet = Decoration.none;
     private query: OccurrenceQuery | null = null;
-    private cellFrame = 0;
+    private paintPending = false;
+    private destroyed = false;
     private readonly mutationObserver: MutationObserver | null;
-    private readonly onSelectionChange = (): void => this.readCellQuery();
+    private readonly onSelectionChange = (): void => this.syncCellQuery();
 
     public constructor(private readonly view: EditorView) {
       this.query = this.currentQuery(view.state);
       this.decorations = this.build(view);
       const MutationObserverCtor = view.dom.ownerDocument.defaultView?.MutationObserver;
       // Table cells re-render outside CodeMirror transactions (presentation,
-      // focus changes). Keep their highlight ranges attached to live text.
+      // focus changes), and a keystroke replaces the text the ranges were
+      // attached to. The callback is a microtask: it runs after the change and
+      // before the browser paints, so no frame shows a cell without its
+      // highlight.
       this.mutationObserver = MutationObserverCtor
         ? new MutationObserverCtor((records) => {
-          if (records.some((record) => record.target instanceof Node && findCellOrWidget(record.target))) {
-            this.scheduleCellHighlights();
-          }
+          if (this.destroyed || !records.some(affectsCellHighlights)) return;
+          this.syncCellQuery();
+          this.paintCellHighlights();
         })
         : null;
-      this.mutationObserver?.observe(view.contentDOM, { childList: true, characterData: true, subtree: true });
+      this.mutationObserver?.observe(view.contentDOM, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+        // A column width moves the text a border ring was measured around.
+        attributes: true,
+        attributeFilter: ["style"],
+      });
       view.dom.ownerDocument.addEventListener("selectionchange", this.onSelectionChange);
-      this.scheduleCellHighlights();
+      this.requestCellPaint();
     }
 
     public update(update: ViewUpdate): void {
@@ -163,46 +194,56 @@ const occurrencePlugin = ViewPlugin.fromClass(
       if (
         update.docChanged ||
         update.viewportChanged ||
+        update.geometryChanged ||
         !sameQuery(query, this.query)
       ) {
         this.query = query;
         this.decorations = this.build(update.view);
-        this.scheduleCellHighlights();
+        this.requestCellPaint();
       }
     }
 
     public destroy(): void {
+      this.destroyed = true;
       this.mutationObserver?.disconnect();
       this.view.dom.ownerDocument.removeEventListener("selectionchange", this.onSelectionChange);
-      const win = this.view.dom.ownerDocument.defaultView;
-      if (this.cellFrame) win?.cancelAnimationFrame(this.cellFrame);
       cellHighlightRegistry(this.view)?.delete(CELL_HIGHLIGHT_NAME);
+      syncCellRings(this.view, new Map());
+    }
+
+    /** The focused cell of this editor, which owns the caret while it has focus. */
+    private focusedCell(): HTMLElement | null {
+      const cell = findCell(this.view.dom.ownerDocument.activeElement);
+      return cell && this.view.dom.contains(cell) ? cell : null;
     }
 
     private currentQuery(state: EditorState): OccurrenceQuery | null {
-      const cellQuery = state.field(occurrenceQueryField, false);
-      if (cellQuery !== undefined && cellQuery !== null) return cellQuery;
-      const active = this.view.dom.ownerDocument.activeElement;
-      // A focused cell owns the caret; the parked source selection is not a
-      // user intent and must not drive highlighting.
-      if (findCell(active)) return null;
+      const cell = this.focusedCell();
+      if (cell) {
+        // Read the word from the cell as it is now. A keystroke writes the cell
+        // and its caret before the transaction that reaches this plugin, while
+        // the selectionchange event that used to carry the new word arrives a
+        // frame or two later. Waiting for it left the old word, which no
+        // longer matches anything, as the query in between.
+        return cellQuery(cell);
+      }
+      const stored = state.field(occurrenceQueryField, false);
+      if (stored !== undefined && stored !== null) return stored;
       if (this.view.compositionStarted) return null;
       return occurrenceQueryForState(state);
     }
 
-    private readCellQuery(): void {
-      const cell = findCell(this.view.dom.ownerDocument.activeElement);
-      if (!cell || !this.view.dom.contains(cell)) {
-        if (this.view.state.field(occurrenceQueryField, false)) {
-          this.view.dispatch({ effects: setCellOccurrenceQuery.of(null) });
-        }
-        return;
-      }
-      const selection = getCellSelectionOffsets(cell);
-      const query = selection && cell.dataset.composing !== "true"
-        ? occurrenceQueryForCellText(readCellDisplayValue(cell), selection.anchor, selection.head)
-        : null;
-      if (!sameQuery(query, this.view.state.field(occurrenceQueryField, false) ?? null)) {
+    /**
+     * Brings the stored cell query in line with the focused cell. A caret that
+     * moves inside a cell is not a CodeMirror transaction, so this dispatch is
+     * what makes the plugin update. Never called during an update.
+     */
+    private syncCellQuery(): void {
+      if (this.destroyed) return;
+      const stored = this.view.state.field(occurrenceQueryField, false) ?? null;
+      const cell = this.focusedCell();
+      const query = cell ? cellQuery(cell) : null;
+      if (!sameQuery(query, stored)) {
         this.view.dispatch({ effects: setCellOccurrenceQuery.of(query) });
       }
     }
@@ -223,6 +264,7 @@ const occurrencePlugin = ViewPlugin.fromClass(
           const end = start + query.text.length;
           if (start < lastEnd) continue;
           if (query.exclude && start === query.exclude.from && end === query.exclude.to) continue;
+          if (hiddenInTaskMarker(view.state, start, end)) continue;
           builder.add(start, end, occurrenceMark);
           lastEnd = end;
           count++;
@@ -232,27 +274,34 @@ const occurrencePlugin = ViewPlugin.fromClass(
       return builder.finish();
     }
 
-    private scheduleCellHighlights(): void {
-      const win = this.view.dom.ownerDocument.defaultView;
-      if (!win || this.cellFrame) return;
-      this.cellFrame = win.requestAnimationFrame(() => {
-        this.cellFrame = 0;
-        this.paintCellHighlights();
+    /**
+     * Paints after the current task, once CodeMirror has written the widget
+     * DOM this update calls for, and still before the browser paints.
+     */
+    private requestCellPaint(): void {
+      if (this.paintPending) return;
+      this.paintPending = true;
+      queueMicrotask(() => {
+        if (this.paintPending && !this.destroyed) this.paintCellHighlights();
       });
     }
 
     private paintCellHighlights(): void {
+      this.paintPending = false;
       const registry = cellHighlightRegistry(this.view);
-      const HighlightCtor = (this.view.dom.ownerDocument.defaultView as (Window & { Highlight?: new (...ranges: Range[]) => object }) | null)?.Highlight;
-      if (!registry || !HighlightCtor) return;
+      const win = this.view.dom.ownerDocument.defaultView as (Window & { Highlight?: new (...ranges: Range[]) => object }) | null;
+      const HighlightCtor = win?.Highlight;
+      const rings = new Map<HTMLElement, CellRing[]>();
       const query = this.query;
-      if (!query) {
-        registry.delete(CELL_HIGHLIGHT_NAME);
+      if (!registry || !HighlightCtor || !query) {
+        registry?.delete(CELL_HIGHLIGHT_NAME);
+        syncCellRings(this.view, rings);
         return;
       }
       const ranges: Range[] = [];
       const doc = this.view.dom.ownerDocument;
       const isWordChar = (character: string): boolean => cellWordCharacter.test(character);
+      const ringed = cellRingsVisible(this.view);
       for (const cell of Array.from(this.view.contentDOM.querySelectorAll<HTMLElement>(".mlrt-table-cell"))) {
         const walker = doc.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
         for (let node = walker.nextNode(); node && ranges.length < MAX_MATCHES; node = walker.nextNode()) {
@@ -262,6 +311,7 @@ const occurrencePlugin = ViewPlugin.fromClass(
             range.setStart(node, start);
             range.setEnd(node, start + query.text.length);
             ranges.push(range);
+            if (ringed) collectCellRings(cell, range, rings);
           }
         }
       }
@@ -270,10 +320,98 @@ const occurrencePlugin = ViewPlugin.fromClass(
       } else {
         registry.set(CELL_HIGHLIGHT_NAME, new HighlightCtor(...ranges));
       }
+      syncCellRings(this.view, rings);
     }
   },
   { decorations: (plugin) => plugin.decorations },
 );
+
+/** The query a cell's own caret or selection asks for; none while composing. */
+function cellQuery(cell: HTMLElement): OccurrenceQuery | null {
+  if (cell.dataset.composing === "true") return null;
+  const selection = getCellSelectionOffsets(cell);
+  return selection
+    ? occurrenceQueryForCellText(readCellDisplayValue(cell), selection.anchor, selection.head)
+    : null;
+}
+
+/**
+ * The border around an occurrence inside a table cell.
+ *
+ * A highlight painted through the CSS Custom Highlight API can only fill, so
+ * the border a theme asks for (`editor.selectionHighlightBorder`, the only
+ * mark a high-contrast theme draws) comes from one positioned box per match,
+ * in a layer over the table. The boxes carry the same rule as the border of a
+ * prose occurrence. No layer exists while the theme draws no border.
+ */
+interface CellRing { left: number; top: number; width: number; height: number; }
+const RING_LAYER_CLASS = "mlrt-table-occurrence-rings";
+const RING_CLASS = "mlrt-table-occurrence-ring";
+
+function cellRingsVisible(view: EditorView): boolean {
+  const win = view.dom.ownerDocument.defaultView;
+  if (!win) return false;
+  if (win.matchMedia?.("(forced-colors: active)").matches) return true;
+  const border = win.getComputedStyle(view.dom).getPropertyValue("--vscode-editor-selectionHighlightBorder").trim();
+  return border !== "" && border !== "transparent" && !/^#(?:[0-9a-f]{3}0|[0-9a-f]{6}00)$/i.test(border);
+}
+
+function collectCellRings(cell: HTMLElement, range: Range, rings: Map<HTMLElement, CellRing[]>): void {
+  const scroll = cell.closest<HTMLElement>(".mlrt-table-scroll");
+  if (!scroll) return;
+  const origin = scroll.getBoundingClientRect();
+  let list = rings.get(scroll);
+  if (!list) {
+    list = [];
+    rings.set(scroll, list);
+  }
+  for (const rect of Array.from(range.getClientRects())) {
+    if (rect.width <= 0 || rect.height <= 0) continue;
+    list.push({
+      left: rect.left - origin.left + scroll.scrollLeft,
+      top: rect.top - origin.top + scroll.scrollTop,
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+}
+
+/** Writes the ring layers, touching the DOM only where a ring moved. */
+function syncCellRings(view: EditorView, rings: Map<HTMLElement, CellRing[]>): void {
+  for (const layer of Array.from(view.contentDOM.querySelectorAll<HTMLElement>(`.${RING_LAYER_CLASS}`))) {
+    const scroll = layer.parentElement;
+    if (!scroll || !rings.get(scroll)?.length) layer.remove();
+  }
+  rings.forEach((list, scroll) => {
+    if (list.length === 0) return;
+    const signature = list
+      .map(ring => `${ring.left.toFixed(2)},${ring.top.toFixed(2)},${ring.width.toFixed(2)},${ring.height.toFixed(2)}`)
+      .join(";");
+    let layer = scroll.querySelector<HTMLElement>(`:scope > .${RING_LAYER_CLASS}`);
+    if (layer?.dataset.signature === signature) return;
+    if (!layer) {
+      layer = scroll.ownerDocument.createElement("div");
+      layer.className = RING_LAYER_CLASS;
+      layer.setAttribute("aria-hidden", "true");
+      scroll.append(layer);
+    }
+    const host = layer;
+    while (host.childElementCount > list.length) host.lastElementChild?.remove();
+    list.forEach((ring, index) => {
+      let box = host.children[index] as HTMLElement | undefined;
+      if (!box) {
+        box = scroll.ownerDocument.createElement("div");
+        box.className = RING_CLASS;
+        host.append(box);
+      }
+      box.style.left = `${ring.left}px`;
+      box.style.top = `${ring.top}px`;
+      box.style.width = `${ring.width}px`;
+      box.style.height = `${ring.height}px`;
+    });
+    host.dataset.signature = signature;
+  });
+}
 
 function sameQuery(left: OccurrenceQuery | null, right: OccurrenceQuery | null): boolean {
   return left === right || Boolean(
@@ -286,9 +424,19 @@ function sameQuery(left: OccurrenceQuery | null, right: OccurrenceQuery | null):
   );
 }
 
-function findCellOrWidget(node: Node): Element | null {
-  const element = node instanceof Element ? node : node.parentElement;
-  return element?.closest(".mlrt-table-cell, .mlrt-table-widget") ?? null;
+/**
+ * Whether a mutation can change what the cell highlights should show: text or
+ * structure inside a table widget, or a column width. The ring layer's own
+ * writes are not such a change.
+ */
+function affectsCellHighlights(record: MutationRecord): boolean {
+  const target = record.target instanceof Element ? record.target : record.target.parentElement;
+  if (!target || target.closest(`.${RING_LAYER_CLASS}`)) return false;
+  if (record.type === "attributes") return target.classList.contains("mlrt-table-sized-col");
+  if (!target.closest(".mlrt-table-cell, .mlrt-table-widget")) return false;
+  if (record.type !== "childList") return true;
+  const nodes = [...Array.from(record.addedNodes), ...Array.from(record.removedNodes)];
+  return nodes.some(node => !(node instanceof Element && node.classList.contains(RING_LAYER_CLASS)));
 }
 
 function cellHighlightRegistry(view: EditorView): { set(name: string, highlight: object): void; delete(name: string): void } | null {

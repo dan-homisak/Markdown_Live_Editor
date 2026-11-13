@@ -5,6 +5,7 @@ import {
   occurrenceQueryForCellText,
   occurrenceQueryForState,
 } from "../editor/occurrenceHighlight";
+import { createMarkdownRenderingExtensions } from "../editor/markdown/markdownRendering";
 import { selectedLineSegments } from "../editor/documentSelectionDecorations";
 import { CornerStyle, selectionPieces, snapToDevicePixel, styleSelectionRows } from "../editor/selectionGeometry";
 
@@ -34,6 +35,28 @@ const wordChar = (character: string): boolean => /[\p{L}\p{N}_]/u.test(character
     extensions: EditorState.allowMultipleSelections.of(true),
   });
   assert.equal(occurrenceQueryForState(multiple), null, "multiple cursors do not highlight");
+}
+
+// The check letter of a rendered task marker is syntax: a caret beside it asks
+// for nothing. With rendering off the marker is ordinary source text.
+{
+  const doc = "- [x] done x\n- [ ] open\n1. [X] numbered\n> - [x] quoted\nx marks the spot\ntext [x] in a sentence";
+  const query = (offset: number, rendering: boolean): ReturnType<typeof occurrenceQueryForState> =>
+    occurrenceQueryForState(EditorState.create({
+      doc,
+      selection: EditorSelection.cursor(offset),
+      extensions: createMarkdownRenderingExtensions({ enabled: rendering, screenReaderOptimized: false, readOnly: false }),
+    }));
+  const word = { text: "x", wholeWord: true, matchCase: true };
+  assert.equal(query(3, true), null, "caret before the check letter");
+  assert.equal(query(4, true), null, "caret after the check letter");
+  assert.deepEqual(query(doc.indexOf("done") + 1, true), { text: "done", wholeWord: true, matchCase: true }, "the task's text is ordinary");
+  assert.deepEqual(query(doc.indexOf(" x\n") + 2, true), word, "a word x in the task's text is a word");
+  assert.deepEqual(query(doc.indexOf("[X]") + 1, true), null, "numbered tasks, capital letter");
+  assert.equal(query(doc.indexOf("> - [x]") + 5, true), null, "quoted tasks");
+  assert.deepEqual(query(doc.indexOf("x marks"), true), word);
+  assert.deepEqual(query(doc.indexOf("text [x]") + 6, true), word, "brackets in a sentence are not a task marker");
+  assert.deepEqual(query(3, false), word, "with rendering off the check letter is source text");
 }
 
 assert.deepEqual(occurrenceQueryForCellText("the tracker cell", 6, 6), { text: "tracker", wholeWord: true, matchCase: true });

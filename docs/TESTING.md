@@ -24,7 +24,7 @@ needs. Results of the last full run are in [PROGRESS](PROGRESS.md).
 | Static | `npm run typecheck` | The code type-checks under strict TypeScript | seconds | Yes; `npm test` and every host script compile first |
 | Unit | `npm test` | Pure logic: table model and edits, change validation, clipboard, links, rendering classification, lists, properties, highlighting, fixtures intact; then that the host bundle loads without `node_modules` and survives reordered lifecycle events | about 5 s | Yes |
 | Host, core | `npm run test:host` | Stock-versus-live geometry within 0.5 px, then table editing, selection, clipboard, Undo and navigation regressions in a real window | about 35 s | Yes |
-| Host, features | `npm run test:host:structure`, `npm run test:host:toggle`, `npm run test:host:sync` | Table structure controls; switching editors keeps the viewport; a save that changes no text costs no input while typing | 10 to 20 s each | Yes |
+| Host, features | `npm run test:host:structure`, `npm run test:host:toggle`, `npm run test:host:sync`, `npm run test:host:surface` | Table structure controls; switching editors keeps the viewport; a save that changes no text costs no input while typing; the editing surface around the text: gutter, menus, occurrence highlight, typing resize delay, task markers, automatic paste | 10 to 40 s each | Yes |
 | Host, code colors | `npm run test:host:highlighting` | Code colors match the stock editor | about 30 s | **Not yet**: times out on some runs, see [Suite status](#suite-status) |
 | Host, Live Preview | `npm run test:host:rendering`, `npm run test:host:release` | Marker interactions; the rendering surface: properties, code, tables inside rendering, themes, links, scrolling | about 1 min each | Yes, since 2026-11-13 |
 | Host, Live Preview interactions | `npm run test:host:preview` | Concealment and reveal, lists, links, properties, callouts | about 2 min | **Not yet**: every check passes, but the run reports a console warning, see [Suite status](#suite-status) |
@@ -52,6 +52,9 @@ failure. Run it before a commit and before anything is released.
 | Themes, font size, zoom, narrow windows | `node scripts/edh-visual-check.mjs --theme=<name>`; `node scripts/edh-markdown-rendering-check.mjs` with `--light`, `--high-contrast`, `--zoom-one`, `--narrow` |
 | Performance claims | Numbers from `scripts/benchmark-markdown-rendering.mjs` (CPU only) or the in-webview paint benchmark, with sample counts and cold or warm conditions. No claim without numbers |
 | Dependencies and the bundle | `npm ci`; `npm test`; `node scripts/record-markdown-bundle-impact.mjs` |
+| The occurrence highlight | `src/test/highlighting.test.ts`; `npm run test:host:surface` and its two occurrence screenshots opened; `node scripts/edh-visual-check.mjs --occurrence-highlight-only` |
+| The line-number gutter, context menus, pointer placement beside task checkboxes, the typing resize delay | `npm run test:host:surface` |
+| What Automatic paste takes, and how rich content converts | A failing case first in `src/test/clipboardPasteSource.test.ts` for the rule, or in the paste section of `scripts/edh-editing-surface-check.mjs` for the conversion; then `npm run test:host:surface` |
 | Settings and the manifest | `npm test`; each state exercised in the host; README updated |
 | What the package contains | `./Build_and_Install`, then the package listing checked against the allowlist in `.vscodeignore` |
 | A fixture | The steps in `test/fixtures/README.md` |
@@ -72,6 +75,7 @@ They take the foreground while they run. Run one at a time.
 | `scripts/edh-structure-controls-check.mjs` | The proximity-driven table structure controls and their menus | Passes |
 | `scripts/edh-toggle-check.mjs` | Viewport handoff when switching editors; `--crlf` for CRLF documents | Passes |
 | `scripts/edh-save-sync-check.mjs` | A save that changes no text sends no document snapshot; an acknowledgement restores an edit that a crossing snapshot rolled back, with the caret after it: one edit, two edits, during a simulated composition, and in a table cell with a key pressed at the answer; 300 edits typed through saves that reach the disk are all kept and none is rejected. The check delivers the crossing snapshot to the webview itself, and its settings turn off everything that changes text on save. `--crlf` for CRLF documents | Passes |
+| `scripts/edh-editing-surface-check.mjs` | Seven sections in one window, all run and reported together. Line numbers cannot be selected, and a click, a drag and a Shift+click in the gutter select document text. A context menu in the state that draws a focus ring draws none; the check forces that state. The word at the caret of a table cell is highlighted in every frame while typing. An occurrence in a cell has the fill, the height and the border of one in prose, in computed styles and in composited pixels with the ink hidden, under a theme color no stock theme has. With the real setting changed, columns keep their widths while typing, resize after the pause, and resize at once when another cell takes the caret. A click at every point between a checkbox and its text puts the caret at the task's text; the keyboard still reveals the marker; no check letter and no hidden match is highlighted. Automatic paste, through paste events the check builds: code-editor and Markdown-editor text arrive as copied, a web page converts with `#` headings and tight list markers, a web code block is still fenced and plain words still escaped | Passes |
 | `scripts/edh-selection-parity.mjs` | Captures stock and live selection screenshots side by side, made with trusted mouse input. It asserts nothing: the screenshots are the result | Runs |
 | `scripts/edh-markdown-release-check.mjs --live-preview-only` | Live Preview interactions. Add `--case=<part of a check name>` to run one check | Checks pass; console warning, see below |
 | `scripts/edh-markdown-release-check.mjs` | The whole rendering surface. Focused runs: `--properties-only`, `--code-only`, `--lists-only`, `--scroll-only`, `--fence-navigation-only`, `--interaction-bugs-only`, `--paint-only` | Passes |
@@ -97,6 +101,7 @@ Recorded on 2026-11-13 on Windows.
 | Structure controls | Gate. Passes | Every run |
 | Toggle | Gate. Passes | Every run with the committed launch settings |
 | Save and typing | Gate since 2026-11-13. Passes | Failed on the unfixed build, first on the snapshot a save sent, then on the edit left rolled back; the composition and table cell cases, added after a review, each failed before their fix. Passes since, also with `--crlf` |
+| Editing surface | Gate since 2026-11-13. Passes, 7 of 7 sections | All seven sections failed on the build without the corrections, each on the defect it covers; they pass with them |
 | Rendering check | Gate since 2026-11-13. Passes, 25 of 25 | Three consecutive runs after the repair |
 | Release check, whole surface | Gate since 2026-11-13. Passes, 17 of 17 | Three consecutive runs after the repair |
 | Release check, Live Preview only | Not a gate. All 15 checks pass, but the run exits 1 | It reports one console warning from the editor (question Q10) |
@@ -172,7 +177,8 @@ A file fails when any top-level assertion throws.
 | Table parsing, editing and integrity | `src/test/tableParserReliability.test.ts`, `src/test/tableEditingReliability.test.ts` (10,000-operation fuzz, deletion, mixed selections), `src/test/tableIntegrity.test.ts`, `src/test/tableCellInput.test.ts`, `src/test/sourceProtection.test.ts` |
 | Table keyboard navigation | `src/test/tableKeyboardNavigation.test.ts` |
 | Host edit validation and history | `src/test/documentChangeValidation.test.ts`, `src/test/historyAvailability.test.ts` |
-| Clipboard and paste escaping | `src/test/clipboard.test.ts`, `src/test/markdownEscape.test.ts` |
+| Clipboard, paste escaping and what Automatic paste takes | `src/test/clipboard.test.ts`, `src/test/markdownEscape.test.ts`, `src/test/clipboardPasteSource.test.ts` |
+| The typing resize delay | `src/test/tableResizeDelay.test.ts` |
 | Selection state, painting and occurrence highlight | `src/test/selection.test.ts`, `src/test/highlighting.test.ts`, `src/test/markdownSelectionWrapping.test.ts` |
 | Live Preview classification and plans | `src/test/markdownRendering.test.ts`, `src/test/markdownPresentation.test.ts`, `src/test/markdownBlocks.test.ts`, `src/test/markdownLivePreview.test.ts`, `src/test/markdownConstructs.test.ts` |
 | Lists, properties, links | `src/test/markdownListStructure.test.ts`, `src/test/markdownProperties.test.ts`, `src/test/markdownLinks.test.ts` |
@@ -200,6 +206,15 @@ focus.
 - No linter (Q06).
 - macOS has no recorded host run (Q07).
 - OS input methods and screen readers are covered only by synthetic checks.
+- The paste cases use rich content written for the check, in the shapes a VS Code editor, a
+  bare preformatted block and a Markdown editor's rendering take. What the real applications
+  put on the clipboard has not been captured.
+- An editor that stays blank after its window was minimized is not reproduced, so nothing
+  checks it. The fallback that shows the editor when its first frame never comes has no check
+  either. See known gaps in [PROGRESS](PROGRESS.md).
+- A host check's window takes whatever is typed on the keyboard while it has the foreground.
+  Stray characters reached a check's document once without failing it; a run that fails on
+  unexpected text should be repeated before it is believed.
 - Large-document performance has not been measured since version 0.1.174; the spec's targets
   are unverified for the current design.
 - Unit tests report per file, not per assertion: a failing file names its first failed

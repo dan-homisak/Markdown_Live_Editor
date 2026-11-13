@@ -1,5 +1,6 @@
 import { HistoryAvailability } from "./shared/historyAvailability";
 import { DEFAULT_TABLE_SHORTCUTS, normalizeTableShortcuts, TableShortcuts } from "./shared/keyboardBinding";
+import { normalizeTableResizeDelay } from "./shared/tableResizeDelay";
 import * as fs from "fs";
 import { randomUUID } from "crypto";
 import * as vscode from "vscode";
@@ -642,6 +643,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
             document.uri,
           ) ||
           event.affectsConfiguration("markdownLiveRenderTables.tableShortcuts", document.uri) ||
+          event.affectsConfiguration("markdownLiveRenderTables.tableLayout", document.uri) ||
           event.affectsConfiguration(
             "markdownLiveRenderTables.tableNavigation",
             document.uri,
@@ -1307,6 +1309,7 @@ function getEditorOptions(
   defaultPasteMode: "auto" | "rich" | "plain" | "markdown";
   tableNavigationModifierKey: TableNavigationModifierKey;
   tableShortcuts: TableShortcuts;
+  tableResizeDelay: number;
   markdownRendering: {
     enabled: boolean;
     showHeadingMarkers: boolean;
@@ -1360,6 +1363,7 @@ function getEditorOptions(
         editorConfig.get<string>("accessibilitySupport", "auto") === "on",
       readOnly,
     },
+    tableResizeDelay: normalizeTableResizeDelay(extensionConfig.get<number>("tableLayout.typingResizeDelay", 0)),
     tableShortcuts: normalizeTableShortcuts(Object.fromEntries(Object.entries(DEFAULT_TABLE_SHORTCUTS).map(([name, key]) =>
       [name, extensionConfig.get<string>(`tableShortcuts.${name}`, key)]))),
     tableNavigationModifierKey: normalizeTableNavigationModifierKey(

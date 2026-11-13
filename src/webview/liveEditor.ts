@@ -1,4 +1,5 @@
 import { DEFAULT_TABLE_SHORTCUTS, normalizeTableShortcuts, TableShortcuts } from "../shared/keyboardBinding";
+import { normalizeTableResizeDelay } from "../shared/tableResizeDelay";
 import {
   ChangeSet,
   EditorSelection,
@@ -186,6 +187,8 @@ interface EditorOptions {
   defaultPasteMode: ClipboardPasteMode;
   tableNavigationModifierKey: TableNavigationModifierKey;
   tableShortcuts: TableShortcuts;
+  /** Milliseconds typing must pause before table columns resize; 0 resizes on every keystroke. */
+  tableResizeDelay: number;
   markdownRendering: {
     enabled: boolean;
     showHeadingMarkers: boolean;
@@ -369,6 +372,7 @@ try {
   syncDocumentRangeSelection(view);
   installCursorDebugListeners(app);
   installViewStateBridge();
+  installVisibilityRecovery();
   // VS Code injects and maintains this documented accessibility signal on
   // the webview body, including changes while the retained view is hidden.
   const accessibilityObserver = new MutationObserver(() => {
@@ -433,16 +437,60 @@ function restoreInitialTableRow(line: number): void {
   // Finish CodeMirror's block scroll first, then align the row within that
   // block. Keep this first table frame hidden so the header never flashes.
   view.dom.style.visibility = "hidden";
+  // The editor must not stay invisible because that frame never comes. A
+  // window that is minimized or covered paints no frames, and a measure pass
+  // skips the write of a read that failed. Show the editor after a short wait
+  // whatever happened; the row is still aligned when the frame arrives.
+  let shown = false;
+  const show = (): void => {
+    if (shown) return;
+    shown = true;
+    window.clearTimeout(fallback);
+    view.dom.style.visibility = "";
+  };
+  const fallback = window.setTimeout(show, 400);
   window.requestAnimationFrame(() => view.requestMeasure({
     read: () => {
-      const cell = findRow();
-      return cell ? cell.getBoundingClientRect().top - view.scrollDOM.getBoundingClientRect().top : 0;
+      try {
+        const cell = findRow();
+        return cell ? cell.getBoundingClientRect().top - view.scrollDOM.getBoundingClientRect().top : 0;
+      } catch {
+        return 0;
+      }
     },
     write: delta => {
       if (delta) view.scrollDOM.scrollTop += delta;
-      view.dom.style.visibility = "";
+      show();
     },
   }));
+}
+
+/**
+ * A hidden window paints no frames, so nothing that waits for a frame runs
+ * until the window shows again. When it does, measure once, and record how
+ * long the first frame took: the debug log then tells an editor that was slow
+ * to come back from a renderer that painted nothing at all.
+ */
+function installVisibilityRecovery(): void {
+  let hiddenAt: number | null = document.hidden ? performance.now() : null;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      hiddenAt = performance.now();
+      return;
+    }
+    const shownAt = performance.now();
+    const hiddenMs = hiddenAt === null ? 0 : Math.round(shownAt - hiddenAt);
+    hiddenAt = null;
+    view.requestMeasure();
+    let framed = false;
+    window.requestAnimationFrame(() => {
+      framed = true;
+      recordDebug("shown-after-hidden", { hiddenMs, firstFrameMs: Math.round(performance.now() - shownAt) });
+    });
+    window.setTimeout(() => {
+      if (!framed && !document.hidden) recordDebug("no-frame-after-shown", { hiddenMs, waitedMs: 1000 });
+    }, 1000);
+  });
 }
 
 function installViewStateBridge(): void {
@@ -1119,6 +1167,7 @@ function readEditorOptions(): EditorOptions {
     defaultPasteMode: "auto",
     tableNavigationModifierKey: DEFAULT_TABLE_NAVIGATION_MODIFIER_KEY,
     tableShortcuts: DEFAULT_TABLE_SHORTCUTS,
+    tableResizeDelay: 0,
     markdownRendering: {
       enabled: true,
       showHeadingMarkers: true,
@@ -1150,6 +1199,7 @@ function readEditorOptions(): EditorOptions {
       defaultPasteMode: optionRecord.defaultPasteMode,
       tableNavigationModifierKey: optionRecord.tableNavigationModifierKey,
       tableShortcuts: optionRecord.tableShortcuts,
+      tableResizeDelay: optionRecord.tableResizeDelay,
       markdownRendering: optionRecord.markdownRendering,
       markdownLinks: optionRecord.markdownLinks,
     },
@@ -1222,6 +1272,7 @@ function normalizeEditorOptions(
         ? defaultPasteMode
         : fallback.defaultPasteMode,
     tableShortcuts: normalizeTableShortcuts(record.tableShortcuts, fallback.tableShortcuts),
+    tableResizeDelay: normalizeTableResizeDelay(record.tableResizeDelay, fallback.tableResizeDelay),
     tableNavigationModifierKey: normalizeTableNavigationModifierKey(
       record.tableNavigationModifierKey,
       fallback.tableNavigationModifierKey,
@@ -1267,6 +1318,8 @@ function applyClipboardOptions(options: EditorOptions): void {
 
 function applyDocumentEditorOptions(options: EditorOptions): void {
   applyClipboardOptions(options);
+  // Read by the table layout each time a cell edit is written.
+  document.documentElement.dataset.mlrtTableResizeDelay = String(options.tableResizeDelay);
   document.documentElement.style.setProperty(
     "--mlrt-editor-scroll-beyond-last-line",
     options.scrollBeyondLastLine
@@ -1961,6 +2014,7 @@ function isEditorOptions(value: unknown): value is EditorOptions {
     (markdownRendering === undefined || isMarkdownRenderingOptions(markdownRendering)) &&
     (record.lineHighlight === undefined || typeof record.lineHighlight === "boolean") &&
     (record.occurrenceHighlight === undefined || typeof record.occurrenceHighlight === "boolean") &&
+    (record.tableResizeDelay === undefined || typeof record.tableResizeDelay === "number") &&
     typeof record.lineWrapping === "boolean" &&
     typeof record.scrollBeyondLastLine === "boolean" &&
     typeof record.clipboardDocumentToken === "string" &&
