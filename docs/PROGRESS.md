@@ -4,12 +4,12 @@ Updated: 2026-11-13.
 
 ## Actual repository state
 
-- Git: branch `main`, the only branch, with a remote. The newest commit is 5d48666 (2026-11-03).
-  Everything described under the three milestones below is uncommitted, including staged file
-  moves and the removal of raw QA output from version control.
-- Product source differs from 5d48666 in one place: the list-nesting fix of milestone 3. The
+- Git: branch `main`, the only branch, with a remote. Milestones 1 to 3 below are committed.
+  The history was rewritten on 2026-11-13 (milestone 4), so every commit hash cited in these
+  documents is the one in use after that rewrite.
+- Product source differs from 047e615 in one place: the list-nesting fix of milestone 3. The
   extension version is a build counter: `Build_and_Install` raises it on every run. The
-  installed version is 0.1.232.
+  installed version is 0.1.233.
 - Layout: source and unit tests in `src/`, shipped assets in `media/`, scripts in `scripts/`,
   frozen fixtures in `test/fixtures/`, hand-testing documents in `samples/`, all project
   documents under `docs/`, agent tooling in `.claude/`. `qa/` and `dist/` are local output.
@@ -187,6 +187,39 @@ Not run: the code-highlighting check on the final tree (it is intermittent and n
 fixture changed, and it has not been run against the new one), the benchmarks, the
 selection-rendering and device-scale variants of the visual check, and anything on macOS. The
 installed build was not exercised by hand in a reloaded window.
+
+## Milestone 4: history cleanup (2026-11-13)
+
+Decision A25.
+
+- The work of milestones 1 to 3 was committed to `main` in two commits: the list fix, then the
+  restructuring.
+- `qa/` and `debug.log` were then removed from every commit with git's own filter. 109 of 110
+  commits remain; the one that touched only those paths became empty and was dropped. No commit
+  touches the removed paths, and the tree at the tip is identical to what it was before.
+- A search of every file in every remaining commit finds no home-directory path.
+- Every commit hash changed. The five hashes cited in these documents were updated; a hash
+  quoted anywhere else from before 2026-11-13 no longer exists.
+- A bundle of the complete earlier history was saved outside the repository before the rewrite.
+- The rewritten `main` replaced the remote branch by a forced push, made with the commit that
+  records this milestone.
+- The dated reports in `docs/reports/` were kept.
+
+Limits of the cleanup:
+
+- The hosting service keeps a reference for one old pull request. It still reaches 69 commits
+  of the earlier history, the newest from 2026-08-12. Every file in those commits was searched:
+  none contains a home-directory path. Three early QA files are among them.
+- Copies made before the rewrite, such as clones, forks and caches, are not changed by it.
+
+### Verification
+
+- A rehearsal on a throwaway clone first, then the real rewrite: the filter exited 0 in 29
+  seconds both times.
+- After the rewrite: `git log main -- qa debug.log` lists nothing; the diff between the old and
+  new tip is empty; the working tree was clean; the local files under `qa/` are still on disk.
+- `npm run check:docs`, `npm run check:privacy`, `npm run test:agent` and `npm test` passed on
+  the rewritten tree, and `./Build_and_Install` installed 0.1.233.
 
 ## Known gaps and findings
 

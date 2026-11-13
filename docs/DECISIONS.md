@@ -10,7 +10,7 @@ Entries state what is true for the project, with the date and the evidence. They
 anyone and never describe how a decision was requested: this repository is public (A18).
 
 A01-A16 were reconstructed on 2026-11-13 from the repository's own record, because no register
-existed: the earlier instruction file (commit 5d48666), the design spec, the README, setting
+existed: the earlier instruction file (commit 047e615), the design spec, the README, setting
 defaults in `package.json` and the commit history. They have not been individually confirmed.
 An entry that misstates intent is corrected in place, with the date.
 
@@ -21,22 +21,22 @@ An answered question keeps its row, with the outcome in its Notes.
 
 | ID | Decision | Evidence and notes |
 | --- | --- | --- |
-| A01 | Before finishing any code change, run the type check or compile command and resolve all reported errors | Instruction file at 5d48666 |
-| A02 | After every prompt that changes this repository, run `./Build_and_Install` before responding, so the latest build is installed into VS Code | Instruction file at 5d48666. Whether changes that cannot alter the package are exempt: Q02 |
-| A03 | A change that can affect the user interface is inspected in rendered form before it is finished; terminal output and supplied screenshots are not enough | Instruction file at 5d48666 |
-| A04 | No known red VS Code Problems diagnostics are left in touched files | Instruction file at 5d48666 |
-| A05 | Visual parity with the stock editor is judged only inside one isolated VS Code window, with stock and live captured in the same workbench layout. The standalone harness is not proof. Core measurements may differ by at most 0.5 px | Instruction file at 5d48666; spec section 9. Procedure: [ENGINEERING](ENGINEERING.md#visual-parity) |
-| A06 | Rendered editor metrics come from VS Code's injected webview CSS variables, especially `--vscode-editor-font-size`, not from values the extension host computes | Instruction file at 5d48666 |
-| A07 | Table row line numbers are owned by the rendered table DOM, never by a separate CodeMirror gutter widget synchronized by `ResizeObserver` | Instruction file at 5d48666; spec section 3 |
+| A01 | Before finishing any code change, run the type check or compile command and resolve all reported errors | Instruction file at 047e615 |
+| A02 | After every prompt that changes this repository, run `./Build_and_Install` before responding, so the latest build is installed into VS Code | Instruction file at 047e615. Whether changes that cannot alter the package are exempt: Q02 |
+| A03 | A change that can affect the user interface is inspected in rendered form before it is finished; terminal output and supplied screenshots are not enough | Instruction file at 047e615 |
+| A04 | No known red VS Code Problems diagnostics are left in touched files | Instruction file at 047e615 |
+| A05 | Visual parity with the stock editor is judged only inside one isolated VS Code window, with stock and live captured in the same workbench layout. The standalone harness is not proof. Core measurements may differ by at most 0.5 px | Instruction file at 047e615; spec section 9. Procedure: [ENGINEERING](ENGINEERING.md#visual-parity) |
+| A06 | Rendered editor metrics come from VS Code's injected webview CSS variables, especially `--vscode-editor-font-size`, not from values the extension host computes | Instruction file at 047e615 |
+| A07 | Table row line numbers are owned by the rendered table DOM, never by a separate CodeMirror gutter widget synchronized by `ResizeObserver` | Instruction file at 047e615; spec section 3 |
 | A08 | Obsidian-style Live Preview is the required editing model: formatting syntax is hidden at rest and the exact source is revealed at the caret. Permanently colored raw syntax is not an acceptable substitute for a requested live-rendered feature | Spec status line and sections 1 and 10 |
 | A09 | The Markdown document is the only authoritative content model. Rendering, selection, focus, folding, scrolling and themes never rewrite it; edits go through the VS Code document and its Undo | Spec section 3; README |
 | A10 | Recognized tables keep their own rendering, editing and source ownership. No other Markdown transformation may consume or paint over their source ranges | Spec sections 2 and 3 |
 | A11 | Safety boundaries: document HTML is never executed, images and embedded notes are never fetched, code is never run, nothing is downloaded, and links open only through the host, which refuses `command:`, `javascript:`, `data:` and custom schemes | Spec sections 2, 5, 6 and 8 |
 | A12 | Test fixture documents are used without modifying them | Spec section 9. Superseded by A21, which also separates them from the documents people edit |
-| A13 | Active-line highlighting outside tables is a setting, off by default | Commit ae52fec; `lineHighlight.enabled` defaults to `false` |
-| A14 | Heading `#` markers are shown by default; a setting hides them at rest | Commit 4813393; `markdownRendering.showHeadingMarkers` defaults to `true`; confirmed in the host on 2026-11-13 |
-| A15 | Code-block syntax highlighting uses VS Code's language grammars and the active theme, with six bundled grammars as the fallback | Commit cf5b348; traced in `src/editor/markdown/vscodeCodeHighlighting.ts` on 2026-11-13 |
-| A16 | The `+` append-row and append-column flyouts are not part of the table interface | Commit a40ae5f |
+| A13 | Active-line highlighting outside tables is a setting, off by default | Commit 57f72b7; `lineHighlight.enabled` defaults to `false` |
+| A14 | Heading `#` markers are shown by default; a setting hides them at rest | Commit b980348; `markdownRendering.showHeadingMarkers` defaults to `true`; confirmed in the host on 2026-11-13 |
+| A15 | Code-block syntax highlighting uses VS Code's language grammars and the active theme, with six bundled grammars as the fallback | Commit 9760420; traced in `src/editor/markdown/vscodeCodeHighlighting.ts` on 2026-11-13 |
+| A16 | The `+` append-row and append-column flyouts are not part of the table interface | Commit 0458449 |
 | A17 | This repository uses a structured agent workflow: shared instructions, a decision register, verification rules, session journals, and checks that enforce what can be enforced | 2026-11-13. What was adopted and what was left out: [RESEARCH](RESEARCH.md) |
 | A18 | The repository is public. Tracked files and commit messages never contain the owner's messages, anything about how the owner works, or personal identifiers | 2026-11-13. Rules: "Public repository" in AGENTS.md. Enforced where mechanical by `scripts/check-privacy.mjs` and the journal rules in `scripts/check-docs.mjs` |
 | A19 | Records an agent needs to continue the work stay in version control. Raw run output does not: logs, screenshots and result files are local | 2026-11-13. `qa/` is ignored; written reports are in `docs/reports/`. Answers Q04 |
@@ -45,15 +45,15 @@ An answered question keeps its row, with the outcome in its Notes.
 | A22 | The README is written for the public: what the extension does, how to use it, its settings, limits and safety, without internal process | 2026-11-13 |
 | A23 | Test fixtures are documents designed only for testing: purpose-built, with case identifiers and a stated contract. The sample documents are never test input, and fixtures are not copies of them | 2026-11-13. `test/fixtures/README.md`; enforced by `src/test/fixtures.test.ts` |
 | A24 | Obvious defects in the editor are corrected when found. A test that is wrong, obsolete or works against the product is removed or replaced with a better one | 2026-11-13. Each use is an agent's judgment and is recorded with its reason in [PROGRESS](PROGRESS.md) and [TESTING](TESTING.md) |
-| A25 | Material that is no longer needed is removed from the repository's history as well as from the working tree | 2026-11-13. Scope and method are confirmed before history is rewritten; the outcome is recorded in PROGRESS |
+| A25 | Material that is no longer needed is removed from the repository's history as well as from the working tree | 2026-11-13. Carried out the same day for `qa/` and `debug.log` only, after the scope was confirmed: milestone 4 in [PROGRESS](PROGRESS.md). The dated reports were kept |
 
 ## Not selected
 
 | Option | Why | Evidence |
 | --- | --- | --- |
 | Permanently visible, colored Markdown syntax (the readable-source design of version 0.1.174) | Replaced by A08 | Spec status line |
-| A separate gutter widget for table line numbers | A07: fragile when table rows wrap at different window widths | Instruction file at 5d48666 |
-| The standalone HTML harness as evidence of parity | A05: no Monaco, workbench layout, real settings or webview embedding | Instruction file at 5d48666 |
+| A separate gutter widget for table line numbers | A07: fragile when table rows wrap at different window widths | Instruction file at 047e615 |
+| The standalone HTML harness as evidence of parity | A05: no Monaco, workbench layout, real settings or webview embedding | Instruction file at 047e615 |
 | A second persistent whole-document rendering parser, or a DOM-to-source model | The CodeMirror Markdown tree classifies; the document is the model (A09) | Spec section 7 |
 | Quoting requests in journals and registers | A18: the repository is public | 2026-11-13 |
 | Normalizing every file to LF, or a repository-wide `.editorconfig` | Source and sample files keep their checkout form; only agent documents and fixtures are pinned | [RESEARCH](RESEARCH.md) |
@@ -83,7 +83,7 @@ accepted decision.
 | Q01 | Where the spec and the shipped editor disagreed, which was right? | Answered 2026-11-13 by A20: the shipped editor. The spec was revised for heading markers, properties, fence rows, code highlighting, footnotes and generated contents, and a duplicated paragraph was removed |
 | Q02 | Must a change that cannot alter the packaged extension still run `Build_and_Install` (A02)? | Open. Recommendation: P01. Until answered, every repository change runs it |
 | Q03 | Branch policy. Only `main` exists, locally and on the remote. Do agents commit to `main` when asked to commit, or work on branches and pull requests? | Open. Until answered: commit only when asked, and ask which branch |
-| Q04 | What QA evidence stays in version control? | Answered 2026-11-13 by A19. 128 raw logs, result files and screenshots left version control and stay on disk; seven dated reports moved to `docs/reports/`. Earlier commits still contain the old files |
+| Q04 | What QA evidence stays in version control? | Answered 2026-11-13 by A19. 128 raw logs, result files and screenshots left version control and stay on disk; seven dated reports moved to `docs/reports/`. The old files were removed from earlier commits as well, under A25 |
 | Q05 | Should the repository have CI? None exists | Open. Recommendation: P04 |
 | Q06 | Should the project have a linter? It has none | Open. Recommendation: P05 |
 | Q07 | macOS. The history records builds on macOS, while the recorded host checks ran on Windows. Is a macOS run of the host checks required before a change is called done? | Open. No recommendation |

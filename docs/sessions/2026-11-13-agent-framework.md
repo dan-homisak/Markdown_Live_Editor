@@ -4,16 +4,13 @@ Status: open · Updated: 2026-11-13
 
 ## State now
 
-- Working on: nothing in flight. The purpose-built fixtures, the list fix, the suite repairs
-  and the installer change are done, checked and installed; results are under milestone 3 in
-  [PROGRESS](../PROGRESS.md).
-- Next step: the history cleanup (A25), once its scope is confirmed. After that: run the
-  code-highlighting check against its new fixture, and investigate Q10.
-- Waiting on a decision: what the history cleanup covers and whether `main` is force-pushed.
-  Nothing has been committed, rewritten or pushed. Q02, Q03 and Q08 remain open.
-- Uncommitted: everything from this session, including staged moves and the removal of raw QA
-  output from version control.
-- Installed: 0.1.232.
+- Working on: nothing in flight. All four milestones in [PROGRESS](../PROGRESS.md) are done:
+  the framework, the cleanup, the purpose-built fixtures and repairs, and the history cleanup.
+- Next step: run the code-highlighting check against its new fixture, then investigate Q10.
+- Waiting on a decision: Q02, Q03 and Q08 remain open. Whether the dated reports stay is
+  undecided; they were kept.
+- Uncommitted: nothing. `main` was rewritten and force-pushed on 2026-11-13.
+- Installed: 0.1.233.
 
 ## Direction
 
@@ -32,8 +29,8 @@ Status: open · Updated: 2026-11-13
   documents are not test input and fixtures are not copies of them.
 - 2026-11-13 → A24: obvious defects in the editor are corrected. A test that is wrong,
   obsolete or works against the product is removed or replaced with a better one.
-- 2026-11-13, pending (A25, scope to confirm): old material that is no longer needed is removed
-  from the repository's history as well as from the working tree.
+- 2026-11-13 → A25: old material that is no longer needed is removed from the repository's
+  history as well as from the working tree. Confirmed scope: `qa/` and `debug.log`.
 
 ## Checkpoints
 
@@ -122,3 +119,15 @@ Status: open · Updated: 2026-11-13
   under a minute with git's own filter. 107 of 108 commits remain, none touches those paths,
   and no file anywhere in the rewritten history contains a home-directory path.
 - Open: the scope of A25. Nothing is rewritten or force-pushed before it is confirmed.
+
+### 6. History cleaned
+
+- Decided: the scope of A25 is `qa/` and `debug.log`, removed from every commit; the commit
+  history itself is kept, and so are the dated reports.
+- Checks: 109 of 110 commits remain, none touches the removed paths, the tip tree is unchanged,
+  and no file in any remaining commit contains a home-directory path. A bundle of the earlier
+  history was saved outside the repository first.
+- Learned: every commit hash changed, and the five cited in the documents were updated. One
+  old pull-request reference on the hosting service still reaches 69 early commits; they were
+  searched and hold no local path.
+- Decided (agent): commits carry no tool attribution line, under the public-repository rules.
