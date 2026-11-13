@@ -141,6 +141,18 @@ for (const [marker, next] of [['-', '-'], ['+', '+'], ['*', '*'], ['1.', '2.'], 
 assert.equal(apply('- parent\n  - ', 'enter'), '- parent\n- ');
 assert.equal(apply('- parent\n  - child\n    - grandchild', 'indent', 17), '- parent\n    - child\n      - grandchild');
 assert.equal(apply('- parent\n  - child\n    - grandchild', 'outdent', 17), '- parent\n- child\n  - grandchild');
+// A first child has no preceding sibling to nest under, so Tab can only indent it further; it
+// is still its parent's child. Shift+Tab must undo exactly that indentation before it changes
+// the item's level, so Tab followed by Shift+Tab leaves the document as it was.
+for (const source of ['- parent\n  - child\n    - grandchild', '1. parent\n   1. child', '> - parent\n>   - child', '- [ ] parent\n  - [ ] child']) {
+  const position = source.indexOf('child');
+  const indented = apply(source, 'indent', position);
+  assert.notEqual(indented, source, 'Tab indents a first child');
+  assert.equal(apply(indented, 'outdent', indented.indexOf('child')), source, 'Tab then Shift+Tab on a first child is a round trip');
+}
+// Removing the extra indentation is one step; the next Shift+Tab unnests as usual.
+assert.equal(apply('- parent\n    - child', 'outdent', 15), '- parent\n  - child');
+assert.equal(apply('- parent\n  - child', 'outdent', 13), '- parent\n- child');
 assert.equal(apply('- text', 'backspace', 2), 'text');
 for (const marker of ['1.', '99.', '-', '- [ ]']) {
   const source = `1. First item\n${marker}  `;

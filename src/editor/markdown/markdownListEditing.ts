@@ -125,7 +125,13 @@ export function planMarkdownListEdit(state: EditorState, action: "enter" | "inde
   const parentContentColumn = precedingLine && columns(doc.sliceString(precedingLine.from,
     precedingLine.contentFrom - precedingLine.task.length), state.tabSize);
   const indentBy = Math.max(2, (parentContentColumn ?? 0) - (first?.columns ?? 0));
-  const outdentBy = first && parent ? first.columns - parent.columns : 2;
+  // An item indented past its parent's content column is still that parent's child: Tab on a
+  // first child, which has no sibling to nest under, only adds indentation. Shift+Tab removes
+  // that excess first, so it undoes such a Tab instead of jumping to the parent's level.
+  const parentLine = parent && markdownListLine(doc, tree, parent.from, tables);
+  const excess = first && parentLine ? first.columns - columns(doc.sliceString(parentLine.from,
+    parentLine.contentFrom - parentLine.task.length), state.tabSize) : 0;
+  const outdentBy = excess > 0 ? excess : first && parent ? first.columns - parent.columns : 2;
   const changes: { from: number; to: number; insert: string }[] = [];
   for (let number = firstLine; number <= lastLine; number++) {
     const line = doc.line(number);
