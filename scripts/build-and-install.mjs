@@ -116,49 +116,25 @@ async function verifyInstalledPayload(version) {
     throw new Error(`Expected installed extension directory was not found: ${installedDir}`);
   }
 
-  const checks = [
-    ["media/liveEditor.js", "formatTableCellSourceEdit"],
-    ["media/liveEditor.js", "computeCellBeforeInputDecision"],
-    ["media/liveEditor.js", "buildTableDecorations"],
-    ["media/liveEditor.js", "createEditorGeometrySync"],
-    ["media/liveEditor.js", "appendColumnSizing"],
-    ["media/liveEditor.js", "measureTableColumnSizing"],
-    ["media/liveEditor.js", "measureAvailableDataWidthCh"],
-    ["media/liveEditor.js", "primeTableLayoutForMount"],
-    ["media/liveEditor.js", "normalizeDocumentText"],
-    ["media/liveEditor.js", "createMarkdownPresentationExtensions"],
-    ["media/liveEditor.js", "createMarkdownBlockExtensions"],
-    ["media/liveEditor.js", "createMarkdownLivePreviewExtensions"],
-    ["media/liveEditor.js", "createMarkdownListEditing"],
-    ["media/liveEditor.js", "markdownWikiExtension"],
-    ["media/liveEditor.js", "mlrt-preview-code-copy"],
-    ["media/liveEditor.js", "openMarkdownLinkAtCaret"],
-    ["media/liveEditor.js", "mlrt-vscode-code-token"],
-    ["media/markdownPresentation.css", "mlrt-markdown-inline-code"],
-    ["media/markdownBlocks.css", "mlrt-markdown-block-code"],
-    ["media/markdownBlocks.css", "mlrt-preview-code-header"],
-    ["media/liveEditor.js", "createMarkdownProperties"],
-    ["media/markdownBlocks.css", "mlrt-markdown-block-frontmatter"],
-    ["media/liveEditor.css", "table-layout: fixed"],
-    ["media/liveEditor.css", "mlrt-table-source-line"],
-    ["media/liveEditor.css", "mlrt-live-content-width"],
-    ["dist/extension.js", "ignored a change without source ranges"],
-    ["dist/extension.js", "validateDocumentChangeClaim"],
-    ["dist/extension.js", "reopenActiveEditorWith"],
-    ["dist/extension.js", "VscodeCodeHighlighting"],
-  ];
-
-  for (const [relativePath, marker] of checks) {
-    const content = await readFile(path.join(installedDir, relativePath), "utf8");
-    if (!content.includes(marker)) {
-      throw new Error(`Installed ${relativePath} does not contain expected marker: ${marker}`);
+  // The installed files must be byte for byte what this build produced. Comparing bytes needs
+  // no upkeep; a list of marker strings used here before broke whenever a symbol was renamed.
+  const media = (await readdir(path.join(projectDir, "media"))).map((name) => `media/${name}`);
+  for (const relativePath of [...media, "dist/extension.js", "dist/onig.wasm"]) {
+    const built = await readFile(path.join(projectDir, relativePath));
+    let installed;
+    try {
+      installed = await readFile(path.join(installedDir, relativePath));
+    } catch {
+      throw new Error(`Installed extension is missing ${relativePath}. Is it in the .vscodeignore allowlist?`);
+    }
+    if (!installed.equals(built)) {
+      throw new Error(`Installed ${relativePath} differs from the build.`);
     }
   }
-  const installedWasm = await readFile(path.join(installedDir, "dist/onig.wasm"));
-  if (!installedWasm.equals(await readFile(path.join(projectDir, "dist/onig.wasm")))) {
-    throw new Error("Installed syntax-highlighting WASM does not match the build.");
-  }
   const installedManifest = JSON.parse(await readFile(path.join(installedDir, "package.json"), "utf8"));
+  if (installedManifest.version !== version) {
+    throw new Error(`Installed manifest reports ${installedManifest.version}, expected ${version}.`);
+  }
   if (installedManifest.contributes.configuration.properties["markdownLiveRenderTables.markdownRendering.enabled"].default !== true) {
     throw new Error("Installed extension must enable the completed Markdown rendering by default.");
   }

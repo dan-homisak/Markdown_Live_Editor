@@ -8,7 +8,7 @@ export async function runFollowupChecks({check,liveEval,select,screenshot,fixtur
     await screenshot('followup-history-empty');assert(buttons.every(b=>b.visible&&b.disabled),JSON.stringify(buttons));return buttons;
   });
   await check('interaction bugs: followup first edit preserves the visible scroll position',async()=>{
-    const source=await readFile(new URL('../standard-markdown-fixture.md',import.meta.url),'utf8');
+    const source=await readFile(new URL('../test/fixtures/markdown-constructs.md',import.meta.url),'utf8');
     const samples=[];
     for(const inCell of [false,true]) {
       const doc=inCell ? 'Intro\n\n'+Array.from({length:50},(_,i)=>`Paragraph ${i}\n\n${table}\n\n`).join('') : source.repeat(5);

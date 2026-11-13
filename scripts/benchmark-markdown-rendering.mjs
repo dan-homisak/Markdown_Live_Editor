@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Pure CPU characterization. Run `npm.cmd run compile` before this script.
+// Pure CPU characterization. Run `npm run compile` before this script.
 // There is deliberately no EditorView, DOM, input event, compositor or host sync.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -224,7 +224,7 @@ const result = {
   schemaVersion: 1,
   recordedAt: new Date().toISOString(),
   status: "CPU baseline only; not an input-to-paint or release performance gate",
-  reproduction: "npm.cmd run compile && node scripts/benchmark-markdown-rendering.mjs",
+  reproduction: "npm run compile && node scripts/benchmark-markdown-rendering.mjs",
   environment: { node: process.version, platform: process.platform, architecture: process.arch,
     cpuModel: os.cpus()[0]?.model, logicalCpuCount: os.cpus().length,
     totalMemoryBytes: os.totalmem(), dependencies },

@@ -19,7 +19,7 @@ await writeFile(path.join(profile, "User/settings.json"), JSON.stringify({ ...ed
   "workbench.startupEditor": "none", "window.restoreWindows": "none",
   "security.workspace.trust.enabled": false, "editor.wordWrap": "on",
 }));
-const fixture = await readFile(path.join(repo, "standard-markdown-fixture.md"), "utf8");
+const fixture = await readFile(path.join(repo, "test", "fixtures", "markdown-constructs.md"), "utf8");
 const file = path.join(profile, "TestTable.md");
 const longTableStart = Array.from({ length: 8 }, (_, i) => `# Section ${i}\n\n${fixture}`).join("\n\n") + "\n\n# Long table\n\n";
 const longTableLine = longTableStart.split("\n").length;

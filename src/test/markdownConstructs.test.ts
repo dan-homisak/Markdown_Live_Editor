@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorState, Text } from "@codemirror/state";
 import { classifyMarkdownBlocks } from "../editor/markdown/markdownBlocks";
@@ -17,7 +18,7 @@ const project = (source: string) => {
   return { doc, tree, index: markdownDocumentIndex(doc, tree, tables),
     parts: classifyMarkdownPreview(doc, tree, tables, [{ from: 0, to: doc.length }]) };
 };
-const fixture = readFileSync("standard-markdown-fixture.md", "utf8").replace(/\r\n/g, "\n");
+const fixture = readFileSync(path.resolve(__dirname, "..", "..", "test", "fixtures", "markdown-constructs.md"), "utf8").replace(/\r\n/g, "\n");
 const actual = project(fixture);
 assert.equal(actual.doc.toString(), fixture, "rendering never rewrites fixture source");
 const toc = actual.parts.find(part => part.kind === "toc");
@@ -75,4 +76,4 @@ let referenceState = EditorState.create({ doc: "[label][ref]\n\nOther text.", ex
 assert.equal(referenceState.field(markdownPreviewField).parts.length, 0);
 referenceState = referenceState.update({ changes: { from: referenceState.doc.length, insert: "\n\n[ref]: https://example.com" } }).state;
 assert(referenceState.field(markdownPreviewField).parts.some(part => part.kind === "hide" && part.from === 0), "adding a distant reference definition updates its resting label");
-console.log("Standard Markdown fixture rendering checks passed: nested quotes, inline tables, TOC, footnotes, numbering, entities, and source preservation.");
+console.log("Markdown construct checks passed: fixture source preserved, nested quotes, TOC, footnotes, numbering, entities and cell presentation.");

@@ -7,5 +7,12 @@ install-bundles/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-qa/*.html
-qa/*.png
+debug.log
+
+# Local output of QA, host-check and benchmark runs: screenshots, logs and result files.
+# They show local paths and are never committed. Curated reports live in docs/reports/.
+qa/
+
+# Agent hook state (token counts and times only) and personal Claude Code settings
+.local/
+.claude/settings.local.json

@@ -1,0 +1,12 @@
+# Agent documentation, its tooling and the frozen test fixtures are stored and checked out with
+# LF on every platform: scripts/check-docs.mjs rejects CR in the documents, the hooks match
+# patterns at line ends, and tests read fixtures by offset.
+# Nothing else is listed on purpose. Source files and the sample documents keep whatever the
+# checkout gives them.
+AGENTS.md text eol=lf
+CLAUDE.md text eol=lf
+docs/** text eol=lf
+.claude/** text eol=lf
+scripts/check-docs.mjs text eol=lf
+scripts/check-docs.test.mjs text eol=lf
+test/fixtures/** text eol=lf

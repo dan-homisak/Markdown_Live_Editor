@@ -19,7 +19,7 @@ const scrollMarkerArg = args.find((arg) => arg.startsWith("--scroll-marker="));
 const scrollMarker = scrollMarkerArg?.slice("--scroll-marker=".length);
 const fixtureArg =
   args.find((arg) => !arg.startsWith("--")) ??
-  "standard-markdown-in-table-fixture.md";
+  "test/fixtures/table-cells.md";
 
 const fixturePath = path.resolve(repoRoot, fixtureArg);
 const bundlePath = path.join(repoRoot, "media", "liveEditor.js");

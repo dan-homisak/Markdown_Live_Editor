@@ -1,5 +1,5 @@
 // Compare actual rendered token styles in stock Monaco and the live webview
-// in one isolated VS Code window, using the user's standard Markdown fixture.
+// in one isolated VS Code window, using test/fixtures/code-languages.md.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync } from "node:fs";
@@ -15,8 +15,8 @@ const qa = path.join(repo, "qa");
 const profile = mkdtempSync(path.join(os.tmpdir(), "mlrt-code-colors-"));
 const user = path.join(profile, "User");
 const port = 9700 + Math.floor(Math.random() * 200);
-const fixture = path.join(profile, "standard-markdown-fixture.md");
-const source = (await readFile(path.join(repo, "standard-markdown-fixture.md"), "utf8")).replace(/\r\n?/g, "\n");
+const fixture = path.join(profile, "code-languages.md");
+const source = (await readFile(path.join(repo, "test", "fixtures", "code-languages.md"), "utf8")).replace(/\r\n?/g, "\n");
 const lines = source.split("\n");
 const blocks = [...source.matchAll(/^```([^\n]*)\n([\s\S]*?)^```/gm)].filter(match => match[1] && match[1] !== "txt").map(match => {
   const from = match.index + match[0].indexOf("\n") + 1;

@@ -1,20 +1,10 @@
-.vscode/**
-AGENTS.md
-TestTable.md
-*fixture.md
-src/**
-node_modules/**
-scripts/**
-qa/**
-installers/**
-install-bundles/**
-Build_and_Install
-Build_and_Install.ps1
-tsconfig.json
-package-lock.json
-*.vsix
-.gitignore
-npm-debug.log*
-debug.log
-yarn-debug.log*
-yarn-error.log*
+# Package only what the extension loads at run time. Everything is excluded first, then the
+# files below are let back in. A new file never ships unless it is added here on purpose.
+**
+!package.json
+!README.md
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!dist/extension.js
+!dist/onig.wasm
+!media/**

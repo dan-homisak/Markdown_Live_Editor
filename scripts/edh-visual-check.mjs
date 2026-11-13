@@ -23,12 +23,24 @@ const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const standardMarkdownTableFixture = await readFile(
-  path.join(repoRoot, "standard-markdown-in-table-fixture.md"),
+const tableCellFixture = (await readFile(
+  path.join(repoRoot, "test", "fixtures", "table-cells.md"),
   "utf8",
-);
+)).replace(/\r\n?/g, "\n");
+// Fixture rows are found by case ID, never by a fixed line number, so the
+// fixture can gain or lose rows without silently retargeting a check.
+function tableCellFixtureLine(id) {
+  const index = tableCellFixture.split("\n").findIndex((line) => line.startsWith(`| ${id} |`));
+  if (index < 0) throw new Error(`test/fixtures/table-cells.md has no row ${id}`);
+  return index + 1;
+}
+const deepNestingLine = tableCellFixtureLine("TC-NAV-01");
+const longWrappingLine = tableCellFixtureLine("TC-NAV-02");
+if (longWrappingLine !== deepNestingLine + 1) {
+  throw new Error("TC-NAV-01 and TC-NAV-02 must be adjacent rows in test/fixtures/table-cells.md");
+}
 const gutterStressFixture = await readFile(
-  path.join(repoRoot, "GutterStressTest.md"),
+  path.join(repoRoot, "test", "fixtures", "gutter-stress.md"),
   "utf8",
 );
 const codeBin = resolveEdhExecutable(repoRoot);
@@ -11466,7 +11478,7 @@ function tableExactFixtureArrowRegressionExpression(
   leaveRegressionFocus = false,
   captureDirection = "down",
 ) {
-  const fixtureJson = JSON.stringify(standardMarkdownTableFixture);
+  const fixtureJson = JSON.stringify(tableCellFixture);
   return `(async () => {
     const roots = [document, ...Array.from(document.querySelectorAll('iframe')).map((frame) => {
       try { return frame.contentDocument; } catch { return null; }
@@ -11662,8 +11674,8 @@ function tableExactFixtureArrowRegressionExpression(
     await wait();
     await wait();
     await new Promise((done) => root.defaultView.setTimeout(done, 100));
-    const line71Cell = cellOnSourceLine(71, 2);
-    let line72Cell = cellOnSourceLine(72, 2);
+    const line71Cell = cellOnSourceLine(${deepNestingLine}, 2);
+    let line72Cell = cellOnSourceLine(${longWrappingLine}, 2);
     if (!line71Cell || !line72Cell) {
       return JSON.stringify({ ok: false, reason: 'missing exact line 71/72 third cells' });
     }
@@ -11694,7 +11706,7 @@ function tableExactFixtureArrowRegressionExpression(
       setAtEnd(line71Cell);
       key(line71Cell, 'ArrowDown');
       await new Promise((done) => root.defaultView.setTimeout(done, 25));
-      line72Cell = cellOnSourceLine(72, 2);
+      line72Cell = cellOnSourceLine(${longWrappingLine}, 2);
       const details = line72Cell ? caretDetails(line72Cell) : null;
       widthCases.push({
         forcedWidth,
@@ -11875,7 +11887,7 @@ function tableExactFixtureArrowRegressionExpression(
     const beforeDown = caretDetails(line71Cell);
     const downPrevented = !key(line71Cell, 'ArrowDown');
     await new Promise((done) => root.defaultView.setTimeout(done, 100));
-    line72Cell = cellOnSourceLine(72, 2);
+    line72Cell = cellOnSourceLine(${longWrappingLine}, 2);
     const afterDown = line72Cell ? caretDetails(line72Cell) : null;
     const enteredLine72Cell = root.activeElement === line72Cell;
     const downNativeVisualRow = line72Cell ? probeNativeVisualRow(line72Cell) : null;

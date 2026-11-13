@@ -7,7 +7,7 @@ import {
   rowToDisplayValues,
 } from "../shared/tableModel";
 
-const fixturePath = path.resolve(__dirname, "..", "..", "GutterStressTest.md");
+const fixturePath = path.resolve(__dirname, "..", "..", "test", "fixtures", "gutter-stress.md");
 const fixture = fs
   .readFileSync(fixturePath, "utf8")
   .replace(/\r\n?/g, "\n")

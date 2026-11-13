@@ -7,7 +7,7 @@ const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const fixturePath = path.join(repoRoot, "GutterStressTest.md");
+const fixturePath = path.join(repoRoot, "test", "fixtures", "gutter-stress.md");
 const targetHeaderLine = 9_995;
 const startMarker = "<!-- GUTTER-FIVE-DIGIT-START -->";
 const endMarker = "<!-- GUTTER-FIVE-DIGIT-END -->";

@@ -1,10 +1,10 @@
 ﻿# Live Markdown Rendering Design Specification
 
-- Status: Obsidian-style Live Preview is the required editing model. This revision replaces the earlier readable-source design.
-- Product direction: the user's October 4, 2026 clarification calls for most of an Obsidian-style editor, with this project's existing VS Code and table behavior.
-- Scope of this revision: contextual syntax concealment, rendered YAML properties/callouts/code, Obsidian-style tasks, smart list editing, and actionable Markdown/wikilinks.
-- Historical evidence: `qa/markdown-rendering-release-2026-10-04.md` describes version 0.1.174. Its visible-delimiter expectations and performance measurements do not validate this revision.
-- Current evidence: `qa/live-preview-2026-10-04.md` records implementation, actual-host checks, and remaining coverage.
+- Status: Obsidian-style Live Preview is the required editing model. It replaced an earlier readable-source design.
+- Product direction: most of an Obsidian-style editor, with this project's existing VS Code and table behavior.
+- Scope: contextual syntax concealment, YAML properties, callouts, code blocks, Obsidian-style tasks, smart list editing, and actionable Markdown links and wikilinks.
+- Revised 2026-11-13 to describe the shipped editor where this document had fallen behind it: heading markers, properties, fence rows, code highlighting, footnotes and generated contents. User-visible behavior is described in the [README](../README.md).
+- Evidence: the test plan and the current state of each suite are in [TESTING](TESTING.md). Dated reports in `docs/reports/` describe earlier versions; the performance measurements there belong to version 0.1.174 and do not validate the current layout.
 
 ## 1. Product experience
 
@@ -18,7 +18,7 @@ The ordinary VS Code font, gutter, caret, selection, active-line treatment, and 
 
 | Construct | Resting presentation | Editing presentation |
 | --- | --- | --- |
-| ATX/Setext headings | Heading text with semantic weight/color; hide hashes and Setext underline rows. | Reveal its exact heading markers while the caret is in the heading. |
+| ATX/Setext headings | Heading text at the editor's text size, with weight and a color per level. ATX `#` markers stay visible by default (`markdownRendering.showHeadingMarkers`); with that setting off they are hidden at rest. Hide Setext underline rows. | Reveal its exact heading markers while the caret is in the heading. |
 | Bold, italics, strike | Render the content with composed styles; omit delimiter runs. | Reveal delimiters for every enclosing active formatting construct. |
 | Inline code | Render exact code characters/spaces with a code treatment; omit surrounding backticks. | Reveal the original backtick runs. Do not normalize the saved content. |
 | Markdown links/references | Render the label; hide brackets, destination, title, and reference suffix. Autolinks omit angle brackets. | Reveal the entire active link expression. Reference definitions remain editable metadata. |
@@ -28,9 +28,11 @@ The ordinary VS Code font, gutter, caret, selection, active-line treatment, and 
 | Tasks | Rounded compact square control; checked state uses a contrasting filled accent/check and subdued struck item text. Suppress the redundant list bullet. | Source marker editing and explicit toggle/focus commands remain available. |
 | Quotes | Render an inset quote guide; omit inactive row quote markers. | Reveal quote prefixes on the active row. |
 | Callouts | Render an icon, title, accent guide, and subtle tinted content. Hide `>` and `[!TYPE]` syntax. Support custom titles and `+`/`-` collapsibility. | Reveal the original callout header while editing its content or title. Folding is presentation state, never a source edit. |
-| Fenced code | Render highlighted editable code in a continuous band with a language label and Copy button. Hide fence syntax and closing rows. | Reveal original fences/info strings while the caret is in the block; retain the code toolbar. |
+| Fenced code | Render highlighted editable code in a continuous band. Both fence rows keep their place and their line numbers, so the code and the rows after it never move; the fence characters and info string are hidden, and the language label sits on the opening row. Hover or keyboard focus turns the label into Copy. | Reveal original fences/info strings while the caret is in the block; retain the code toolbar. |
 | Indented code | Render a code band with structural indentation removed and a plain-text toolbar. | Reveal the structural indentation while editing. Preserve meaningful code whitespace. |
-| YAML frontmatter | Render a Properties view showing keys and values/lists, without YAML delimiter or key punctuation. | Clicking a property or entering the region reveals the exact original YAML for editing; leaving restores Properties. |
+| YAML frontmatter | Show the YAML itself, syntax-colored inside a subtle frame labeled Properties, with its `---` delimiters and line numbers. | Edit the source in place, with key suggestions and list continuation (section 5). |
+| Generated contents | A standalone `[TOC]` renders a navigable list of the document's headings. | Reveal the marker. |
+| Footnotes | `[^label]` references and their definitions render with matching numbers and navigate to each other. Indented continuation paragraphs stay part of their footnote. | Reveal the original label syntax. |
 | Rules | Render a horizontal rule. | Reveal its original Markdown marker when editing that row/marker. |
 | Escapes | Hide the escape backslash around supported escaped punctuation. | Reveal its exact spelling at the active escape. |
 | Images/embeds | Keep editable labels/source without automatic network fetching. | Preserve source. Fetching images or embedding notes is a separate feature. |
@@ -52,7 +54,7 @@ Reveal is contextual, not merely a caret test against the punctuation itself:
 6. Composition freezes affected projection until the input session settles. Source-dependent mutations are unavailable during unsettled composition.
 7. Otherwise use the resting rendering. Hover alone does not reveal source.
 
-Unlike the previous design, concealed punctuation need not retain its original width. Hiding it must close the visible gap. Fence/Setext rows may collapse, properties may replace a multiline metadata region, and code/callout chrome may add appropriate padding. Reflow is intentional. Preserve the caret's source position and keep it visible; never leave the cursor inside an invisible region or let delayed layout jump it to unrelated source.
+Unlike the previous design, concealed punctuation need not retain its original width. Hiding it must close the visible gap. Setext underline rows may collapse, and code/callout chrome may add appropriate padding. Fence rows and properties rows do not collapse: they keep their rows and line numbers. Reflow is intentional. Preserve the caret's source position and keep it visible; never leave the cursor inside an invisible region or let delayed layout jump it to unrelated source.
 
 Ordinary prose and editor chrome still use injected VS Code font metrics, especially `--vscode-editor-font-size`. Keep source-line numbering meaningful as rows collapse. Existing table row heights, line numbers, alignment, and gutters remain independently owned by the table DOM.
 
@@ -77,9 +79,9 @@ Use one source transaction per structural action and one authoritative host Undo
 
 A task activation changes exactly one code unit: space to lowercase `x`, or `x`/`X` to space. Pointer toggles preserve the prior source/table selection. Space toggles an explicitly focused checkbox; Escape returns to its mapped source bookmark. Keep Command Palette and source context-menu actions. Controls expose names, state, disabled state, and focus indicators. Do not create thousands of sequential task Tab stops.
 
-Code blocks show their language and a Copy button in resting and editing states. The label comes from the first info-string word; untyped/unsupported code remains plain text. Copy reads current source and excludes fence syntax and structural quote/list prefixes, while retaining meaningful indentation and line breaks. It copies only code, adds no source/history entry, gives success/failure feedback, and works through pointer and keyboard activation. A label click returns to editable source. Never execute code or download grammars.
+Code blocks show their language in a corner control in resting and editing states; hover or keyboard focus changes the label to Copy. The label comes from the first info-string word; code in a language without a grammar remains plain text. Copy reads current source and excludes fence syntax and structural quote/list prefixes, while retaining meaningful indentation and line breaks. It copies only code, adds no source/history entry, gives success/failure feedback, and works through pointer and keyboard activation. A label click returns to editable source. Never execute code or download grammars.
 
-Properties are source-backed key/value displays, not an independent mutable YAML object. Lists may display compact values; clicking a row targets its original source. Preserve comments, nested data, and unsupported YAML through the source editing route. Do not silently serialize or normalize the metadata.
+Properties are the YAML source itself, colored and framed; there is no independent mutable YAML object. Typing `---` alone on the first line creates a closed block above the document. Empty rows offer local default keys, `tags` first, omitting keys already present; no vault lookup is performed. Tab and Shift+Tab indent by two spaces, Enter continues list items, an empty item ends the list, and Enter on the closing delimiter moves into the body. Invalid YAML, including duplicate keys, is underlined with an explanation and left for correction. After the user edits the block and leaves it, valid YAML is formatted to two-space indentation with values, comments and quoting preserved. A document is never reformatted by opening it, and nothing outside an edited block is normalized.
 
 Callouts recognize case-insensitive type names, standard Obsidian aliases, custom titles, and optional `+`/`-`. Known aliases map to supported semantic roles; custom types use the note fallback. The first paragraph in the parsed quote supplies the header and the quote supplies extent, including nested/lazy content. Folding state belongs to the view, maps through edits, and cannot hide protected tables. Entering source for editing reveals the folded region.
 
@@ -107,15 +109,13 @@ Use scheduled measurement. Dispose observers/listeners and pending callbacks; hi
 
 Apply focus/viewport context after native input mutations have settled, rather than dispatching from a focus microtask before CodeMirror's DOM observer imports an edit. Defer these presentation effects while the table owns a pointer-selection gesture. Mixed selections already publish their linear source envelope in the editor selection; do not mirror that range through a delayed transaction that restores a competing native highlight.
 
-Apply focus/viewport context after native input mutations have settled, rather than dispatching from a focus microtask before CodeMirror's DOM observer imports an edit. Defer these presentation effects while the table owns a pointer-selection gesture. Mixed selections already publish their linear source envelope in the editor selection; do not mirror that range through a delayed transaction that restores a competing native highlight.
-
 Retain the existing serialized source queue, exact before/final snapshot checks, `changeId`, `baseRevision`, conflict floor, and acknowledgements. An older base revision can remain valid when its exact snapshot is the queued successor above the conflict floor. Rejection invalidates dependent actions and restores authoritative source. Do not strand composition commands or queues.
 
 `markdownLiveRenderTables.markdownRendering.enabled` defaults to true. Disabling it restores ordinary non-table source, removes new actions/list behavior and preview widgets, and preserves tables/clipboard. Reconfigure the retained editor in place; let already submitted edits settle. The stock editor remains the complete-source recovery route. Internal preview failures must leave source editing and table protection usable and emit bounded diagnostics.
 
 ## 8. Syntax and styling boundaries
 
-The current bundled code grammars cover JavaScript (`javascript`, `js`, `nodejs`), TypeScript (`typescript`, `ts`), JSON, shell (`bash`, `sh`, `shell`), Python (`python`, `py`), and YAML (`yaml`, `yml`). Unknown info strings retain a plain code treatment; do not imply a grammar that is not loaded. Additional languages can be added with direct dependency/license/bundle evidence.
+Code blocks are colored with VS Code's own TextMate grammars and the active color theme, including the user's token color customizations, so a block matches the stock editor. The host collects grammar and theme data; the webview tokenizes with the Oniguruma WebAssembly engine shipped in the package. Nothing is downloaded. When that engine is unavailable, the bundled grammars cover JavaScript (`javascript`, `js`, `nodejs`), TypeScript (`typescript`, `ts`), JSON, shell (`bash`, `sh`, `shell`), Python (`python`, `py`), and YAML (`yaml`, `yml`). Unknown info strings retain a plain code treatment; do not imply a grammar that is not loaded.
 
 Frontmatter opens with standalone `---` at the first document line after an optional BOM and closes at a later standalone `---`; trailing horizontal whitespace is accepted. No closer means ordinary Markdown. TOML/JSON metadata variants remain source. Table ownership still wins inside metadata; do not conceal a recognized table inside a property widget.
 
@@ -127,7 +127,7 @@ Host accessibility mode may use literal source and task commands when concealmen
 
 ## 9. Verification and delivery
 
-Pure tests cover source ranges, reveal ownership, literals/table exclusion, properties, exact code copy, list edits, wiki parsing/resolution, fragments, and host lifecycle validation. Actual VS Code/Electron tests cover resting/active screenshots, pointer hit mapping, caret movement, list keys/host Undo, keyboard/pointer copying, callout folding, real local-note opening, and recovery. Use the user's standard fixtures without modifying them.
+Pure tests cover source ranges, reveal ownership, literals/table exclusion, properties, exact code copy, list edits, wiki parsing/resolution, fragments, and host lifecycle validation. Actual VS Code/Electron tests cover resting/active screenshots, pointer hit mapping, caret movement, list keys/host Undo, keyboard/pointer copying, callout folding, real local-note opening, and recovery. Use the frozen fixtures in `test/fixtures/` without modifying them; a hash manifest guards them.
 
 | Area | Required regression |
 | --- | --- |
@@ -151,4 +151,4 @@ Before finishing a change, run the compile/type check and relevant tests, resolv
 
 The product direction is an Obsidian-style live editor, with this project's VS Code integration and spreadsheet-like table behavior. New Markdown features should render at rest and reveal source for editing wherever practical. Permanently coloring raw syntax is not an acceptable substitute for a requested live-rendered feature.
 
-This revision does not promise a vault graph, note-creation/autocomplete system, backlinks, embedded media/notes, math/diagram execution, every code grammar, footnote navigation, arbitrary HTML rendering, or all Obsidian plugins. Those need explicit behavior and validation when added. They must inherit source ownership, protected tables, host history, safe links, clipboard, recovery, and contextual reveal.
+This revision does not promise a vault graph, note-creation/autocomplete system, backlinks, embedded media/notes, math/diagram execution, arbitrary HTML rendering, or all Obsidian plugins. Those need explicit behavior and validation when added. They must inherit source ownership, protected tables, host history, safe links, clipboard, recovery, and contextual reveal.

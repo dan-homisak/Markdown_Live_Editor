@@ -89,7 +89,7 @@ const languageRoots = new Set(["@codemirror/lang-javascript", "@codemirror/lang-
 const inventory = [...packages.values()].sort((a, b) => a.name.localeCompare(b.name));
 const result = {
   recordedAt: new Date().toISOString(),
-  reproduction: "npm.cmd run compile && node scripts/record-markdown-bundle-impact.mjs",
+  reproduction: "npm run compile && node scripts/record-markdown-bundle-impact.mjs",
   limitations: ["Sizes describe the current unminified production bundles; gzip is an additional comparison metric, not VSIX compressed-size evidence.",
     "Runtime disabling retains bundled code; it is a recovery behavior, not a download-size reduction.",
     "Package byte contributions use esbuild bytesInOutput; shared runtime glue is not attributed and totals need not equal full bundle bytes.",

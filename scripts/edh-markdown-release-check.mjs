@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Integrated readable-source release checks in one isolated VS Code workbench.
-// Run npm.cmd run compile first. Fixtures and target links live in the temp profile.
+// Integrated rendering checks in one isolated VS Code workbench.
+// Run `npm run compile` first. Fixtures and target links live in the temp profile.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -184,7 +184,14 @@ async function check(name, action) {
   if (codeOnly && !name.startsWith("all bundled code")) return;
   if (paintOnly && !/^(forced-colors|actual code token|actual rendered performance)/.test(name)) return;
   try { const detail = await action(); checks.push({ name, pass: true, detail }); console.log(`PASS ${name}`, JSON.stringify(detail ?? {})); }
-  catch (error) { checks.push({ name, pass: false, error: String(error) }); console.error(`FAIL ${name}: ${error}`); }
+  catch (error) {
+    checks.push({ name, pass: false, error: String(error) }); console.error(`FAIL ${name}: ${error}`);
+    // A check that failed midway can leave unsaved edits behind. A dirty document does not
+    // reload when the next check writes its fixture, so that check would time out for a reason
+    // that has nothing to do with it. Return to the saved file before going on.
+    try { await palette("File: Revert File"); await sleep(400); }
+    catch (revertError) { console.error(`could not revert after ${name}: ${revertError}`); }
+  }
 }
 async function writeSettings(extra = {}) {
   await writeFile(path.join(user, "settings.json"), JSON.stringify({ ...settings, ...extra }, null, 2)); await sleep(700);
@@ -289,15 +296,6 @@ try {
     for (let index = 0; index < before.length; index++) assert(Math.abs(before[index].y - after[index].y) <= 0.5, "revealed source row y remains fixed");
     return { sourceRows: positions.length, maxYDelta: Math.max(...before.map((value, index) => Math.abs(value.y - after[index].y))), tableRetained: true };
   });
-  await check("quote guides and five alert labels occupy source rows", async () => {
-    await select(text.indexOf("> A quote"));
-    await liveEval("view.dispatch({selection:{anchor:0,head:view.state.doc.length}});return true;"); await sleep(200);
-    const data = await liveEval("return {quotes:root.querySelectorAll('.cm-line.mlrt-markdown-block-quote').length,labels:Array.from(root.querySelectorAll('.mlrt-markdown-block-alert-label')).map(el=>({text:el.textContent,weight:win.getComputedStyle(el).fontWeight,lineHeight:win.getComputedStyle(el).lineHeight,color:win.getComputedStyle(el).color,edge:win.getComputedStyle(el.closest('.cm-line')).boxShadow})),guides:Array.from(root.querySelectorAll('.cm-line.mlrt-markdown-block-quote')).map(el=>win.getComputedStyle(el).boxShadow)};");
-    assert(data.quotes >= 13); assert.equal(data.labels.length, 5); assert(data.labels.every(label => label.weight === "600" && label.lineHeight === "18.9px"));
-    assert(data.guides.every(value => value !== "none")); assert(new Set(data.labels.map(label=>label.color)).size>1);
-    assert(data.labels.every(label=>label.edge.includes(label.color)), "alert edge and label share the resolved type accent");
-    await screenshot("quotes-alerts"); return data;
-  });
   await check("all bundled code languages, blank rows and unknown fallback", async () => {
     const data = [];
     for (const [language, needle] of [["javascript", "const jsValue"], ["typescript", "const tsValue"], ["json", '{ "jsonKey"'], ["shell", 'echo "$HOME"'], ["python", "def python_value"], ["yaml", "yaml_key"], ["unknown", "**unknown language"], ["indented", "indented **literal"]]) {
@@ -319,8 +317,10 @@ try {
   });
   await check("table source remains exclusively owned across all styling paths", async () => {
     await select(text.indexOf("| **Header"));
-    const data = await liveEval("const tables=Array.from(root.querySelectorAll('.mlrt-table'));return {tables:tables.length,semanticDescendants:tables.reduce((n,table)=>n+table.querySelectorAll('[class*=mlrt-markdown]').length,0),text:tables[0]?.textContent};");
-    assert.equal(data.tables, 1); assert.equal(data.semanticDescendants, 0); await screenshot("table-html"); return data;
+    const data = await liveEval("const tables=Array.from(root.querySelectorAll('.mlrt-table'));return {tables:tables.length,semanticDescendants:tables.reduce((n,table)=>n+table.querySelectorAll('[class*=mlrt-markdown-block],[class*=mlrt-preview]').length,0),text:tables[0]?.textContent};");
+    // Cells render their own inline formatting. What must never appear inside a table is a block
+    // or preview decoration from the surrounding document.
+    assert.equal(data.tables, 1); assert.equal(data.semanticDescendants, 0, "no block or preview decoration inside the table"); await screenshot("table-html"); return data;
   });
   await check("light, dark, high contrast recolor without source or table remount", async () => {
     await select(text.indexOf("| **Header"));
@@ -348,58 +348,6 @@ try {
       for(const edge of Object.values(blockEdges)) { assert.equal(edge.style,"solid");assert.equal(edge.pointerEvents,"none");assert.equal(edge.rowBorder,"0px"); }
       await screenshot("forced-colors"); return { value, outline, blockEdges, emulated: true };
     } finally { await live.send("Emulation.setEmulatedMedia", { features: [] }); }
-  });
-  await check("actual code token foreground wins identical-range source wrappers", async () => {
-    const samples = [];
-    for (const needle of ["// javascript comment", "# shell comment", "# metadata comment"]) {
-      const position = text.indexOf(needle); await showSection(position);
-      const actual = await sample(position + 3);
-      const expected = await liveEval(`const a=view.domAtPos(${position}+3,1),el=a.node.nodeType===3?a.node.parentElement:a.node,token=el.closest('.mlrt-vscode-code-token'),probe=root.createElement('i');probe.style.color=token?.style.color||'var(--mlrt-markdown-code-comment)';view.dom.appendChild(probe);const color=win.getComputedStyle(probe).color;probe.remove();return color;`);
-      assert.equal(actual.color, expected, `${needle} actual leaf foreground`); samples.push({ needle, actual, expected });
-    }
-    await showSection(text.indexOf("const jsValue")); await screenshot("code-languages"); return samples;
-  });
-  await check("nested quote and alert code retain guides without horizontal borders", async () => {
-    const nested = ["Nested code guide fixture", "", "> Outer quote", "> > ```javascript", "> > const quoteCode = 1;", "> > ```", "> After nested code.", "",
-      "> [!WARNING]", ">", "> ```javascript", "> const alertCode = 2;", "> ```", "> After alert code.", "",
-      "```javascript", "const standaloneCode = 3;", "```", "", "End."].join("\n");
-    const selectors={quoteStart:4,quoteBody:5,quoteEnd:6,alertStart:11,alertBody:12,alertEnd:13,standalone:17};
-    const capture=async()=>liveEval(`const result={};for(const [name,number]of Object.entries(${JSON.stringify(selectors)})){const line=view.state.doc.line(number),pos=line.from,a=view.domAtPos(pos,1),b=view.domAtPos(pos+1,-1),el=(a.node.nodeType===3?a.node.parentElement:a.node).closest('.cm-line'),css=win.getComputedStyle(el),pseudo=win.getComputedStyle(el,'::before'),range=root.createRange();range.setStart(a.node,a.offset);range.setEnd(b.node,b.offset);const box=range.getBoundingClientRect();result[name]={line:el.textContent,classes:el.className,shadow:css.boxShadow,guide:css.getPropertyValue('--mlrt-markdown-block-guide-width').trim(),fill:css.backgroundColor,top:css.getPropertyValue('--mlrt-markdown-block-top-edge').trim(),bottom:css.getPropertyValue('--mlrt-markdown-block-bottom-edge').trim(),border:[css.borderTopWidth,css.borderLeftWidth],pseudo:{left:pseudo.borderLeftWidth,top:pseudo.borderTopWidth,bottom:pseudo.borderBottomWidth,pointerEvents:pseudo.pointerEvents},glyph:{x:box.x,y:box.y,width:box.width,height:box.height},fontSize:css.fontSize,lineHeight:css.lineHeight};}return result;`);
-    try {
-      await writeFixture(nested); await select(0);
-      await waitFor(async()=>liveEval("return root.querySelectorAll('.cm-line.mlrt-markdown-block-code.mlrt-markdown-block-quote').length===6;"),"nested code row projection");
-      const normal=await capture();
-      for(const [name,row]of Object.entries(normal)){
-        assert.match(row.classes,/mlrt-markdown-block-code/);
-        const width=name.startsWith('quote')?'1px':name.startsWith('alert')?'2px':'';
-        assert.equal(row.guide,width);assert.deepEqual(row.border,['0px','0px']);
-        if(width)assert(row.shadow.includes(` ${width} 0px 0px 0px inset`),`${name}: guide remains in code shadow`);
-        assert.equal(row.top,'transparent');assert.equal(row.bottom,'transparent');
-        assert.equal((row.shadow.match(/inset/g)??[]).length,1,'only the enclosing vertical guide remains');
-      }
-      await screenshot('nested-guides');
-      // Reveal the source in the same rendered block layout. Disabling the
-      // entire renderer deliberately removes code padding and is a different mode.
-      await liveEval('view.dispatch({selection:{anchor:0,head:view.state.doc.length}});view.focus();return true;');await sleep(250);
-      const revealed=await capture();
-      let maxGeometryDelta=0;
-      for(const name of Object.keys(normal))for(const key of ['x','y','width','height'])maxGeometryDelta=Math.max(maxGeometryDelta,Math.abs(normal[name].glyph[key]-revealed[name].glyph[key]));
-      assert(maxGeometryDelta<=0.5,`nested code source geometry drift ${maxGeometryDelta}`);
-      await select(0);
-      await live.send('Emulation.setEmulatedMedia',{features:[{name:'forced-colors',value:'active'}]});await sleep(250);
-      const forced=await capture();
-      const probes=await liveEval("const el=root.createElement('i');el.style.cssText='position:absolute;border:1px solid CanvasText;border-left-width:2px';root.body.appendChild(el);const css=win.getComputedStyle(el),result={one:css.borderTopWidth,two:css.borderLeftWidth};el.remove();return result;");
-      for(const [name,row]of Object.entries(forced)){
-        assert.equal(row.pseudo.left,name.startsWith('quote')?probes.one:name.startsWith('alert')?probes.two:'0px');
-        assert.equal(row.pseudo.top,'0px');assert.equal(row.pseudo.bottom,'0px');
-        assert.equal(row.pseudo.pointerEvents,'none');assert.deepEqual(row.border,['0px','0px']);
-        for(const key of ['x','y','width','height'])assert(Math.abs(row.glyph[key]-normal[name].glyph[key])<=0.5);
-      }
-      assert.equal(await liveEval('return view.state.doc.toString();'),nested);
-      await screenshot('nested-guides-forced-colors');return {normal,forced,probes,maxGeometryDelta,sourceUnchanged:true};
-    } finally {
-      await live.send('Emulation.setEmulatedMedia',{features:[]});await writeSettings();await writeFixture(text);await select(0);
-    }
   });
   await check("modifier hover is actionable only for validated destinations", async () => {
     await select(0);
@@ -470,9 +418,9 @@ try {
     assert.equal(await liveEval("return view.state.doc.toString();"), text); return { titles, sourceUnchanged: true };
   });
   await check("standard fixture readable screenshots preserve complete host source", async () => {
-    const standard = (await readFile(path.join(repo, "standard-markdown-fixture.md"), "utf8")).replace(/\r\n/g, "\n");
+    const standard = (await readFile(path.join(repo, "test", "fixtures", "markdown-constructs.md"), "utf8")).replace(/\r\n/g, "\n");
     await writeFixture(standard);
-    const sections = ["# Standard Markdown Fixture", "## Emphasis", "## Blockquotes", "## Code Blocks", "## Tables"];
+    const sections = ["# Markdown constructs", "## Emphasis", "## Blockquotes", "## Code Blocks", "## Tables"];
     const captured = [];
     for (const [index, section] of sections.entries()) {
       const position = standard.indexOf(section);

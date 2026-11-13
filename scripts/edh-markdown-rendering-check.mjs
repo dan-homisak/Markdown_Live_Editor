@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Focused marker interaction checks in an actual isolated Extension Development Host.
-// Run npm.cmd run compile first. No fixture changes touch the user's documents.
+// Run `npm run compile` first. Fixtures are copied into the temporary profile.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -270,8 +270,9 @@ try {
       const target=before.glyphs.findIndex(glyph=>text.slice(0,glyph.position).split('\n').length===sourceLine);
       if(target>=0) {
         const a=before.glyphs[target],b=after.glyphs[target],task=text[anchor]==='[';
-        // Both the marker slot and literal glyphs honor editor letter spacing.
-        const expected=(task?3:-1)*a.width;
+        // A bullet or rule keeps its text in place when its source is revealed (the marker is
+        // drawn in the slot its source occupies); a task shifts by the three characters of its box.
+        const expected=(task?3:0)*a.width;
         assert(Math.abs((b.x-a.x)-expected)<0.6,JSON.stringify({anchor,expected,shift:b.x-a.x}));
         assert(Math.abs(a.height-b.height)<=0.5,'source reveal preserves font size');
         transitions.push({anchor,shift:b.x-a.x,task});
