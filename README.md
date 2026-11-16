@@ -10,6 +10,10 @@ can type into, select and paste across. Your file stays plain Markdown the whole
   YAML properties render in place. Move the caret into any of them to edit the exact source.
 - **Real table editing.** Click a cell and type. Move with Tab, Enter and the arrow keys, select
   ranges, insert and delete rows and columns, and copy to and from spreadsheets.
+- **Find and replace.** `Ctrl+F` and `Ctrl+H` work as they do in VS Code, through text and
+  table cells alike.
+- **Multiple cursors.** `Ctrl+D`, `Ctrl+Shift+L`, `Alt+click` and the other multi-cursor
+  commands of VS Code, for typing in many places at once.
 - **Nothing proprietary.** Every edit is written straight to the `.md` file through VS Code's own
   document and Undo history. Switch back to the standard editor at any time.
 - **Feels like VS Code.** Your font, theme, line numbers and selection colors carry over.
@@ -19,6 +23,8 @@ can type into, select and paste across. Your file stays plain Markdown the whole
 - [Getting started](#getting-started)
 - [Live preview](#live-preview)
 - [Tables](#tables)
+- [Find and replace](#find-and-replace)
+- [Multiple cursors](#multiple-cursors)
 - [Copy and paste](#copy-and-paste)
 - [Settings](#settings)
 - [Commands](#commands)
@@ -203,6 +209,78 @@ exactly on the cell or table it was made for. If the file changed underneath, fo
 another program, the edit is refused, the table reloads from the file, and a status message
 says why. Text outside the table is never touched.
 
+## Find and replace
+
+`Ctrl+F` opens find and `Ctrl+H` opens find and replace (`Cmd+F` and `Cmd+Option+F` on
+macOS). The widget works like the one in VS Code's standard editor: match case, whole word and
+regular expressions, a count of the matches, and the selected text or the word at the caret as
+the first query. It opens from a table cell as well as from text.
+
+| Key | Action |
+| --- | --- |
+| `Enter`, `F3` | Next match |
+| `Shift+Enter`, `Shift+F3` | Previous match |
+| `Alt+C`, `Alt+W`, `Alt+R` | Match case, whole word, regular expression |
+| `Enter` in the replace box | Replace the current match and move to the next |
+| `Ctrl+Alt+Enter` | Replace all |
+| `Escape` | Close, with the caret on the current match |
+
+On macOS, `Cmd+G` and `Shift+Cmd+G` move between matches and `Cmd+Enter` replaces all.
+
+- **Find searches the Markdown itself.** Text inside hidden syntax, such as the address of a
+  link, is found, and its source is revealed when it becomes the current match.
+- **Tables are searched cell by cell**, as the text a cell shows while you edit it. Pipes, the
+  row of dashes under the header and padding are not searched, and a match never spans two
+  cells.
+- **Replace all is one edit.** It covers text and table cells together, and one Undo takes it
+  back. Text written into a cell is encoded as if you had typed it: a `|` becomes `&#124;` and
+  a line break `<br>`, so a table always keeps its shape. The whole cell is written that way,
+  as it is when you edit a cell by hand: elsewhere in a changed cell, `<br/>` becomes `<br>`,
+  `&vert;` becomes `&#124;` and a non-breaking space becomes a space.
+- With a regular expression, a replacement can use `$1` to `$99` for groups, `$&` for the whole
+  match, `$$` for a dollar sign, and `\n`, `\t` and `\\` for a line break, a tab and a
+  backslash.
+- Up to 20,000 matches are counted; beyond that the count ends in `+`.
+- `Ctrl+Z` and `Ctrl+Y` in the find or the replace box undo and redo what you typed in that
+  box. To undo a replacement, press `Ctrl+Z` in the text.
+- Replace is unavailable in a read-only document.
+
+**Find** and **Replace** are also in the Command Palette, where you can give them keys of your
+own. Find in selection, preserve case and search history are not available.
+
+## Multiple cursors
+
+The multi-cursor commands of VS Code's standard editor work in text. Whatever you type, delete
+or paste happens at every cursor, as one edit that one Undo takes back.
+
+| Action | How |
+| --- | --- |
+| Select the word at the caret, then add its next occurrence | `Ctrl+D` |
+| Select every occurrence of the selection, or of the find query while find is open | `Ctrl+Shift+L`, or `Alt+Enter` in the find box |
+| Select every occurrence of the word at the caret | `Ctrl+F2` |
+| Add a cursor above or below | `Ctrl+Alt+Up`, `Ctrl+Alt+Down` |
+| Add a cursor with the mouse | `Alt+click` |
+| Select a column | `Shift+Alt+drag` |
+| Return to one cursor | `Escape` |
+
+On macOS use `Cmd` where the table says `Ctrl`. On Linux a cursor above or below is
+`Shift+Alt+Up` or `Shift+Alt+Down`. If `editor.multiCursorModifier` is `ctrlCmd`,
+`Ctrl+click` (`Cmd+click`) adds a cursor and `Alt+click` opens a link, as in VS Code.
+
+- A search for occurrences that starts from a caret matches the whole word with its case. One
+  that starts from selected text matches any occurrence, unless Match Case or Whole Word is on
+  in find.
+- **Cursors live in text, not in tables.** A table cell is edited on its own. The occurrence
+  commands leave out matches inside table cells and tell you how many there were; **Replace
+  All** changes those too. A cursor added above or below steps over a table.
+- Several selections are copied one to a line. Pasted text goes one line to each cursor when it
+  has as many lines as there are cursors, and whole to every cursor otherwise. With several
+  cursors, paste is plain text.
+- List continuation and the other conveniences of a single caret wait until there is one
+  cursor again; with several, `Enter` starts a plain new line at each.
+
+Undoing the last cursor (`Ctrl+U`) is not available.
+
 ## Copy and paste
 
 Copy and paste work across Markdown editors, spreadsheets and word processors. The right-click
@@ -265,6 +343,8 @@ Available from the Command Palette under **Markdown Live Editor**.
 | Toggle Task Checkbox at Caret | |
 | Focus Task Checkbox at Caret | |
 | Open Markdown Link at Caret | |
+| Find | `Ctrl+F` (`Cmd+F` on macOS) |
+| Replace | `Ctrl+H` (`Cmd+Option+F` on macOS) |
 | Undo, Redo | VS Code's own shortcuts |
 | Show Debug Log | |
 

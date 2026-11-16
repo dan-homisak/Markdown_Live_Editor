@@ -16,6 +16,8 @@ import {
   lineHighlightCompartment,
   lineWrappingCompartment,
 } from "../editor/liveEditorExtensions";
+import { openFind } from "../editor/find/find";
+import { FIND_WIDGET_CLASS } from "../editor/find/findWidget";
 import { createOccurrenceHighlight, occurrenceHighlightCompartment } from "../editor/occurrenceHighlight";
 import { roundedSelectionCompartment, roundedSelectionFacet, selectionWhitespaceCompartment, selectionWhitespaceFacet } from "../editor/documentSelectionDecorations";
 import {
@@ -252,9 +254,30 @@ try {
   performance.mark("mlrt:initialize");
   await codeHighlighting.initialize(window.__MLRT_CODE_HIGHLIGHTING__ ?? undefined);
   performance.mark("mlrt:highlighting-ready");
+  // The find widget lives beside the editor's root, not inside it: the
+  // pointer and clipboard handlers bound to that root never see it.
+  const overlayHost = document.createElement("div");
+  overlayHost.className = "mlrt-overlay-host";
+  document.body.append(overlayHost);
   const editorExtensions = createLiveEditorExtensions({
     ...editorOptions,
     markdownRendering: appliedMarkdownRenderingOptions,
+    find: {
+      mount: overlayHost,
+      isReadOnly: () => appliedMarkdownRenderingOptions.readOnly,
+      // The same condition the task actions wait for: no composition under
+      // way, and none still waiting to be sent to the host.
+      isInputSettled: () =>
+        !editorCompositionActive && pendingEditorComposition === null &&
+        deferredHostDocumentDuringEditorComposition === null &&
+        pendingEditorCommandsAfterComposition.length === 0,
+      announce: message => announceEditorStatus(document, message),
+    },
+    multiCursor: {
+      clickModifier: () => editorOptions.markdownLinks.multiCursorModifier,
+      mac: editorOptions.markdownLinks.isMac,
+      announce: message => announceEditorStatus(document, message),
+    },
   });
   const initialDocument = readInitialDocument();
   const doc = EditorState.create({ doc: initialDocument }).doc;
@@ -543,6 +566,11 @@ function handleHostMessage(event: MessageEvent<unknown>): void {
     }
     return;
   }
+  if (message && typeof message === "object" && "type" in message && message.type === "findCommand" &&
+      "action" in message && (message.action === "find" || message.action === "replace")) {
+    openFind(view, { replace: message.action === "replace" });
+    return;
+  }
   if (isHostMarkdownTaskCommandMessage(message)) {
     // The palette can own focus while this editor retains its intentional
     // source selection. Composition commands are rejected rather than queued.
@@ -754,6 +782,10 @@ function installEditorCommandBridge(root: HTMLElement): void {
   ownerDocument.addEventListener(
     "keydown",
     (event) => {
+      // The find widget handles Undo for its own boxes, from its own history.
+      if (isFindWidgetEvent(event)) {
+        return;
+      }
       const command = getUndoRedoCommand(event);
       if (!command) {
         return;
@@ -770,6 +802,15 @@ function installEditorCommandBridge(root: HTMLElement): void {
     "beforeinput",
     (event) => {
       if (!(event instanceof InputEvent)) {
+        return;
+      }
+      if (isFindWidgetEvent(event)) {
+        // The browser keeps one history for the whole page. Run from the find
+        // widget, its Undo could take back text typed into the document.
+        if (event.inputType === "historyUndo" || event.inputType === "historyRedo") {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
         return;
       }
 
@@ -823,6 +864,10 @@ function dispatchUndoRedo(command: EditorCommandMessage["command"]): void {
   // must not strand that command or let this newer command overtake it.
   flushPendingEditorCommandsAfterComposition();
   postEditorCommand(command);
+}
+
+function isFindWidgetEvent(event: Event): boolean {
+  return event.target instanceof Element && event.target.closest(`.${FIND_WIDGET_CLASS}`) !== null;
 }
 
 function getUndoRedoCommand(

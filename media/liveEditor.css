@@ -969,3 +969,262 @@ body:is(.vscode-high-contrast, .vscode-high-contrast-light) .mlrt-selection-fill
   .cm-content .mlrt-markdown-task-control[aria-checked="true"]::before { border-color: ButtonText; }
   .cm-content .mlrt-markdown-task-control:focus-visible { outline-color: Highlight; }
 }
+
+/* Find and replace.
+ *
+ * The widget follows the stock editor's find widget: the same place, the same
+ * controls in the same order, and the theme's own colors. Every color goes
+ * through a --mlrt-find-* token that defaults to the stock value, so a host
+ * without VS Code's theme variables can set the tokens instead. */
+.mlrt-overlay-host {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cm-editor {
+  --mlrt-find-match-fill: var(--vscode-editor-findMatchHighlightBackground, rgb(234 92 0 / 33%));
+  --mlrt-find-match-border: var(--vscode-editor-findMatchHighlightBorder, transparent);
+  --mlrt-find-current-fill: var(--vscode-editor-findMatchBackground, #515c6a);
+  --mlrt-find-current-border: var(--vscode-editor-findMatchBorder, transparent);
+}
+
+.cm-content .mlrt-find-match {
+  background-color: var(--mlrt-find-match-fill);
+  box-shadow: 0 0 0 1px var(--mlrt-find-match-border);
+}
+
+.cm-content .mlrt-find-current {
+  background-color: var(--mlrt-find-current-fill);
+  box-shadow: 0 0 0 1px var(--mlrt-find-current-border);
+}
+
+.mlrt-find-widget {
+  --mlrt-find-background: var(--vscode-editorWidget-background, #252526);
+  --mlrt-find-foreground: var(--vscode-editorWidget-foreground, #cccccc);
+  --mlrt-find-border: var(--vscode-editorWidget-border, var(--vscode-contrastBorder, transparent));
+  --mlrt-find-shadow: var(--vscode-widget-shadow, rgb(0 0 0 / 36%));
+  --mlrt-find-input-background: var(--vscode-input-background, #3c3c3c);
+  --mlrt-find-input-foreground: var(--vscode-input-foreground, #cccccc);
+  --mlrt-find-input-border: var(--vscode-input-border, transparent);
+  --mlrt-find-placeholder: var(--vscode-input-placeholderForeground, #a6a6a6);
+  --mlrt-find-focus: var(--vscode-focusBorder, #007fd4);
+  --mlrt-find-hover: var(--vscode-toolbar-hoverBackground, rgb(90 93 94 / 31%));
+  --mlrt-find-option-active-background: var(--vscode-inputOption-activeBackground, rgb(0 127 212 / 40%));
+  --mlrt-find-option-active-border: var(--vscode-inputOption-activeBorder, #007acc);
+  --mlrt-find-option-active-foreground: var(--vscode-inputOption-activeForeground, #ffffff);
+  --mlrt-find-error: var(--vscode-errorForeground, #f48771);
+  --mlrt-find-error-border: var(--vscode-inputValidation-errorBorder, #be1100);
+  position: absolute;
+  top: 0;
+  right: 28px;
+  display: flex;
+  box-sizing: border-box;
+  width: 419px;
+  max-width: calc(100% - 40px);
+  padding: 0 4px 0 0;
+  color: var(--mlrt-find-foreground);
+  background: var(--mlrt-find-background);
+  border: 1px solid var(--mlrt-find-border);
+  border-top: 0;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 0 8px 2px var(--mlrt-find-shadow);
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  line-height: 19px;
+  pointer-events: auto;
+}
+
+.mlrt-find-widget[hidden],
+.mlrt-find-row[hidden] {
+  display: none;
+}
+
+.mlrt-find-rows {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 0 4px;
+}
+
+.mlrt-find-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.mlrt-find-box {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 26px;
+  padding: 0 2px 0 0;
+  background: var(--mlrt-find-input-background);
+  border: 1px solid var(--mlrt-find-input-border);
+  border-radius: 2px;
+}
+
+.mlrt-find-box:focus-within {
+  border-color: var(--mlrt-find-focus);
+}
+
+.mlrt-find-box.mlrt-find-box-invalid {
+  border-color: var(--mlrt-find-error-border);
+}
+
+.mlrt-find-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px 0 6px;
+  color: var(--mlrt-find-input-foreground);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: inherit;
+}
+
+.mlrt-find-field::placeholder {
+  color: var(--mlrt-find-placeholder);
+}
+
+.mlrt-find-field:disabled {
+  opacity: 0.5;
+}
+
+.mlrt-find-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mlrt-find-button svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mlrt-find-button:hover:not(:disabled) {
+  background: var(--mlrt-find-hover);
+}
+
+.mlrt-find-button:focus-visible {
+  outline: 1px solid var(--mlrt-find-focus);
+  outline-offset: -1px;
+}
+
+.mlrt-find-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.mlrt-find-option {
+  width: 20px;
+  height: 20px;
+  color: var(--mlrt-find-input-foreground);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.mlrt-find-option-word {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.mlrt-find-option[aria-pressed="true"] {
+  color: var(--mlrt-find-option-active-foreground);
+  background: var(--mlrt-find-option-active-background);
+  border-color: var(--mlrt-find-option-active-border);
+}
+
+.mlrt-find-toggle {
+  align-self: stretch;
+  width: 18px;
+  height: auto;
+  margin: 0 2px 0 0;
+  border-radius: 0 0 0 3px;
+}
+
+.mlrt-find-count {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  min-width: 69px;
+  padding: 0 2px 0 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mlrt-find-count.mlrt-find-count-empty {
+  color: var(--mlrt-find-error);
+}
+
+.mlrt-find-replace-row {
+  /* The replace box ends where the find box does: under the counter and the
+     arrows sit the two replace buttons. */
+  padding-right: 71px;
+}
+
+@media (forced-colors: active) {
+  .cm-content .mlrt-find-match {
+    background-color: transparent;
+    outline: 1px dotted CanvasText;
+  }
+  .cm-content .mlrt-find-current {
+    outline: 2px solid Highlight;
+  }
+  .mlrt-find-widget {
+    border-color: CanvasText;
+  }
+  .mlrt-find-option[aria-pressed="true"] {
+    outline: 1px solid Highlight;
+  }
+}
+
+/* The border of a find match inside a table cell: one box per match, as for an
+   occurrence, so a theme that marks matches with a border alone still shows them. */
+.mlrt-table-find-rings {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mlrt-table-find-ring {
+  position: absolute;
+  box-shadow: 0 0 0 1px var(--mlrt-find-match-border);
+  pointer-events: none;
+}
+
+.mlrt-table-find-ring-current {
+  box-shadow: 0 0 0 1px var(--mlrt-find-current-border);
+}
+
+@media (forced-colors: active) {
+  .mlrt-table-find-ring {
+    outline: 1px dotted CanvasText;
+  }
+  .mlrt-table-find-ring-current {
+    outline: 2px solid Highlight;
+  }
+}

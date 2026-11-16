@@ -31,6 +31,8 @@ import { createTableCellFocusClassSync } from "./tableCellFocus";
 import { createTableDecorations } from "./tableDecorations";
 import { createTableHeightEstimateMetrics } from "./table/tableHeightEstimate";
 import { createOccurrenceHighlight, occurrenceHighlightCompartment } from "./occurrenceHighlight";
+import { createFindExtension, FindConfig } from "./find/find";
+import { createMultiCursorExtension, MultiCursorConfig } from "./multiCursor";
 import {
   createTableNavigationKeyTracker,
   tableNavigationModifierCompartment,
@@ -48,6 +50,9 @@ export interface LiveEditorOptions {
   tableNavigationModifierKey: TableNavigationModifierKey;
   tableShortcuts?: TableShortcuts;
   markdownRendering?: MarkdownRenderingOptions;
+  /** Find and replace; left out, the editor has none. */
+  find?: FindConfig;
+  multiCursor?: MultiCursorConfig;
 }
 
 export const lineWrappingCompartment = new Compartment();
@@ -78,6 +83,7 @@ export function createLiveEditorExtensions(
     // Keep CodeMirror history mapping available; the webview command bridge
     // routes undo/redo through the authoritative VS Code document history.
     history(),
+    createMultiCursorExtension(options.multiCursor),
     createEditorTheme(),
     lineHighlightCompartment.of(createLineHighlightAttributes(options.lineHighlight ?? false)),
     occurrenceHighlightCompartment.of(createOccurrenceHighlight(options.occurrenceHighlight ?? true)),
@@ -107,5 +113,6 @@ export function createLiveEditorExtensions(
         tableShortcutsFacet.of(options.tableShortcuts ?? DEFAULT_TABLE_SHORTCUTS)],
     ),
     createTableDecorations(tableHeightEstimateMetrics),
+    options.find ? createFindExtension(options.find) : [],
   ];
 }

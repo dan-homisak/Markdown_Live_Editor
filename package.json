@@ -2,7 +2,7 @@
   "name": "markdown-live-render-tables",
   "displayName": "Markdown Live Editor",
   "description": "Obsidian-style live preview and spreadsheet-like table editing for Markdown files in VS Code.",
-  "version": "0.1.238",
+  "version": "0.1.241",
   "publisher": "dan-homisak",
   "license": "MIT",
   "repository": {
@@ -58,6 +58,18 @@
         "title": "Focus Task Checkbox at Caret",
         "category": "Markdown Live Editor",
         "enablement": "activeCustomEditorId == markdownLiveRenderTables.liveEditor && config.markdownLiveRenderTables.markdownRendering.enabled"
+      },
+      {
+        "command": "markdownLiveRenderTables.find",
+        "title": "Find",
+        "category": "Markdown Live Editor",
+        "enablement": "activeCustomEditorId == markdownLiveRenderTables.liveEditor"
+      },
+      {
+        "command": "markdownLiveRenderTables.replace",
+        "title": "Replace",
+        "category": "Markdown Live Editor",
+        "enablement": "activeCustomEditorId == markdownLiveRenderTables.liveEditor"
       },
       {
         "command": "markdownLiveRenderTables.undo",
@@ -220,10 +232,11 @@
     "test:host:toggle": "npm run compile && node scripts/edh-toggle-check.mjs",
     "test:host:sync": "npm run compile && node scripts/edh-save-sync-check.mjs",
     "test:host:surface": "npm run compile && node scripts/edh-editing-surface-check.mjs",
+    "test:host:find": "npm run compile && node scripts/edh-find-check.mjs",
     "test:agent": "node --test .claude/hooks/hooks.test.mjs scripts/check-docs.test.mjs scripts/check-privacy.test.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "check:privacy": "node scripts/check-privacy.mjs",
-    "test:all": "npm test && npm run check:docs && npm run check:privacy && npm run test:agent && node scripts/edh-visual-check.mjs && node scripts/edh-structure-controls-check.mjs && node scripts/edh-toggle-check.mjs && node scripts/edh-save-sync-check.mjs && node scripts/edh-editing-surface-check.mjs && node scripts/edh-markdown-rendering-check.mjs && node scripts/edh-markdown-release-check.mjs",
+    "test:all": "npm test && npm run check:docs && npm run check:privacy && npm run test:agent && node scripts/edh-visual-check.mjs && node scripts/edh-structure-controls-check.mjs && node scripts/edh-toggle-check.mjs && node scripts/edh-save-sync-check.mjs && node scripts/edh-editing-surface-check.mjs && node scripts/edh-find-check.mjs && node scripts/edh-markdown-rendering-check.mjs && node scripts/edh-markdown-release-check.mjs",
     "harness": "npm run compile && node scripts/render-live-editor-harness.mjs",
     "fixtures:manifest": "node scripts/update-fixture-manifest.mjs",
     "fixtures:gutter": "node scripts/generate-gutter-stress-fixture.mjs && node scripts/update-fixture-manifest.mjs",

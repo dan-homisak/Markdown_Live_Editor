@@ -102,7 +102,7 @@ export function selectVisibleTableBoundary(
  */
 export function createTableBoundaryInputHandler(): Extension {
   return EditorView.inputHandler.of((view, from, to, text) => {
-    if (from !== to || text.length === 0) {
+    if (from !== to || text.length === 0 || view.state.selection.ranges.length > 1) {
       return false;
     }
 

@@ -1,6 +1,6 @@
 # Decision register
 
-Updated: 2026-11-13. **Accepted** means established for this project. **Proposed** means
+Updated: 2026-11-15. **Accepted** means established for this project. **Proposed** means
 recommended for review; it is not permission to build, change a default or delete anything.
 **Open** questions wait for an answer. Implementation status belongs in [PROGRESS](PROGRESS.md).
 
@@ -48,6 +48,9 @@ An answered question keeps its row, with the outcome in its Notes.
 | A25 | Material that is no longer needed is removed from the repository's history as well as from the working tree | 2026-11-13. Carried out the same day for `qa/` and `debug.log` only, after the scope was confirmed: milestone 4 in [PROGRESS](PROGRESS.md). The dated reports were kept |
 | A26 | Eight defects reported against version 0.1.228 are to be corrected: the occurrence highlight in a table cell flickers while typing and looks different from the one in prose; line numbers can be selected; a context menu shows a focus ring; text pasted from a Markdown editor or from a code editor arrives damaged; the caret lands in a task's hidden marker; the editor can stay blank after the window was minimized | 2026-11-13. Seven are corrected and one, the last, is not reproduced: milestone 6 in [PROGRESS](PROGRESS.md). How each was corrected is an agent's judgment, recorded there. Two of those judgments change documented behavior: an occurrence in prose lost its rounded corners so that both places look the same, and Automatic paste takes the plain text unchanged when it is the source of the rich content |
 | A27 | Table column resizing while typing can be delayed by a setting | 2026-11-13. `tableLayout.typingResizeDelay`, in milliseconds. The name, the range of 0 to 5000 and the default of 0, which keeps the behavior as it was, are an agent's choices; the default is Q11 |
+| A28 | The live editor gets find and replace like the stock editor's: match case, whole word, regular expression, a match count, next and previous, replace and replace all. Find is local and exact and searches the Markdown source, so text inside hidden syntax is found and revealed when it becomes the current match. In a table each cell is searched on its own, as the text it shows while edited; pipes, the delimiter row and padding are not searched. Keys are handled by the editor while it has focus; the commands are also in the Command Palette. No dependency is added | 2026-11-15. Carried out the same day: milestone 7 in [PROGRESS](PROGRESS.md). Plan: [find and replace](plans/2026-11-15-find-and-replace.md). Not included: find in selection, preserve case, search history, scrollbar marks, the `editor.find.*` settings |
+| A29 | The live editor gets the stock editor's multiple cursors in prose, with the stock keys: add the next occurrence, select all occurrences, change all occurrences, cursors above and below, mouse cursors and column selection. A table cell is its own editing host and holds no editor cursor: occurrences in cells are reported, and Replace All changes them | 2026-11-15. Carried out the same day, steps 6 to 8 of the same plan. The CodeMirror packages already bundled provide the commands; no dependency was added. Undoing the last cursor is not included |
+| A30 | The editor is to be reusable outside VS Code. New editor code has no VS Code API and no import from the webview entry file, exposes its entry points as functions, scopes highlight names to the editor instance, and takes its colors from the project's own tokens, which default to the stock values | 2026-11-15. Applies to new code from this date; what existing code would need is P11 |
 
 ## Not selected
 
@@ -62,6 +65,8 @@ An answered question keeps its row, with the outcome in its Notes.
 | Rounded corners on an occurrence highlight | A26: a cell occurrence is filled through the CSS Custom Highlight API, which cannot round a corner, and both places must look the same. Stock VS Code's are square as well | Read from the stock editor's stylesheet, 2026-11-13 |
 | Converting every rich paste to Markdown | A26: when the plain text is the source, converting loses the author's syntax or escapes it | The cases are listed in the [README](../README.md#copy-and-paste) |
 | Drawing a cell occurrence's fill with positioned boxes | A box above the text would cover it under an opaque theme color, and a box below a cell cannot show through a header's or a focused cell's background | 2026-11-13. Only the border, which lies outside the text, is a positioned box |
+| An external search server for find inside a document | A28: such a server is a separate process the package cannot carry and the webview policy cannot reach (A11); it returns ranked documents with snippets, not every exact occurrence with its offsets; it matches tokens with case folding and typo tolerance, with no regular expressions; and it searches an index, not the unsaved text. It fits search across files, which is outside this editor | Read from one such server's documentation, 2026-11-15 |
+| `@codemirror/search` | A28: not installed, and only its matcher would be used. Its panel does not look like the stock widget, its highlighter cannot paint inside table widgets, and its replace commands write into source the table guard refuses | 2026-11-15 |
 
 ## Proposed
 
@@ -80,6 +85,7 @@ accepted decision.
 | P10 | Check quote guides, callout accents and code token colors by measuring pixels, replacing three checks that were removed because they asserted stylesheet internals | Follows from A24. See "Removed checks" in [TESTING](TESTING.md) |
 | P08 | Group `scripts/` by purpose (build, host checks, benchmarks) and rename the case modules that are named for when they were written | Not done in the cleanup pass: every script derives the repository root from its own location, and the host checks were the safety net for that pass |
 | P09 | Declare `undici` as a development dependency | Done 2026-11-13 under A20: every host check imports it, and it was present only through another package's dependencies. Pinned to the version already installed (7.28.0, MIT, no install script); it is not bundled or shipped |
+| P11 | Prepare the existing editor for reuse outside VS Code (A30): a host interface in place of the messaging that `src/webview/liveEditor.ts` mixes with editor wiring, so another host can supply the document, Undo, link opening, settings and clipboard identity; a theme adapter for the stock theme variables the styles read; several editors on one page, where the entry file now keeps one editor in module state; and a library build beside the single webview bundle | Not started. Found 2026-11-15 while planning A28. No part of it is needed for A28 or A29 |
 
 ## Open questions
 

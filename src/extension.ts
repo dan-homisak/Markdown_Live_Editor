@@ -89,6 +89,8 @@ export function activate(context: vscode.ExtensionContext): void {
       "markdownLiveRenderTables.openMarkdownLinkAtCaret",
       () => provider.runMarkdownLinkCommand(),
     ),
+    ...(["find", "replace"] as const).map(action => vscode.commands.registerCommand(
+      `markdownLiveRenderTables.${action}`, () => provider.runFindCommand(action))),
   );
 }
 
@@ -200,6 +202,15 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
     const panel = this.panelsByDocument.get(input.uri.toString());
     if (!panel?.active) return;
     await panel.webview.postMessage({ type: "historyCommand", command });
+  }
+
+  /** Find and replace run in the webview; the palette only asks for the widget. */
+  public async runFindCommand(action: "find" | "replace"): Promise<void> {
+    const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+    if (!(input instanceof vscode.TabInputCustom) || input.viewType !== LIVE_EDITOR_VIEW_TYPE) return;
+    const panel = this.panelsByDocument.get(input.uri.toString());
+    if (!panel?.active) return;
+    await panel.webview.postMessage({ type: "findCommand", action });
   }
 
   public async runMarkdownLinkCommand(): Promise<void> {

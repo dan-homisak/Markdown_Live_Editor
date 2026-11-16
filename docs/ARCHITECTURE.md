@@ -1,6 +1,6 @@
 # Architecture
 
-Updated: 2026-11-13. A map for finding code and for knowing which side owns what. When it
+Updated: 2026-11-16. A map for finding code and for knowing which side owns what. When it
 disagrees with the code, the code is right and this file needs fixing. Behavior is described in
 the [README](../README.md) and the [design spec](DESIGN_SPEC.md).
 
@@ -46,8 +46,10 @@ src/extension.ts  ->  dist/extension.js        src/webview/liveEditor.ts  ->  me
 | `src/editor/liveEditorExtensions.ts` | Assembles the CodeMirror extension set; the best single file for seeing what is installed and in which order |
 | `src/editor/table/` | Rendered table widgets: cell editing, range and multi-selection, clipboard, structure controls, layout, source writes |
 | `src/editor/markdown/` | Live Preview: syntax classification, concealment and reveal, blocks, lists, links, properties, code highlighting in the webview |
-| `src/editor/` (top level) | Document clipboard and selection painting, geometry sync, theme, table boundary navigation, occurrence highlight |
-| `src/shared/` | Logic used by both sides and by tests: the table parser (`src/shared/tableModel.ts`), table source protection, change validation and mapping, clipboard model, what Automatic paste takes (`src/shared/clipboardPasteSource.ts`), link validation, column sizing and its typing delay (`src/shared/tableResizeDelay.ts`), key bindings |
+| `src/editor/` (top level) | Document clipboard and selection painting, geometry sync, theme, table boundary navigation, occurrence highlight, and what cell highlights share (`src/editor/cellHighlight.ts`) |
+| `src/editor/find/` | Find and replace: the query state, the controller that searches, highlights, navigates and replaces, and the widget |
+| `src/editor/multiCursor.ts` | Multiple cursors: turning them on, the keys that act while several exist, the occurrence commands, mouse cursors and column selection |
+| `src/shared/` | Logic used by both sides and by tests: the table parser (`src/shared/tableModel.ts`), table source protection, change validation and mapping, clipboard model, what Automatic paste takes (`src/shared/clipboardPasteSource.ts`), link validation, column sizing and its typing delay (`src/shared/tableResizeDelay.ts`), key bindings, the find model (`src/shared/findModel.ts`), and how several selections are copied and pasted (`src/shared/multiCursorModel.ts`) |
 | `src/highlighting/` | Host-side grammar and theme collection for code blocks |
 | `src/test/` | Node tests, one file per area, run with plain `node` after compilation |
 | `media/` | Stylesheets and the bundled webview script. `media/liveEditor.js` is generated and tracked |
@@ -66,6 +68,7 @@ string on both sides before changing it.
 | `captureViewState` | Ask for scroll and caret state before the editor is swapped |
 | `historyCommand` | Undo or redo from the title-bar buttons |
 | `markdownTaskCommand`, `markdownLinkCommand` | Command Palette actions aimed at the caret |
+| `findCommand` | Open find, or find and replace, from the Command Palette |
 | `markdownLinkResult` | Outcome of a link request |
 | `codeHighlightingConfiguration`, `codeHighlighting`, `refreshCodeHighlighting` | Grammar and theme data, tokens, and invalidation |
 
@@ -113,7 +116,8 @@ touching anything near it.
    began on rolled-back text is sent as it is, and the host rejects it.
 
 Text is normalized to LF between the two sides (`normalizeDocumentText`) and mapped back to the
-document's own line endings on apply (`mapNormalizedDocumentChangesToHost`).
+document's own line endings on apply (`mapNormalizedDocumentChangesToHost`), in one pass over the
+text however many changes an edit carries: a replace all or many cursors send thousands.
 
 Undo and Redo run in the host against the real document. CodeMirror's own history is installed
 only so positions map correctly; it is not a second Undo stack.
@@ -156,9 +160,55 @@ CodeMirror owns a pointer selection that starts in its content. Two places adjus
 prose the matches are mark decorations. Inside table cells the DOM must not change under the
 caret, so the fill is painted through the CSS Custom Highlight API and the border by one
 positioned box per match in a layer over the table; that layer exists only while the theme draws
-a border. The query for a focused cell is read from the cell itself, and cells are repainted in a
+a border. Find paints its matches in cells the same way; the shared parts are in
+`src/editor/cellHighlight.ts`. The query for a focused cell is read from the cell itself, and cells are repainted in a
 microtask after the change that moved them, so the highlight is right in the frame the text
 changes.
+
+## Find and replace
+
+Decision A28; behavior in section 11 of the [design spec](DESIGN_SPEC.md).
+
+- `src/shared/findModel.ts` is pure. It compiles a query, finds matches in a string, plans the
+  search domain of a document (prose segments between tables, then cells in row order), scans
+  it in pieces that can pause, and plans a replacement: prose changes, and one edit per changed
+  cell, each proved to keep its row's cells.
+- `src/editor/find/findState.ts` keeps what was asked (query, options, replacement, whether the
+  widget is open) in the editor state. What was found lives in the controller, tied to one
+  exact document and one compiled query.
+- `src/editor/find/findController.ts` is the view plugin. It searches while the widget is
+  open, paints matches on the visible lines and in the mounted cells, moves the current match,
+  and writes replacements. A replacement that touches prose and tables is two transactions
+  dispatched as one editor update, so the edit path sees one change.
+- `src/editor/find/findWidget.ts` is DOM only. The webview entry file mounts it in an element
+  beside the editor's root, so the pointer and clipboard handlers bound to that root never see
+  it. The Undo listeners there leave the widget's key presses to the widget and cancel the page's
+  own Undo when it starts there; the widget keeps a history for each of its boxes.
+- `src/editor/find/findReplace.ts` turns a replace plan into its transactions without a view,
+  so what the table guard makes of them is unit tested.
+- Keys are handled by a capture listener on the document, scoped to events from this editor or
+  its widget. That is what lets a table cell, which CodeMirror does not hear, open find.
+
+Nothing in `src/editor/find/` or `src/shared/findModel.ts` refers to VS Code (decision A30).
+The host's part is two commands that post `findCommand`.
+
+## Multiple cursors
+
+Decision A29; behavior in section 12 of the [design spec](DESIGN_SPEC.md).
+
+- `src/editor/multiCursor.ts` allows several selections and adds two keymaps. One, at the
+  highest precedence, binds the arrow keys, Home, End, Backspace, Delete, Enter and Escape to
+  CodeMirror's commands, and each binding declines unless several cursors exist; so with one
+  cursor every existing key path is untouched. The other holds the commands that create
+  cursors. The occurrence commands are planned by pure functions over the editor state, using
+  the find model, and say how many matches lay in table cells.
+- `tableSafeSelection` in `src/shared/tableSourceProtection.ts` is what the selection guard
+  dispatches: among several cursors it removes any caret in table source; a lone caret is moved
+  beside its table as before.
+- `src/editor/documentClipboard.ts` branches at the top of copy, cut and paste when several
+  selections exist and handles them as plain text; everything below those branches still reads
+  one selection.
+- Selection painting and the reveal rules already walked every range.
 
 ## Live Preview
 

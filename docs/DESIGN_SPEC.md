@@ -3,6 +3,7 @@
 - Status: Obsidian-style Live Preview is the required editing model. It replaced an earlier readable-source design.
 - Product direction: most of an Obsidian-style editor, with this project's existing VS Code and table behavior.
 - Scope: contextual syntax concealment, YAML properties, callouts, code blocks, Obsidian-style tasks, smart list editing, and actionable Markdown links and wikilinks.
+- Revised 2026-11-15 for find and replace (section 11) and multiple cursors (section 12).
 - Revised 2026-11-13 to describe the shipped editor where this document had fallen behind it: heading markers, properties, fence rows, code highlighting, footnotes and generated contents; and again the same day for pointer placement beside task checkboxes. User-visible behavior is described in the [README](../README.md).
 - Evidence: the test plan and the current state of each suite are in [TESTING](TESTING.md). Dated reports in `docs/reports/` describe earlier versions; the performance measurements there belong to version 0.1.174 and do not validate the current layout.
 
@@ -154,3 +155,45 @@ Before finishing a change, run the compile/type check and relevant tests, resolv
 The product direction is an Obsidian-style live editor, with this project's VS Code integration and spreadsheet-like table behavior. New Markdown features should render at rest and reveal source for editing wherever practical. Permanently coloring raw syntax is not an acceptable substitute for a requested live-rendered feature.
 
 This revision does not promise a vault graph, note-creation/autocomplete system, backlinks, embedded media/notes, math/diagram execution, arbitrary HTML rendering, or all Obsidian plugins. Those need explicit behavior and validation when added. They must inherit source ownership, protected tables, host history, safe links, clipboard, recovery, and contextual reveal.
+
+## 11. Find and replace
+
+Find and replace follow the stock editor's widget in place, controls, wording and keys (decision A28). They are the editor's own: nothing is sent anywhere, and no dependency provides them.
+
+**What is searched.** The Markdown source, because the document is the only content model. Prose is searched as written, so a match can lie inside syntax that is concealed at rest. A recognized table is searched one cell at a time, as the text the cell shows while it is edited: `<br>` is a line break and `&#124;` a pipe. Pipes, the delimiter row and padding are structure and are not searched. No match spans two cells or a table boundary; the line break before a table and the one that ends it belong to the table.
+
+**Matching.** A query compiles to one regular expression: literal text is escaped, case is ignored unless Match Case is on, and `^` and `$` match at line boundaries. Whole Word accepts a match unless a word character sits on both sides of one of its edges, the stock editor's rule. An invalid pattern is reported in the widget and searches nothing. Empty matches are found in prose only.
+
+**The current match.** In prose it is the editor's selection, so the reveal rules of section 3 show concealed syntax around it without the editor holding the focus. A current match in a table cell is painted in the cell and leaves the editor's selection alone; when the widget gives up the focus, the cell takes the caret with the match selected. Opening find from a table cell searches on from that cell.
+
+**Highlights.** Matches are highlighted only where they can be seen: on the visible lines of prose, as marks that change no layout, and in the mounted table cells, through the CSS Custom Highlight API with a positioned box for the border, like an occurrence (decision A26). The names a view registers its cell highlights under are its own.
+
+**Replacing.** A replacement is an ordinary source edit through the existing queue, validation and host Undo. One cell is written as a declared cell edit; several cells as a declared table edit. A cell's new text is encoded as typed text is, so a pipe or a line break in a replacement cannot change a row's cells; a plan that would is refused before anything is written. Replace All across prose and tables is two transactions in one editor update: one change message, one host edit and one Undo step, with the table change filter and the host's validation unchanged. Replace is refused on a read-only document and while text is being composed. A cell that a replacement changes is written whole, the way an edit typed into it is: its other text is encoded again too.
+
+**The widget's own input.** Undo and Redo in the find and replace boxes come from a history the widget keeps for each box. The page's own Undo is cancelled there, because it is shared by the whole page and could take back text typed into the document. A key press that belongs to an input method is not a command. Find moves no caret and writes nothing while text is being composed, in the editor or in a table cell, or has not yet reached the host. Inside a table cell, the table navigation key and the table shortcuts keep their keys as configured, whatever they are.
+
+**Bounded work.** The whole document is searched only while the widget is open and only when the query or the document changes: at once for a query, after a short pause for an edit, in slices when one slice is not enough. At most 20,000 matches are kept. Caret movement and scrolling never search.
+
+**Independence.** The find code depends on the editor, the table model and the DOM, not on the host application (decision A30). The host supplies the element the widget is mounted in and may open find through an exported function.
+
+Not provided: find in selection, preserve case, search history, marks on the scrollbar, and the stock editor's find settings. The stock editor moves the first lines down while its widget is open at the top of a document; this editor does not, so the widget covers the right end of the first two lines there.
+
+## 12. Multiple cursors
+
+The stock editor's multiple cursors work in prose, with its keys (decision A29): add the next occurrence, select all occurrences of the find match, change all occurrences, add a cursor above or below, add a cursor with the mouse, and select a column.
+
+**One caret stays as it was.** With a single cursor nothing in this section acts: the arrow keys, Backspace and Enter remain with the browser and with the list, table boundary and properties handling of sections 4 and 5. Only while several cursors exist are those keys bound to commands that move or edit every cursor; the browser knows one caret. Escape returns to the main cursor. A completion list that is open keeps the arrows, Enter and Escape.
+
+**One edit.** Typing, deleting and pasting at several cursors is one source transaction, one change to the host and one Undo step.
+
+**Tables hold no cursor.** A rendered table cell is its own editing surface. The table source guard removes a caret that lands in table source and leaves the other cursors where they are; a lone caret is still moved beside its table. A cursor added above or below steps over a table. Among several cursors, a caret at the end of a document that ends in a table is removed as well: text typed there is refused unless it starts a new line, and that refusal would take the typing at every cursor with it. The occurrence commands select matches in prose only, count the matches inside table cells, and say so; Replace All (section 11) changes those. An edit that would write into table source without declaring it is refused as a whole, as before.
+
+**Occurrences.** A search that starts from a caret first selects the word under it and then matches whole words with the same case. One that starts from selected text matches any occurrence and follows the Match Case and Whole Word options of find. With the find widget open, selecting all occurrences uses its query, regular expressions included. At most 10,000 cursors are created.
+
+**Mouse.** The modifier that adds a cursor is the one the host's multi-cursor setting names, Alt by default; the other modifier keeps opening links (section 6). Shift+Alt+drag selects a column.
+
+**Clipboard.** Several selections are copied one to a line as plain text. Pasted plain text goes one line to each selection when it has exactly as many lines as there are selections, otherwise whole to each. The table-aware and rich clipboard paths apply to a single selection only.
+
+**Reveal.** The rules of section 3 already consider every range: each caret and each selection reveals the syntax around it.
+
+Not provided: undoing the last cursor, and cursors inside table cells.

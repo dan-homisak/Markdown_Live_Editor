@@ -219,6 +219,52 @@ export function setCellSelectionOffsets(
   range.detach();
 }
 
+/**
+ * The DOM range that shows `from`-`to` of the cell's text, or null when the
+ * cell cannot place it. In a cell that shows its rendered preview, text that
+ * the preview hides has no place: a range inside it comes back collapsed.
+ */
+export function cellRangeForOffsets(cell: HTMLElement, from: number, to: number): Range | null {
+  const preview = cell.dataset.markdownPreview === "true";
+  const start = preview ? cellPreviewPosition(cell, from, true) : getCellTextPosition(cell, from);
+  const end = preview ? cellPreviewPosition(cell, to, false) : getCellTextPosition(cell, to);
+  if (!start || !end) return null;
+  const range = cell.ownerDocument.createRange();
+  range.setStart(start.node, start.offset);
+  range.setEnd(end.node, end.offset);
+  return range;
+}
+
+/**
+ * Where a source offset falls among the text nodes of a rendered preview. An
+ * offset inside hidden syntax resolves to the nearest shown text on the side
+ * the range grows from: the next run for a start, the previous one for an end.
+ */
+function cellPreviewPosition(
+  cell: HTMLElement,
+  offset: number,
+  isStart: boolean,
+): { node: Text; offset: number } | null {
+  const walker = cell.ownerDocument.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+  let previous: Text | null = null;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!(node instanceof Text)) continue;
+    const range = previewSourceRanges.get(node);
+    if (!range) continue;
+    if (offset < range.from) {
+      // Hidden text before this run.
+      return isStart || !previous ? { node, offset: 0 } : { node: previous, offset: previous.data.length };
+    }
+    if (offset <= range.to && (offset < range.to || !isStart)) {
+      const exact = node.data.length === range.to - range.from;
+      // A run that replaces its source with other glyphs has only two places.
+      return { node, offset: exact ? offset - range.from : offset === range.from ? 0 : node.data.length };
+    }
+    previous = node;
+  }
+  return previous ? { node: previous, offset: previous.data.length } : null;
+}
+
 /** Focuses the cell and collapses the selection to its start. */
 export function focusCellAtStart(cell: HTMLElement): void {
   cell.focus();

@@ -28,6 +28,7 @@ import {
 } from "../shared/tableModel";
 import { allowTableSourceChange } from "../shared/tableSourceProtection";
 import { escapeMarkdownText } from "../shared/markdownEscape";
+import { distributePaste, joinCopiedSelections } from "../shared/multiCursorModel";
 import { HtmlClipboardStructure, plainTextPasteReason } from "../shared/clipboardPasteSource";
 import { deleteBetweenTables } from "./tableBoundaryNavigation";
 import { planTableDeletion, TableDeletionBehavior } from "../shared/tableDeletion";
@@ -180,12 +181,93 @@ export function installDocumentClipboard(
   let mixedDragDocument: EditorView["state"]["doc"] | null = null;
   let documentClipboardDisposed = false;
 
+  /**
+   * Several selections at once are plain text, as in the stock editor: copied
+   * one to a line, and pasted one line to each selection when the line count
+   * matches. The table-aware and rich paths below read a single selection.
+   */
+  const copySeveralSelections = (event: ClipboardEvent, cut: boolean): boolean => {
+    const selection = view.state.selection;
+    if (selection.ranges.length < 2) {
+      return false;
+    }
+    const selected = selection.ranges.filter((range) => !range.empty);
+    // A mode asked for from the menu applies to one selection; it must not
+    // wait here for the next copy.
+    requestedDocumentCopyMode = null;
+    if (selected.length === 0 || !event.clipboardData) {
+      return true;
+    }
+    event.preventDefault();
+    event.clipboardData.setData(
+      "text/plain",
+      joinCopiedSelections(selected.map((range) => view.state.sliceDoc(range.from, range.to))),
+    );
+    clearPendingClipboardCut(doc);
+    setPendingCutToken(doc, undefined);
+    view.dom.classList.remove("mlrt-document-cut-pending");
+    const before = view.state.doc;
+    if (cut && !view.state.readOnly) {
+      view.dispatch({
+        ...view.state.changeByRange((range) => ({
+          changes: { from: range.from, to: range.to },
+          range: EditorSelection.cursor(range.from),
+        })),
+        userEvent: "delete.cut",
+        scrollIntoView: true,
+      });
+    }
+    // A selection that reaches into a table makes the table guard refuse the
+    // whole edit; the text was copied all the same.
+    const removed = view.state.doc !== before;
+    announce(doc, `${removed ? "Cut" : "Copied"} ${selected.length} selections.`);
+    return true;
+  };
+
+  const pasteIntoSeveralSelections = (event: ClipboardEvent): boolean => {
+    const selection = view.state.selection;
+    if (selection.ranges.length < 2) {
+      return false;
+    }
+    const text = event.clipboardData?.getData("text/plain") ?? "";
+    event.preventDefault();
+    event.stopPropagation();
+    armedDocumentPasteMode = null;
+    if (text.length === 0 || view.state.readOnly) {
+      return true;
+    }
+    const parts = distributePaste(text, selection.ranges.length);
+    const before = view.state.doc;
+    let index = 0;
+    view.dispatch({
+      ...view.state.changeByRange((range) => {
+        const insert = parts[index++] ?? "";
+        return {
+          changes: { from: range.from, to: range.to, insert },
+          range: EditorSelection.cursor(range.from + insert.length),
+        };
+      }),
+      userEvent: "input.paste",
+      scrollIntoView: true,
+    });
+    announce(
+      doc,
+      view.state.doc === before
+        ? "Nothing was pasted: a selection reaches into a table."
+        : `Pasted into ${selection.ranges.length} selections.`,
+    );
+    return true;
+  };
+
   const onCopy = (event: ClipboardEvent): void => {
     if (
       event.defaultPrevented ||
       getTableRangeSelection(doc) ||
       findCell(event.target)
     ) {
+      return;
+    }
+    if (copySeveralSelections(event, false)) {
       return;
     }
     const projection = getDocumentSelectionProjection(
@@ -223,6 +305,9 @@ export function installDocumentClipboard(
       getTableRangeSelection(doc) ||
       findCell(event.target)
     ) {
+      return;
+    }
+    if (copySeveralSelections(event, true)) {
       return;
     }
     const projection = getDocumentSelectionProjection(
@@ -296,6 +381,9 @@ export function installDocumentClipboard(
     ) {
       return;
     }
+    if (pasteIntoSeveralSelections(event)) {
+      return;
+    }
     const mode = armedDocumentPasteMode ?? readPasteMode(doc);
     armedDocumentPasteMode = null;
     const data = readTransfer(event.clipboardData);
@@ -329,6 +417,10 @@ export function installDocumentClipboard(
       !event.ctrlKey &&
       !event.altKey
     ) {
+      // Several cursors delete through their own commands; what follows reads one selection.
+      if (view.state.selection.ranges.length > 1) {
+        return;
+      }
       if (!event.defaultPrevented && deleteBetweenTables(view, event.key === "Backspace" ? -1 : 1)) {
         event.preventDefault();
         event.stopPropagation();

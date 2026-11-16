@@ -53,16 +53,56 @@ export function lineCharacterAtNormalizedOffset(
   };
 }
 
+/** Where every line of LF-normalized text starts. */
+function normalizedLineStarts(normalizedText: string): number[] {
+  const starts = [0];
+  for (
+    let index = normalizedText.indexOf("\n");
+    index !== -1;
+    index = normalizedText.indexOf("\n", index + 1)
+  ) {
+    starts.push(index + 1);
+  }
+  return starts;
+}
+
+/**
+ * The same answer as `lineCharacterAtNormalizedOffset`, found by searching
+ * the line starts. One edit can carry thousands of changes (a replace all,
+ * typing at many cursors); reading the text from its start for each of them
+ * blocked the extension host for seconds.
+ */
+function lineCharacterFromStarts(
+  starts: readonly number[],
+  length: number,
+  offset: number,
+): LineCharacter {
+  const clampedOffset = Math.min(Math.max(0, offset), length);
+  let low = 0;
+  let high = starts.length - 1;
+  while (low < high) {
+    const middle = (low + high + 1) >> 1;
+    if (starts[middle] <= clampedOffset) {
+      low = middle;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return { line: low, character: clampedOffset - starts[low] };
+}
+
 export function mapNormalizedDocumentChangesToHost(
   hostText: string,
   changes: readonly DocumentChangeLike[],
   hostLineSeparator: "\r\n" | "\n" = getHostLineSeparator(hostText),
 ): MappedDocumentChange[] {
   const normalizedHostText = normalizeDocumentText(hostText);
+  const starts = normalizedLineStarts(normalizedHostText);
+  const length = normalizedHostText.length;
 
   return changes.map((change) => ({
-    from: lineCharacterAtNormalizedOffset(normalizedHostText, change.from),
-    to: lineCharacterAtNormalizedOffset(normalizedHostText, change.to),
+    from: lineCharacterFromStarts(starts, length, change.from),
+    to: lineCharacterFromStarts(starts, length, change.to),
     text: normalizeChangeTextLineEndings(change.text, hostLineSeparator),
   }));
 }

@@ -212,8 +212,7 @@ export function createTableSourceSelectionGuard(
           return;
         }
 
-        const target = findSafeSelectionAnchor(view.state, previousHead);
-        if (target === undefined) {
+        if (tableSafeSelection(view.state, previousHead) === undefined) {
           return;
         }
 
@@ -227,22 +226,64 @@ export function createTableSourceSelectionGuard(
             return;
           }
 
-          const refreshedTarget = findSafeSelectionAnchor(
-            view.state,
-            previousHead,
-          );
-          if (refreshedTarget === undefined) {
+          const safe = tableSafeSelection(view.state, previousHead);
+          if (safe === undefined) {
             return;
           }
 
           view.dispatch({
-            selection: EditorSelection.cursor(refreshedTarget, 1),
-            scrollIntoView: true,
+            selection: safe,
+            scrollIntoView: safe.ranges.length === 1,
           });
         });
       }
     },
   );
+}
+
+/**
+ * The selection to move to when a caret sits in hidden table source, or
+ * undefined when the selection may stay. A single caret is moved beside its
+ * table. Among several cursors, a caret in table source is removed and the
+ * others stay where they are: a table cell is its own editing surface and
+ * holds none of the editor's cursors.
+ */
+export function tableSafeSelection(
+  state: EditorState,
+  previousHead?: number,
+): EditorSelection | undefined {
+  const selection = state.selection;
+  if (selection.ranges.length > 1) {
+    const tables = getParsedTables(state.doc);
+    // The end of a document that ends in a table is the end of the table's
+    // last row. A lone caret may rest there, because typing starts a new line
+    // for it; among several cursors the refusal of that one insertion would
+    // take the typing at every cursor with it.
+    const kept = selection.ranges.filter(
+      (range) =>
+        !range.empty ||
+        !tables.some(
+          (table) =>
+            isPositionInTableSource(state, range.head, table) ||
+            (range.head === table.to && table.to === state.doc.length),
+        ),
+    );
+    if (kept.length === selection.ranges.length) {
+      return undefined;
+    }
+    if (kept.length > 0) {
+      const main = kept.indexOf(selection.main);
+      return EditorSelection.create(
+        kept,
+        main >= 0 ? main : Math.min(selection.mainIndex, kept.length - 1),
+      );
+    }
+    // Every cursor was in a table: the main one is moved out, as a single caret is.
+  }
+  const target = findSafeSelectionAnchor(state, previousHead);
+  return target === undefined
+    ? undefined
+    : EditorSelection.create([EditorSelection.cursor(target, 1)]);
 }
 
 function isUndoRedo(transaction: Transaction): boolean {

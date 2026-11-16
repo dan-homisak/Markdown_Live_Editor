@@ -1,20 +1,21 @@
 # Progress and handoff
 
-Updated: 2026-11-13.
+Updated: 2026-11-16.
 
 ## Actual repository state
 
-- Git: branch `main`, the only branch, with a remote. Milestones 1 to 6 below are committed;
-  milestone 6 is not pushed. The history was rewritten on 2026-11-13 (milestone 4), so every
+- Git: branch `main`, the only branch, with a remote. Milestones 1 to 7 below are committed;
+  milestone 7 is not pushed. The history was rewritten on 2026-11-13 (milestone 4), so every
   commit hash cited in these documents is the one in use after that rewrite.
-- Product source differs from 047e615 in three places: the list-nesting fix of milestone 3, the
-  save race fix of milestone 5 and the corrections of milestone 6. The extension version is a
-  build counter: `Build_and_Install` raises it on every run. The installed version is 0.1.238.
+- Product source differs from 047e615 in four places: the list-nesting fix of milestone 3, the
+  save race fix of milestone 5, the corrections of milestone 6, and find, replace and multiple
+  cursors in milestone 7. The extension version is a build counter: `Build_and_Install` raises
+  it on every run. The installed version is 0.1.241.
 - Layout: source and unit tests in `src/`, shipped assets in `media/`, scripts in `scripts/`,
   frozen fixtures in `test/fixtures/`, hand-testing documents in `samples/`, all project
   documents under `docs/`, agent tooling in `.claude/`. `qa/` and `dist/` are local output.
 - Gates that pass: unit tests; the visual, structure-control, toggle, save-and-typing,
-  editing-surface, rendering and whole-surface release host checks; the documentation and privacy checks; the agent tooling
+  editing-surface, find, rendering and whole-surface release host checks; the documentation and privacy checks; the agent tooling
   tests; and the install. Two host runs are not gates: the preview-only run, which reports a
   console warning, and the code-highlighting check, which times out on some runs. See
   [TESTING](TESTING.md).
@@ -443,7 +444,144 @@ its widths, and the installed build in a reloaded window.
   They follow column widths, typing and editor geometry; a change of zoom alone is followed by
   the next of those.
 
+## Milestone 7: find, replace and multiple cursors (2026-11-15)
+
+Decisions A28, A29 and A30; plan in
+[docs/plans](plans/2026-11-15-find-and-replace.md), all eight steps carried out. Behavior is in
+the [README](../README.md#find-and-replace) and sections 11 and 12 of the
+[design spec](DESIGN_SPEC.md); the code map is in [ARCHITECTURE](ARCHITECTURE.md).
+
+**Find and replace.** `Ctrl+F` and `Ctrl+H` open a widget that follows the stock editor's:
+match case, whole word, regular expressions, a match count, next and previous, replace and
+replace all. Find searches the Markdown source, table cells included, each cell as the text it
+shows while edited. A match in hidden syntax is revealed when it becomes current, and one in a
+table that is off screen is scrolled into view. Replace writes through the existing edit path.
+A replace all across prose and tables is two transactions dispatched as one editor update, so
+the host receives one change and one Undo takes it back; the table change filter, the intent
+rules and the host's validation were not modified.
+
+**Multiple cursors.** Add the next occurrence, select all occurrences, change all occurrences,
+cursors above and below, mouse cursors and column selection, with the stock keys. With one
+cursor no existing key path changes: the new bindings decline unless several cursors exist.
+The table source guard removes a caret that lands in table source when there are several;
+copy, cut and paste with several selections are plain text. Occurrences inside table cells
+take no cursor and are reported.
+
+**What reuse needed (A30).** The find code and the cursor code refer to nothing in VS Code. The
+host's part is two commands, a message, and an element for the widget.
+
+**No dependency was added.** The commands and the column selection come from CodeMirror
+packages that were already bundled. The webview bundle grew from 1,771,556 to 1,829,967 bytes.
+
+Choices made while building, each an agent's judgment: a replacement carries its own user
+event, so the properties input filter leaves it alone; a cell match that is current is painted
+in the cell and becomes the cell's selection only when the widget gives up the focus; with
+several cursors `Enter` is a plain line break, and list continuation waits for one cursor; a
+cursor added above or below steps over a table, which is what the editor's vertical movement
+does at a block.
+
+### Verification
+
+Windows, VS Code 1.146, Node.js 24.
+
+- `npm run test:all`: exit 0, twice. 30 of 30 unit test files, both bundle checks, the
+  documentation and privacy checks, 42 of 42 agent tooling tests, then the visual,
+  structure-control, toggle, save-and-typing, editing-surface, find, rendering (25 of 25) and
+  whole-surface release (17 of 17) host checks. One change came after the second run: where a
+  word is both a find match and an occurrence, table cells now stack the two tints in the
+  order prose does. `npm test` and the find check ran again after it.
+- `node scripts/edh-find-check.mjs`: 20 of 20 sections, in four runs besides the two inside
+  the suite, two of them under the light theme. Its thirteen find sections also passed under
+  the high-contrast theme. The screenshots were opened, under the dark, light and
+  high-contrast themes: the widget beside the stock one, the current match in a far table
+  cell, the document after a replace all, matches drawn as borders under high contrast, eight
+  selections with the note about table cells, and a column selection.
+- The first run of the new check failed one section, and the first run with the cursor
+  sections another. Both were the
+  check's own mistakes, not the editor's: it looked up a table by its index among mounted
+  tables, and it expected a table to stop Add Cursor Below. Both expectations were corrected
+  to what the editor does and should do.
+- Measured with `node scripts/edh-find-check.mjs --measure`, in the webview with the host
+  isolated, on generated documents. A query whose only match is on the last line is found in
+  3 ms at 10,000 lines (589,000 characters) and 5 ms at 100,000 lines (5,989,000 characters);
+  a query with 10,000 matches is counted in 4 ms. A keystroke typed into the document costs the
+  same with the widget open as closed: median 10 ms at 10,000 lines and 28 ms at 100,000 lines,
+  60 samples each, in two runs. The 28 ms is the editor's cost before this milestone, not
+  find's, and is above the spec's target for that size.
+- `Build_and_Install`: installed 0.1.239 and verified the installed payload.
+
+Not exercised: an input method in the find box or with several cursors, a screen reader,
+macOS and its keys, a file the system reports as read-only (the check sends the option the
+host would send), and the system clipboard with several selections.
+
+### Review (2026-11-16)
+
+The `invariant-reviewer` read the whole milestone. It found the replace write path sound: each
+transaction is judged by the unchanged table filter, nothing is written unless every part is
+accepted, the search domain leaves out exactly what the filter protects, and one update is one
+change to the host. It found no blocker, and these defects, each confirmed before it was fixed:
+
+- **The host mapped every change by reading the document from its start.** That code is older
+  than this milestone, but an edit now carries thousands of changes. A unit test mapped 20,000
+  changes in a megabyte of text in 18 s; a replace all of 10,012 matches took 4.5 s to come
+  back from the host. The mapping now finds each line by searching the line starts: the same
+  unit test passes and the same replace all comes back in 0.36 s.
+- **A caret at the end of a document that ends in a table** stayed among several cursors, and
+  the filter's refusal of text typed there took the typing at every cursor with it. The guard
+  now removes that caret too when there are several; a lone caret is untouched.
+- **An Enter that belongs to a composition replaced** in the widget. The widget now ignores key
+  presses that belong to an input method.
+- **A reveal could outlive its query.** A match found by a search that outlasted its first
+  slice could become the selection after the user had moved on. The request is now tied to
+  its query and dropped by any command, by closing, and by an edit to the document.
+- Smaller: navigation and replace wait while text is composed in the editor or in a cell, or
+  is still on its way to the host; a cell that mounts late is not focused if the focus has
+  moved; inside a cell the table's configured keys are recognized by parsing them, not by one
+  spelling; an open completion list keeps its keys with several cursors; a copy or paste mode
+  asked for from the menu is not left armed by a copy or paste of several selections; and a
+  cut or paste that the table guard refused is no longer announced as done.
+
+**Undo in the find box.** The reviewer expected the page's own Undo, run from the find box, to
+reach text typed into the document, because the browser keeps one history for a page. A key
+press sent by a host check does not run that command, so this was not reproduced. The widget
+now cancels the key and keeps a history for each of its boxes, which removes the question; a
+replacement is undone from the text, not from the box.
+
+The replace transactions moved into a pure function, `planReplaceTransactions`, so the table
+guard's verdict on them is unit tested: one cell, several cells, prose with tables, insertions
+beside a table, tables at both ends of a document, and a refused or stale plan.
+
+Checks after the fixes: `npm run test:all`, exit 0 on the second of two runs, with 32 of 32
+unit test files, 22 of 22 sections of the find check, rendering 25 of 25 and release 17 of 17;
+`node scripts/edh-find-check.mjs --crlf`, 22 of 22; `node scripts/edh-find-check.mjs --measure`,
+22 of 22 with the host timing above. `Build_and_Install` installed 0.1.240.
+
+The first of those two runs stopped in the visual check, exit 1: its reverse drag from the text
+up across a table selected six cells where all fifteen are expected. The visual check then
+passed twice on its own and once inside the second run. That is one failure in four runs on
+the same tree. It was not reproduced, its cause is not established, and it has not been run
+on the tree before this milestone, so it is recorded as open, not as pre-existing.
+
 ## Known gaps and findings
+
+- **Find opens over the first lines.** The stock editor moves the first lines of a document
+  down while its find widget is open at the top; this editor does not, so the widget covers
+  the right end of the first two lines there (milestone 7).
+- **A current match inside syntax that a table cell's preview hides has no mark** until the
+  cell takes the caret, which shows the cell's source (milestone 7).
+- **Typing costs 28 ms a keystroke at 100,000 lines**, measured in milestone 7 with find
+  closed. The spec's target at that size is 16 ms.
+- **A replacement rewrites the whole of each cell it changes**, as an edit typed into the cell
+  does: elsewhere in that cell `<br/>` becomes `<br>`, `&vert;` the numeric entity, and a
+  non-breaking space a space. Replace All does this in every cell it touches. The README says
+  so; whether a replacement should leave the rest of a cell byte for byte is undecided.
+- **The visual check's reverse drag across a table failed once in four runs** on the final
+  tree of milestone 7 and was not reproduced (the Review section above). Until it is
+  explained, a failure of that check on a later change needs a second run before it is
+  believed, and a second failure needs a comparison with the tree before this milestone.
+- **Two rules of milestone 7 have no test:** a late match does not take the caret once the
+  query changed or the document was edited, and the page's Undo cannot be reached from the
+  find box. See known gaps in [TESTING](TESTING.md).
 
 - **An editor that stays blank after its window was minimized is reported and not
   reproduced** (milestone 6). The debug log now records what happens when a window shows again.
@@ -478,6 +616,14 @@ its widths, and the installed build in a reloaded window.
 - **The README screenshot is the only image.** It shows the dark theme.
 
 ## Next steps
+
+From milestone 7: try find, replace and multiple cursors in daily use, and decide whether the
+widget should move the first lines down as the stock one does, whether the occurrence commands
+should reach into table cells, and whether a replacement should leave the rest of a cell
+exactly as written. P11 lists what reuse outside VS Code would need from existing
+code.
+
+From the earlier milestones:
 
 1. Try the corrections of milestone 6 in daily use, with the applications the paste reports
    came from. Answer Q11 once the typing delay has been tried. If the editor stays blank after

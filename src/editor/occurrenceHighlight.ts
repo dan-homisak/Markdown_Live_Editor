@@ -14,6 +14,14 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
+import {
+  affectsCellHighlights,
+  CellRing,
+  cellHighlightRegistry,
+  cellRingsVisible,
+  collectCellRings,
+  syncCellRings,
+} from "./cellHighlight";
 import { concealedTaskMarkerAt, isTaskCheckLetterAt } from "./markdown/markdownRendering";
 import { findCell, getCellSelectionOffsets, readCellDisplayValue } from "./table/cellSelection";
 
@@ -208,7 +216,7 @@ const occurrencePlugin = ViewPlugin.fromClass(
       this.mutationObserver?.disconnect();
       this.view.dom.ownerDocument.removeEventListener("selectionchange", this.onSelectionChange);
       cellHighlightRegistry(this.view)?.delete(CELL_HIGHLIGHT_NAME);
-      syncCellRings(this.view, new Map());
+      syncCellRings(this.view, new Map(), RING_LAYER_CLASS, RING_CLASS);
     }
 
     /** The focused cell of this editor, which owns the caret while it has focus. */
@@ -295,13 +303,13 @@ const occurrencePlugin = ViewPlugin.fromClass(
       const query = this.query;
       if (!registry || !HighlightCtor || !query) {
         registry?.delete(CELL_HIGHLIGHT_NAME);
-        syncCellRings(this.view, rings);
+        syncCellRings(this.view, rings, RING_LAYER_CLASS, RING_CLASS);
         return;
       }
       const ranges: Range[] = [];
       const doc = this.view.dom.ownerDocument;
       const isWordChar = (character: string): boolean => cellWordCharacter.test(character);
-      const ringed = cellRingsVisible(this.view);
+      const ringed = cellRingsVisible(this.view, "--vscode-editor-selectionHighlightBorder");
       for (const cell of Array.from(this.view.contentDOM.querySelectorAll<HTMLElement>(".mlrt-table-cell"))) {
         const walker = doc.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
         for (let node = walker.nextNode(); node && ranges.length < MAX_MATCHES; node = walker.nextNode()) {
@@ -320,7 +328,7 @@ const occurrencePlugin = ViewPlugin.fromClass(
       } else {
         registry.set(CELL_HIGHLIGHT_NAME, new HighlightCtor(...ranges));
       }
-      syncCellRings(this.view, rings);
+      syncCellRings(this.view, rings, RING_LAYER_CLASS, RING_CLASS);
     }
   },
   { decorations: (plugin) => plugin.decorations },
@@ -336,82 +344,13 @@ function cellQuery(cell: HTMLElement): OccurrenceQuery | null {
 }
 
 /**
- * The border around an occurrence inside a table cell.
- *
- * A highlight painted through the CSS Custom Highlight API can only fill, so
- * the border a theme asks for (`editor.selectionHighlightBorder`, the only
- * mark a high-contrast theme draws) comes from one positioned box per match,
- * in a layer over the table. The boxes carry the same rule as the border of a
- * prose occurrence. No layer exists while the theme draws no border.
+ * The border around an occurrence inside a table cell: one positioned box per
+ * match (see cellHighlight.ts), carrying the same rule as the border of a
+ * prose occurrence. `editor.selectionHighlightBorder` is the only mark a
+ * high-contrast theme draws.
  */
-interface CellRing { left: number; top: number; width: number; height: number; }
 const RING_LAYER_CLASS = "mlrt-table-occurrence-rings";
 const RING_CLASS = "mlrt-table-occurrence-ring";
-
-function cellRingsVisible(view: EditorView): boolean {
-  const win = view.dom.ownerDocument.defaultView;
-  if (!win) return false;
-  if (win.matchMedia?.("(forced-colors: active)").matches) return true;
-  const border = win.getComputedStyle(view.dom).getPropertyValue("--vscode-editor-selectionHighlightBorder").trim();
-  return border !== "" && border !== "transparent" && !/^#(?:[0-9a-f]{3}0|[0-9a-f]{6}00)$/i.test(border);
-}
-
-function collectCellRings(cell: HTMLElement, range: Range, rings: Map<HTMLElement, CellRing[]>): void {
-  const scroll = cell.closest<HTMLElement>(".mlrt-table-scroll");
-  if (!scroll) return;
-  const origin = scroll.getBoundingClientRect();
-  let list = rings.get(scroll);
-  if (!list) {
-    list = [];
-    rings.set(scroll, list);
-  }
-  for (const rect of Array.from(range.getClientRects())) {
-    if (rect.width <= 0 || rect.height <= 0) continue;
-    list.push({
-      left: rect.left - origin.left + scroll.scrollLeft,
-      top: rect.top - origin.top + scroll.scrollTop,
-      width: rect.width,
-      height: rect.height,
-    });
-  }
-}
-
-/** Writes the ring layers, touching the DOM only where a ring moved. */
-function syncCellRings(view: EditorView, rings: Map<HTMLElement, CellRing[]>): void {
-  for (const layer of Array.from(view.contentDOM.querySelectorAll<HTMLElement>(`.${RING_LAYER_CLASS}`))) {
-    const scroll = layer.parentElement;
-    if (!scroll || !rings.get(scroll)?.length) layer.remove();
-  }
-  rings.forEach((list, scroll) => {
-    if (list.length === 0) return;
-    const signature = list
-      .map(ring => `${ring.left.toFixed(2)},${ring.top.toFixed(2)},${ring.width.toFixed(2)},${ring.height.toFixed(2)}`)
-      .join(";");
-    let layer = scroll.querySelector<HTMLElement>(`:scope > .${RING_LAYER_CLASS}`);
-    if (layer?.dataset.signature === signature) return;
-    if (!layer) {
-      layer = scroll.ownerDocument.createElement("div");
-      layer.className = RING_LAYER_CLASS;
-      layer.setAttribute("aria-hidden", "true");
-      scroll.append(layer);
-    }
-    const host = layer;
-    while (host.childElementCount > list.length) host.lastElementChild?.remove();
-    list.forEach((ring, index) => {
-      let box = host.children[index] as HTMLElement | undefined;
-      if (!box) {
-        box = scroll.ownerDocument.createElement("div");
-        box.className = RING_CLASS;
-        host.append(box);
-      }
-      box.style.left = `${ring.left}px`;
-      box.style.top = `${ring.top}px`;
-      box.style.width = `${ring.width}px`;
-      box.style.height = `${ring.height}px`;
-    });
-    host.dataset.signature = signature;
-  });
-}
 
 function sameQuery(left: OccurrenceQuery | null, right: OccurrenceQuery | null): boolean {
   return left === right || Boolean(
@@ -424,23 +363,3 @@ function sameQuery(left: OccurrenceQuery | null, right: OccurrenceQuery | null):
   );
 }
 
-/**
- * Whether a mutation can change what the cell highlights should show: text or
- * structure inside a table widget, or a column width. The ring layer's own
- * writes are not such a change.
- */
-function affectsCellHighlights(record: MutationRecord): boolean {
-  const target = record.target instanceof Element ? record.target : record.target.parentElement;
-  if (!target || target.closest(`.${RING_LAYER_CLASS}`)) return false;
-  if (record.type === "attributes") return target.classList.contains("mlrt-table-sized-col");
-  if (!target.closest(".mlrt-table-cell, .mlrt-table-widget")) return false;
-  if (record.type !== "childList") return true;
-  const nodes = [...Array.from(record.addedNodes), ...Array.from(record.removedNodes)];
-  return nodes.some(node => !(node instanceof Element && node.classList.contains(RING_LAYER_CLASS)));
-}
-
-function cellHighlightRegistry(view: EditorView): { set(name: string, highlight: object): void; delete(name: string): void } | null {
-  const css = (view.dom.ownerDocument.defaultView as (Window & { CSS?: { highlights?: unknown } }) | null)?.CSS;
-  const registry = css?.highlights as { set(name: string, highlight: object): void; delete(name: string): void } | undefined;
-  return registry ?? null;
-}
