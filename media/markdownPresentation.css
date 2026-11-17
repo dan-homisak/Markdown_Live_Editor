@@ -5,6 +5,7 @@
   --mlrt-markdown-background: transparent;
   --mlrt-markdown-heading: var(--vscode-editor-foreground, currentColor);
   --mlrt-markdown-link: var(--vscode-editor-foreground, currentColor);
+  --mlrt-markdown-link-unresolved-opacity: 0.7;
   --mlrt-markdown-destination: var(--vscode-editor-foreground, currentColor);
   --mlrt-markdown-title: var(--vscode-editor-foreground, currentColor);
   --mlrt-markdown-punctuation: var(--vscode-editor-foreground, currentColor);
@@ -55,6 +56,8 @@
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
+/* A wikilink whose note does not exist in the workspace folder. */
+.cm-content .mlrt-markdown-link-unresolved { opacity: var(--mlrt-markdown-link-unresolved-opacity); }
 /* Added exclusively by the validated modifier-hover interaction owner. */
 .cm-content .mlrt-markdown-link-actionable-hover { text-decoration-line: underline; cursor: pointer; }
 .cm-content .mlrt-markdown-strike.mlrt-markdown-link-actionable-hover { text-decoration-line: line-through underline; }
@@ -64,5 +67,6 @@
   .cm-content .mlrt-markdown-source { color: CanvasText; }
   .cm-content .mlrt-markdown-role-link,
   .cm-content .mlrt-markdown-role-destination { color: LinkText; }
+  .cm-content .mlrt-markdown-link-unresolved { opacity: 1; text-decoration: underline dashed; }
   .cm-content .mlrt-markdown-inline-code { background: transparent; box-shadow: none; outline: 1px solid CanvasText; outline-offset: -1px; }
 }

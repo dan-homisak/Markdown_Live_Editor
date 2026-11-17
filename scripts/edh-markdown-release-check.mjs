@@ -146,6 +146,26 @@ async function reconnectLive() {
   }, "visible live context");
 }
 async function reopenFixture() {
+  // A followed link opens its note in a second live editor. Close that one, so
+  // the fixture's is the only live editor there is to reconnect to. A webview
+  // that is still loading forwards no keys, so wait for it and use the mouse.
+  if (await evaluate(wb, "Array.from(document.querySelectorAll('.tab.active')).some(tab=>tab.textContent.includes('LinkedTarget.md'))")) {
+    await waitFor(async () => {
+      let mounted = 0;
+      for (const item of (await targets()).filter(item => item.type !== "service_worker" && /vscode-webview/.test(item.url))) {
+        if (!item.webSocketDebuggerUrl) continue;
+        const client = await connect(item.webSocketDebuggerUrl);
+        try { if (await evaluate(client, `(()=>{${rootCode}return !!view;})()`)) mounted++; } finally { client.socket.close(); }
+      }
+      return mounted >= 2;
+    }, "the link target's live editor");
+    const close = await evaluate(wb, "(()=>{const button=document.querySelector('.tabs-container .tab.active .tab-actions .action-label');if(!button)return null;const box=button.getBoundingClientRect();return {x:box.left+box.width/2,y:box.top+box.height/2};})()");
+    assert(close, "the link target's tab has a close button");
+    await wb.send("Input.dispatchMouseEvent", { type: "mousePressed", button: "left", buttons: 1, clickCount: 1, ...close });
+    await wb.send("Input.dispatchMouseEvent", { type: "mouseReleased", button: "left", buttons: 0, clickCount: 1, ...close });
+    await waitFor(() => evaluate(wb, "!Array.from(document.querySelectorAll('.tab')).some(tab=>tab.textContent.includes('LinkedTarget.md'))"), "link target closed");
+    await sleep(500);
+  }
   await key(wb, "p", "KeyP", 80, process.platform === "darwin" ? 4 : 2);
   await wb.send("Input.insertText", { text: fixture }); await sleep(300); await key(wb, "Enter", "Enter", 13); await sleep(450);
   if (!await evaluate(wb, "!!document.querySelector('iframe')")) {

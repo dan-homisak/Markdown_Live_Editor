@@ -41,7 +41,8 @@ src/extension.ts  ->  dist/extension.js        src/webview/liveEditor.ts  ->  me
 
 | Path | Role |
 | --- | --- |
-| `src/extension.ts` | The whole host side: activation, commands, the editor provider, the edit queue, link opening, settings, and the HTML shell with its Content Security Policy |
+| `src/extension.ts` | The host side: activation, commands, the editor provider, the edit queue, link opening, settings, and the HTML shell with its Content Security Policy |
+| `src/host/` | Host code kept out of the entry file: the listing of a workspace folder's file names that wikilinks are looked up in (`src/host/workspaceNoteIndex.ts`) |
 | `src/webview/liveEditor.ts` | Webview entry: creates the editor, talks to the host, tracks pending edits and acknowledgements |
 | `src/editor/liveEditorExtensions.ts` | Assembles the CodeMirror extension set; the best single file for seeing what is installed and in which order |
 | `src/editor/table/` | Rendered table widgets: cell editing, range and multi-selection, clipboard, structure controls, layout, source writes |
@@ -49,7 +50,7 @@ src/extension.ts  ->  dist/extension.js        src/webview/liveEditor.ts  ->  me
 | `src/editor/` (top level) | Document clipboard and selection painting, geometry sync, theme, table boundary navigation, occurrence highlight, and what cell highlights share (`src/editor/cellHighlight.ts`) |
 | `src/editor/find/` | Find and replace: the query state, the controller that searches, highlights, navigates and replaces, and the widget |
 | `src/editor/multiCursor.ts` | Multiple cursors: turning them on, the keys that act while several exist, the occurrence commands, mouse cursors and column selection |
-| `src/shared/` | Logic used by both sides and by tests: the table parser (`src/shared/tableModel.ts`), table source protection, change validation and mapping, clipboard model, what Automatic paste takes (`src/shared/clipboardPasteSource.ts`), link validation, column sizing and its typing delay (`src/shared/tableResizeDelay.ts`), key bindings, the find model (`src/shared/findModel.ts`), and how several selections are copied and pasted (`src/shared/multiCursorModel.ts`) |
+| `src/shared/` | Logic used by both sides and by tests: the table parser (`src/shared/tableModel.ts`), table source protection, change validation and mapping, clipboard model, what Automatic paste takes (`src/shared/clipboardPasteSource.ts`), link validation, which file a wikilink names (`src/shared/wikiLinkResolution.ts`) and the messages about it (`src/shared/wikiLinkStatus.ts`), column sizing and its typing delay (`src/shared/tableResizeDelay.ts`), key bindings, the find model (`src/shared/findModel.ts`), and how several selections are copied and pasted (`src/shared/multiCursorModel.ts`) |
 | `src/highlighting/` | Host-side grammar and theme collection for code blocks |
 | `src/test/` | Node tests, one file per area, run with plain `node` after compilation |
 | `media/` | Stylesheets and the bundled webview script. `media/liveEditor.js` is generated and tracked |
@@ -70,6 +71,8 @@ string on both sides before changing it.
 | `markdownTaskCommand`, `markdownLinkCommand` | Command Palette actions aimed at the caret |
 | `findCommand` | Open find, or find and replace, from the Command Palette |
 | `markdownLinkResult` | Outcome of a link request |
+| `revealSourcePosition` | Put the caret at a line and column and bring it to the top: a link into this document was followed, here or in another editor |
+| `wikiLinkStatus`, `wikiLinksChanged` | Which of the asked wikilink targets exist; and that files were created or deleted, so earlier answers are stale |
 | `codeHighlightingConfiguration`, `codeHighlighting`, `refreshCodeHighlighting` | Grammar and theme data, tokens, and invalidation |
 
 | Webview to host | Purpose |
@@ -79,6 +82,7 @@ string on both sides before changing it.
 | `editorCommand` | Undo or Redo, which must run against the host document; carries the text and revision it was issued on |
 | `viewState` | Reply to `captureViewState`, sent after pending edits are flushed |
 | `openMarkdownLink` | Request to open a link; the host derives the target from source again |
+| `resolveWikiLinks` | Ask which wikilink targets in view name an existing file. It changes nothing and does not wait behind edits |
 | `requestCodeHighlightingConfiguration`, `requestCodeHighlighting` | Ask for grammar data or tokens |
 | `openClipboardSettings`, `debug` | Open the settings page; diagnostics for the output channel |
 
@@ -217,6 +221,29 @@ there is no second parser. Inline styling uses marks, concealment uses replaceme
 bound to source ranges, and anything that changes layout is provided by a state field. Reveal
 depends on the caret, the selection, focus and composition, in the order the spec's section 3
 gives. `markdownRendering.enabled` reconfigures the editor in place through a compartment.
+
+## Wikilinks
+
+Which file a wikilink names is decided by a pure function over a listing of file names
+(`src/shared/wikiLinkResolution.ts`); the rules are in section 6 of the spec. The host owns the
+listing (`src/host/workspaceNoteIndex.ts`): one per workspace folder, made by one file search
+when a live editor in that folder first follows or shows a wikilink, held in memory, made again
+at most twice a second while files are created or deleted, one search at a time, and dropped
+with its watcher when the last editor that used it closes. Editors are counted by their own
+session token, so two editors of one document are two users. Opening a link uses the listing
+inside the existing link request, after the same session, revision and source checks, so the
+webview never names a file to open. That request runs in the edit queue, so it takes the listing
+as it is and waits for nothing: not for a first listing, and not for the call that opens the
+other editor, which can settle only when VS Code has finished with the tab it replaces. A file
+search that fails, or does not answer in thirty seconds, is tried again with a growing delay.
+
+Dimming is separate and cosmetic. A view plugin (`src/editor/markdown/markdownWikiLinkStatus.ts`)
+collects the wikilinks in the visible ranges, asks the host about the note paths it has no
+answer for, and marks the ones the host says do not exist. Its answers are kept per view, up
+to 2,000, by a small class that needs no editor (`WikiLinkAnswers` in
+`src/shared/wikiLinkStatus.ts`). When the host reports that a folder's names changed, which it does only to the editors
+that asked about that folder, the answers are asked for again and the old ones stay painted
+until they are replaced. It adds a mark, which changes no layout.
 
 ## Paste
 

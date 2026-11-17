@@ -118,9 +118,40 @@ plain click keeps editing: use `Ctrl+click` (`Cmd+click` on macOS; `Alt+click` i
 `editor.multiCursorModifier` is `ctrlCmd`), or run **Open Markdown Link at Caret**.
 
 Web addresses and `mailto:` links open in your browser or mail client. File links, reference
-links and wikilinks open in VS Code at the heading or `^block` they point to. A wikilink is
-looked up next to the current file first, then in the workspace; if several notes match, you
-are asked which one. Missing notes are reported, never created.
+links and wikilinks open in VS Code at the heading or `^block` they point to. A link to another
+Markdown file opens it in the live editor. A link to a heading of the note you are in moves the
+caret there.
+
+### Wikilinks
+
+A wikilink reaches any note in the folder you have open in VS Code. That folder is the vault,
+in Obsidian's terms.
+
+| You write | It opens |
+| --- | --- |
+| `[[Note]]` | `Note.md`, wherever it is in the folder. Capital letters do not matter |
+| `[[folder/Note]]` | The note at that path from the folder's root, or any note whose path ends that way |
+| `[[./Note]]`, `[[../Note]]` | The note at that path from the current note's own folder |
+| `[[/Note]]` | The note at the folder's root, and no other |
+| `[[Note#Heading]]`, `[[Note#^block]]` | The note, at that heading or block |
+| `[[#Heading]]` | That heading in the note you are in |
+| `[[notes.txt]]` | Any other file, by its full name: only `.md` may be left out. A text file opens in the ordinary editor. An image or other binary file is found, so its link is not dimmed, but it does not open |
+
+When several notes share a name, the one at the folder's root opens, then the one beside the
+current note, then the one nearest the root. You are never asked to choose.
+
+A wikilink to a note that does not exist is dimmed. Following it tells you the note is missing
+and creates nothing. A followed link opens in VS Code's preview tab, as a file you click in the
+Explorer does.
+
+Nothing is stored for this. The editor lists the file names in the folder when a document first
+needs them, keeps them in memory, and lists them again after files are created or deleted. It
+writes no index, cache or settings file, and it reads a note only when you follow a link to it.
+`node_modules` folders and anything `files.exclude` hides are left out. A folder with more than
+50,000 files is listed only that far; a note beyond that is still found beside the current note,
+and its link is not dimmed. In the first moment after a folder is opened, a link to a note that
+is not beside the current one may answer that the folder is still being listed. A file opened
+outside any folder finds its wikilinks beside itself, and none of them is dimmed.
 
 ### Code blocks
 
@@ -354,7 +385,8 @@ Available from the Command Palette under **Markdown Live Editor**.
 - Images and embedded notes are not displayed; their source stays editable.
 - Math and diagrams are not rendered.
 - It is an editor, not a vault: there is no graph, backlinks panel, note creation or link
-  completion.
+  completion, and renaming a note does not update the links to it.
+- Links inside table cells are shown as text.
 - A file can be open in one live editor at a time.
 - VS Code's screen-reader mode shows literal Markdown markers instead of hiding them. Behavior
   with a screen reader, and with input methods for languages such as Chinese and Japanese, has

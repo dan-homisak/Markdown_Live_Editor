@@ -11,7 +11,15 @@ import {
   normalizeDocumentText,
 } from "./shared/documentChangeMapping";
 import { validateDocumentChangeClaim } from "./shared/documentChangeValidation";
-import { EditorViewState, isEditorViewState } from "./shared/editorViewState";
+import { EditorSourcePosition, EditorViewState, isEditorViewState } from "./shared/editorViewState";
+import { WorkspaceNoteIndex } from "./host/workspaceNoteIndex";
+import { resolveWikiLinkPath, splitWikiDestination, wikiLinkExists } from "./shared/wikiLinkResolution";
+import {
+  isWikiLinkStatusRequest,
+  RevealSourcePositionMessage,
+  WikiLinksChangedMessage,
+  WikiLinkStatusResult,
+} from "./shared/wikiLinkStatus";
 import { parseMarkdownTables } from "./shared/tableModel";
 import {
   findMarkdownLinkAt,
@@ -105,12 +113,15 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
   private readonly initialHighlightingByDocument = new Map<string, Promise<InitialCodeHighlighting | undefined>>();
   private highlightingWasm: string | undefined;
   private activeLiveDocumentUri: vscode.Uri | undefined;
+  /** File names per workspace folder, for wikilinks. In memory only. */
+  private readonly noteIndex = new WorkspaceNoteIndex();
 
   public constructor(private readonly context: vscode.ExtensionContext) {
     // Raw grammar/theme data can be reused after its panel is disposed. Keep
     // only a few documents, and invalidate even while no live panel is open.
     const invalidate = (): void => this.initialHighlightingByDocument.clear();
     context.subscriptions.push(
+      this.noteIndex,
       vscode.window.onDidChangeActiveColorTheme(invalidate),
       vscode.extensions.onDidChange(invalidate),
       vscode.workspace.onDidChangeConfiguration(invalidate),
@@ -249,6 +260,7 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
     disposables.push(webviewPanel.onDidDispose(() => {
       disposed = true;
       readOnlyQueryGeneration++;
+      this.noteIndex.release(clipboardDocumentToken);
       if (this.panelsByDocument.get(documentKey) === webviewPanel) {
         this.panelsByDocument.delete(documentKey);
         this.viewStateReaders.delete(documentKey);
@@ -555,54 +567,118 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
           finish(opened, opened ? undefined : "VS Code could not open this link.");
           return;
         }
+        // A slow remote read may finish after the user switches editors or
+        // edits. The obsolete request must not then steal focus.
+        const stillCurrent = (): boolean => isInvokingPanelActive() && document.version === currentVersion &&
+          normalizeDocumentText(document.getText()) === currentText &&
+          vscode.workspace.getConfiguration("markdownLiveRenderTables", document.uri)
+            .get<boolean>(MARKDOWN_RENDERING_ENABLED_SETTING, true);
+        // Where a heading or block is, or null when the text has none.
+        const fragmentPosition = (text: string, fragment: string): EditorSourcePosition | null => {
+          const offset = markdownFragmentOffset(text, markdownRenderingParser.parse(text), fragment);
+          if (offset === null) return null;
+          const before = text.slice(0, offset).split("\n");
+          return { line: before.length - 1, character: before[before.length - 1].length };
+        };
+        // An editor that VS Code could not open, after the request was answered.
+        const openFailed = (error: unknown): void => {
+          logDebug(`Opening a linked document failed: ${String(error)}`);
+          if (isInvokingPanelActive()) void vscode.window.showInformationMessage("VS Code could not open this Markdown link.");
+        };
+        const missingFragment = (fragment: string): string => `The heading or block “${notificationText(fragment)}” was not found.`;
+        // In a workspace folder a wikilink names a file anywhere in that
+        // folder. The folder's listing decides which, by fixed rules and
+        // without asking. A link to a heading of this note names no file and
+        // needs no listing.
+        const notePath = link.kind === "wiki" ? splitWikiDestination(link.destination).path : "";
+        const vault = notePath ? this.noteIndex.for(document.uri, clipboardDocumentToken) : undefined;
+        // Why a note that is not beside this one cannot be found, when the
+        // listing cannot say that it is missing.
+        let unlisted: string | undefined;
+        if (vault) {
+          // Nothing waits for a listing here: edits queue behind this request.
+          const notes = vault.notes;
+          const found = notes ? resolveWikiLinkPath(notePath, vault.sourcePath, notes) : null;
+          if (found !== null) {
+            uri = found === vault.sourcePath ? document.uri : vscode.Uri.joinPath(vault.folder.uri, ...found.split("/"));
+          } else if (notes?.complete) {
+            finish(false, `The note “${notificationText(notePath)}” was not found in this workspace folder.`);
+            return;
+          } else {
+            // No listing yet, or one that was cut off: neither can say a note
+            // is missing. The link is looked up beside this note, as it is
+            // outside a folder.
+            unlisted = notes
+              ? `The note “${notificationText(notePath)}” was not found beside this note or among the files of this workspace folder that could be listed.`
+              : "The files of this workspace folder are still being listed. Try the link again in a moment.";
+          }
+        }
+        if (uri.toString() === documentKey) {
+          // A link into this note moves the caret here; no second editor opens.
+          if (target.fragment) {
+            const position = fragmentPosition(currentText, target.fragment);
+            if (!position) { finish(false, missingFragment(target.fragment)); return; }
+            void webview.postMessage({ type: "revealSourcePosition", position } satisfies RevealSourcePositionMessage);
+          }
+          finish(true);
+          return;
+        }
         let targetDocument: vscode.TextDocument;
         try { targetDocument = await vscode.workspace.openTextDocument(uri); }
         catch (error) {
-          if (link.kind !== "wiki") throw error;
-          // A vault-style short name first resolves beside this note, then in
-          // the containing workspace. Never pick an ambiguous basename silently.
-          const folder = vscode.workspace.getWorkspaceFolder(document.uri);
-          if (!folder || !isInvokingPanelActive()) throw error;
-          const basename = uri.path.slice(uri.path.lastIndexOf("/") + 1);
-          const escaped = basename.replace(/[?*{}[\]]/gu, char => `[${char}]`);
-          const matches = await vscode.workspace.findFiles(new vscode.RelativePattern(folder, `**/${escaped}`), "**/{node_modules,.git}/**", 100);
-          if (!isInvokingPanelActive() || !matches.length) throw error;
-          if (matches.length === 1) uri = matches[0];
-          else {
-            const selected = await vscode.window.showQuickPick(matches.map(candidate => ({ label: vscode.workspace.asRelativePath(candidate), uri: candidate })), { placeHolder: "Choose the note for this wikilink" });
-            if (!selected || !isInvokingPanelActive()) { finish(false); return; }
-            uri = selected.uri;
-          }
-          targetDocument = await vscode.workspace.openTextDocument(uri);
+          if (unlisted === undefined) throw error;
+          finish(false, unlisted);
+          return;
         }
-        // A slow remote provider may resolve after the user switches editors.
-        // Reading may finish, but the obsolete request must not steal focus.
-        if (!isInvokingPanelActive() || document.version !== currentVersion ||
-            normalizeDocumentText(document.getText()) !== currentText ||
-            !vscode.workspace.getConfiguration("markdownLiveRenderTables", document.uri)
-              .get<boolean>(MARKDOWN_RENDERING_ENABLED_SETTING, true)) {
-          finish(false); return;
-        }
-        let selection: vscode.Range | undefined;
+        if (!stillCurrent()) { finish(false); return; }
+        let position: EditorSourcePosition | undefined;
         if (target.fragment) {
-          const targetText = normalizeDocumentText(targetDocument.getText());
-          const offset = markdownFragmentOffset(targetText, markdownRenderingParser.parse(targetText), target.fragment);
-          if (offset === null) { finish(false, `The heading or block “${target.fragment}” was not found.`); return; }
-          const before = targetText.slice(0, offset).split("\n");
-          const position = new vscode.Position(before.length - 1, before[before.length - 1].length);
-          selection = new vscode.Range(position, position);
+          const found = fragmentPosition(normalizeDocumentText(targetDocument.getText()), target.fragment);
+          if (!found) { finish(false, missingFragment(target.fragment)); return; }
+          position = found;
         }
-        await vscode.window.showTextDocument(targetDocument, {
+        if (/\.(?:md|markdown)$/iu.test(uri.path)) {
+          // A note opens in the editor the link was followed from.
+          const targetKey = targetDocument.uri.toString();
+          const openPanel = this.panelsByDocument.get(targetKey);
+          if (openPanel) {
+            openPanel.reveal(openPanel.viewColumn, false);
+            if (position) void openPanel.webview.postMessage({ type: "revealSourcePosition", position } satisfies RevealSourcePositionMessage);
+          } else {
+            if (position) this.initialViewStates.set(targetKey, { top: position, anchor: position, head: position });
+            // Not awaited: this runs inside the edit queue, and the command
+            // settles only when VS Code has finished with the editors it
+            // replaces. Edits must not wait for that.
+            void vscode.commands.executeCommand("vscode.openWith", targetDocument.uri, LIVE_EDITOR_VIEW_TYPE,
+              { viewColumn: webviewPanel.viewColumn, preserveFocus: false, preview: true }).then(undefined, (error: unknown) => {
+              // An editor that never opened must not move a later one.
+              this.initialViewStates.delete(targetKey);
+              openFailed(error);
+            });
+          }
+          finish(true);
+          return;
+        }
+        const at = position && new vscode.Position(position.line, position.character);
+        // Not awaited either, for the same reason.
+        void vscode.window.showTextDocument(targetDocument, {
           viewColumn: webviewPanel.viewColumn,
           preserveFocus: false,
           preview: true,
-          ...(selection ? { selection } : {}),
-        });
+          ...(at ? { selection: new vscode.Range(at, at) } : {}),
+        }).then(undefined, openFailed);
         finish(true);
       }).catch(() => finish(false, "VS Code could not open this Markdown link."));
     };
 
     disposables.push(
+      this.noteIndex.onDidChange(users => {
+        // Files were created or deleted in the folder this editor asked about:
+        // what it was told may be stale.
+        if (!disposed && (!users || users.has(clipboardDocumentToken))) {
+          void webview.postMessage({ type: "wikiLinksChanged" } satisfies WikiLinksChangedMessage);
+        }
+      }),
       vscode.window.onDidChangeActiveColorTheme(() => {
         codeHighlighting.invalidate();
         void webview.postMessage({ type: "refreshCodeHighlighting" });
@@ -741,6 +817,25 @@ class MarkdownLiveEditorProvider implements vscode.CustomTextEditorProvider {
 
         if (isMarkdownOpenLinkRequest(message)) {
           openLinkFromWebview(message);
+          return;
+        }
+
+        if (isWikiLinkStatusRequest(message)) {
+          // Which names exist is a question about the folder, not about the
+          // text, so it does not wait behind edits. It changes nothing.
+          if (message.sessionToken !== clipboardDocumentToken) return;
+          const vault = document.isUntitled ? undefined : this.noteIndex.for(document.uri, clipboardDocumentToken);
+          void (async () => {
+            const notes = await vault?.listed;
+            if (disposed) return;
+            await webview.postMessage({
+              type: "wikiLinkStatus",
+              requestId: message.requestId,
+              targets: message.targets,
+              statuses: message.targets.map(target =>
+                vault && notes ? wikiLinkExists(target, vault.sourcePath, notes) : null),
+            } satisfies WikiLinkStatusResult);
+          })().catch(error => logDebug(`Wikilink status failed: ${String(error)}`));
           return;
         }
 
@@ -1151,6 +1246,16 @@ function isOpenClipboardSettingsMessage(
   message: unknown,
 ): message is OpenClipboardSettingsMessage {
   return isMessageRecord(message) && message.type === "openClipboardSettings";
+}
+
+/**
+ * Text from a document, made safe to show in a notification. VS Code turns
+ * `[label](command:...)` there into a link that runs the command, so no
+ * bracket from the document may reach one; a long name is shortened.
+ */
+function notificationText(value: string): string {
+  const plain = value.replace(/[\[\]\\\u0000-\u001f\u007f]+/gu, " ").replace(/\s+/gu, " ").trim();
+  return plain.length > 80 ? `${plain.slice(0, 80)}…` : plain;
 }
 
 function isMessageRecord(message: unknown): message is Record<string, unknown> {

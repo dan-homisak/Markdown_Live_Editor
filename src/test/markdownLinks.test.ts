@@ -171,7 +171,8 @@ function hub() {
 }
 const flush = async () => { for (let count = 0; count < 40; count++) await Promise.resolve(); };
 
-async function host(initialText = "[site](https://example.test)") {
+/** `files`: the workspace folder `test:///work` exists and lists these paths. */
+async function host(initialText = "[site](https://example.test)", files?: string[]) {
   let text = initialText;
   let renderingEnabled = true;
   let provider: any;
@@ -180,13 +181,20 @@ async function host(initialText = "[site](https://example.test)") {
   const openedDocuments: string[] = [];
   const shownDocuments: any[] = [];
   const errors: string[] = [];
+  const executed: any[][] = [];
+  let listings = 0, watchers = 0, failingListings = 0, hangingListings = false;
+  const created = hub(), deleted = hub();
+  // The host's timers run only when a check advances them.
+  const timers = new Map<number, () => void>();
+  let nextTimer = 1;
   const received = hub();
   const closed = hub();
   const changes = hub();
   const viewState = hub();
   const commands = new Map<string, () => Promise<void>>();
   const makeUri = (value: string): any => ({ scheme: new URL(value).protocol.slice(0, -1), fsPath: new URL(value).pathname,
-    toString: () => value });
+    path: decodeURIComponent(new URL(value).pathname), toString: () => value });
+  const workFolder = { uri: makeUri("test:///work"), name: "work", index: 0 };
   const document = { uri: makeUri("test:///work/readme.md"), fileName: "readme.md", isClosed: false, isUntitled: false,
     eol: 1, version: 1, getText: () => text };
   const panel: any = { active: true, viewColumn: 1, onDidDispose: closed.event, onDidChangeViewState: viewState.event,
@@ -200,7 +208,10 @@ async function host(initialText = "[site](https://example.test)") {
   let readTarget: () => Promise<any> = () => Promise.resolve({ uri: makeUri("test:///work/other.md") });
   const api: any = {
     Disposable, TabInputCustom, FilePermission: { Readonly: 1 }, EndOfLine: { LF: 1, CRLF: 2 }, WorkspaceEdit,
-    Uri: { parse: makeUri, joinPath: (base: any, ...parts: string[]) => ({ fsPath: path.join(base.fsPath, ...parts) }) },
+    Uri: { parse: makeUri, joinPath: (base: any, ...parts: string[]) => base.path === undefined
+      ? { fsPath: path.join(base.fsPath, ...parts) }
+      : makeUri(`${base.toString()}/${parts.map(part => encodeURIComponent(part)).join("/")}`) },
+    RelativePattern: class { constructor(public base: any, public pattern: string) {} },
     Position: class { constructor(public line: number, public character: number) {} },
     Range: class { constructor(public start: any, public end: any) {} },
     env: { openExternal: async (target: any) => { external.push(target.toString()); return true; } },
@@ -213,12 +224,23 @@ async function host(initialText = "[site](https://example.test)") {
       showTextDocument: async (target: any) => { shownDocuments.push(target); },
       tabGroups: { activeTabGroup: { activeTab: { input: new TabInputCustom(document.uri, "markdownLiveRenderTables.liveEditor") } } },
     },
-    commands: { registerCommand: (name: string, callback: () => Promise<void>) => { commands.set(name, callback); return new Disposable(); }, executeCommand: async () => {} },
+    commands: { registerCommand: (name: string, callback: () => Promise<void>) => { commands.set(name, callback); return new Disposable(); },
+      executeCommand: async (...args: any[]) => { executed.push(args); } },
     extensions: { onDidChange: () => new Disposable() },
     workspace: {
       fs: { isWritableFileSystem: () => true, stat: async () => ({ permissions: 0 }) },
       getConfiguration: () => ({ get: (key: string, fallback: unknown) => key === "markdownRendering.enabled" ? renderingEnabled : fallback }),
       onDidChangeTextDocument: changes.event, onDidChangeConfiguration: hub().event,
+      workspaceFolders: files ? [workFolder] : undefined, onDidChangeWorkspaceFolders: hub().event,
+      getWorkspaceFolder: (uri: any) => files && uri.toString().startsWith("test:///work/") ? workFolder : undefined,
+      findFiles: async () => {
+        listings++;
+        if (hangingListings) return new Promise(() => {});
+        if (failingListings > 0) { failingListings--; throw new Error("listing failed"); }
+        return (files ?? []).map(file => { const value = `test:///work/${file.split("/").map(encodeURIComponent).join("/")}`;
+          return { path: `/work/${file}`, toString: () => value }; });
+      },
+      createFileSystemWatcher: () => { watchers++; return { onDidCreate: created.event, onDidDelete: deleted.event, dispose: () => { watchers--; } }; },
       openTextDocument: (target: any) => { openedDocuments.push(target.toString()); return readTarget(); },
       applyEdit: async (edit: WorkspaceEdit) => {
         const offset = (point: any) => text.split("\n").slice(0, point.line).reduce((sum, line) => sum + line.length + 1, 0) + point.character;
@@ -231,7 +253,9 @@ async function host(initialText = "[site](https://example.test)") {
   const hostModule = { exports: {} as any };
   vm.runInNewContext(fs.readFileSync(entry, "utf8"), { module: hostModule, exports: hostModule.exports,
     __filename: entry, __dirname: path.dirname(entry), require: (name: string) => name === "vscode" ? api : require(name),
-    console, process, Buffer, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout }, { filename: entry });
+    console, process, Buffer, URL, TextEncoder, TextDecoder,
+    setTimeout: (callback: () => void) => { timers.set(nextTimer, callback); return nextTimer++; },
+    clearTimeout: (id: number) => { timers.delete(id); } }, { filename: entry });
   hostModule.exports.activate({ extensionUri: { fsPath: process.cwd() }, subscriptions: [] });
   await provider.resolveCustomTextEditor(document, panel);
   received.fire({ type: "ready" }); await flush();
@@ -244,7 +268,36 @@ async function host(initialText = "[site](https://example.test)") {
       requestId: 1, baseRevision: initial.revision, beforeText: text, from: target.from, to: target.to,
       activation: "command", ...overrides };
   };
-  return { panel, messages, external, openedDocuments, shownDocuments, errors, document, commands,
+  /** The live editors a link opened, as the URIs passed to `vscode.openWith`. */
+  const liveOpened = (): string[] => executed.filter(call => call[0] === "vscode.openWith").map(call => {
+    assert.equal(call[2], "markdownLiveRenderTables.liveEditor"); return call[1].toString();
+  });
+  const status = async (targets: string[], overrides: Record<string, unknown> = {}): Promise<any> => {
+    const requestId = 100 + messages.length;
+    received.fire({ type: "resolveWikiLinks", sessionToken: initial.editorOptions.clipboardDocumentToken, requestId, targets, ...overrides });
+    await flush();
+    return messages.find(message => message.type === "wikiLinkStatus" && message.requestId === requestId)?.statuses;
+  };
+  /** A second live editor of the same provider: for a note that is already open, or for this document again. */
+  const openSecond = async (uri: string, secondText: string) => {
+    const secondMessages: any[] = [], revealed: unknown[] = [];
+    const secondReceived = hub(), secondClosed = hub();
+    const secondDocument = uri === document.uri.toString() ? document
+      : { uri: makeUri(uri), fileName: uri, isClosed: false, isUntitled: false, eol: 1, version: 1, getText: () => secondText };
+    const secondPanel: any = { active: false, viewColumn: 2, onDidDispose: secondClosed.event, onDidChangeViewState: hub().event,
+      reveal: (...args: unknown[]) => { revealed.push(args); },
+      webview: { cspSource: "test:", asWebviewUri: (value: { fsPath: string }) => value.fsPath, onDidReceiveMessage: secondReceived.event,
+        postMessage: (message: unknown) => { secondMessages.push(message); return Promise.resolve(true); }, html: "" } };
+    await provider.resolveCustomTextEditor(secondDocument, secondPanel);
+    const html: string = secondPanel.webview.html;
+    return { document: secondDocument, messages: secondMessages, revealed, html, send: secondReceived.fire,
+      close: () => secondClosed.fire(undefined), token: /"clipboardDocumentToken":"([^"]+)"/.exec(html)?.[1] };
+  };
+  return { panel, messages, external, openedDocuments, shownDocuments, errors, document, commands, liveOpened, status, openSecond,
+    listings: () => listings, watchers: () => watchers, fileCreated: () => created.fire(undefined), fileDeleted: () => deleted.fire(undefined),
+    addFile: (file: string) => { files?.push(file); }, failListings: (count: number) => { failingListings = count; },
+    hangListings: (value: boolean) => { hangingListings = value; },
+    runTimers: async () => { for (const [id, callback] of Array.from(timers)) { timers.delete(id); callback(); } await flush(); },
     send: received.fire, request, close: () => closed.fire(undefined),
     setText: (value: string) => { text = value; document.version++; changes.fire({ document }); },
     setRenderingEnabled: (value: boolean) => { renderingEnabled = value; },
@@ -273,10 +326,25 @@ async function hostChecks() {
   }
   for (const source of ['[[other#Heading|Alias]]', '[heading](other.md#heading)']) {
     const value = await host(source);
-    value.deferTarget(async () => ({ getText: () => '# Heading\nbody\n' }));
+    value.deferTarget(async () => ({ uri: { toString: () => 'test:///work/other.md' }, getText: () => 'intro\n\n# Heading\nbody\n' }));
     value.send(value.request()); await flush();
     assert.deepEqual(value.openedDocuments, ['test:///work/other.md']);
-    assert.equal(value.shownDocuments.length, 1); assert.equal(value.messages.at(-1).ok, true); value.close();
+    assert.deepEqual(value.liveOpened(), ['test:///work/other.md'], "a note opens in the live editor");
+    assert.equal(value.shownDocuments.length, 0); assert.equal(value.messages.at(-1).ok, true); value.close();
+  }
+  {
+    const value = await host('[[other#Missing heading]]');
+    value.deferTarget(async () => ({ uri: { toString: () => 'test:///work/other.md' }, getText: () => '# Heading\n' }));
+    value.send(value.request()); await flush();
+    assert.equal(value.liveOpened().length, 0, "a note is not opened for a heading it does not have");
+    assert.equal(value.messages.at(-1).ok, false); assert.match(value.errors.at(-1) ?? "", /Missing heading/); value.close();
+  }
+  {
+    // Text and other files keep opening in the ordinary editor.
+    const value = await host("[settings](settings.json)");
+    value.deferTarget(async () => ({ uri: { toString: () => "test:///work/settings.json" } }));
+    value.send(value.request()); await flush();
+    assert.equal(value.liveOpened().length, 0); assert.equal(value.shownDocuments.length, 1); value.close();
   }
   {
     const value = await host(); const request = value.request(); value.send(request); value.send(request); await flush();
@@ -296,7 +364,8 @@ async function hostChecks() {
   {
     const value = await host("[other](other.md)"); value.send(value.request()); await flush();
     assert.deepEqual(value.openedDocuments, ["test:///work/other.md"]);
-    assert.equal(value.shownDocuments.length, 1); assert.equal(value.external.length, 0); value.close();
+    assert.deepEqual(value.liveOpened(), ["test:///work/other.md"]);
+    assert.equal(value.shownDocuments.length, 0); assert.equal(value.external.length, 0); value.close();
   }
   for (const change of ["hide", "dispose", "source", "sourceRoundtrip", "disable"] as const) {
     const value = await host("[other](other.md)"); let release!: (document: unknown) => void;
@@ -308,9 +377,225 @@ async function hostChecks() {
     else if (change === "disable") value.setRenderingEnabled(false);
     else value.setText("new source");
     release({ uri: "mock" }); await flush();
-    assert.equal(value.shownDocuments.length, 0, `${change} during remote read must not steal focus`);
+    assert.equal(value.shownDocuments.length + value.liveOpened().length, 0, `${change} during remote read must not steal focus`);
     if (change !== "dispose") value.close();
   }
-  console.log("Markdown link checks passed: parser/reference resolution, URI allowlist, modifiers, originating session, queued edits, and async focus ownership.");
+  await wikiVaultChecks();
+  console.log("Markdown link checks passed: parser/reference resolution, URI allowlist, modifiers, originating session, queued edits, async focus ownership, and wikilinks in a workspace folder.");
 }
+/** Wikilinks in a workspace folder: the folder's listing decides the file. */
+async function wikiVaultChecks() {
+  // Messages are built in the host's own context; compare them as data.
+  const reveals = (messages: any[]): unknown => JSON.parse(JSON.stringify(messages.filter(message => message.type === "revealSourcePosition")));
+  const vault = (): string[] => ["readme.md", "Alpha.md", "sub/Alpha.md", "sub/Deep Note.md", "sub/Beta.md", "other/Beta.md", "pic.png"];
+  // An editor showing wikilinks has asked about them, so the folder is listed
+  // before a link is followed. `listed` stands for that.
+  const listed = async (source: string, files = vault()) => { const value = await host(source, files); await value.status(["readme"]); return value; };
+  for (const [source, expected] of [
+    ["[[deep note]]", "test:///work/sub/Deep%20Note.md"],
+    ["[[Alpha]]", "test:///work/Alpha.md"],
+    ["[[sub/Alpha|the other one]]", "test:///work/sub/Alpha.md"],
+    ["[[Beta]]", "test:///work/other/Beta.md"],
+  ] as const) {
+    // No picker exists in this mock: a link that asked would throw.
+    const value = await listed(source);
+    value.deferTarget(async () => ({ uri: { toString: () => expected } }));
+    value.send(value.request()); await flush();
+    assert.deepEqual(value.openedDocuments, [expected], source);
+    assert.deepEqual(value.liveOpened(), [expected], source);
+    assert.equal(value.messages.at(-1).ok, true); value.close();
+  }
+  {
+    const value = await listed("[[Nope#Heading]]"); value.send(value.request()); await flush();
+    assert.equal(value.openedDocuments.length, 0, "a missing note is reported, and nothing is opened or created");
+    assert.equal(value.liveOpened().length, 0); assert.equal(value.messages.at(-1).ok, false);
+    assert.match(value.errors.at(-1) ?? "", /“Nope” was not found in this workspace folder/); value.close();
+  }
+  for (const source of ["[[../readme]]", "[[/sub/readme]]", "[[javascript:alert(1)]]"]) {
+    const value = await listed(source); value.send(value.request()); await flush();
+    assert.equal(value.openedDocuments.length + value.liveOpened().length + value.external.length, 0, source);
+    assert.equal(value.messages.at(-1).ok, false, source); value.close();
+  }
+  // VS Code turns [label](command:...) in a notification into a link that
+  // runs the command. Text from the document must never form one there.
+  for (const [source, words] of [
+    ["[[\\[Create this note](command:workbench.action.terminal.new)|Meeting notes]]", "Create this note"],
+    ["[[readme#\\[Run](command:workbench.action.terminal.new)]]\n\n# One\n", "Run"],
+    ["[[#\\[Run](https://example.test/x)]]\n\n# One\n", "Run"],
+  ] as const) {
+    const value = await listed(source); value.send(value.request()); await flush();
+    assert.equal(value.messages.at(-1).ok, false, source);
+    const shown = value.errors.at(-1) ?? "";
+    assert.ok(shown.includes(words), `the message carries the document's words: ${shown}`);
+    assert.doesNotMatch(shown, /[\[\]]/, `no link can form in: ${shown}`);
+    assert.equal(value.openedDocuments.length + value.liveOpened().length + value.external.length, 0, source); value.close();
+  }
+  {
+    // A very long name is not a very long notification.
+    const value = await listed(`[[${"long name ".repeat(40)}]]`); value.send(value.request()); await flush();
+    assert.ok((value.errors.at(-1) ?? "").length < 200); value.close();
+  }
+  for (const source of ["[[#Two]]\n\n# One\n\n## Two\n", "[down](#two)\n\n# One\n\n## Two\n", "[[readme#Two]]\n\n# One\n\n## Two\n"]) {
+    // A link into the note it is written in moves the caret; no editor opens.
+    const value = await listed(source); value.send(value.request()); await flush();
+    assert.deepEqual(reveals(value.messages), [{ type: "revealSourcePosition", position: { line: 4, character: 0 } }], source);
+    assert.equal(value.openedDocuments.length + value.liveOpened().length + value.shownDocuments.length, 0, source);
+    assert.equal(value.messages.at(-1).ok, true); value.close();
+  }
+  {
+    const value = await listed("[[#Absent]]\n\n# One\n"); value.send(value.request()); await flush();
+    assert.equal(value.messages.some(message => message.type === "revealSourcePosition"), false);
+    assert.equal(value.messages.at(-1).ok, false); value.close();
+  }
+  {
+    // A link to a heading of this note names no file: the folder is not listed for it.
+    const value = await host("[[#Two]]\n\n# One\n\n## Two\n", vault()); value.send(value.request()); await flush();
+    assert.equal(value.listings(), 0);
+    assert.deepEqual(reveals(value.messages), [{ type: "revealSourcePosition", position: { line: 4, character: 0 } }]);
+    assert.equal(value.messages.at(-1).ok, true); value.close();
+  }
+  {
+    // Nothing waits for the first listing: edits queue behind a link request.
+    // A note that is not beside the linking one cannot be found yet, and says so.
+    const value = await host("[[deep note]]", vault());
+    let reads = 0;
+    value.deferTarget(() => reads++ === 0 ? Promise.reject(new Error("no such file"))
+      : Promise.resolve({ uri: { toString: () => "test:///work/sub/Deep%20Note.md" } }));
+    value.send(value.request());
+    const beforeText = value.document.getText();
+    value.send({ type: "change", changeId: 1, beforeText, text: `x${beforeText}`, changes: [{ from: 0, to: 0, text: "x" }], baseRevision: value.request().baseRevision });
+    await flush();
+    assert.equal(value.liveOpened().length, 0, "the link is not followed before the folder is listed");
+    assert.match(value.errors.at(-1) ?? "", /still being listed/);
+    assert.equal(value.document.getText(), `x${beforeText}`, "the edit behind the request was applied");
+    value.send(value.request({ requestId: 2, beforeText: value.document.getText() })); await flush();
+    assert.deepEqual(value.liveOpened(), ["test:///work/sub/Deep%20Note.md"], "the same link opens once the folder is listed"); value.close();
+  }
+  {
+    // A note beside the linking one opens before the folder is listed, as it does outside a folder.
+    const value = await host("[[Alpha]]", vault());
+    value.deferTarget(async () => ({ uri: { toString: () => "test:///work/Alpha.md" } }));
+    value.send(value.request()); await flush();
+    assert.deepEqual(value.openedDocuments, ["test:///work/Alpha.md"]);
+    assert.deepEqual(value.liveOpened(), ["test:///work/Alpha.md"]); value.close();
+  }
+  {
+    // A file search that never answers parks nothing: links beside the note
+    // open, edits apply, the search is given up and tried again, and when one
+    // works the editor is told to ask about its links again.
+    const value = await host("[[Alpha]]", vault());
+    value.hangListings(true);
+    assert.equal(await value.status(["Alpha"]), undefined, "no answer while the search hangs");
+    value.deferTarget(async () => ({ uri: { toString: () => "test:///work/Alpha.md" } }));
+    value.send(value.request());
+    const beforeText = value.document.getText();
+    value.send({ type: "change", changeId: 1, beforeText, text: `x${beforeText}`, changes: [{ from: 0, to: 0, text: "x" }], baseRevision: value.request().baseRevision });
+    await flush();
+    assert.deepEqual(value.liveOpened(), ["test:///work/Alpha.md"]);
+    assert.equal(value.document.getText(), `x${beforeText}`, "the edit behind the request was applied");
+    const answers = (): unknown[] => value.messages.filter(message => message.type === "wikiLinkStatus").map(message => Array.from(message.statuses));
+    const notices = (): number => value.messages.filter(message => message.type === "wikiLinksChanged").length;
+    await value.runTimers();
+    assert.deepEqual(answers(), [[null]], "giving up on the search answers: not known");
+    assert.equal(notices(), 0);
+    value.hangListings(false);
+    await value.runTimers();
+    assert.equal(notices(), 1, "a listing that works after one that did not is news");
+    assert.deepEqual(Array.from(await value.status(["Alpha", "Nope"])), [true, false]); value.close();
+  }
+  {
+    // A note that is already open in a live editor is shown, at the heading.
+    const value = await listed("[[Alpha#Two]]");
+    const open = await value.openSecond("test:///work/Alpha.md", "# One\n\n## Two\n");
+    value.deferTarget(async () => open.document);
+    value.send(value.request()); await flush();
+    assert.equal(open.revealed.length, 1); assert.equal(value.liveOpened().length, 0);
+    assert.deepEqual(reveals(open.messages), [{ type: "revealSourcePosition", position: { line: 2, character: 0 } }]);
+    assert.equal(value.messages.at(-1).ok, true); value.close();
+  }
+  {
+    // A note that was not open is told where to start: the editor that opens for it begins at the heading.
+    const value = await listed("[[Alpha#Two]]");
+    value.deferTarget(async () => ({ uri: { toString: () => "test:///work/Alpha.md" }, getText: () => "# One\n\ntext\n\n## Two\n" }));
+    value.send(value.request()); await flush();
+    assert.deepEqual(value.liveOpened(), ["test:///work/Alpha.md"]);
+    const opened = await value.openSecond("test:///work/Alpha.md", "# One\n\ntext\n\n## Two\n");
+    assert.ok(opened.html.includes('window.__MLRT_INITIAL_VIEW_STATE__ = {"top":{"line":4,"character":0},"anchor":{"line":4,"character":0},"head":{"line":4,"character":0}}'),
+      "the opened editor starts at the heading");
+    value.close();
+  }
+  {
+    const value = await host("[[Alpha]]", vault());
+    const bystander = await value.openSecond("test:///work/sub/Beta.md", "# Beta\n");
+    assert.equal(value.listings(), 0, "the folder is not listed until a wikilink needs it");
+    assert.deepEqual(Array.from(await value.status(["Alpha", "ALPHA#Any heading", "Nope", "sub/Deep Note", "pic.png", "pic", "New note"])),
+      [true, true, false, true, true, false, false]);
+    assert.equal(await value.status(["Alpha"], { sessionToken: "foreign" }), undefined, "another session gets no answer");
+    assert.equal(await value.status([]), undefined); assert.equal(value.listings(), 1); assert.equal(value.watchers(), 1);
+    const notices = (): number => value.messages.filter(message => message.type === "wikiLinksChanged").length;
+    // File events that leave the names as they were are not news.
+    value.fileCreated(); value.fileDeleted(); await value.runTimers();
+    assert.equal(value.listings(), 2); assert.equal(notices(), 0, "an unchanged listing tells the editor nothing");
+    // A created file is seen after one more listing, and the editor is told once.
+    value.addFile("notes/New note.md"); value.fileCreated(); value.fileCreated(); value.fileDeleted();
+    assert.equal(notices(), 0);
+    await value.runTimers();
+    assert.equal(value.listings(), 3, "several file events are one listing");
+    assert.equal(notices(), 1);
+    assert.equal(bystander.messages.some(message => message.type === "wikiLinksChanged"), false, "an editor that never asked is not told");
+    assert.deepEqual(Array.from(await value.status(["New note"])), [true]);
+    value.close(); assert.equal(value.watchers(), 0, "a folder no editor uses is no longer watched");
+    value.fileCreated(); await value.runTimers(); assert.equal(value.listings(), 3);
+  }
+  {
+    // Two editors of one document: closing the older one keeps the folder watched for the newer.
+    const value = await listed("[[Alpha]]");
+    const newer = await value.openSecond("test:///work/readme.md", "");
+    assert.ok(newer.token);
+    newer.send({ type: "resolveWikiLinks", sessionToken: newer.token, requestId: 1, targets: ["Alpha"] }); await flush();
+    assert.equal(newer.messages.filter(message => message.type === "wikiLinkStatus").length, 1);
+    value.close();
+    assert.equal(value.watchers(), 1, "the newer editor still uses the folder");
+    newer.close(); assert.equal(value.watchers(), 0);
+  }
+  {
+    // A listing that was cut off cannot say a note is missing: the link is
+    // looked up beside the note instead, and its link is not dimmed.
+    const many = Array.from({ length: 50_001 }, (_, index) => `bulk/f${index}.txt`).concat("Sibling.md");
+    const value = await host("[[Sibling]]", many);
+    assert.deepEqual(Array.from(await value.status(["Sibling", "bulk/f1.txt"])), [null, true]);
+    value.deferTarget(async () => ({ uri: { toString: () => "test:///work/Sibling.md" } }));
+    value.send(value.request()); await flush();
+    assert.deepEqual(value.openedDocuments, ["test:///work/Sibling.md"]);
+    assert.deepEqual(value.liveOpened(), ["test:///work/Sibling.md"]);
+    // A note that is neither listed nor beside the linking one is reported for what is known.
+    value.deferTarget(() => Promise.reject(new Error("no such file")));
+    value.send(value.request({ requestId: 2 })); await flush();
+    assert.match(value.errors.at(-1) ?? "", /“Sibling” was not found beside this note or among the files/); value.close();
+  }
+  {
+    // A listing that fails says so, is tried again by itself, and then tells
+    // the editor to ask about its links again.
+    const value = await host("[[deep note]]", vault());
+    value.failListings(1);
+    assert.deepEqual(Array.from(await value.status(["deep note"])), [null]);
+    value.deferTarget(() => Promise.reject(new Error("no such file")));
+    value.send(value.request()); await flush();
+    assert.match(value.errors.at(-1) ?? "", /still being listed/);
+    const notices = (): number => value.messages.filter(message => message.type === "wikiLinksChanged").length;
+    assert.equal(notices(), 0);
+    await value.runTimers();
+    assert.equal(value.listings(), 2, "the failed listing was tried again");
+    assert.equal(notices(), 1, "an editor that was answered: not known, is told when a listing works");
+    assert.deepEqual(Array.from(await value.status(["deep note"])), [true]);
+    value.close();
+  }
+  {
+    // Outside a workspace folder nothing is listed and nothing is known.
+    const value = await host("[[other]]");
+    assert.deepEqual(Array.from(await value.status(["other", "Nope"])), [null, null]);
+    assert.equal(value.listings(), 0); assert.equal(value.watchers(), 0); value.close();
+  }
+}
+
 void hostChecks().catch(error => { console.error(error); process.exitCode = 1; });

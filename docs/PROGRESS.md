@@ -4,23 +4,26 @@ Updated: 2026-11-16.
 
 ## Actual repository state
 
-- Git: branch `main`, the only branch, with a remote. Milestones 1 to 7 below are committed;
-  milestone 7 is not pushed. The history was rewritten on 2026-11-13 (milestone 4), so every
-  commit hash cited in these documents is the one in use after that rewrite.
-- Product source differs from 047e615 in four places: the list-nesting fix of milestone 3, the
-  save race fix of milestone 5, the corrections of milestone 6, and find, replace and multiple
-  cursors in milestone 7. The extension version is a build counter: `Build_and_Install` raises
-  it on every run. The installed version is 0.1.241.
+- Git: branch `main`, the only branch, with a remote. Milestones 1 to 8 below are committed;
+  milestone 8 is not pushed. The history was rewritten on 2026-11-13 (milestone 4), so
+  every commit hash cited in these documents is the one in use after that rewrite.
+- Product source differs from 047e615 in five places: the list-nesting fix of milestone 3, the
+  save race fix of milestone 5, the corrections of milestone 6, find, replace and multiple
+  cursors in milestone 7, and wikilinks in a workspace folder in milestone 8. The extension
+  version is a build counter: `Build_and_Install` raises it on every run. The installed version
+  is 0.1.246, the committed tree.
 - Layout: source and unit tests in `src/`, shipped assets in `media/`, scripts in `scripts/`,
   frozen fixtures in `test/fixtures/`, hand-testing documents in `samples/`, all project
   documents under `docs/`, agent tooling in `.claude/`. `qa/` and `dist/` are local output.
 - Gates that pass: unit tests; the visual, structure-control, toggle, save-and-typing,
-  editing-surface, find, rendering and whole-surface release host checks; the documentation and privacy checks; the agent tooling
-  tests; and the install. Two host runs are not gates: the preview-only run, which reports a
+  editing-surface, find, wikilink, rendering and whole-surface release host checks; the
+  documentation and privacy checks; the agent tooling tests; and the install. On macOS the
+  rendering, release and find checks fail for reasons recorded in TESTING, not the editor's. Two host runs are not gates: the preview-only run, which reports a
   console warning, and the code-highlighting check, which times out on some runs. See
   [TESTING](TESTING.md).
 - There is no lint configuration and no CI.
-- Checked with Node.js 24, npm 11 and VS Code 1.146 on Windows.
+- Checked with Node.js 24, npm 11 and VS Code 1.146 on Windows. Milestone 8 was checked on
+  macOS with the same versions.
 
 ## Milestone 1: agent framework (2026-11-13)
 
@@ -562,8 +565,164 @@ passed twice on its own and once inside the second run. That is one failure in f
 the same tree. It was not reproduced, its cause is not established, and it has not been run
 on the tree before this milestone, so it is recorded as open, not as pre-existing.
 
+## Milestone 8: wikilinks in a workspace folder (2026-11-16)
+
+Decision A31, its first step. Behavior is in the [README](../README.md#wikilinks) and section 6
+of the [design spec](DESIGN_SPEC.md); the code map and the messages are in
+[ARCHITECTURE](ARCHITECTURE.md#wikilinks). The later steps are P12.
+
+**Lookup.** Inside a workspace folder a wikilink is looked up in a listing of that folder's file
+names: without regard to case, with `.md` optional, by the path from the folder's root first,
+then from the linking note's folder, then as the end of any longer path. `./`, `../` and a
+leading `/` are exact. Several notes of one name open one by rule, and the picker is gone. A
+path cannot leave the folder. The lookup is a pure function over a list of paths.
+
+**The listing.** The host makes it with one file search when a live editor first shows or
+follows a wikilink, holds it in memory, makes it again after files are created or deleted, and
+drops it with its watcher when the last editor that used the folder closes. Nothing is written
+to disk for it, and no note is read until a link to it is followed.
+
+**Dimming.** A wikilink whose note is not in the listing is drawn at 70% opacity. The webview
+asks the host about the links in view and paints only definite answers. Creating the note
+lights the link and deleting it dims the link again, without the document being touched.
+
+**Opening.** A link to a Markdown file, wikilink or ordinary, opens in the live editor at the
+heading or block it names, in VS Code's preview tab. An editor that is already open for the
+note is shown and moved there. A link into the note it is written in moves the caret and opens
+nothing. Other files open in the ordinary editor as before.
+
+**Two defects were found and corrected before this was finished.**
+
+- Document text reached a notification. VS Code turns `[label](command:...)` in a notification
+  into a link that runs the command, and a wikilink's name, or the heading of any link, was
+  shown there as written. Square brackets and backslashes are now removed from such text. The
+  heading case existed before this milestone.
+- The command that opens a custom editor does not settle while VS Code replaces a preview tab.
+  The host awaited it inside the edit queue, so after one link opened over a preview tab, no
+  later edit or link of the note it was followed from was handled. The host no longer waits
+  for that command, and never waits for a folder listing either.
+
+**Choices made while building, each an agent's judgment:** the order among same-named notes
+when none is at the root or beside the linking note, which is nearest the root and then
+alphabetical (Q12); a bare name is a note before a file with no extension, and a name written
+with an extension is that file first; folders that begin with a dot are listed and
+`node_modules` is not; the limit of 50,000 files, beyond which a missing name is unknown, not
+absent; the opacity; a link followed before the first listing has finished reports that and is
+followed again; ordinary Markdown links to notes open the live editor as wikilinks do; outside
+a workspace folder the earlier lookup beside the file remains.
+
+### Verification
+
+macOS, VS Code 1.146, Node.js 24. The commit before this milestone was built in a separate
+directory and run through the same host checks for comparison.
+
+- `npm test`: exit 0. The runner reports 48 tests, none failing: 33 test files, with the
+  sixteen cases of the new `src/test/wikiLinkResolution.test.ts` counted singly. Both bundle
+  checks pass. The thirteen lookup cases were written first and eleven failed against an empty
+  implementation; the three notification cases failed against the unfixed host; the cases for
+  a listing that works after a failed one, and for answers that stay painted, fail when those
+  two rules are taken out.
+- `node scripts/edh-wikilink-check.mjs`: exit 0, 12 of 12 sections, on the final tree. The
+  section that watches for a dimmed link lighting up fails when the earlier answers are
+  dropped before the new ones arrive. Its
+  screenshots were opened: two missing links dimmed among six that are not, the same note
+  scrolled to its far heading, and another note opened in the live editor with the heading at
+  the top.
+- `node scripts/edh-visual-check.mjs`: exit 0, the same 69 check lines as the commit before,
+  none failing. `qa/edh-stock.png` and `qa/edh-live.png` were opened: the first line, the
+  gutter numbers and both tables are where the stock editor has them.
+- `node scripts/edh-markdown-rendering-check.mjs`: exit 1, 24 of 25.
+  `node scripts/edh-markdown-release-check.mjs`: exit 1, 16 of 17. Each fails the one check
+  that expects the Windows line height, with the same pass and fail names as the commit
+  before: see "On macOS" in [TESTING](TESTING.md#on-macos-recorded-2026-11-16).
+- `node scripts/edh-markdown-release-check.mjs --live-preview-only`: exit 1 with 15 of 15
+  checks and the one console warning of Q10 on three runs, two of them before the last round
+  of corrections. Two other runs on the final tree failed 4 and 6 checks, different ones each
+  time; the commit before, run between them, failed 2. The failures move from run to run and
+  occur without this change; they are not explained. See "On macOS" in TESTING.
+- `node scripts/edh-structure-controls-check.mjs`, `node scripts/edh-toggle-check.mjs`,
+  `node scripts/edh-save-sync-check.mjs`, `node scripts/edh-editing-surface-check.mjs`: each
+  exit 0. The toggle check ran again on the final tree; the other three ran before the last
+  round of corrections, which changed the host's link path and the folder listing. `node scripts/edh-find-check.mjs`: exit 1 before its first section, the same on the
+  commit before: on macOS it types its query into the document (see "On macOS" in TESTING).
+- `npm run check:docs`, `npm run check:privacy`, `npm run test:agent`: each exit 0; 42 of 42 agent
+  tooling tests.
+- `Build_and_Install`: installed 0.1.245 and verified the installed payload.
+
+Harness and environment, not the editor:
+
+- The first run of the visual check stalled after its geometry checks and was stopped. Run
+  again it passed, as did the commit before. A covered test window draws no animation frames.
+- The release check's helper reconnected to the wrong editor once a followed link opened a
+  second live editor, which failed five later checks. The helper now closes the link's editor
+  first. One section of the wikilink check read a notification only from its toast and now
+  reads the status bar as well.
+
+Not run: the code-highlighting check. `npm run test:all` was not run as one command, because
+on macOS it stops at the find check; each of its parts was run. Not exercised:
+Windows, a multi-root workspace, a remote or virtual folder, a folder above the file limit in
+a real window (covered by a unit case with mocked VS Code APIs), an input method, a screen
+reader, and themes other than the default dark one.
+
+### Review (2026-11-16)
+
+The `invariant-reviewer` read the first version of this milestone and found no write to the
+document, no Undo, table-source or geometry problem, and no new reach for a link: in a folder
+a wikilink opens fewer files than before. It reported six defects, all corrected before the
+verification above:
+
+- Document text in a notification could form a link that runs a command. Corrected as
+  described above, with unit cases for a note name and for two headings.
+- The first folder listing was awaited inside the edit queue with no bound. Nothing waits for a
+  listing now.
+- A listing that was cut off or had failed refused notes that exist. A cut-off listing now
+  falls back to the lookup beside the note, and a failed one is tried again.
+- Any file event told every live editor to forget its answers, so dimmed links lit up for a
+  moment, and listings could overlap. A listing that changes no name now tells nobody, only the
+  editors that use the folder are told, the earlier answers stay painted until replaced, and
+  one listing runs at a time.
+- Two editors of one document shared one key, so closing the older one stopped the folder
+  being watched for the newer. Each editor now has its own key.
+- A dropped answer left its targets never asked again. An answer now names its own targets.
+
+It also expected a followed link to add a permanent tab each time. In a real window the link
+replaces the preview tab, as the host check's tab list shows.
+
+It then read the corrections. Four findings were resolved and two partly; what remained was
+corrected as well:
+
+- A file search that never answers left a folder "still being listed" for ever and refused
+  notes that the earlier lookup opened. A search is now given up after thirty seconds and tried
+  again with a growing delay, and before any listing exists a note beside the linking note
+  opens as it does outside a folder.
+- After a first listing that failed, the links an editor had asked about were never dimmed. A
+  listing that works after one that did not now tells the editors to ask again.
+- The ordinary editor was still opened with a wait inside the edit queue. A real window showed
+  no harm from it (the new section of the host check passes with the wait in place), and the
+  wait was removed all the same, so that no call that opens an editor is waited for there.
+- Four tests proved less than they claimed. The notification cases now require the document's
+  words in the message; the failed-listing case requires the notice and no longer asks by
+  hand; the answers an editor keeps moved into a class with its own cases; a section of the
+  host check watches every state of the document's DOM for a dimmed link that lights up.
+
+Left as they are, with no way found to reach them: a request is answered as followed before
+the other editor exists, and a start position set for a note that never opens stays until that
+note is next opened.
+
 ## Known gaps and findings
 
+- **An editor opened by a link does not have the keyboard.** The note is shown at the right
+  place, but its text takes no keys until it is clicked: the wikilink check reports the opened
+  editor as not focused. The same is true of any live editor when it first opens (milestone 8).
+- **Two facts about Obsidian are unconfirmed** (Q12, Q13): which of several same-named notes it
+  opens when none is at the root or beside the linking note, and how it shows a heading link
+  at rest. The editor's order in the first case is its own (milestone 8).
+- **On macOS three host checks fail for reasons that are not the editor's**: two expect the
+  Windows line height, and the find check uses a Windows key. See "On macOS" in
+  [TESTING](TESTING.md) and Q07. `npm run test:all` therefore cannot pass on macOS yet.
+- **A view state set for a note that never opens stays** until that note is next opened in the
+  live editor, which then starts at that position once (milestone 8). No way to reach this was
+  found; the toggle has the same pattern.
 - **Find opens over the first lines.** The stock editor moves the first lines of a document
   down while its find widget is open at the top; this editor does not, so the widget covers
   the right end of the first two lines there (milestone 7).
@@ -616,6 +775,11 @@ on the tree before this milestone, so it is recorded as open, not as pre-existin
 - **The README screenshot is the only image.** It shows the dark theme.
 
 ## Next steps
+
+From milestone 8: use wikilinks in a real folder of notes. Answer Q12 and Q13 by looking in
+Obsidian. Then decide on the steps of P12, one at a time: suggestions while typing `[[`,
+creating a missing note and updating links on rename (both write files), and links in table
+cells.
 
 From milestone 7: try find, replace and multiple cursors in daily use, and decide whether the
 widget should move the first lines down as the stock one does, whether the occurrence commands

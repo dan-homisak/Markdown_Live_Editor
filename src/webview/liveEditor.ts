@@ -4,6 +4,7 @@ import {
   ChangeSet,
   EditorSelection,
   EditorState,
+  Extension,
   StateEffect,
   Transaction,
 } from "@codemirror/state";
@@ -37,11 +38,15 @@ import {
   createMarkdownLinkExtensions, markdownLinksCompartment,
   MarkdownLinkIntent, MarkdownLinkOptions, openMarkdownLinkAtCaret, markdownLinkDiagnostics,
 } from "../editor/markdown/markdownLinks";
+import {
+  applyWikiLinkStatus, createWikiLinkStatusExtension, invalidateWikiLinkStatus,
+} from "../editor/markdown/markdownWikiLinkStatus";
 import { markdownListLine } from "../editor/markdown/markdownListEditing";
 import { markdownPreviewField } from "../editor/markdown/markdownLivePreview";
 import { createVscodeCodeHighlighting } from "../editor/markdown/vscodeCodeHighlighting";
 import { InitialCodeHighlighting } from "../shared/codeHighlighting";
 import { MarkdownOpenLinkRequest } from "../shared/markdownLinkValidation";
+import { isRevealSourcePositionMessage, isWikiLinkStatusResult, WikiLinkStatusRequest } from "../shared/wikiLinkStatus";
 import {
   tableNavigationModifierCompartment,
   tableNavigationModifierFacet,
@@ -214,6 +219,9 @@ let view: EditorView;
 let lastTableCellCommit: TableCellCommitDetail | null = null;
 let nextWebviewChangeId = 1;
 let nextMarkdownLinkRequestId = 1;
+let nextWikiLinkStatusRequestId = 1;
+// Answers to requests older than this describe the folder before its files changed.
+let firstCurrentWikiLinkStatusRequestId = 1;
 let hostDocumentApplyToken = 0;
 // Raised to drop the table cell focus requests that are waiting for a render.
 let tableCellFocusGeneration = 0;
@@ -302,10 +310,7 @@ try {
       extensions: [
         ...editorExtensions,
         codeHighlighting.extension,
-        markdownLinksCompartment.of(createMarkdownLinkExtensions(
-          { ...editorOptions.markdownLinks, enabled: editorOptions.markdownRendering.enabled },
-          postMarkdownLinkIntent,
-        )),
+        markdownLinksCompartment.of(markdownLinkExtensions()),
         EditorView.updateListener.of((update) => {
           if (
             update.docChanged &&
@@ -585,6 +590,21 @@ function handleHostMessage(event: MessageEvent<unknown>): void {
         if (!focusMarkdownTask(view)) explainTaskFocusFallback(view);
       }
     }
+    return;
+  }
+  if (isWikiLinkStatusResult(message)) {
+    // The answer names its own targets, so none can be left waiting for one.
+    if (message.requestId >= firstCurrentWikiLinkStatusRequestId) applyWikiLinkStatus(view, message.targets, message.statuses);
+    return;
+  }
+  if (message && typeof message === "object" && "type" in message && message.type === "wikiLinksChanged") {
+    // Answers still on their way describe the files as they were.
+    firstCurrentWikiLinkStatusRequestId = nextWikiLinkStatusRequestId;
+    invalidateWikiLinkStatus(view);
+    return;
+  }
+  if (isRevealSourcePositionMessage(message)) {
+    revealSourcePosition(message.position);
     return;
   }
   if (isHostSetEditorOptionsMessage(message)) {
@@ -930,6 +950,48 @@ function postEditorCommand(command: EditorCommandMessage["command"]): void {
     beforeText: view.state.doc.toString(),
     baseRevision: hostRevision,
   } satisfies EditorCommandMessage);
+}
+
+/** Opening links, and dimming the wikilinks whose note does not exist. */
+function markdownLinkExtensions(): Extension {
+  const enabled = editorOptions.markdownRendering.enabled;
+  return [
+    createMarkdownLinkExtensions({ ...editorOptions.markdownLinks, enabled }, postMarkdownLinkIntent),
+    // An unsaved document is in no folder, so nothing can be asked about it.
+    createWikiLinkStatusExtension({
+      enabled: enabled && editorOptions.markdownLinks.documentUri !== null,
+      request: requestWikiLinkStatus,
+    }),
+  ];
+}
+
+function requestWikiLinkStatus(targets: readonly string[]): void {
+  vscode.postMessage({
+    type: "resolveWikiLinks", sessionToken: editorOptions.clipboardDocumentToken,
+    requestId: nextWikiLinkStatusRequestId++, targets: [...targets],
+  } satisfies WikiLinkStatusRequest);
+}
+
+/** A link into this note was followed: put the caret at its heading or block. */
+function revealSourcePosition(position: EditorSourcePosition): void {
+  const doc = view.state.doc;
+  const line = doc.line(Math.min(doc.lines, position.line + 1));
+  const offset = line.from + Math.min(line.length, position.character);
+  const scroll = (): StateEffect<unknown> => EditorView.scrollIntoView(offset, { y: "start", yMargin: 0 });
+  // Text that is being composed keeps its caret; the view still moves.
+  if (editorCompositionActive || view.compositionStarted || view.composing) {
+    view.dispatch({ effects: scroll() });
+    return;
+  }
+  blurActiveTableCell();
+  view.dispatch({ selection: EditorSelection.cursor(offset), effects: scroll() });
+  view.focus();
+  // As when an editor opens at a position: the table selection guard may
+  // move a caret out of table source first, and must not undo the scroll.
+  queueMicrotask(() => {
+    view.dispatch({ effects: scroll() });
+    restoreInitialTableRow(position.line);
+  });
 }
 
 function postMarkdownLinkIntent(intent: MarkdownLinkIntent): void {
@@ -1408,9 +1470,7 @@ function updateEditorOptions(value: unknown): void {
       createOccurrenceHighlight(editorOptions.occurrenceHighlight),
     ));
   }
-  if (linksChanged) effects.push(markdownLinksCompartment.reconfigure(createMarkdownLinkExtensions(
-    { ...editorOptions.markdownLinks, enabled: editorOptions.markdownRendering.enabled }, postMarkdownLinkIntent,
-  )));
+  if (linksChanged) effects.push(markdownLinksCompartment.reconfigure(markdownLinkExtensions()));
   const markdownOptions = effectiveMarkdownRenderingOptions(editorOptions);
   if (
     markdownOptions.enabled !== appliedMarkdownRenderingOptions.enabled ||
