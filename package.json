@@ -2,7 +2,7 @@
   "name": "markdown-live-render-tables",
   "displayName": "Markdown Live Editor",
   "description": "Obsidian-style live preview and spreadsheet-like table editing for Markdown files in VS Code.",
-  "version": "0.1.241",
+  "version": "0.1.242",
   "publisher": "dan-homisak",
   "license": "MIT",
   "repository": {
